@@ -1,256 +1,928 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UX audit: sign-in and account security (2026-10-11)</title>
-<style>
-  :root { --ink:#1a1f1d; --muted:#5b6560; --line:#d9dedb; --bg:#fbfbf9; --soft:#f1f3f0; --warn:#8a3b12; }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
-  main { max-width:1100px; margin:0 auto; }
-  h1 { font-size:26px; margin:0 0 4px; }
-  h2 { font-size:19px; margin:40px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
-  p, li { max-width:75ch; }
-  .meta { color:var(--muted); margin:0 0 20px; }
-  table { border-collapse:collapse; width:100%; font-size:13.5px; display:block; overflow-x:auto; }
-  th, td { border:1px solid var(--line); padding:6px 8px; text-align:left; vertical-align:top; min-width:70px; }
-  th { background:var(--soft); }
-  td.wide { min-width:230px; }
-  .v { font-weight:600; }
-  .tag { font-size:12px; color:var(--muted); }
-  .sev-errors { color:var(--warn); font-weight:600; }
-  img { max-width:100%; height:auto; border:1px solid var(--line); display:block; }
-  figure { margin:12px 0; max-width:640px; }
-  figure.phone { max-width:260px; }
-  figcaption { font-size:13px; color:var(--muted); margin-top:4px; }
-  .grid { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
-  code { background:var(--soft); padding:1px 4px; border-radius:3px; font-size:13px; }
-</style>
-</head>
-<body>
-<main>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: sign-in and account security (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #1a1f1d;
+        --muted: #5b6560;
+        --line: #d9dedb;
+        --bg: #fbfbf9;
+        --soft: #f1f3f0;
+        --warn: #8a3b12;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      p,
+      li {
+        max-width: 75ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13.5px;
+        display: block;
+        overflow-x: auto;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+        min-width: 70px;
+      }
+      th {
+        background: var(--soft);
+      }
+      td.wide {
+        min-width: 230px;
+      }
+      .v {
+        font-weight: 600;
+      }
+      .tag {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .sev-errors {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        display: block;
+      }
+      figure {
+        margin: 12px 0;
+        max-width: 640px;
+      }
+      figure.phone {
+        max-width: 260px;
+      }
+      figcaption {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      code {
+        background: var(--soft);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sign-in and account security</h1>
+      <p class="meta">
+        UX audit, 2026-10-11. Hosted staging, <code>main</code> 4b15c30.
+        Persona: a Front Desk receptionist starting a shift on a shared desk PC
+        (sometimes a phone), and the Owner who should turn on two-factor. Mode:
+        audit only, nothing persisted.<br />
+        Surfaces: <code>/{en,tr,ar}/sign-in</code>, signed-out root and deep
+        links, the account menu, <code>/en/security</code> (two-factor
+        panel).<br />
+        Labels: <em>verified</em> = I saw it in the running app;
+        <em>inferred</em> = read in code or docs, not run; <em>unknown</em> =
+        could not find out.
+      </p>
 
-<h1>Sign-in and account security</h1>
-<p class="meta">UX audit, 2026-10-11. Hosted staging, <code>main</code> 4b15c30. Persona: a Front Desk receptionist starting a shift on a shared desk PC (sometimes a phone), and the Owner who should turn on two-factor. Mode: audit only, nothing persisted.<br>
-Surfaces: <code>/{en,tr,ar}/sign-in</code>, signed-out root and deep links, the account menu, <code>/en/security</code> (two-factor panel).<br>
-Labels: <em>verified</em> = I saw it in the running app; <em>inferred</em> = read in code or docs, not run; <em>unknown</em> = could not find out.</p>
+      <h2>1. Verdict</h2>
+      <p>
+        <b
+          >The sign-in itself is good; the session around it is not finished.</b
+        >
+        A receptionist can sign in unaided in about half a second of server
+        time, on a phone too, in all three languages, with clear error copy
+        (verified). The biggest risk is the shared desk PC: there is no sign-out
+        control anywhere (verified on desktop and 375 px), sessions last about a
+        week and extend on use (inferred, OA-NB-03), so the next person at the
+        desk is the previous person, and every action is attributed to them. The
+        Owner can find Security in two clicks from the avatar, but nothing
+        points them to it, and the two-factor enrolment will be hard to complete
+        on a desktop (setup key only, no QR) and risky to complete (backup codes
+        are shown once with no way to save them, and no self-service recovery
+        exists). A session that ends mid-task, or a deep link opened while
+        signed out, drops you on a bare "Welcome back" with no explanation and
+        no return to where you were (deep link verified; expiry inferred).
+      </p>
 
-<h2>1. Verdict</h2>
-<p><b>The sign-in itself is good; the session around it is not finished.</b> A receptionist can sign in unaided in about half a second of server time, on a phone too, in all three languages, with clear error copy (verified). The biggest risk is the shared desk PC: there is no sign-out control anywhere (verified on desktop and 375 px), sessions last about a week and extend on use (inferred, OA-NB-03), so the next person at the desk is the previous person, and every action is attributed to them. The Owner can find Security in two clicks from the avatar, but nothing points them to it, and the two-factor enrolment will be hard to complete on a desktop (setup key only, no QR) and risky to complete (backup codes are shown once with no way to save them, and no self-service recovery exists). A session that ends mid-task, or a deep link opened while signed out, drops you on a bare "Welcome back" with no explanation and no return to where you were (deep link verified; expiry inferred).</p>
+      <h2>2. Findings</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Where</th>
+            <th class="wide">What happened</th>
+            <th class="wide">What I expected</th>
+            <th class="wide">Suggested fix</th>
+            <th>Effort</th>
+            <th>Evidence</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>SIGN-01</td>
+            <td class="sev-errors">causes errors</td>
+            <td>Account menu, any page, Front Desk, desktop and 375 px</td>
+            <td>
+              The account menu contains one item, Security. No Sign out anywhere
+              in the app. Session lifetime is Better Auth's default, about a
+              week, extended on use; no idle timeout (OA-NB-03). On a shared
+              desk PC the next shift is already signed in as the previous
+              receptionist.
+            </td>
+            <td>
+              A Sign out item in the account menu, and a shorter or idle-based
+              session on shared devices.
+            </td>
+            <td>
+              Add Sign out to the account menu (POST
+              <code>/api/auth/sign-out</code>, then clear the client cache as
+              ADR 0019 already describes, then go to sign-in). Decide an idle
+              timeout separately.
+            </td>
+            <td>S for the control, M for idle timeout</td>
+            <td>
+              <a href="07-account-menu-no-sign-out.png">07</a>,
+              <a href="10-account-menu-375.png">10</a>. Reproduced: Y (twice,
+              two widths)
+            </td>
+            <td>
+              Verified (menu); lifetime inferred. Docs row OA-NB-01 is
+              <code>open</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>SIGN-05</td>
+            <td class="sev-errors">causes errors</td>
+            <td>/en/security, any role, code only</td>
+            <td>
+              <code>begin()</code>, <code>confirm()</code> and
+              <code>turnOff()</code> call <code>fetch</code> with no try/catch
+              and set <code>pending</code> true first. If the request throws
+              (offline, dropped connection) the button stays disabled until a
+              reload. Every non-OK answer on Turn on / Turn off, including a 429
+              from the 3-per-10-seconds limit on <code>/two-factor/*</code> and
+              a 5xx, shows "That password did not match." (a wrong statement). A
+              wrong or throttled confirmation code shows "That code is not
+              valid." for the same reason. Sign-in handles all of this correctly
+              (it has an allow-list and separate copy); the panel does not.
+            </td>
+            <td>
+              Same behaviour as the sign-in form: a refusal says "did not
+              match", throttling says "too many attempts", anything else says
+              "not working, try again", and the button recovers.
+            </td>
+            <td>
+              Reuse the sign-in form's <code>post()</code> and
+              <code>failureOf()</code> in the panel; reset
+              <code>pending</code> in a finally block.
+            </td>
+            <td>S</td>
+            <td>
+              Code: <code>two-factor-panel.tsx</code> lines 32-107. Not run
+              (would submit). Reproduced: N
+            </td>
+            <td>Inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-06</td>
+            <td class="sev-errors">causes errors</td>
+            <td>/en/security enrolment step, any role, code only</td>
+            <td>
+              Ten backup codes are shown once, with "Save these now" but no
+              copy, download or print action and no "I have saved them" gate.
+              They disappear the moment the code is verified
+              (<code>setEnrolment(null)</code>, then
+              <code>router.refresh()</code>) and no success message appears.
+              Enrolment state is held only in component memory: a refresh or
+              navigating away loses the key and codes, the panel shows Off
+              again, and Turn on starts over. With no self-service recovery (see
+              section 6), a person who did not save the codes is one lost phone
+              from a database-operation recovery.
+            </td>
+            <td>
+              Copy and download buttons for the codes, an explicit confirmation
+              before the final Verify, and a visible "Two-step verification is
+              now on" result.
+            </td>
+            <td>
+              Add copy and download; require ticking "I have saved these" before
+              enabling the Verify button; show a success status after the
+              refresh.
+            </td>
+            <td>S to M</td>
+            <td>Code only. Reproduced: N</td>
+            <td>Inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-02</td>
+            <td>slows me down</td>
+            <td>Signed-out deep link; any page when the session has ended</td>
+            <td>
+              Opened <code>/en/reservations?property=...</code> signed out:
+              landed on <code>/en/sign-in</code> with no return address in the
+              URL. <code>requireViewer</code> redirects without one and
+              <code>SignInForm</code> is always given
+              <code>redirectTo = today</code>, so after signing in you land on
+              Today, not where you were. The sign-in page has no "your session
+              ended" notice, so a mid-shift expiry looks like the app logging
+              you out for no reason. Polling endpoints answer 401 with an empty
+              body; nothing in the client code handles 401 specially, so what an
+              open screen shows is <em>unknown</em>.
+            </td>
+            <td>
+              Sign in and return to the same page and Property; a one-line "Your
+              session ended, sign in again" on the way there.
+            </td>
+            <td>
+              Pass a same-origin <code>next</code> path through the redirect
+              (reject anything that is not a relative path under the same
+              locale), and a <code>reason=expired</code> flag for the notice.
+            </td>
+            <td>M</td>
+            <td>
+              <a href="02-deeplink-lands-on-sign-in-en.png">02</a>. Reproduced:
+              Y once (deep link). Expiry path inferred.
+            </td>
+            <td>Deep link verified; expiry inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-03</td>
+            <td>slows me down</td>
+            <td>Root URL <code>/</code>, signed out, English browser</td>
+            <td>
+              Opening the bare address with an <code>en-US</code> browser went
+              to <code>/tr/sign-in</code>, in Turkish.
+              <code>next.config.ts</code> hard-codes <code>/</code> to
+              <code>/tr/today</code>; I found no locale cookie or
+              browser-language handling in the config, the i18n folder or the
+              i18n package. A bookmark to the root therefore always opens
+              Turkish; the language chosen last time is not remembered.
+            </td>
+            <td>
+              The language the person used last, or at least the browser's
+              language, among tr/en/ar.
+            </td>
+            <td>
+              Remember the last locale in a cookie set by the language switcher
+              and read it in the root redirect, falling back to Accept-Language,
+              then tr.
+            </td>
+            <td>S</td>
+            <td>
+              <a href="01-root-signed-out-tr.png">01</a>. Reproduced: Y once
+            </td>
+            <td>Verified</td>
+          </tr>
+          <tr>
+            <td>SIGN-04</td>
+            <td>slows me down</td>
+            <td>/en/sign-in, wrong password and rate limit</td>
+            <td>
+              A wrong password gives "That email and password did not match."
+              That is clear and does not reveal which part was wrong, but names
+              no next step: there is no forgot-password link and no "ask your
+              manager". The rate-limit message is "Too many attempts. Try again
+              shortly." with no duration, although the limit is three attempts
+              per ten seconds; "shortly" does not say whether to wait 10 seconds
+              or 10 minutes. I did not trigger the limit on purpose.
+            </td>
+            <td>
+              A hint on what to do next ("Check Caps Lock, or ask your manager
+              to reset your password") and a concrete wait ("wait 10 seconds").
+            </td>
+            <td>
+              Add the next-step sentence to <code>signInFailed</code>; say "Wait
+              a few seconds" or read the retry-after value from the 429 response
+              if present (<em>unknown</em> whether Better Auth sends it here).
+            </td>
+            <td>S</td>
+            <td>
+              <a href="05-wrong-password-error-en.png">05</a> (mismatch only).
+              Reproduced: Y once, deliberately not repeated. Throttle copy read
+              from <code>messages.ts</code>.
+            </td>
+            <td>Mismatch verified; throttle inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-07</td>
+            <td>slows me down</td>
+            <td>/en/security enrolment, Owner on a desktop PC, code only</td>
+            <td>
+              Enrolment shows the setup key as text only; a code comment says a
+              QR was left out on purpose. The Owner will usually be on a
+              computer with the authenticator on a phone, which means typing a
+              long base32 key by hand. The only "tap to open the app" link is
+              labelled "Two-step verification", the same words as the heading,
+              which does not say what it does. This is the exact situation a QR
+              code exists for.
+            </td>
+            <td>
+              A QR code next to the key, and a link labelled "Open in
+              authenticator app".
+            </td>
+            <td>
+              Add a small QR renderer (a new dependency, so a decision) and
+              rename the link.
+            </td>
+            <td>M</td>
+            <td>Code only. Reproduced: N</td>
+            <td>Inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-08</td>
+            <td>slows me down</td>
+            <td>Whole app, Owner</td>
+            <td>
+              Security is reachable only through the avatar menu (account card
+              bottom-left on desktop, avatar top-right on a phone), two clicks
+              from any page. It is not in the rail and nothing anywhere mentions
+              two-factor: no prompt on Today for an account that has it off,
+              nothing on People or Configuration (I grepped the app source: the
+              only entry is the menu item). An Owner who has not been told it
+              exists will not find it.
+            </td>
+            <td>
+              A visible nudge for people who have it off, or at least a mention
+              where the Owner manages access.
+            </td>
+            <td>
+              Product decision, not a design guess: a dismissible notice on
+              Today for Owner and Manager while two-factor is off is the
+              smallest option. Requiring it is not built (roadmap).
+            </td>
+            <td>S</td>
+            <td>
+              <a href="07-account-menu-no-sign-out.png">07</a>,
+              <a href="08-security-page-off-frontdesk.png">08</a>. Reproduced: Y
+            </td>
+            <td>Verified for Front Desk; Owner inferred (see note below)</td>
+          </tr>
+          <tr>
+            <td>SIGN-09</td>
+            <td>polish</td>
+            <td>Account card / menu, any role</td>
+            <td>
+              Today greets "Demo Front Desk", but the account card and menu show
+              only the email, and the card truncates it to "frontdesk@p…". On a
+              shared PC "who is signed in" is the question that matters, and the
+              visible answer is cut off. Cause in code:
+              <code>name={viewer.email}</code> is passed to
+              <code>AccountMenu</code>.
+            </td>
+            <td>
+              Display name with the email beneath it, untruncated in the menu.
+            </td>
+            <td>Pass the display name the Today greeting already uses.</td>
+            <td>S</td>
+            <td>
+              <a href="06-after-sign-in-today-frontdesk.png">06</a>,
+              <a href="07-account-menu-no-sign-out.png">07</a>. Reproduced: Y
+            </td>
+            <td>Verified</td>
+          </tr>
+          <tr>
+            <td>SIGN-10</td>
+            <td>polish</td>
+            <td>/en/sign-in and /en/security</td>
+            <td>
+              No autofocus on Email (active element is <code>body</code> after
+              load), and the language switcher comes first in tab order, so a
+              keyboard user needs two Tab presses before typing. The browser tab
+              title is "Ranza" on sign-in, Security and Today, so several tabs
+              are indistinguishable.
+            </td>
+            <td>The cursor in Email on arrival; page-specific tab titles.</td>
+            <td>
+              <code>autoFocus</code> on Email (mind the language switcher on
+              mobile so the keyboard does not cover it); set
+              <code>generateMetadata</code> titles.
+            </td>
+            <td>S</td>
+            <td>
+              DOM order and <code>activeElement</code> checked by script.
+              Reproduced: Y
+            </td>
+            <td>Verified</td>
+          </tr>
+          <tr>
+            <td>SIGN-11</td>
+            <td>polish</td>
+            <td>/en/security, any role, code only</td>
+            <td>
+              Turning two-factor off is one password entry and one click, with
+              no sentence about what changes. Neither turning on nor off shows a
+              success message; the word beside "Two-step verification" just
+              flips between Off and On. The password field has no show/hide
+              toggle, unlike sign-in.
+            </td>
+            <td>
+              A consequence line before Turn off, a confirmation, a visible
+              result.
+            </td>
+            <td>
+              Add a status message after refresh; reuse the sign-in password
+              field.
+            </td>
+            <td>S</td>
+            <td>Code only. Reproduced: N</td>
+            <td>Inferred</td>
+          </tr>
+          <tr>
+            <td>SIGN-12</td>
+            <td>polish</td>
+            <td>Second-factor step of sign-in, code only</td>
+            <td>
+              One field accepts a 6-digit code or a backup code, which is good,
+              but <code>inputMode="text"</code> gives phone users the full
+              keyboard to type six digits, and the step has no way back to
+              change account or re-enter the password (the only exits are five
+              wrong codes or a reload).
+            </td>
+            <td>
+              A numeric keypad when it is a code, and a "Use a different
+              account" link.
+            </td>
+            <td>
+              Add the back link first (cheap). A numeric keypad conflicts with
+              alphanumeric backup codes, so switch the input mode only once the
+              field can tell which kind is being typed.
+            </td>
+            <td>S</td>
+            <td>
+              Code only. I could not reach this step: no test account has
+              two-factor on, and I may not enable it. Reproduced: N
+            </td>
+            <td>Inferred</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="tag">
+        Counts: 0 block work, 3 cause errors, 5 slow me down, 4 polish. Note on
+        roles: the Security page has no role branch in its code and reads only
+        the signed-in person's own flag, so Owner sees the same page as Front
+        Desk. I did not open a second session as Owner (the brief forbids
+        sessions I do not need); the Owner rows are inferred from that.
+      </p>
 
-<h2>2. Findings</h2>
-<table>
-<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th class="wide">What happened</th><th class="wide">What I expected</th><th class="wide">Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
-<tbody>
-<tr>
-<td>SIGN-01</td><td class="sev-errors">causes errors</td>
-<td>Account menu, any page, Front Desk, desktop and 375 px</td>
-<td>The account menu contains one item, Security. No Sign out anywhere in the app. Session lifetime is Better Auth's default, about a week, extended on use; no idle timeout (OA-NB-03). On a shared desk PC the next shift is already signed in as the previous receptionist.</td>
-<td>A Sign out item in the account menu, and a shorter or idle-based session on shared devices.</td>
-<td>Add Sign out to the account menu (POST <code>/api/auth/sign-out</code>, then clear the client cache as ADR 0019 already describes, then go to sign-in). Decide an idle timeout separately.</td>
-<td>S for the control, M for idle timeout</td>
-<td><a href="07-account-menu-no-sign-out.png">07</a>, <a href="10-account-menu-375.png">10</a>. Reproduced: Y (twice, two widths)</td>
-<td>Verified (menu); lifetime inferred. Docs row OA-NB-01 is <code>open</code>.</td>
-</tr>
-<tr>
-<td>SIGN-05</td><td class="sev-errors">causes errors</td>
-<td>/en/security, any role, code only</td>
-<td><code>begin()</code>, <code>confirm()</code> and <code>turnOff()</code> call <code>fetch</code> with no try/catch and set <code>pending</code> true first. If the request throws (offline, dropped connection) the button stays disabled until a reload. Every non-OK answer on Turn on / Turn off, including a 429 from the 3-per-10-seconds limit on <code>/two-factor/*</code> and a 5xx, shows "That password did not match." (a wrong statement). A wrong or throttled confirmation code shows "That code is not valid." for the same reason. Sign-in handles all of this correctly (it has an allow-list and separate copy); the panel does not.</td>
-<td>Same behaviour as the sign-in form: a refusal says "did not match", throttling says "too many attempts", anything else says "not working, try again", and the button recovers.</td>
-<td>Reuse the sign-in form's <code>post()</code> and <code>failureOf()</code> in the panel; reset <code>pending</code> in a finally block.</td>
-<td>S</td>
-<td>Code: <code>two-factor-panel.tsx</code> lines 32-107. Not run (would submit). Reproduced: N</td>
-<td>Inferred</td>
-</tr>
-<tr>
-<td>SIGN-06</td><td class="sev-errors">causes errors</td>
-<td>/en/security enrolment step, any role, code only</td>
-<td>Ten backup codes are shown once, with "Save these now" but no copy, download or print action and no "I have saved them" gate. They disappear the moment the code is verified (<code>setEnrolment(null)</code>, then <code>router.refresh()</code>) and no success message appears. Enrolment state is held only in component memory: a refresh or navigating away loses the key and codes, the panel shows Off again, and Turn on starts over. With no self-service recovery (see section 6), a person who did not save the codes is one lost phone from a database-operation recovery.</td>
-<td>Copy and download buttons for the codes, an explicit confirmation before the final Verify, and a visible "Two-step verification is now on" result.</td>
-<td>Add copy and download; require ticking "I have saved these" before enabling the Verify button; show a success status after the refresh.</td>
-<td>S to M</td>
-<td>Code only. Reproduced: N</td>
-<td>Inferred</td>
-</tr>
-<tr>
-<td>SIGN-02</td><td>slows me down</td>
-<td>Signed-out deep link; any page when the session has ended</td>
-<td>Opened <code>/en/reservations?property=...</code> signed out: landed on <code>/en/sign-in</code> with no return address in the URL. <code>requireViewer</code> redirects without one and <code>SignInForm</code> is always given <code>redirectTo = today</code>, so after signing in you land on Today, not where you were. The sign-in page has no "your session ended" notice, so a mid-shift expiry looks like the app logging you out for no reason. Polling endpoints answer 401 with an empty body; nothing in the client code handles 401 specially, so what an open screen shows is <em>unknown</em>.</td>
-<td>Sign in and return to the same page and Property; a one-line "Your session ended, sign in again" on the way there.</td>
-<td>Pass a same-origin <code>next</code> path through the redirect (reject anything that is not a relative path under the same locale), and a <code>reason=expired</code> flag for the notice.</td>
-<td>M</td>
-<td><a href="02-deeplink-lands-on-sign-in-en.png">02</a>. Reproduced: Y once (deep link). Expiry path inferred.</td>
-<td>Deep link verified; expiry inferred</td>
-</tr>
-<tr>
-<td>SIGN-03</td><td>slows me down</td>
-<td>Root URL <code>/</code>, signed out, English browser</td>
-<td>Opening the bare address with an <code>en-US</code> browser went to <code>/tr/sign-in</code>, in Turkish. <code>next.config.ts</code> hard-codes <code>/</code> to <code>/tr/today</code>; I found no locale cookie or browser-language handling in the config, the i18n folder or the i18n package. A bookmark to the root therefore always opens Turkish; the language chosen last time is not remembered.</td>
-<td>The language the person used last, or at least the browser's language, among tr/en/ar.</td>
-<td>Remember the last locale in a cookie set by the language switcher and read it in the root redirect, falling back to Accept-Language, then tr.</td>
-<td>S</td>
-<td><a href="01-root-signed-out-tr.png">01</a>. Reproduced: Y once</td>
-<td>Verified</td>
-</tr>
-<tr>
-<td>SIGN-04</td><td>slows me down</td>
-<td>/en/sign-in, wrong password and rate limit</td>
-<td>A wrong password gives "That email and password did not match." That is clear and does not reveal which part was wrong, but names no next step: there is no forgot-password link and no "ask your manager". The rate-limit message is "Too many attempts. Try again shortly." with no duration, although the limit is three attempts per ten seconds; "shortly" does not say whether to wait 10 seconds or 10 minutes. I did not trigger the limit on purpose.</td>
-<td>A hint on what to do next ("Check Caps Lock, or ask your manager to reset your password") and a concrete wait ("wait 10 seconds").</td>
-<td>Add the next-step sentence to <code>signInFailed</code>; say "Wait a few seconds" or read the retry-after value from the 429 response if present (<em>unknown</em> whether Better Auth sends it here).</td>
-<td>S</td>
-<td><a href="05-wrong-password-error-en.png">05</a> (mismatch only). Reproduced: Y once, deliberately not repeated. Throttle copy read from <code>messages.ts</code>.</td>
-<td>Mismatch verified; throttle inferred</td>
-</tr>
-<tr>
-<td>SIGN-07</td><td>slows me down</td>
-<td>/en/security enrolment, Owner on a desktop PC, code only</td>
-<td>Enrolment shows the setup key as text only; a code comment says a QR was left out on purpose. The Owner will usually be on a computer with the authenticator on a phone, which means typing a long base32 key by hand. The only "tap to open the app" link is labelled "Two-step verification", the same words as the heading, which does not say what it does. This is the exact situation a QR code exists for.</td>
-<td>A QR code next to the key, and a link labelled "Open in authenticator app".</td>
-<td>Add a small QR renderer (a new dependency, so a decision) and rename the link.</td>
-<td>M</td>
-<td>Code only. Reproduced: N</td>
-<td>Inferred</td>
-</tr>
-<tr>
-<td>SIGN-08</td><td>slows me down</td>
-<td>Whole app, Owner</td>
-<td>Security is reachable only through the avatar menu (account card bottom-left on desktop, avatar top-right on a phone), two clicks from any page. It is not in the rail and nothing anywhere mentions two-factor: no prompt on Today for an account that has it off, nothing on People or Configuration (I grepped the app source: the only entry is the menu item). An Owner who has not been told it exists will not find it.</td>
-<td>A visible nudge for people who have it off, or at least a mention where the Owner manages access.</td>
-<td>Product decision, not a design guess: a dismissible notice on Today for Owner and Manager while two-factor is off is the smallest option. Requiring it is not built (roadmap).</td>
-<td>S</td>
-<td><a href="07-account-menu-no-sign-out.png">07</a>, <a href="08-security-page-off-frontdesk.png">08</a>. Reproduced: Y</td>
-<td>Verified for Front Desk; Owner inferred (see note below)</td>
-</tr>
-<tr>
-<td>SIGN-09</td><td>polish</td>
-<td>Account card / menu, any role</td>
-<td>Today greets "Demo Front Desk", but the account card and menu show only the email, and the card truncates it to "frontdesk@p…". On a shared PC "who is signed in" is the question that matters, and the visible answer is cut off. Cause in code: <code>name={viewer.email}</code> is passed to <code>AccountMenu</code>.</td>
-<td>Display name with the email beneath it, untruncated in the menu.</td>
-<td>Pass the display name the Today greeting already uses.</td>
-<td>S</td>
-<td><a href="06-after-sign-in-today-frontdesk.png">06</a>, <a href="07-account-menu-no-sign-out.png">07</a>. Reproduced: Y</td>
-<td>Verified</td>
-</tr>
-<tr>
-<td>SIGN-10</td><td>polish</td>
-<td>/en/sign-in and /en/security</td>
-<td>No autofocus on Email (active element is <code>body</code> after load), and the language switcher comes first in tab order, so a keyboard user needs two Tab presses before typing. The browser tab title is "Ranza" on sign-in, Security and Today, so several tabs are indistinguishable.</td>
-<td>The cursor in Email on arrival; page-specific tab titles.</td>
-<td><code>autoFocus</code> on Email (mind the language switcher on mobile so the keyboard does not cover it); set <code>generateMetadata</code> titles.</td>
-<td>S</td>
-<td>DOM order and <code>activeElement</code> checked by script. Reproduced: Y</td>
-<td>Verified</td>
-</tr>
-<tr>
-<td>SIGN-11</td><td>polish</td>
-<td>/en/security, any role, code only</td>
-<td>Turning two-factor off is one password entry and one click, with no sentence about what changes. Neither turning on nor off shows a success message; the word beside "Two-step verification" just flips between Off and On. The password field has no show/hide toggle, unlike sign-in.</td>
-<td>A consequence line before Turn off, a confirmation, a visible result.</td>
-<td>Add a status message after refresh; reuse the sign-in password field.</td>
-<td>S</td>
-<td>Code only. Reproduced: N</td>
-<td>Inferred</td>
-</tr>
-<tr>
-<td>SIGN-12</td><td>polish</td>
-<td>Second-factor step of sign-in, code only</td>
-<td>One field accepts a 6-digit code or a backup code, which is good, but <code>inputMode="text"</code> gives phone users the full keyboard to type six digits, and the step has no way back to change account or re-enter the password (the only exits are five wrong codes or a reload).</td>
-<td>A numeric keypad when it is a code, and a "Use a different account" link.</td>
-<td>Add the back link first (cheap). A numeric keypad conflicts with alphanumeric backup codes, so switch the input mode only once the field can tell which kind is being typed.</td>
-<td>S</td>
-<td>Code only. I could not reach this step: no test account has two-factor on, and I may not enable it. Reproduced: N</td>
-<td>Inferred</td>
-</tr>
-</tbody>
-</table>
-<p class="tag">Counts: 0 block work, 3 cause errors, 5 slow me down, 4 polish. Note on roles: the Security page has no role branch in its code and reads only the signed-in person's own flag, so Owner sees the same page as Front Desk. I did not open a second session as Owner (the brief forbids sessions I do not need); the Owner rows are inferred from that.</p>
+      <h2>3. Jobs</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th class="wide">Job</th>
+            <th class="wide">Pass test (written first)</th>
+            <th class="wide">Result</th>
+            <th>Seconds</th>
+            <th>Clicks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Sign in at the start of a shift</td>
+            <td>
+              Reach Today unaided in under 10 s, no more than 3 interactions.
+            </td>
+            <td>
+              <span class="v">Pass.</span> Email, password, Enter (or the
+              button) lands on <code>/en/today</code> with the Property chosen.
+              <a href="06-after-sign-in-today-frontdesk.png">06</a>. Verified.
+            </td>
+            <td>
+              0.5 s server round trip (polled at 250 ms); typing time not
+              measured
+            </td>
+            <td>1 click into Email, 2 typed fields, Enter</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Recover from a typo in the password</td>
+            <td>
+              Error says what happened, keeps the email, tells me what to do
+              next.
+            </td>
+            <td>
+              <span class="v">Partial.</span> Says "did not match", keeps the
+              email and the typed password, focus stays in Password, fields turn
+              red, live region announces it. No next step.
+              <a href="05-wrong-password-error-en.png">05</a>. Verified (one
+              attempt on the Housekeeping address only; code shows no account
+              lockout, only a 3-per-10-s throttle).
+            </td>
+            <td>under 1</td>
+            <td>1 (Enter)</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Hit the sign-in rate limit under pressure</td>
+            <td>I am told to wait and for how long.</td>
+            <td>
+              <span class="v">Partial.</span> Told "Too many attempts", not how
+              long. Not triggered on purpose (shared limit). Inferred from
+              <code>messages.ts</code> and the form code.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Follow a bookmarked page while signed out</td>
+            <td>After signing in I am on that page.</td>
+            <td>
+              <span class="v">Fail.</span> Landed on Today.
+              <a href="02-deeplink-lands-on-sign-in-en.png">02</a>. Verified for
+              the redirect; post-login landing read in code.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Choose my language before signing in</td>
+            <td>
+              The language I pick is the language after sign-in; root URL
+              respects it.
+            </td>
+            <td>
+              <span class="v">Partial.</span> <code>/en</code>,
+              <code>/tr</code>, <code>/ar</code> sign-in pages are fully
+              translated and Arabic mirrors (<a href="04-sign-in-ar-375.png"
+                >04</a
+              >), and the locale carries into Today (verified for en). The bare
+              root always opens Turkish (<a href="01-root-signed-out-tr.png"
+                >01</a
+              >). I did not open the language dropdown itself; its link pattern
+              was read in code.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Sign in on a phone (375 px)</td>
+            <td>
+              No horizontal scroll, the form fits above the fold, inputs do not
+              zoom.
+            </td>
+            <td>
+              <span class="v">Pass.</span> Page width 375, scroll width 375,
+              inputs 16 px and 52 px tall, Sign in button at 515 px of 667.
+              <a href="03-sign-in-375.png">03</a>. Verified.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Sign out at the end of a shift on a shared PC</td>
+            <td>Find a Sign out control within 2 clicks.</td>
+            <td>
+              <span class="v">Fail.</span> Not present in the desktop menu or
+              the phone menu. <a href="07-account-menu-no-sign-out.png">07</a>,
+              <a href="10-account-menu-375.png">10</a>. Verified.
+            </td>
+            <td>n/a</td>
+            <td>2 clicks, nothing found</td>
+          </tr>
+          <tr>
+            <td>8</td>
+            <td>Owner finds where to turn on two-factor</td>
+            <td>Reach the panel without help, and see what Turn on will do.</td>
+            <td>
+              <span class="v">Pass with effort.</span> Avatar, then Security;
+              page has a back button and clear Off state (<a
+                href="08-security-page-off-frontdesk.png"
+                >08</a
+              >, <a href="09-security-375.png">09</a>,
+              <a href="11-security-ar-375.png">11</a>). Only if you think to
+              open the avatar. Stopped before submit, not persisted: the confirm
+              step (setup key, backup codes, code field) read from code.
+            </td>
+            <td>about 5 s once you know</td>
+            <td>2</td>
+          </tr>
+          <tr>
+            <td>9</td>
+            <td>Finish enrolment with a phone authenticator</td>
+            <td>
+              Add the account to the phone and save the backup codes without
+              typing errors.
+            </td>
+            <td>
+              <span class="v">Not run.</span> Forbidden by the mode. From code:
+              manual key only, codes cannot be copied (SIGN-06, SIGN-07).
+              Inferred.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>10</td>
+            <td>Lost the phone, under pressure</td>
+            <td>A way back in without a developer.</td>
+            <td>
+              <span class="v">Not available.</span> Backup codes only; if lost
+              too, a database operation (OA-DEF-01, deferred). See section 6.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+          <tr>
+            <td>11</td>
+            <td>Session ends in the middle of a task</td>
+            <td>
+              I am told, I sign in, I am back where I was, nothing I typed is
+              lost.
+            </td>
+            <td>
+              <span class="v">Fail, inferred.</span> Next navigation redirects
+              to a plain sign-in (OA-S2-08); no notice, no return (SIGN-02).
+              What a mutation or poll shows on a 401 is unknown.
+            </td>
+            <td>n/a</td>
+            <td>n/a</td>
+          </tr>
+        </tbody>
+      </table>
 
-<h2>3. Jobs</h2>
-<table>
-<thead><tr><th>#</th><th class="wide">Job</th><th class="wide">Pass test (written first)</th><th class="wide">Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
-<tbody>
-<tr><td>1</td><td>Sign in at the start of a shift</td><td>Reach Today unaided in under 10 s, no more than 3 interactions.</td><td><span class="v">Pass.</span> Email, password, Enter (or the button) lands on <code>/en/today</code> with the Property chosen. <a href="06-after-sign-in-today-frontdesk.png">06</a>. Verified.</td><td>0.5 s server round trip (polled at 250 ms); typing time not measured</td><td>1 click into Email, 2 typed fields, Enter</td></tr>
-<tr><td>2</td><td>Recover from a typo in the password</td><td>Error says what happened, keeps the email, tells me what to do next.</td><td><span class="v">Partial.</span> Says "did not match", keeps the email and the typed password, focus stays in Password, fields turn red, live region announces it. No next step. <a href="05-wrong-password-error-en.png">05</a>. Verified (one attempt on the Housekeeping address only; code shows no account lockout, only a 3-per-10-s throttle).</td><td>under 1</td><td>1 (Enter)</td></tr>
-<tr><td>3</td><td>Hit the sign-in rate limit under pressure</td><td>I am told to wait and for how long.</td><td><span class="v">Partial.</span> Told "Too many attempts", not how long. Not triggered on purpose (shared limit). Inferred from <code>messages.ts</code> and the form code.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>4</td><td>Follow a bookmarked page while signed out</td><td>After signing in I am on that page.</td><td><span class="v">Fail.</span> Landed on Today. <a href="02-deeplink-lands-on-sign-in-en.png">02</a>. Verified for the redirect; post-login landing read in code.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>5</td><td>Choose my language before signing in</td><td>The language I pick is the language after sign-in; root URL respects it.</td><td><span class="v">Partial.</span> <code>/en</code>, <code>/tr</code>, <code>/ar</code> sign-in pages are fully translated and Arabic mirrors (<a href="04-sign-in-ar-375.png">04</a>), and the locale carries into Today (verified for en). The bare root always opens Turkish (<a href="01-root-signed-out-tr.png">01</a>). I did not open the language dropdown itself; its link pattern was read in code.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>6</td><td>Sign in on a phone (375 px)</td><td>No horizontal scroll, the form fits above the fold, inputs do not zoom.</td><td><span class="v">Pass.</span> Page width 375, scroll width 375, inputs 16 px and 52 px tall, Sign in button at 515 px of 667. <a href="03-sign-in-375.png">03</a>. Verified.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>7</td><td>Sign out at the end of a shift on a shared PC</td><td>Find a Sign out control within 2 clicks.</td><td><span class="v">Fail.</span> Not present in the desktop menu or the phone menu. <a href="07-account-menu-no-sign-out.png">07</a>, <a href="10-account-menu-375.png">10</a>. Verified.</td><td>n/a</td><td>2 clicks, nothing found</td></tr>
-<tr><td>8</td><td>Owner finds where to turn on two-factor</td><td>Reach the panel without help, and see what Turn on will do.</td><td><span class="v">Pass with effort.</span> Avatar, then Security; page has a back button and clear Off state (<a href="08-security-page-off-frontdesk.png">08</a>, <a href="09-security-375.png">09</a>, <a href="11-security-ar-375.png">11</a>). Only if you think to open the avatar. Stopped before submit, not persisted: the confirm step (setup key, backup codes, code field) read from code.</td><td>about 5 s once you know</td><td>2</td></tr>
-<tr><td>9</td><td>Finish enrolment with a phone authenticator</td><td>Add the account to the phone and save the backup codes without typing errors.</td><td><span class="v">Not run.</span> Forbidden by the mode. From code: manual key only, codes cannot be copied (SIGN-06, SIGN-07). Inferred.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>10</td><td>Lost the phone, under pressure</td><td>A way back in without a developer.</td><td><span class="v">Not available.</span> Backup codes only; if lost too, a database operation (OA-DEF-01, deferred). See section 6.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>11</td><td>Session ends in the middle of a task</td><td>I am told, I sign in, I am back where I was, nothing I typed is lost.</td><td><span class="v">Fail, inferred.</span> Next navigation redirects to a plain sign-in (OA-S2-08); no notice, no return (SIGN-02). What a mutation or poll shows on a 401 is unknown.</td><td>n/a</td><td>n/a</td></tr>
-</tbody>
-</table>
+      <h2>4. Top changes, ranked by time saved times frequency</h2>
+      <ol>
+        <li>
+          I can end my shift and the next person cannot act as me (SIGN-01).
+        </li>
+        <li>
+          I sign in and land on the page I was trying to open, and when my
+          session ended the screen says so (SIGN-02).
+        </li>
+        <li>
+          Setting up two-factor on a computer takes a scan, not a typed key, and
+          I can save my backup codes before the screen takes them away (SIGN-07,
+          SIGN-06).
+        </li>
+        <li>
+          When turning two-factor on fails, the screen tells me the truth and
+          the button works again (SIGN-05).
+        </li>
+        <li>The app opens in the language I used last (SIGN-03).</li>
+        <li>
+          When a password is wrong or I am throttled, I am told what to do and
+          how long to wait (SIGN-04).
+        </li>
+        <li>The Owner is told two-factor exists and is off (SIGN-08).</li>
+        <li>I can see who is signed in at a glance, by name (SIGN-09).</li>
+      </ol>
 
-<h2>4. Top changes, ranked by time saved times frequency</h2>
-<ol>
-  <li>I can end my shift and the next person cannot act as me (SIGN-01).</li>
-  <li>I sign in and land on the page I was trying to open, and when my session ended the screen says so (SIGN-02).</li>
-  <li>Setting up two-factor on a computer takes a scan, not a typed key, and I can save my backup codes before the screen takes them away (SIGN-07, SIGN-06).</li>
-  <li>When turning two-factor on fails, the screen tells me the truth and the button works again (SIGN-05).</li>
-  <li>The app opens in the language I used last (SIGN-03).</li>
-  <li>When a password is wrong or I am throttled, I am told what to do and how long to wait (SIGN-04).</li>
-  <li>The Owner is told two-factor exists and is off (SIGN-08).</li>
-  <li>I can see who is signed in at a glance, by name (SIGN-09).</li>
-</ol>
+      <h2>5. Inconsistencies</h2>
+      <ul>
+        <li>
+          <b>Error handling:</b> the sign-in form separates "did not match",
+          "too many attempts", "challenge spent" and "not working" (with tests
+          in <code>sign-in-form.test.tsx</code>); the Security panel, a few
+          clicks away, collapses everything into "did not match" (SIGN-05). The
+          sign-in form is the better one.
+        </li>
+        <li>
+          <b>Show password:</b> sign-in has the toggle, the Security password
+          field does not (SIGN-11).
+        </li>
+        <li>
+          <b>Who am I:</b> the Today greeting uses the display name, the account
+          menu uses the email (SIGN-09).
+        </li>
+        <li>
+          <b>Tab titles:</b> every page is titled "Ranza" even though
+          <code>page-titles.ts</code> gives pages names for the bar (SIGN-10).
+        </li>
+        <li>
+          The sign-in page follows EduBoard rather than Leaders by owner
+          decision; I did not treat that as an inconsistency.
+        </li>
+      </ul>
 
-<h2>5. Inconsistencies</h2>
-<ul>
-  <li><b>Error handling:</b> the sign-in form separates "did not match", "too many attempts", "challenge spent" and "not working" (with tests in <code>sign-in-form.test.tsx</code>); the Security panel, a few clicks away, collapses everything into "did not match" (SIGN-05). The sign-in form is the better one.</li>
-  <li><b>Show password:</b> sign-in has the toggle, the Security password field does not (SIGN-11).</li>
-  <li><b>Who am I:</b> the Today greeting uses the display name, the account menu uses the email (SIGN-09).</li>
-  <li><b>Tab titles:</b> every page is titled "Ranza" even though <code>page-titles.ts</code> gives pages names for the bar (SIGN-10).</li>
-  <li>The sign-in page follows EduBoard rather than Leaders by owner decision; I did not treat that as an inconsistency.</li>
-</ul>
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <b>Sign out:</b> not built in either app. Docs row OA-NB-01, status
+          <code>open</code>, "whether it is simply missing or waits on a
+          decision has not been said". Listed in findings because it is the
+          largest risk for the shared-desk persona, and cheap.
+        </li>
+        <li>
+          <b>Forgotten password:</b> no recovery or change-password flow;
+          recovered by a database operation. OA-NB-02, not scheduled. (SIGN-04
+          asks only for a next-step sentence, not the flow.)
+        </li>
+        <li>
+          <b>Lost authenticator and backup codes:</b> no self-service or
+          support-assisted reset. OA-DEF-01 (deferred), ADR 0010, and
+          <code>docs/roadmap.md</code> "Decisions not yet applied".
+        </li>
+        <li>
+          <b>Requiring two-factor</b> for a role or Organization: roadmap says
+          nothing can require it yet.
+        </li>
+        <li>
+          <b>Session lifetime and idle timeout for a shared desk:</b> not
+          decided, OA-NB-03.
+        </li>
+        <li>
+          <b>Viewing status or regenerating backup codes after enrolment:</b>
+          nothing in the docs or code; unknown whether planned.
+        </li>
+      </ul>
 
-<h2>6. Not built / needs backend work</h2>
-<ul>
-  <li><b>Sign out:</b> not built in either app. Docs row OA-NB-01, status <code>open</code>, "whether it is simply missing or waits on a decision has not been said". Listed in findings because it is the largest risk for the shared-desk persona, and cheap.</li>
-  <li><b>Forgotten password:</b> no recovery or change-password flow; recovered by a database operation. OA-NB-02, not scheduled. (SIGN-04 asks only for a next-step sentence, not the flow.)</li>
-  <li><b>Lost authenticator and backup codes:</b> no self-service or support-assisted reset. OA-DEF-01 (deferred), ADR 0010, and <code>docs/roadmap.md</code> "Decisions not yet applied".</li>
-  <li><b>Requiring two-factor</b> for a role or Organization: roadmap says nothing can require it yet.</li>
-  <li><b>Session lifetime and idle timeout for a shared desk:</b> not decided, OA-NB-03.</li>
-  <li><b>Viewing status or regenerating backup codes after enrolment:</b> nothing in the docs or code; unknown whether planned.</li>
-</ul>
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          Enter submits; sign-in answers in about half a second (verified).
+        </li>
+        <li>
+          Wrong credentials: one neutral message that does not say which half
+          was wrong; email and typed password kept; focus stays in the password
+          field; fields marked invalid; message in a live region (verified,
+          <a href="05-wrong-password-error-en.png">05</a>).
+        </li>
+        <li>
+          Show/hide password with an accessible label that changes (verified).
+        </li>
+        <li>
+          Correct autocomplete tokens (<code>username</code>,
+          <code>current-password</code>, <code>one-time-code</code>), so
+          password managers and SMS or authenticator autofill work (verified in
+          the DOM).
+        </li>
+        <li>
+          375 px: fits above the fold, no horizontal scroll, 16 px inputs
+          (verified, <a href="03-sign-in-375.png">03</a>,
+          <a href="09-security-375.png">09</a>).
+        </li>
+        <li>
+          Arabic sign-in and Security mirror correctly with Arabic labels and no
+          overflow (verified, <a href="04-sign-in-ar-375.png">04</a>,
+          <a href="11-security-ar-375.png">11</a>). Turkish sign-in verified (<a
+            href="01-root-signed-out-tr.png"
+            >01</a
+          >); Turkish Security copy read in <code>messages.ts</code> only.
+        </li>
+        <li>
+          Security page has a back button to Today (ADR 0035, verified) and the
+          Security link keeps the active Property.
+        </li>
+        <li>
+          The enrolment design (secret written unverified, account untouched
+          until a code proves the app has it) means a mis-scanned key costs a
+          retry, not the account (inferred from ADR 0010 and the module
+          comment).
+        </li>
+        <li>
+          A challenge spent by five wrong codes goes back to the password with
+          its own message, instead of leaving a dead form (inferred from code
+          and tests).
+        </li>
+      </ul>
 
-<h2>7. What already works well and must not regress</h2>
-<ul>
-  <li>Enter submits; sign-in answers in about half a second (verified).</li>
-  <li>Wrong credentials: one neutral message that does not say which half was wrong; email and typed password kept; focus stays in the password field; fields marked invalid; message in a live region (verified, <a href="05-wrong-password-error-en.png">05</a>).</li>
-  <li>Show/hide password with an accessible label that changes (verified).</li>
-  <li>Correct autocomplete tokens (<code>username</code>, <code>current-password</code>, <code>one-time-code</code>), so password managers and SMS or authenticator autofill work (verified in the DOM).</li>
-  <li>375 px: fits above the fold, no horizontal scroll, 16 px inputs (verified, <a href="03-sign-in-375.png">03</a>, <a href="09-security-375.png">09</a>).</li>
-  <li>Arabic sign-in and Security mirror correctly with Arabic labels and no overflow (verified, <a href="04-sign-in-ar-375.png">04</a>, <a href="11-security-ar-375.png">11</a>). Turkish sign-in verified (<a href="01-root-signed-out-tr.png">01</a>); Turkish Security copy read in <code>messages.ts</code> only.</li>
-  <li>Security page has a back button to Today (ADR 0035, verified) and the Security link keeps the active Property.</li>
-  <li>The enrolment design (secret written unverified, account untouched until a code proves the app has it) means a mis-scanned key costs a retry, not the account (inferred from ADR 0010 and the module comment).</li>
-  <li>A challenge spent by five wrong codes goes back to the password with its own message, instead of leaving a dead form (inferred from code and tests).</li>
-</ul>
+      <h2>Screenshots</h2>
+      <div class="grid">
+        <figure>
+          <img
+            src="01-root-signed-out-tr.png"
+            alt="Root URL opens Turkish sign-in"
+          />
+          <figcaption>
+            01 Root URL, English browser, opens Turkish sign-in
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="02-deeplink-lands-on-sign-in-en.png"
+            alt="Deep link lands on plain sign-in"
+          />
+          <figcaption>
+            02 Deep link while signed out lands on plain sign-in
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="03-sign-in-375.png" alt="Sign-in at 375px" />
+          <figcaption>03 Sign-in at 375 px</figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="04-sign-in-ar-375.png" alt="Arabic sign-in at 375px" />
+          <figcaption>04 Arabic sign-in at 375 px</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="05-wrong-password-error-en.png"
+            alt="Wrong password error"
+          />
+          <figcaption>
+            05 Wrong password (Housekeeping address, one attempt)
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="06-after-sign-in-today-frontdesk.png"
+            alt="Today after sign-in"
+          />
+          <figcaption>06 Landing on Today after sign-in</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="07-account-menu-no-sign-out.png"
+            alt="Account menu with Security only"
+          />
+          <figcaption>07 Account menu: Security only, no Sign out</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="08-security-page-off-frontdesk.png"
+            alt="Security page, two-step off"
+          />
+          <figcaption>08 Security page, two-step verification Off</figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="09-security-375.png" alt="Security at 375px" />
+          <figcaption>09 Security at 375 px</figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="10-account-menu-375.png" alt="Account menu at 375px" />
+          <figcaption>10 Account menu at 375 px: no Sign out</figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="11-security-ar-375.png" alt="Arabic Security at 375px" />
+          <figcaption>11 Arabic Security at 375 px</figcaption>
+        </figure>
+      </div>
 
-<h2>Screenshots</h2>
-<div class="grid">
-<figure><img src="01-root-signed-out-tr.png" alt="Root URL opens Turkish sign-in"><figcaption>01 Root URL, English browser, opens Turkish sign-in</figcaption></figure>
-<figure><img src="02-deeplink-lands-on-sign-in-en.png" alt="Deep link lands on plain sign-in"><figcaption>02 Deep link while signed out lands on plain sign-in</figcaption></figure>
-<figure class="phone"><img src="03-sign-in-375.png" alt="Sign-in at 375px"><figcaption>03 Sign-in at 375 px</figcaption></figure>
-<figure class="phone"><img src="04-sign-in-ar-375.png" alt="Arabic sign-in at 375px"><figcaption>04 Arabic sign-in at 375 px</figcaption></figure>
-<figure><img src="05-wrong-password-error-en.png" alt="Wrong password error"><figcaption>05 Wrong password (Housekeeping address, one attempt)</figcaption></figure>
-<figure><img src="06-after-sign-in-today-frontdesk.png" alt="Today after sign-in"><figcaption>06 Landing on Today after sign-in</figcaption></figure>
-<figure><img src="07-account-menu-no-sign-out.png" alt="Account menu with Security only"><figcaption>07 Account menu: Security only, no Sign out</figcaption></figure>
-<figure><img src="08-security-page-off-frontdesk.png" alt="Security page, two-step off"><figcaption>08 Security page, two-step verification Off</figcaption></figure>
-<figure class="phone"><img src="09-security-375.png" alt="Security at 375px"><figcaption>09 Security at 375 px</figcaption></figure>
-<figure class="phone"><img src="10-account-menu-375.png" alt="Account menu at 375px"><figcaption>10 Account menu at 375 px: no Sign out</figcaption></figure>
-<figure class="phone"><img src="11-security-ar-375.png" alt="Arabic Security at 375px"><figcaption>11 Arabic Security at 375 px</figcaption></figure>
-</div>
-
-<h2>Scope and limits of this audit</h2>
-<ul>
-  <li>One wrong-password attempt on the Housekeeping address, and one correct Front Desk sign-in (needed to reach Security). Before the attempt I read the auth module: the only protection is Better Auth's 3-per-10-seconds throttle (the docs say the two-factor lockout columns never engage, OA-S2-13), no per-account lockout was found. The panel buttons that change an account (Turn on, Turn off, Verify) were not pressed.</li>
-  <li>Not seen live: the second-factor challenge, the enrolment screen, the enabled state, the rate-limit message, a real session expiry, Turkish Security, the language dropdown itself. These are inferred from code and are marked so.</li>
-  <li>The Front Desk session in my isolated context was left signed in, because the app has no sign-out and I did not call the auth endpoint directly.</li>
-</ul>
-
-</main>
-</body>
+      <h2>Scope and limits of this audit</h2>
+      <ul>
+        <li>
+          One wrong-password attempt on the Housekeeping address, and one
+          correct Front Desk sign-in (needed to reach Security). Before the
+          attempt I read the auth module: the only protection is Better Auth's
+          3-per-10-seconds throttle (the docs say the two-factor lockout columns
+          never engage, OA-S2-13), no per-account lockout was found. The panel
+          buttons that change an account (Turn on, Turn off, Verify) were not
+          pressed.
+        </li>
+        <li>
+          Not seen live: the second-factor challenge, the enrolment screen, the
+          enabled state, the rate-limit message, a real session expiry, Turkish
+          Security, the language dropdown itself. These are inferred from code
+          and are marked so.
+        </li>
+        <li>
+          The Front Desk session in my isolated context was left signed in,
+          because the app has no sign-out and I did not call the auth endpoint
+          directly.
+        </li>
+      </ul>
+    </main>
+  </body>
 </html>

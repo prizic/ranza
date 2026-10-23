@@ -1,252 +1,1035 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UX audit: Housekeeping (2026-10-11)</title>
-<style>
-  :root { --fg:#17211d; --muted:#5b6761; --line:#d9ded9; --bg:#fbfaf6; --accent:#14574a; --warn:#8a5a00; --bad:#9b2c2c; }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--fg); font:15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-  main { max-width: 1100px; margin: 0 auto; }
-  h1 { font-size: 26px; margin: 0 0 4px; }
-  h2 { font-size: 20px; margin: 40px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-  h3 { font-size: 16px; margin: 20px 0 6px; }
-  p, li { max-width: 80ch; }
-  .meta { color: var(--muted); margin: 0 0 20px; }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  .scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
-  th, td { text-align: start; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
-  th { background: #f1f3ef; font-weight: 600; white-space: nowrap; }
-  td.id { white-space: nowrap; font-weight: 600; }
-  .sev { white-space: nowrap; font-weight: 600; }
-  .sev.blocks { color: var(--bad); }
-  .sev.errors { color: var(--warn); }
-  .tag { display:inline-block; padding: 0 6px; border-radius: 4px; font-size: 12px; border: 1px solid var(--line); background:#f6f7f4; }
-  figure { margin: 16px 0; }
-  figure img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 6px; background:#fff; }
-  figure.phone img { max-width: 320px; }
-  figcaption { color: var(--muted); font-size: 13px; margin-top: 4px; }
-  .shots { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
-  .shots figure { margin: 0; }
-  .shots figure.phone img { width: 260px; }
-  ol li, ul li { margin: 4px 0; }
-  code { background: #eef0ec; padding: 0 4px; border-radius: 3px; font-size: 13px; }
-</style>
-</head>
-<body>
-<main>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Housekeeping (2026-10-11)</title>
+    <style>
+      :root {
+        --fg: #17211d;
+        --muted: #5b6761;
+        --line: #d9ded9;
+        --bg: #fbfaf6;
+        --accent: #14574a;
+        --warn: #8a5a00;
+        --bad: #9b2c2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.5 -apple-system,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 40px 0 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 16px;
+        margin: 20px 0 6px;
+      }
+      p,
+      li {
+        max-width: 80ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+      }
+      .scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        background: #f1f3ef;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      td.id {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .sev {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .sev.blocks {
+        color: var(--bad);
+      }
+      .sev.errors {
+        color: var(--warn);
+      }
+      .tag {
+        display: inline-block;
+        padding: 0 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        border: 1px solid var(--line);
+        background: #f6f7f4;
+      }
+      figure {
+        margin: 16px 0;
+      }
+      figure img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+      }
+      figure.phone img {
+        max-width: 320px;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .shots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: flex-start;
+      }
+      .shots figure {
+        margin: 0;
+      }
+      .shots figure.phone img {
+        width: 260px;
+      }
+      ol li,
+      ul li {
+        margin: 4px 0;
+      }
+      code {
+        background: #eef0ec;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Housekeeping</h1>
+      <p class="meta">
+        Route <code>/en/housekeeping</code> (and <code>/tr</code>,
+        <code>/ar</code>), hosted staging, 2026-10-11, Property &ldquo;Demo Otel
+        İstanbul&rdquo;. Roles: Housekeeping (primary), Front Desk, Manager.
+        Mode: audit only, nothing was changed. Claims are labelled
+        <em>verified</em> (I saw it), <em>inferred</em> (read in code or docs)
+        or <em>unknown</em>.
+      </p>
 
-<h1>UX audit: Housekeeping</h1>
-<p class="meta">Route <code>/en/housekeeping</code> (and <code>/tr</code>, <code>/ar</code>), hosted staging, 2026-10-11, Property &ldquo;Demo Otel İstanbul&rdquo;. Roles: Housekeeping (primary), Front Desk, Manager. Mode: audit only, nothing was changed. Claims are labelled <em>verified</em> (I saw it), <em>inferred</em> (read in code or docs) or <em>unknown</em>.</p>
+      <p>
+        <strong>Data state found:</strong> 3 rooms (101, 102, 201), none with a
+        floor or building, 0 dirty, 2 clean and waiting for inspection, 1
+        inspected with a guest in house. One arrival today (201, not ready).
+        Inspection is Off for the Organization and On for this Property. So
+        &ldquo;empty&rdquo; and &ldquo;60 dirty rooms&rdquo; are
+        <em>inferred</em> from code, not seen. I could not trigger a
+        departure-driven dirty room (that needs a check-out, which is
+        forbidden), so the automatic turnover is judged from the docs and tests
+        only.
+      </p>
 
-<p><strong>Data state found:</strong> 3 rooms (101, 102, 201), none with a floor or building, 0 dirty, 2 clean and waiting for inspection, 1 inspected with a guest in house. One arrival today (201, not ready). Inspection is Off for the Organization and On for this Property. So &ldquo;empty&rdquo; and &ldquo;60 dirty rooms&rdquo; are <em>inferred</em> from code, not seen. I could not trigger a departure-driven dirty room (that needs a check-out, which is forbidden), so the automatic turnover is judged from the docs and tests only.</p>
+      <h2>1. Verdict</h2>
+      <ol>
+        <li>
+          <strong
+            >On a phone, this persona cannot mark a room clean from the
+            Housekeeping page without hunting for the control.</strong
+          >
+          At 375 px the &ldquo;&hellip;&rdquo; menu that holds the mark actions
+          is 336 px off-screen to the right of a horizontally scrolling table,
+          and when you scroll to it the room number has scrolled out of view
+          (HK-01, verified).
+        </li>
+        <li>
+          <strong>The feature was designed for somebody else.</strong>
+          <code>use-case.mmd</code> says &ldquo;Housekeepers are not expected to
+          use the app: whoever hears &lsquo;204 is done&rsquo; records
+          it&rdquo;, and assigning work to a named housekeeper is out of scope
+          (HK-DEF-04). An attendant doing 30 to 60 marks a shift on a phone is a
+          different product than the one built. I think that premise is worth
+          challenging if attendants are real users; if the desk really does the
+          typing, the phone findings matter less and HK-04, HK-06 and HK-07
+          matter more.
+        </li>
+        <li>
+          The good phone path exists but is on a different page: the
+          <strong>Today</strong> page for the Housekeeping role has a
+          &ldquo;Clean these first&rdquo; list with a priority badge and a
+          one-tap &ldquo;Mark inspected&rdquo; button (verified, shot 10). It
+          shows only the top 6 rooms and the Housekeeping page itself has none
+          of it.
+        </li>
+        <li>
+          Correctness and permissions are solid: the board reads the same in
+          English, Turkish and Arabic (RTL mirrors properly), roles that may not
+          mark see a read-only board, and a bad Property link lands on a calm
+          empty state.
+        </li>
+        <li>
+          Biggest risk: on a busy day (many dirty rooms) the board is a plain
+          10-per-page table sorted by building and floor, with no due-out or
+          priority marker, no floor filter and 32 px tap targets (HK-02, HK-04,
+          HK-05). That is <em>inferred</em> for volume, verified for the parts.
+        </li>
+      </ol>
 
-<h2>1. Verdict</h2>
-<ol>
-  <li><strong>On a phone, this persona cannot mark a room clean from the Housekeeping page without hunting for the control.</strong> At 375 px the &ldquo;&hellip;&rdquo; menu that holds the mark actions is 336 px off-screen to the right of a horizontally scrolling table, and when you scroll to it the room number has scrolled out of view (HK-01, verified).</li>
-  <li><strong>The feature was designed for somebody else.</strong> <code>use-case.mmd</code> says &ldquo;Housekeepers are not expected to use the app: whoever hears &lsquo;204 is done&rsquo; records it&rdquo;, and assigning work to a named housekeeper is out of scope (HK-DEF-04). An attendant doing 30 to 60 marks a shift on a phone is a different product than the one built. I think that premise is worth challenging if attendants are real users; if the desk really does the typing, the phone findings matter less and HK-04, HK-06 and HK-07 matter more.</li>
-  <li>The good phone path exists but is on a different page: the <strong>Today</strong> page for the Housekeeping role has a &ldquo;Clean these first&rdquo; list with a priority badge and a one-tap &ldquo;Mark inspected&rdquo; button (verified, shot 10). It shows only the top 6 rooms and the Housekeeping page itself has none of it.</li>
-  <li>Correctness and permissions are solid: the board reads the same in English, Turkish and Arabic (RTL mirrors properly), roles that may not mark see a read-only board, and a bad Property link lands on a calm empty state.</li>
-  <li>Biggest risk: on a busy day (many dirty rooms) the board is a plain 10-per-page table sorted by building and floor, with no due-out or priority marker, no floor filter and 32 px tap targets (HK-02, HK-04, HK-05). That is <em>inferred</em> for volume, verified for the parts.</li>
-</ol>
+      <h2>2. Findings</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="id">HK-01</td>
+              <td class="sev blocks">blocks work</td>
+              <td>
+                <code>/en/housekeeping</code>, Housekeeping, 375 px, 3 rooms
+              </td>
+              <td>
+                The table is 744 px wide inside a 343 px container. Occupancy,
+                Last changed and the &ldquo;Actions for 101&rdquo; button sit at
+                x=711 on a 375 px screen. After you swipe the table to reach the
+                button, the Room and Status columns are gone, and the opened
+                menu (Mark inspected / Mark dirty) does not name the room.
+              </td>
+              <td>
+                The room, its status and a big &ldquo;Mark clean&rdquo; control
+                visible together, without sideways swiping.
+              </td>
+              <td>
+                Below the <code>md</code> breakpoint render each room as a card:
+                number, status badge, a due-out or arrival line, and one
+                full-width primary mark button. Keep the table for wider
+                screens.
+              </td>
+              <td>M</td>
+              <td>Shots 01, 02, 03, 04. Reproduced Y (twice).</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<h2>2. Findings</h2>
-<div class="scroll">
-<table>
-<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
-<tbody>
+            <tr>
+              <td class="id">HK-02</td>
+              <td class="sev errors">causes errors</td>
+              <td>Housekeeping page and Today, 375 px, Housekeeping</td>
+              <td>
+                Tap targets measured: row select checkbox 16x16 px (its cell is
+                about 37 px wide), &ldquo;&hellip;&rdquo; row action 32x32, bulk
+                Mark clean / inspected / dirty 32 px high, pagination arrows
+                32x32, Today &ldquo;Mark inspected&rdquo; 128x32. Mark clean and
+                Mark dirty sit next to each other in the bulk bar.
+              </td>
+              <td>
+                At least 44 px on the controls used 30 to 60 times a shift, with
+                wet or gloved hands, and space between opposite actions (clean
+                vs dirty).
+              </td>
+              <td>
+                Raise mark controls, checkboxes and pagination to a 44 px
+                minimum on touch; separate &ldquo;Mark dirty&rdquo; from the
+                other two.
+              </td>
+              <td>S</td>
+              <td>
+                Shots 03, 05, 10. Measured with
+                <code>getBoundingClientRect</code>. Reproduced Y.
+              </td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-01</td><td class="sev blocks">blocks work</td>
-<td><code>/en/housekeeping</code>, Housekeeping, 375 px, 3 rooms</td>
-<td>The table is 744 px wide inside a 343 px container. Occupancy, Last changed and the &ldquo;Actions for 101&rdquo; button sit at x=711 on a 375 px screen. After you swipe the table to reach the button, the Room and Status columns are gone, and the opened menu (Mark inspected / Mark dirty) does not name the room.</td>
-<td>The room, its status and a big &ldquo;Mark clean&rdquo; control visible together, without sideways swiping.</td>
-<td>Below the <code>md</code> breakpoint render each room as a card: number, status badge, a due-out or arrival line, and one full-width primary mark button. Keep the table for wider screens.</td>
-<td>M</td>
-<td>Shots 01, 02, 03, 04. Reproduced Y (twice).</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-03</td>
+              <td class="sev errors">slows me down</td>
+              <td><code>/en/housekeeping</code>, any role, 375 px</td>
+              <td>
+                Five stat tiles wrap onto three rows and take the whole first
+                screen. The first room is below the fold; I scrolled about one
+                full screen to see 101.
+              </td>
+              <td>The rooms that need work in the first screen.</td>
+              <td>
+                Make the tiles one compact row of tappable chips that also act
+                as the status filter, or put them below the list on phones.
+              </td>
+              <td>S</td>
+              <td>Shots 01, 02. Reproduced Y.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-02</td><td class="sev errors">causes errors</td>
-<td>Housekeeping page and Today, 375 px, Housekeeping</td>
-<td>Tap targets measured: row select checkbox 16x16 px (its cell is about 37 px wide), &ldquo;&hellip;&rdquo; row action 32x32, bulk Mark clean / inspected / dirty 32 px high, pagination arrows 32x32, Today &ldquo;Mark inspected&rdquo; 128x32. Mark clean and Mark dirty sit next to each other in the bulk bar.</td>
-<td>At least 44 px on the controls used 30 to 60 times a shift, with wet or gloved hands, and space between opposite actions (clean vs dirty).</td>
-<td>Raise mark controls, checkboxes and pagination to a 44 px minimum on touch; separate &ldquo;Mark dirty&rdquo; from the other two.</td>
-<td>S</td>
-<td>Shots 03, 05, 10. Measured with <code>getBoundingClientRect</code>. Reproduced Y.</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-04</td>
+              <td class="sev errors">slows me down</td>
+              <td>
+                <code>/en/housekeeping</code>, all roles, 3 rooms (volume
+                inferred)
+              </td>
+              <td>
+                The board has no &ldquo;due out today&rdquo;, &ldquo;arriving
+                today&rdquo; or priority column. Occupancy says only
+                &ldquo;Guest in house&rdquo; or &ldquo;Vacant&rdquo;. The
+                priority badge (&ldquo;Arrival &middot; inspect&rdquo;) exists
+                only on Today. Opening the board from Today&rsquo;s queue
+                (<code>?show=clean_first</code>, &ldquo;1 room to clean
+                first&rdquo;) shows room 201 as a plain &ldquo;Clean / Waiting
+                for inspection&rdquo; row with no reason it is first. Default
+                order is building, floor, room name (module.ts line 148), not
+                dirty first.
+              </td>
+              <td>
+                Dirty rooms first, with &ldquo;leaving today&rdquo; and
+                &ldquo;guest arriving&rdquo; shown on the row, because that is
+                what decides which door to knock on.
+              </td>
+              <td>
+                Add an urgency column or badge using the same
+                <code>cleanFirst</code> priority Today already derives; sort by
+                it by default; keep the badge in the narrowed view.
+              </td>
+              <td>M</td>
+              <td>
+                Shots 09, 10; code
+                <code>today-derive.ts</code> (<code>cleanFirst</code>,
+                <code>roomsInFilter</code>).
+              </td>
+              <td>
+                <span class="tag">verified</span> screens,
+                <span class="tag">inferred</span> default sort effect
+              </td>
+            </tr>
 
-<tr><td class="id">HK-03</td><td class="sev errors">slows me down</td>
-<td><code>/en/housekeeping</code>, any role, 375 px</td>
-<td>Five stat tiles wrap onto three rows and take the whole first screen. The first room is below the fold; I scrolled about one full screen to see 101.</td>
-<td>The rooms that need work in the first screen.</td>
-<td>Make the tiles one compact row of tappable chips that also act as the status filter, or put them below the list on phones.</td>
-<td>S</td>
-<td>Shots 01, 02. Reproduced Y.</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-05</td>
+              <td class="sev errors">slows me down</td>
+              <td><code>/en/housekeeping</code>, all roles</td>
+              <td>
+                There is no floor filter control. A floor view exists only as a
+                deep link (<code>?floor=</code>, from Today&rsquo;s floor
+                readiness). The search box covers Room and Where, but the code
+                searches only <code>name</code> and <code>building</code>, not
+                floor. On staging no room has a floor, so I could not see a
+                floor view.
+              </td>
+              <td>Pick &ldquo;Floor 3&rdquo; and see only that corridor.</td>
+              <td>
+                Add a floor chip or select next to the status chips; include
+                floor in search.
+              </td>
+              <td>S</td>
+              <td>
+                Code:
+                <code>housekeeping-board.tsx</code>
+                (<code>searchColumns</code>),
+                <code>page.tsx</code> (<code>parseFloorFilter</code>). Not
+                reproduced live: no floor data.
+              </td>
+              <td><span class="tag">inferred</span></td>
+            </tr>
 
-<tr><td class="id">HK-04</td><td class="sev errors">slows me down</td>
-<td><code>/en/housekeeping</code>, all roles, 3 rooms (volume inferred)</td>
-<td>The board has no &ldquo;due out today&rdquo;, &ldquo;arriving today&rdquo; or priority column. Occupancy says only &ldquo;Guest in house&rdquo; or &ldquo;Vacant&rdquo;. The priority badge (&ldquo;Arrival &middot; inspect&rdquo;) exists only on Today. Opening the board from Today&rsquo;s queue (<code>?show=clean_first</code>, &ldquo;1 room to clean first&rdquo;) shows room 201 as a plain &ldquo;Clean / Waiting for inspection&rdquo; row with no reason it is first. Default order is building, floor, room name (module.ts line 148), not dirty first.</td>
-<td>Dirty rooms first, with &ldquo;leaving today&rdquo; and &ldquo;guest arriving&rdquo; shown on the row, because that is what decides which door to knock on.</td>
-<td>Add an urgency column or badge using the same <code>cleanFirst</code> priority Today already derives; sort by it by default; keep the badge in the narrowed view.</td>
-<td>M</td>
-<td>Shots 09, 10; code <code>today-derive.ts</code> (<code>cleanFirst</code>, <code>roomsInFilter</code>).</td><td><span class="tag">verified</span> screens, <span class="tag">inferred</span> default sort effect</td></tr>
+            <tr>
+              <td class="id">HK-06</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>/en/housekeeping</code>, Front Desk and Housekeeping
+              </td>
+              <td>
+                The tile &ldquo;Ready to let&rdquo; shows 1. The only room that
+                can be counted is 102, which is Inspected and has a guest in
+                house. &ldquo;Ready&rdquo; is housekeeping readiness, ignoring
+                occupancy, but the label says it can be let.
+              </td>
+              <td>
+                &ldquo;Ready to let&rdquo; to mean vacant and ready, or the
+                label to say what it counts.
+              </td>
+              <td>
+                Count only vacant ready rooms under that label, or rename it
+                (&ldquo;Cleaned and checked&rdquo;).
+              </td>
+              <td>S</td>
+              <td>Shots 01, 11 (rooms and tile). Reproduced Y.</td>
+              <td>
+                <span class="tag">verified</span> numbers,
+                <span class="tag">inferred</span> cause
+                (<code>inRoomFilter</code>)
+              </td>
+            </tr>
 
-<tr><td class="id">HK-05</td><td class="sev errors">slows me down</td>
-<td><code>/en/housekeeping</code>, all roles</td>
-<td>There is no floor filter control. A floor view exists only as a deep link (<code>?floor=</code>, from Today&rsquo;s floor readiness). The search box covers Room and Where, but the code searches only <code>name</code> and <code>building</code>, not floor. On staging no room has a floor, so I could not see a floor view.</td>
-<td>Pick &ldquo;Floor 3&rdquo; and see only that corridor.</td>
-<td>Add a floor chip or select next to the status chips; include floor in search.</td>
-<td>S</td>
-<td>Code: <code>housekeeping-board.tsx</code> (<code>searchColumns</code>), <code>page.tsx</code> (<code>parseFloorFilter</code>). Not reproduced live: no floor data.</td><td><span class="tag">inferred</span></td></tr>
+            <tr>
+              <td class="id">HK-07</td>
+              <td class="sev errors">slows me down</td>
+              <td>Housekeeping board vs Today vs Arrivals</td>
+              <td>
+                The same state is worded three ways: &ldquo;Waiting for
+                inspection&rdquo; (board), &ldquo;Clean, awaiting
+                inspection&rdquo; / &ldquo;Awaiting inspection&rdquo; (Today),
+                and on Arrivals room 201 reads &ldquo;Not ready&rdquo; with the
+                spray-can (dirty) icon while the board calls the same room
+                &ldquo;Clean&rdquo; with a green badge. The desk sees a dirty
+                icon on a clean room.
+              </td>
+              <td>
+                One term and one icon per state across Today, Arrivals and the
+                board.
+              </td>
+              <td>
+                Pick &ldquo;Awaiting inspection&rdquo;; on Arrivals show
+                &ldquo;Awaiting inspection&rdquo; (not &ldquo;Not ready&rdquo;)
+                with the clean icon when the room is clean.
+              </td>
+              <td>S</td>
+              <td>Shots 02, 10, 12.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-06</td><td class="sev errors">causes errors</td>
-<td><code>/en/housekeeping</code>, Front Desk and Housekeeping</td>
-<td>The tile &ldquo;Ready to let&rdquo; shows 1. The only room that can be counted is 102, which is Inspected and has a guest in house. &ldquo;Ready&rdquo; is housekeeping readiness, ignoring occupancy, but the label says it can be let.</td>
-<td>&ldquo;Ready to let&rdquo; to mean vacant and ready, or the label to say what it counts.</td>
-<td>Count only vacant ready rooms under that label, or rename it (&ldquo;Cleaned and checked&rdquo;).</td>
-<td>S</td>
-<td>Shots 01, 11 (rooms and tile). Reproduced Y.</td><td><span class="tag">verified</span> numbers, <span class="tag">inferred</span> cause (<code>inRoomFilter</code>)</td></tr>
+            <tr>
+              <td class="id">HK-08</td>
+              <td class="sev errors">slows me down</td>
+              <td>
+                <code>/en/housekeeping</code>, any marking role; long list
+                (inferred)
+              </td>
+              <td>
+                The result line (&ldquo;N rooms updated&rdquo;, or the refusal)
+                is an <code>aria-live</code> paragraph above the table, not a
+                toast. The bulk bar is also above the table and is not sticky
+                (<code>position: static</code> measured). With many rooms,
+                ticking a room far down means scrolling up to press the button,
+                and then not seeing the confirmation.
+              </td>
+              <td>
+                A confirmation next to the room I just touched, and a bulk bar
+                that stays on screen while selected.
+              </td>
+              <td>
+                Sticky bottom bar on phones for the selection; toast or inline
+                row confirmation. Undo is by marking back (by design, HK-S2-05);
+                a toast with Undo would shorten a misfire.
+              </td>
+              <td>M</td>
+              <td>
+                Shot 05 (bar above list); code
+                <code>housekeeping-board.tsx</code>. I did not submit a mark.
+              </td>
+              <td>
+                <span class="tag">verified</span> bar position,
+                <span class="tag">inferred</span> feedback behaviour
+              </td>
+            </tr>
 
-<tr><td class="id">HK-07</td><td class="sev errors">slows me down</td>
-<td>Housekeeping board vs Today vs Arrivals</td>
-<td>The same state is worded three ways: &ldquo;Waiting for inspection&rdquo; (board), &ldquo;Clean, awaiting inspection&rdquo; / &ldquo;Awaiting inspection&rdquo; (Today), and on Arrivals room 201 reads &ldquo;Not ready&rdquo; with the spray-can (dirty) icon while the board calls the same room &ldquo;Clean&rdquo; with a green badge. The desk sees a dirty icon on a clean room.</td>
-<td>One term and one icon per state across Today, Arrivals and the board.</td>
-<td>Pick &ldquo;Awaiting inspection&rdquo;; on Arrivals show &ldquo;Awaiting inspection&rdquo; (not &ldquo;Not ready&rdquo;) with the clean icon when the room is clean.</td>
-<td>S</td>
-<td>Shots 02, 10, 12.</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-09</td>
+              <td class="sev errors">slows me down</td>
+              <td><code>/en/housekeeping</code>, volume (inferred)</td>
+              <td>
+                Table pages at 10 rows (&ldquo;Per page 10&rdquo; at 768 px;
+                only Previous/Next at 375). Marks are capped at 60 rooms per
+                action and the over-limit message reads &ldquo;Choose between
+                one and sixty rooms.&rdquo; Marking 60 dirty rooms means 6 pages
+                of ticking, with the checkbox and bar issues above.
+              </td>
+              <td>
+                &ldquo;Select all dirty&rdquo; and a page size that fits a
+                corridor.
+              </td>
+              <td>
+                Add &ldquo;select all in this filter&rdquo;; default page size
+                25 or 50 on the board.
+              </td>
+              <td>M</td>
+              <td>
+                Shot 08 (per-page), code <code>MARK_BATCH</code>. Not seen with
+                real volume.
+              </td>
+              <td><span class="tag">inferred</span></td>
+            </tr>
 
-<tr><td class="id">HK-08</td><td class="sev errors">slows me down</td>
-<td><code>/en/housekeeping</code>, any marking role; long list (inferred)</td>
-<td>The result line (&ldquo;N rooms updated&rdquo;, or the refusal) is an <code>aria-live</code> paragraph above the table, not a toast. The bulk bar is also above the table and is not sticky (<code>position: static</code> measured). With many rooms, ticking a room far down means scrolling up to press the button, and then not seeing the confirmation.</td>
-<td>A confirmation next to the room I just touched, and a bulk bar that stays on screen while selected.</td>
-<td>Sticky bottom bar on phones for the selection; toast or inline row confirmation. Undo is by marking back (by design, HK-S2-05); a toast with Undo would shorten a misfire.</td>
-<td>M</td>
-<td>Shot 05 (bar above list); code <code>housekeeping-board.tsx</code>. I did not submit a mark.</td><td><span class="tag">verified</span> bar position, <span class="tag">inferred</span> feedback behaviour</td></tr>
+            <tr>
+              <td class="id">HK-10</td>
+              <td class="sev">polish</td>
+              <td><code>/en/housekeeping</code>, 768 px</td>
+              <td>
+                With the sidebar open at 768 px the table still clips Occupancy
+                and Last changed, the stat labels clip (&ldquo;INSPECT&rdquo;)
+                and the &ldquo;Ready to let&rdquo; tile wraps to three lines.
+              </td>
+              <td>Labels and columns fit, or the sidebar collapses.</td>
+              <td>
+                Collapse the sidebar by default under 1024 px or let tiles wrap.
+              </td>
+              <td>S</td>
+              <td>Shot 08.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-09</td><td class="sev errors">slows me down</td>
-<td><code>/en/housekeeping</code>, volume (inferred)</td>
-<td>Table pages at 10 rows (&ldquo;Per page 10&rdquo; at 768 px; only Previous/Next at 375). Marks are capped at 60 rooms per action and the over-limit message reads &ldquo;Choose between one and sixty rooms.&rdquo; Marking 60 dirty rooms means 6 pages of ticking, with the checkbox and bar issues above.</td>
-<td>&ldquo;Select all dirty&rdquo; and a page size that fits a corridor.</td>
-<td>Add &ldquo;select all in this filter&rdquo;; default page size 25 or 50 on the board.</td>
-<td>M</td>
-<td>Shot 08 (per-page), code <code>MARK_BATCH</code>. Not seen with real volume.</td><td><span class="tag">inferred</span></td></tr>
+            <tr>
+              <td class="id">HK-11</td>
+              <td class="sev">polish</td>
+              <td>Housekeeping and Front Desk, all widths</td>
+              <td>
+                The &ldquo;Check rooms after cleaning&rdquo; settings card is
+                shown to everyone and for these roles both selects are disabled
+                with &ldquo;A manager can change this.&rdquo; twice. On a phone
+                it is a full screen of controls that cannot be used, under the
+                list.
+              </td>
+              <td>
+                A read-only line (&ldquo;Rooms are checked after cleaning
+                here&rdquo;) for non-managers, the editable card for managers.
+              </td>
+              <td>
+                Collapse the card to one sentence when neither select is
+                editable. The Manager view of it was seen but not changed
+                (selects save on change, so I did not touch them).
+              </td>
+              <td>S</td>
+              <td>Shots 02, 11.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-10</td><td class="sev">polish</td>
-<td><code>/en/housekeeping</code>, 768 px</td>
-<td>With the sidebar open at 768 px the table still clips Occupancy and Last changed, the stat labels clip (&ldquo;INSPECT&rdquo;) and the &ldquo;Ready to let&rdquo; tile wraps to three lines.</td>
-<td>Labels and columns fit, or the sidebar collapses.</td>
-<td>Collapse the sidebar by default under 1024 px or let tiles wrap.</td>
-<td>S</td>
-<td>Shot 08.</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-12</td>
+              <td class="sev">polish</td>
+              <td><code>/en/housekeeping?property=&lt;unknown&gt;</code></td>
+              <td>
+                A Property id the viewer does not reach shows
+                &ldquo;Housekeeping is not on at this Property&rdquo; and talks
+                about a Subscription. For an attendant with a stale link the
+                real next step is the &ldquo;Choose a Property&rdquo; control in
+                the bar. The empty state is calm and does not leak another
+                Property (good), but the copy is aimed at an administrator.
+              </td>
+              <td>A line that names the action for this person.</td>
+              <td>
+                Add &ldquo;Pick your Property above&rdquo; when the viewer has
+                other Properties.
+              </td>
+              <td>S</td>
+              <td>Shot 13.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
 
-<tr><td class="id">HK-11</td><td class="sev">polish</td>
-<td>Housekeeping and Front Desk, all widths</td>
-<td>The &ldquo;Check rooms after cleaning&rdquo; settings card is shown to everyone and for these roles both selects are disabled with &ldquo;A manager can change this.&rdquo; twice. On a phone it is a full screen of controls that cannot be used, under the list.</td>
-<td>A read-only line (&ldquo;Rooms are checked after cleaning here&rdquo;) for non-managers, the editable card for managers.</td>
-<td>Collapse the card to one sentence when neither select is editable. The Manager view of it was seen but not changed (selects save on change, so I did not touch them).</td>
-<td>S</td>
-<td>Shots 02, 11.</td><td><span class="tag">verified</span></td></tr>
+            <tr>
+              <td class="id">HK-13</td>
+              <td class="sev">polish</td>
+              <td><code>/en/housekeeping</code>, all roles</td>
+              <td>
+                Two stacked titles say the same thing: h1
+                &ldquo;Housekeeping&rdquo; and a sentence heading &ldquo;Which
+                rooms need cleaning at Demo Otel İstanbul&rdquo;, repeated again
+                as the table caption. The sentence is not accurate for a list
+                that includes rooms already clean. &ldquo;Not recorded
+                yet&rdquo; appears in Last changed for rooms never marked, which
+                reads like a failure; a 12-day-old time shows no year
+                (&ldquo;Sep 29, 13:08&rdquo;).
+              </td>
+              <td>
+                One title; &ldquo;Never marked&rdquo; and a date that is
+                unambiguous.
+              </td>
+              <td>
+                Drop the sentence heading (or make it a count: &ldquo;1 room to
+                clean&rdquo;), show the date when older than today.
+              </td>
+              <td>S</td>
+              <td>Shots 01, 11.</td>
+              <td><span class="tag">verified</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        13 findings: 1 blocks work (HK-01), 2 cause errors (HK-02, HK-06), 6
+        slow me down (HK-03, 04, 05, 07, 08, 09), 4 polish (HK-10 to HK-13). I
+        did not invent rows for the not-built items; those are in section 6.
+      </p>
 
-<tr><td class="id">HK-12</td><td class="sev">polish</td>
-<td><code>/en/housekeeping?property=&lt;unknown&gt;</code></td>
-<td>A Property id the viewer does not reach shows &ldquo;Housekeeping is not on at this Property&rdquo; and talks about a Subscription. For an attendant with a stale link the real next step is the &ldquo;Choose a Property&rdquo; control in the bar. The empty state is calm and does not leak another Property (good), but the copy is aimed at an administrator.</td>
-<td>A line that names the action for this person.</td>
-<td>Add &ldquo;Pick your Property above&rdquo; when the viewer has other Properties.</td>
-<td>S</td>
-<td>Shot 13.</td><td><span class="tag">verified</span></td></tr>
+      <h3>Screenshots</h3>
+      <div class="shots">
+        <figure class="phone">
+          <img
+            src="01-hk-375-top.png"
+            alt="Housekeeping at 375 px, top of page"
+          />
+          <figcaption>
+            01 &mdash; 375 px, Housekeeping: tiles fill the first screen
+            (HK-03).
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="03-hk-375-table-scrolled.png"
+            alt="Table scrolled sideways at 375 px"
+          />
+          <figcaption>
+            03 &mdash; table scrolled to reach the actions: room name gone
+            (HK-01).
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="04-hk-375-row-menu.png"
+            alt="Row action menu open at 375 px"
+          />
+          <figcaption>
+            04 &mdash; row menu open; no room named, 32 px trigger (HK-01,
+            HK-02).
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="05-hk-375-selected.png"
+            alt="Two rows selected with bulk bar"
+          />
+          <figcaption>
+            05 &mdash; two rows ticked: bulk bar above the list, 32 px buttons
+            (HK-02, HK-08).
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="09-hk-375-clean-first-filter.png"
+            alt="Clean first filter at 375 px"
+          />
+          <figcaption>
+            09 &mdash; <code>?show=clean_first</code>: room 201, no reason shown
+            (HK-04).
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="10-hk-375-today-as-housekeeping.png"
+            alt="Today page as Housekeeping"
+          />
+          <figcaption>
+            10 &mdash; Today for Housekeeping: priority badge and one-tap mark.
+          </figcaption>
+        </figure>
+        <figure class="phone">
+          <img
+            src="13-hk-375-bad-property.png"
+            alt="Unknown property empty state"
+          />
+          <figcaption>13 &mdash; unknown Property id (HK-12).</figcaption>
+        </figure>
+      </div>
+      <figure>
+        <img
+          src="02-hk-375-full.png"
+          alt="Full page at 375 px"
+          style="max-width: 360px"
+        />
+        <figcaption>02 &mdash; full page at 375 px.</figcaption>
+      </figure>
+      <figure>
+        <img src="08-hk-768.png" alt="768 px view" style="max-width: 640px" />
+        <figcaption>
+          08 &mdash; 768 px with sidebar: clipped columns and tile labels
+          (HK-10).
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="11-frontdesk-1440.png" alt="Front desk at 1440 px" />
+        <figcaption>
+          11 &mdash; Front Desk at 1440 px: same board, disabled settings card
+          (HK-06, HK-11).
+        </figcaption>
+      </figure>
+      <figure>
+        <img
+          src="12-arrivals-readiness-vocab.png"
+          alt="Arrivals readiness wording"
+        />
+        <figcaption>
+          12 &mdash; Arrivals shows &ldquo;Not ready&rdquo; with a dirty icon
+          for room 201 (HK-07).
+        </figcaption>
+      </figure>
+      <div class="shots">
+        <figure class="phone">
+          <img src="06-hk-375-ar-full.png" alt="Arabic at 375 px" />
+          <figcaption>06 &mdash; Arabic, RTL mirrored correctly.</figcaption>
+        </figure>
+        <figure class="phone">
+          <img src="07-hk-375-tr-full.png" alt="Turkish at 375 px" />
+          <figcaption>07 &mdash; Turkish.</figcaption>
+        </figure>
+      </div>
 
-<tr><td class="id">HK-13</td><td class="sev">polish</td>
-<td><code>/en/housekeeping</code>, all roles</td>
-<td>Two stacked titles say the same thing: h1 &ldquo;Housekeeping&rdquo; and a sentence heading &ldquo;Which rooms need cleaning at Demo Otel İstanbul&rdquo;, repeated again as the table caption. The sentence is not accurate for a list that includes rooms already clean. &ldquo;Not recorded yet&rdquo; appears in Last changed for rooms never marked, which reads like a failure; a 12-day-old time shows no year (&ldquo;Sep 29, 13:08&rdquo;).</td>
-<td>One title; &ldquo;Never marked&rdquo; and a date that is unambiguous.</td>
-<td>Drop the sentence heading (or make it a count: &ldquo;1 room to clean&rdquo;), show the date when older than today.</td>
-<td>S</td>
-<td>Shots 01, 11.</td><td><span class="tag">verified</span></td></tr>
+      <h2>3. Jobs</h2>
+      <p>
+        Pass/fail tests were written before each attempt. I did not time with a
+        stopwatch: browser-tool latency is not human time, so I report taps and
+        swipes counted instead. Jobs that need a valid submit were stopped at
+        the confirm step: <em>stopped before submit, not persisted</em>.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job</th>
+              <th>Pass test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Taps / swipes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>
+                Start of shift on a phone: which rooms are dirty, due out,
+                ready.
+              </td>
+              <td>
+                Within one screen and no sideways swipe I can name the dirty
+                rooms and which are leaving or arriving today.
+              </td>
+              <td>
+                <strong>Fail on the board</strong> (tiles fill the screen,
+                due-out absent, HK-03/HK-04).
+                <strong>Pass on Today</strong> (priority list),
+                <em>verified</em>.
+              </td>
+              <td>not timed</td>
+              <td>Board: 1 scroll screen. Today: 0.</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>Mark one room clean (the 30 to 60 times a shift task).</td>
+              <td>
+                At most 2 taps, the room name visible at the moment I confirm.
+              </td>
+              <td>
+                <strong>Fail on the board</strong>: 1 sideways swipe +
+                &ldquo;&hellip;&rdquo; + menu item = 3 actions, room name
+                off-screen. <strong>Pass on Today</strong> for the top-6 queue
+                rooms (1 tap). Stopped before submit, not persisted.
+              </td>
+              <td>not timed</td>
+              <td>Board 3 + 1 swipe; Today 1.</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>Bulk: mark several rooms at once.</td>
+              <td>Tick N rooms and one tap marks them, with a clear count.</td>
+              <td>
+                Works as designed (&ldquo;2 selected&rdquo; bar, three actions).
+                16 px checkboxes and a non-sticky bar make it error-prone
+                (HK-02, HK-08). Stopped before submit, not persisted.
+              </td>
+              <td>not timed</td>
+              <td>
+                2 ticks + 1 tap (+ scroll up when list is long,
+                <em>inferred</em>).
+              </td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>Narrow to one floor and to dirty rooms.</td>
+              <td>A visible control for floor; status filter in one tap.</td>
+              <td>
+                Status filter <strong>pass</strong> (chips with counts). Floor
+                <strong>fail</strong>: deep link only (HK-05); no floors on
+                staging to test.
+              </td>
+              <td>not timed</td>
+              <td>Status 1 tap; floor n/a.</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>Front Desk: is the arriving guest&rsquo;s room ready?</td>
+              <td>
+                Arrivals or board tells me yes/no in plain words with the same
+                wording as housekeeping.
+              </td>
+              <td>
+                <strong>Partial pass</strong>: Arrivals says &ldquo;Not
+                ready&rdquo; (correct) but with a dirty icon, while the board
+                calls the room Clean/waiting for inspection (HK-07).
+              </td>
+              <td>not timed</td>
+              <td>1 page change.</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>Error recovery: I marked the wrong room.</td>
+              <td>
+                I can fix it in one action and know the first mark did not
+                stick.
+              </td>
+              <td>
+                Design: mark it back, no reason asked (HK-S2-05, HK-S2-06). No
+                undo toast (HK-08). Stopped before submit; judged from code,
+                <em>inferred</em>.
+              </td>
+              <td>n/a</td>
+              <td>3 (same as J2).</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>
+                &ldquo;It is broken and I am under pressure&rdquo;: many dirty
+                rooms after a checkout rush.
+              </td>
+              <td>
+                Dirty rooms first, markable in bulk across the whole list.
+              </td>
+              <td>
+                <strong>Likely fail</strong>, <em>inferred</em>: 10 per page,
+                default order building/floor/name not dirty-first, 60-room cap,
+                no &ldquo;select all dirty&rdquo; (HK-04, HK-09).
+                Departure-triggered dirty is automatic by design (HK-S1-01,
+                worker) but I could not trigger a check-out to see it.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>Use it in Turkish and Arabic.</td>
+              <td>
+                Every string translated, Arabic mirrored, status as word + icon.
+              </td>
+              <td>
+                <strong>Pass</strong>, <em>verified</em> at 375 px (shots 06,
+                07). Vocabulary is also translated for filters and menus
+                (messages checked).
+              </td>
+              <td>not timed</td>
+              <td>0.</td>
+            </tr>
+            <tr>
+              <td>J9</td>
+              <td>Read-only view / wrong Property link.</td>
+              <td>No dead end, no other Property&rsquo;s rooms.</td>
+              <td>
+                <strong>Pass</strong> for the bad link (shot 13, copy polish
+                HK-12). Read-only board for a role without the permission
+                <em>inferred</em> from <code>readOnly</code> copy: all three
+                roles I used hold the mark permission.
+              </td>
+              <td>not timed</td>
+              <td>0.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-</tbody>
-</table>
-</div>
-<p>13 findings: 1 blocks work (HK-01), 2 cause errors (HK-02, HK-06), 6 slow me down (HK-03, 04, 05, 07, 08, 09), 4 polish (HK-10 to HK-13). I did not invent rows for the not-built items; those are in section 6.</p>
+      <h2>4. Top changes</h2>
+      <ol>
+        <li>
+          <strong
+            >I can mark a room clean with one thumb, seeing which room it
+            is</strong
+          >
+          &mdash; a card list with a full-width mark button below the tablet
+          breakpoint (HK-01, HK-02). Highest frequency, biggest time saved.
+        </li>
+        <li>
+          <strong
+            >I can see which rooms to do first without opening another
+            page</strong
+          >
+          &mdash; priority and &ldquo;leaving / arriving today&rdquo; on each
+          board row, dirty-first default order (HK-04).
+        </li>
+        <li>
+          <strong>The first screen is rooms, not totals</strong> &mdash; compact
+          status chips that double as the filter (HK-03).
+        </li>
+        <li>
+          <strong>I can finish a long list in one pass</strong> &mdash; sticky
+          selection bar, &ldquo;select all in this filter&rdquo;, larger default
+          page (HK-08, HK-09).
+        </li>
+        <li>
+          <strong>I can pick my floor</strong> &mdash; a floor control and floor
+          in search (HK-05).
+        </li>
+        <li>
+          <strong
+            >The front desk reads the same word for a room everywhere</strong
+          >
+          &mdash; one term and icon on Arrivals, Today and the board (HK-07),
+          and an honest &ldquo;Ready to let&rdquo; (HK-06).
+        </li>
+        <li>
+          <strong>I see that my tap worked, next to the room</strong> &mdash;
+          inline confirmation or toast with undo (HK-08).
+        </li>
+        <li>
+          <strong>Only controls I can use are shown</strong> &mdash; collapse
+          the inspection card for non-managers (HK-11).
+        </li>
+      </ol>
 
-<h3>Screenshots</h3>
-<div class="shots">
-  <figure class="phone"><img src="01-hk-375-top.png" alt="Housekeeping at 375 px, top of page"><figcaption>01 &mdash; 375 px, Housekeeping: tiles fill the first screen (HK-03).</figcaption></figure>
-  <figure class="phone"><img src="03-hk-375-table-scrolled.png" alt="Table scrolled sideways at 375 px"><figcaption>03 &mdash; table scrolled to reach the actions: room name gone (HK-01).</figcaption></figure>
-  <figure class="phone"><img src="04-hk-375-row-menu.png" alt="Row action menu open at 375 px"><figcaption>04 &mdash; row menu open; no room named, 32 px trigger (HK-01, HK-02).</figcaption></figure>
-  <figure class="phone"><img src="05-hk-375-selected.png" alt="Two rows selected with bulk bar"><figcaption>05 &mdash; two rows ticked: bulk bar above the list, 32 px buttons (HK-02, HK-08).</figcaption></figure>
-  <figure class="phone"><img src="09-hk-375-clean-first-filter.png" alt="Clean first filter at 375 px"><figcaption>09 &mdash; <code>?show=clean_first</code>: room 201, no reason shown (HK-04).</figcaption></figure>
-  <figure class="phone"><img src="10-hk-375-today-as-housekeeping.png" alt="Today page as Housekeeping"><figcaption>10 &mdash; Today for Housekeeping: priority badge and one-tap mark.</figcaption></figure>
-  <figure class="phone"><img src="13-hk-375-bad-property.png" alt="Unknown property empty state"><figcaption>13 &mdash; unknown Property id (HK-12).</figcaption></figure>
-</div>
-<figure><img src="02-hk-375-full.png" alt="Full page at 375 px" style="max-width:360px"><figcaption>02 &mdash; full page at 375 px.</figcaption></figure>
-<figure><img src="08-hk-768.png" alt="768 px view" style="max-width:640px"><figcaption>08 &mdash; 768 px with sidebar: clipped columns and tile labels (HK-10).</figcaption></figure>
-<figure><img src="11-frontdesk-1440.png" alt="Front desk at 1440 px"><figcaption>11 &mdash; Front Desk at 1440 px: same board, disabled settings card (HK-06, HK-11).</figcaption></figure>
-<figure><img src="12-arrivals-readiness-vocab.png" alt="Arrivals readiness wording"><figcaption>12 &mdash; Arrivals shows &ldquo;Not ready&rdquo; with a dirty icon for room 201 (HK-07).</figcaption></figure>
-<div class="shots">
-  <figure class="phone"><img src="06-hk-375-ar-full.png" alt="Arabic at 375 px"><figcaption>06 &mdash; Arabic, RTL mirrored correctly.</figcaption></figure>
-  <figure class="phone"><img src="07-hk-375-tr-full.png" alt="Turkish at 375 px"><figcaption>07 &mdash; Turkish.</figcaption></figure>
-</div>
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <strong>Today does this better.</strong> Today&rsquo;s &ldquo;Clean
+          these first&rdquo; carries priority badges and a single-tap mark; the
+          Housekeeping page, the page the product calls the room board, does not
+          (shots 09, 10). <em>verified</em>
+        </li>
+        <li>
+          <strong>Wording:</strong> &ldquo;Waiting for inspection&rdquo; (board)
+          vs &ldquo;awaiting inspection&rdquo; (Today) vs &ldquo;Not
+          ready&rdquo; (Arrivals, with the dirty icon). In Turkish the readiness
+          tile is &ldquo;Satışa hazır&rdquo; (ready to sell) and in English
+          &ldquo;Ready to let&rdquo;; fine, but both ignore occupancy (HK-06).
+          <em>verified</em>
+        </li>
+        <li>
+          <strong>Mobile pattern:</strong> Today and the top bar are built for
+          narrow screens, with a bottom navigation bar; the data tables are the
+          part that is not (HK-01, HK-10). <em>verified</em>
+        </li>
+        <li>
+          <strong>Back button (ADR 0035):</strong> present on the Housekeeping
+          page, leading edge, goes to Today and keeps the Property, mirrored in
+          Arabic. <em>verified</em> (shots 01, 06).
+        </li>
+      </ul>
 
-<h2>3. Jobs</h2>
-<p>Pass/fail tests were written before each attempt. I did not time with a stopwatch: browser-tool latency is not human time, so I report taps and swipes counted instead. Jobs that need a valid submit were stopped at the confirm step: <em>stopped before submit, not persisted</em>.</p>
-<div class="scroll">
-<table>
-<thead><tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Taps / swipes</th></tr></thead>
-<tbody>
-<tr><td>J1</td><td>Start of shift on a phone: which rooms are dirty, due out, ready.</td><td>Within one screen and no sideways swipe I can name the dirty rooms and which are leaving or arriving today.</td><td><strong>Fail on the board</strong> (tiles fill the screen, due-out absent, HK-03/HK-04). <strong>Pass on Today</strong> (priority list), <em>verified</em>.</td><td>not timed</td><td>Board: 1 scroll screen. Today: 0.</td></tr>
-<tr><td>J2</td><td>Mark one room clean (the 30 to 60 times a shift task).</td><td>At most 2 taps, the room name visible at the moment I confirm.</td><td><strong>Fail on the board</strong>: 1 sideways swipe + &ldquo;&hellip;&rdquo; + menu item = 3 actions, room name off-screen. <strong>Pass on Today</strong> for the top-6 queue rooms (1 tap). Stopped before submit, not persisted.</td><td>not timed</td><td>Board 3 + 1 swipe; Today 1.</td></tr>
-<tr><td>J3</td><td>Bulk: mark several rooms at once.</td><td>Tick N rooms and one tap marks them, with a clear count.</td><td>Works as designed (&ldquo;2 selected&rdquo; bar, three actions). 16 px checkboxes and a non-sticky bar make it error-prone (HK-02, HK-08). Stopped before submit, not persisted.</td><td>not timed</td><td>2 ticks + 1 tap (+ scroll up when list is long, <em>inferred</em>).</td></tr>
-<tr><td>J4</td><td>Narrow to one floor and to dirty rooms.</td><td>A visible control for floor; status filter in one tap.</td><td>Status filter <strong>pass</strong> (chips with counts). Floor <strong>fail</strong>: deep link only (HK-05); no floors on staging to test.</td><td>not timed</td><td>Status 1 tap; floor n/a.</td></tr>
-<tr><td>J5</td><td>Front Desk: is the arriving guest&rsquo;s room ready?</td><td>Arrivals or board tells me yes/no in plain words with the same wording as housekeeping.</td><td><strong>Partial pass</strong>: Arrivals says &ldquo;Not ready&rdquo; (correct) but with a dirty icon, while the board calls the room Clean/waiting for inspection (HK-07).</td><td>not timed</td><td>1 page change.</td></tr>
-<tr><td>J6</td><td>Error recovery: I marked the wrong room.</td><td>I can fix it in one action and know the first mark did not stick.</td><td>Design: mark it back, no reason asked (HK-S2-05, HK-S2-06). No undo toast (HK-08). Stopped before submit; judged from code, <em>inferred</em>.</td><td>n/a</td><td>3 (same as J2).</td></tr>
-<tr><td>J7</td><td>&ldquo;It is broken and I am under pressure&rdquo;: many dirty rooms after a checkout rush.</td><td>Dirty rooms first, markable in bulk across the whole list.</td><td><strong>Likely fail</strong>, <em>inferred</em>: 10 per page, default order building/floor/name not dirty-first, 60-room cap, no &ldquo;select all dirty&rdquo; (HK-04, HK-09). Departure-triggered dirty is automatic by design (HK-S1-01, worker) but I could not trigger a check-out to see it.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>J8</td><td>Use it in Turkish and Arabic.</td><td>Every string translated, Arabic mirrored, status as word + icon.</td><td><strong>Pass</strong>, <em>verified</em> at 375 px (shots 06, 07). Vocabulary is also translated for filters and menus (messages checked).</td><td>not timed</td><td>0.</td></tr>
-<tr><td>J9</td><td>Read-only view / wrong Property link.</td><td>No dead end, no other Property&rsquo;s rooms.</td><td><strong>Pass</strong> for the bad link (shot 13, copy polish HK-12). Read-only board for a role without the permission <em>inferred</em> from <code>readOnly</code> copy: all three roles I used hold the mark permission.</td><td>not timed</td><td>0.</td></tr>
-</tbody>
-</table>
-</div>
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <strong>Assignment to attendants / who cleaned it:</strong> out of
+          scope, <code>HK-DEF-04</code> in
+          <code>docs/features/housekeeping/edge-cases.csv</code>. The audit log
+          names who pressed the button; no work queue per housekeeper exists.
+        </li>
+        <li>
+          <strong>Do not disturb:</strong> not in code, docs, roadmap or
+          blueprint (a case-insensitive search for &ldquo;do not disturb&rdquo;
+          and &ldquo;DND&rdquo; found nothing). It is not even a deferred row,
+          so if it is wanted it is a design decision, not a UX fix.
+        </li>
+        <li>
+          <strong>Out of order:</strong> owned by Maintenance
+          (<code>HK-DEF-06</code>); the board just shows &ldquo;Out of
+          service&rdquo; in Occupancy. Not seen live: no room is out of service
+          on staging.
+        </li>
+        <li>
+          <strong>Daily cleaning of rooms still in use (stayover):</strong>
+          deferred, <code>HK-DEF-01</code>, listed as &ldquo;missing&rdquo; in
+          <code>docs/roadmap.md</code>. 102 (guest in house) is shown with a
+          static status and has no &ldquo;service today&rdquo; state.
+        </li>
+        <li>
+          <strong>Per-bed status in a shared room:</strong> deferred,
+          <code>HK-DEF-02</code>.
+        </li>
+        <li>
+          <strong>Auditing the worker&rsquo;s automatic dirty mark:</strong>
+          deferred, <code>HK-DEF-03</code>; the row&rsquo;s null &ldquo;changed
+          by&rdquo; is the only trace.
+        </li>
+        <li>
+          <strong>A phone-first attendant view:</strong> not in the roadmap or
+          the screen handover (<code
+            >docs/handover/operator-workspace-screens.md</code
+          >
+          lists housekeeping as built for the board). Treat as a new feature if
+          attendants are to use it directly.
+        </li>
+        <li>
+          <strong>Departure-triggered turnover:</strong> built
+          (<code>HK-S1-01</code>, <code>HK-S1-22</code>, worker); the board
+          shows the room dirty even before the worker writes it. Not verified
+          live in this audit.
+        </li>
+      </ul>
 
-<h2>4. Top changes</h2>
-<ol>
-  <li><strong>I can mark a room clean with one thumb, seeing which room it is</strong> &mdash; a card list with a full-width mark button below the tablet breakpoint (HK-01, HK-02). Highest frequency, biggest time saved.</li>
-  <li><strong>I can see which rooms to do first without opening another page</strong> &mdash; priority and &ldquo;leaving / arriving today&rdquo; on each board row, dirty-first default order (HK-04).</li>
-  <li><strong>The first screen is rooms, not totals</strong> &mdash; compact status chips that double as the filter (HK-03).</li>
-  <li><strong>I can finish a long list in one pass</strong> &mdash; sticky selection bar, &ldquo;select all in this filter&rdquo;, larger default page (HK-08, HK-09).</li>
-  <li><strong>I can pick my floor</strong> &mdash; a floor control and floor in search (HK-05).</li>
-  <li><strong>The front desk reads the same word for a room everywhere</strong> &mdash; one term and icon on Arrivals, Today and the board (HK-07), and an honest &ldquo;Ready to let&rdquo; (HK-06).</li>
-  <li><strong>I see that my tap worked, next to the room</strong> &mdash; inline confirmation or toast with undo (HK-08).</li>
-  <li><strong>Only controls I can use are shown</strong> &mdash; collapse the inspection card for non-managers (HK-11).</li>
-</ol>
-
-<h2>5. Inconsistencies with sibling screens</h2>
-<ul>
-  <li><strong>Today does this better.</strong> Today&rsquo;s &ldquo;Clean these first&rdquo; carries priority badges and a single-tap mark; the Housekeeping page, the page the product calls the room board, does not (shots 09, 10). <em>verified</em></li>
-  <li><strong>Wording:</strong> &ldquo;Waiting for inspection&rdquo; (board) vs &ldquo;awaiting inspection&rdquo; (Today) vs &ldquo;Not ready&rdquo; (Arrivals, with the dirty icon). In Turkish the readiness tile is &ldquo;Satışa hazır&rdquo; (ready to sell) and in English &ldquo;Ready to let&rdquo;; fine, but both ignore occupancy (HK-06). <em>verified</em></li>
-  <li><strong>Mobile pattern:</strong> Today and the top bar are built for narrow screens, with a bottom navigation bar; the data tables are the part that is not (HK-01, HK-10). <em>verified</em></li>
-  <li><strong>Back button (ADR 0035):</strong> present on the Housekeeping page, leading edge, goes to Today and keeps the Property, mirrored in Arabic. <em>verified</em> (shots 01, 06).</li>
-</ul>
-
-<h2>6. Not built / needs backend work</h2>
-<ul>
-  <li><strong>Assignment to attendants / who cleaned it:</strong> out of scope, <code>HK-DEF-04</code> in <code>docs/features/housekeeping/edge-cases.csv</code>. The audit log names who pressed the button; no work queue per housekeeper exists.</li>
-  <li><strong>Do not disturb:</strong> not in code, docs, roadmap or blueprint (a case-insensitive search for &ldquo;do not disturb&rdquo; and &ldquo;DND&rdquo; found nothing). It is not even a deferred row, so if it is wanted it is a design decision, not a UX fix.</li>
-  <li><strong>Out of order:</strong> owned by Maintenance (<code>HK-DEF-06</code>); the board just shows &ldquo;Out of service&rdquo; in Occupancy. Not seen live: no room is out of service on staging.</li>
-  <li><strong>Daily cleaning of rooms still in use (stayover):</strong> deferred, <code>HK-DEF-01</code>, listed as &ldquo;missing&rdquo; in <code>docs/roadmap.md</code>. 102 (guest in house) is shown with a static status and has no &ldquo;service today&rdquo; state.</li>
-  <li><strong>Per-bed status in a shared room:</strong> deferred, <code>HK-DEF-02</code>.</li>
-  <li><strong>Auditing the worker&rsquo;s automatic dirty mark:</strong> deferred, <code>HK-DEF-03</code>; the row&rsquo;s null &ldquo;changed by&rdquo; is the only trace.</li>
-  <li><strong>A phone-first attendant view:</strong> not in the roadmap or the screen handover (<code>docs/handover/operator-workspace-screens.md</code> lists housekeeping as built for the board). Treat as a new feature if attendants are to use it directly.</li>
-  <li><strong>Departure-triggered turnover:</strong> built (<code>HK-S1-01</code>, <code>HK-S1-22</code>, worker); the board shows the room dirty even before the worker writes it. Not verified live in this audit.</li>
-</ul>
-
-<h2>7. What already works well and must not regress</h2>
-<ul>
-  <li>Status is a word plus an icon, never colour alone, and &ldquo;Clean &middot; Waiting for inspection&rdquo; separates two rooms the desk must treat differently (shots 02, 11). <em>verified</em></li>
-  <li>Turkish and Arabic are complete on this screen, including plural rules, and the layout mirrors cleanly in RTL (shots 06, 07). <em>verified</em></li>
-  <li>The Today &ldquo;Clean these first&rdquo; card: priority badge and one-tap mark (shot 10). <em>verified</em></li>
-  <li>A room it is already in can be re-marked harmlessly, and a double submit is guarded by one shared in-flight state (<code>HK-S2-06</code>, code). <em>inferred</em></li>
-  <li>Narrowing from Today (<code>?show=</code>, <code>?floor=</code>) opens exactly the counted rooms and offers &ldquo;Show all&rdquo; (shot 09). <em>verified</em></li>
-  <li>An unknown or unreachable Property shows an empty state, never another Property&rsquo;s rooms (shot 13). <em>verified</em></li>
-  <li>Permissions: the read-only banner copy, the capability gate and the refusal message are in place (code). Manager sees an editable Property setting and a disabled Organization one with the reason (&ldquo;Only someone who reaches every Property can change the Organization&rsquo;s setting.&rdquo;). <em>verified</em> for text, setting not changed.</li>
-</ul>
-
-</main>
-</body>
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          Status is a word plus an icon, never colour alone, and &ldquo;Clean
+          &middot; Waiting for inspection&rdquo; separates two rooms the desk
+          must treat differently (shots 02, 11). <em>verified</em>
+        </li>
+        <li>
+          Turkish and Arabic are complete on this screen, including plural
+          rules, and the layout mirrors cleanly in RTL (shots 06, 07).
+          <em>verified</em>
+        </li>
+        <li>
+          The Today &ldquo;Clean these first&rdquo; card: priority badge and
+          one-tap mark (shot 10). <em>verified</em>
+        </li>
+        <li>
+          A room it is already in can be re-marked harmlessly, and a double
+          submit is guarded by one shared in-flight state
+          (<code>HK-S2-06</code>, code). <em>inferred</em>
+        </li>
+        <li>
+          Narrowing from Today (<code>?show=</code>, <code>?floor=</code>) opens
+          exactly the counted rooms and offers &ldquo;Show all&rdquo; (shot 09).
+          <em>verified</em>
+        </li>
+        <li>
+          An unknown or unreachable Property shows an empty state, never another
+          Property&rsquo;s rooms (shot 13). <em>verified</em>
+        </li>
+        <li>
+          Permissions: the read-only banner copy, the capability gate and the
+          refusal message are in place (code). Manager sees an editable Property
+          setting and a disabled Organization one with the reason (&ldquo;Only
+          someone who reaches every Property can change the Organization&rsquo;s
+          setting.&rdquo;). <em>verified</em> for text, setting not changed.
+        </li>
+      </ul>
+    </main>
+  </body>
 </html>

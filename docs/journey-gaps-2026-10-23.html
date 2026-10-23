@@ -1,314 +1,799 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Journey Gaps Review</title>
-<style>
-  :root {
-    --ink: #10231c;
-    --muted: #5b6b64;
-    --line: #e3e7e4;
-    --sheet: #ffffff;
-    --ground: #f7f4ec;
-    --accent: #0f5a43;
-    --accent-soft: #e6f0eb;
-    --warn: #8a4b0f;
-    --warn-soft: #fbf0e3;
-    --stop: #8f1d1d;
-    --stop-soft: #fbeaea;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ink: #e8eee9; --muted: #9fb0a8; --line: #26352f; --sheet: #121a17;
-      --ground: #0c1210; --accent: #6fcfa8; --accent-soft: #15302a;
-      --warn: #f0b878; --warn-soft: #2e2214; --stop: #f29b9b; --stop-soft: #331818;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--ground); color: var(--ink);
-    font: 16px/1.55 ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  }
-  main { max-width: 1040px; margin: 0 auto; padding: 48px 16px 96px; }
-  .sheet { background: var(--sheet); border: 1px solid var(--line); border-radius: 14px; padding: 40px clamp(16px, 4vw, 48px); }
-  .eyebrow { font: 600 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-  h1 { font: 300 clamp(2.2rem, 5vw, 3.6rem)/1.05 Georgia, "Times New Roman", serif; margin: 12px 0 20px; letter-spacing: -.01em; }
-  h2 { font: 400 1.9rem/1.15 Georgia, "Times New Roman", serif; margin: 56px 0 8px; }
-  h3 { font-size: 1.05rem; margin: 28px 0 8px; }
-  p, li { max-width: 72ch; }
-  .verdict { font-size: 1.15rem; border-inline-start: 3px solid var(--accent); padding-inline-start: 18px; }
-  .callout { background: var(--warn-soft); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 24px 0; }
-  .callout strong { color: var(--warn); }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0 8px; font-size: .93rem; }
-  th, td { text-align: start; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-  th { font: 600 11px/1.4 ui-monospace, Menlo, monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
-  td:first-child { font-weight: 600; width: 22%; }
-  .scroll { overflow-x: auto; }
-  .tag { display: inline-block; font: 600 10.5px/1 ui-monospace, Menlo, monospace; letter-spacing: .06em; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--line); white-space: nowrap; margin-inline-end: 4px; }
-  .v { background: var(--accent-soft); color: var(--accent); }
-  .d { background: var(--ground); color: var(--muted); }
-  .o { background: var(--warn-soft); color: var(--warn); }
-  .i { background: var(--stop-soft); color: var(--stop); }
-  .ok { color: var(--accent); font-weight: 600; }
-  .gap { color: var(--stop); font-weight: 600; }
-  code { font: .86em ui-monospace, "SF Mono", Menlo, monospace; background: var(--ground); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
-  .tier { border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; margin: 18px 0; }
-  .tier h3 { margin-top: 0; }
-  .tier ol { padding-inline-start: 20px; margin: 0; }
-  .tier li { margin: 8px 0; }
-  .legend { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin: 16px 0; font-size: .9rem; }
-  footer { color: var(--muted); font-size: .85rem; margin-top: 48px; }
-</style>
-</head>
-<body>
-<main>
-<div class="sheet">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Journey Gaps Review</title>
+    <style>
+      :root {
+        --ink: #10231c;
+        --muted: #5b6b64;
+        --line: #e3e7e4;
+        --sheet: #ffffff;
+        --ground: #f7f4ec;
+        --accent: #0f5a43;
+        --accent-soft: #e6f0eb;
+        --warn: #8a4b0f;
+        --warn-soft: #fbf0e3;
+        --stop: #8f1d1d;
+        --stop-soft: #fbeaea;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --ink: #e8eee9;
+          --muted: #9fb0a8;
+          --line: #26352f;
+          --sheet: #121a17;
+          --ground: #0c1210;
+          --accent: #6fcfa8;
+          --accent-soft: #15302a;
+          --warn: #f0b878;
+          --warn-soft: #2e2214;
+          --stop: #f29b9b;
+          --stop-soft: #331818;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font:
+          16px/1.55 ui-sans-serif,
+          -apple-system,
+          "Segoe UI",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 16px 96px;
+      }
+      .sheet {
+        background: var(--sheet);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 40px clamp(16px, 4vw, 48px);
+      }
+      .eyebrow {
+        font:
+          600 11px/1.4 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font:
+          300 clamp(2.2rem, 5vw, 3.6rem)/1.05 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 12px 0 20px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font:
+          400 1.9rem/1.15 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 56px 0 8px;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 28px 0 8px;
+      }
+      p,
+      li {
+        max-width: 72ch;
+      }
+      .verdict {
+        font-size: 1.15rem;
+        border-inline-start: 3px solid var(--accent);
+        padding-inline-start: 18px;
+      }
+      .callout {
+        background: var(--warn-soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin: 24px 0;
+      }
+      .callout strong {
+        color: var(--warn);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 8px;
+        font-size: 0.93rem;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font:
+          600 11px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      td:first-child {
+        font-weight: 600;
+        width: 22%;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .tag {
+        display: inline-block;
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        padding: 4px 6px;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+        margin-inline-end: 4px;
+      }
+      .v {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .d {
+        background: var(--ground);
+        color: var(--muted);
+      }
+      .o {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .i {
+        background: var(--stop-soft);
+        color: var(--stop);
+      }
+      .ok {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .gap {
+        color: var(--stop);
+        font-weight: 600;
+      }
+      code {
+        font:
+          0.86em ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        background: var(--ground);
+        padding: 1px 5px;
+        border-radius: 4px;
+        overflow-wrap: anywhere;
+      }
+      .tier {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin: 18px 0;
+      }
+      .tier h3 {
+        margin-top: 0;
+      }
+      .tier ol {
+        padding-inline-start: 20px;
+        margin: 0;
+      }
+      .tier li {
+        margin: 8px 0;
+      }
+      .legend {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin: 16px 0;
+        font-size: 0.9rem;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 48px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="sheet">
+        <div class="eyebrow">
+          Ranza · journey review · 23 Oct 2026 · against origin/main 0393a76
+        </div>
+        <h1>
+          What a hotel and a dormitory do every day, and what Ranza cannot do
+          yet
+        </h1>
 
-<div class="eyebrow">Ranza · journey review · 23 Oct 2026 · against origin/main 0393a76</div>
-<h1>What a hotel and a dormitory do every day, and what Ranza cannot do yet</h1>
+        <p class="verdict">
+          <strong>Verdict.</strong> The hotel core is deep and correct: a
+          booking becomes a Stay, nights are charged, payments are recorded,
+          check-out dirties the room and housekeeping turns it. What stops a
+          real hotel running one week on Ranza is the work around that core: the
+          Guest as a person the desk can manage, charges the desk posts itself,
+          legal registration at check-in, a receipt for the Guest, cleaning of
+          occupied rooms, and any message leaving the system.
+          <strong>The dormitory product barely exists:</strong> a Resident can
+          be booked open-ended, but nothing bills them, nothing lets them into
+          the Portal, and none of the long-stay workflows exist.
+        </p>
 
-<p class="verdict"><strong>Verdict.</strong> The hotel core is deep and correct: a booking becomes a Stay,
-nights are charged, payments are recorded, check-out dirties the room and housekeeping turns it.
-What stops a real hotel running one week on Ranza is the work around that core: the Guest as a
-person the desk can manage, charges the desk posts itself, legal registration at check-in, a receipt
-for the Guest, cleaning of occupied rooms, and any message leaving the system. <strong>The dormitory
-product barely exists:</strong> a Resident can be booked open-ended, but nothing bills them, nothing
-lets them into the Portal, and none of the long-stay workflows exist.</p>
+        <div class="callout">
+          <strong>Decide this first.</strong> The blueprint serves hotels and
+          dormitories equally. The code is hotel-shaped: roughly four fifths of
+          the hotel journey is walkable and about a sixth of the dormitory one.
+          This repository began as a dormitory pilot, so if that customer is
+          still the target, the dormitory gaps in section 4 are the blockers,
+          not the hotel ones.
+          <strong
+            >My recommendation: finish the hotel week (Tier 1) first</strong
+          >, because it is the shorter road to a property running live. Pull
+          Resident Portal activation (a small change) into it anyway, because
+          every Portal feature already built or planned is unreachable without
+          it. If Seif has a dormitory customer waiting, swap Tier 1 and Tier 3.
+        </div>
 
-<div class="callout">
-<strong>Decide this first.</strong> The blueprint serves hotels and dormitories equally. The code is
-hotel-shaped: roughly four fifths of the hotel journey is walkable and about a sixth of the dormitory one.
-This repository began as a dormitory pilot, so if that customer is still the target, the
-dormitory gaps in section 4 are the blockers, not the hotel ones. <strong>My recommendation: finish the
-hotel week (Tier 1) first</strong>, because it is the shorter road to a property running live. Pull Resident
-Portal activation (a small change) into it anyway, because every Portal feature already
-built or planned is unreachable without it. If Seif has a dormitory customer waiting, swap Tier 1 and Tier 3.
-</div>
+        <h2>1. How this was checked</h2>
+        <p>
+          I read the roadmap, the blueprint's journey sections (4.3, 4.6, 5, 6,
+          11, 18, 19), every deferred row across
+          <code>docs/features/*/edge-cases.csv</code>,
+          <code>schema.prisma</code>, and the front-office test of 22 Oct. Every
+          "not built" claim was checked by searching <code>origin/main</code>.
+          My local checkout of <code>main</code> was 133 commits behind; I
+          caught that partway through and re-ran every check against
+          <code>origin/main</code>. No code was changed.
+        </p>
+        <div class="legend">
+          <div>
+            <span class="tag v">VERIFIED</span> I read the code or searched it
+            on origin/main
+          </div>
+          <div>
+            <span class="tag d">DEFERRED ROW</span> the repo already records it
+            as deferred
+          </div>
+          <div>
+            <span class="tag o">OBSERVED 22 OCT</span> seen by the browser
+            agents in the front-office test; I did not re-run it
+          </div>
+          <div>
+            <span class="tag i">INDUSTRY</span> my knowledge of hotel and
+            dormitory operations, not checked here; anything legal needs
+            qualified review
+          </div>
+        </div>
 
-<h2>1. How this was checked</h2>
-<p>I read the roadmap, the blueprint's journey sections (4.3, 4.6, 5, 6, 11, 18, 19), every deferred
-row across <code>docs/features/*/edge-cases.csv</code>, <code>schema.prisma</code>, and the front-office test of
-22 Oct. Every "not built" claim was checked by searching <code>origin/main</code>. My local checkout of
-<code>main</code> was 133 commits behind; I caught that partway through and re-ran every check against
-<code>origin/main</code>. No code was changed.</p>
-<div class="legend">
-  <div><span class="tag v">VERIFIED</span> I read the code or searched it on origin/main</div>
-  <div><span class="tag d">DEFERRED ROW</span> the repo already records it as deferred</div>
-  <div><span class="tag o">OBSERVED 22 OCT</span> seen by the browser agents in the front-office test; I did not re-run it</div>
-  <div><span class="tag i">INDUSTRY</span> my knowledge of hotel and dormitory operations, not checked here; anything legal needs qualified review</div>
-</div>
+        <h2>2. What already works</h2>
+        <p>
+          Recorded so the gaps below are read in proportion. Taking a booking
+          with a price, the room calendar with drag-to-move, check-in with a
+          readiness warning and an undo, moving rooms, extending and shortening,
+          cancelling and no-shows, recording payments and reversals, check-out
+          that confirms the bill it reviewed, the room going dirty through the
+          worker, housekeeping and inspection, maintenance holding a room out of
+          order, Close the day charging nights, guest service requests on the
+          staff side, an audit log you can actually read, data export, staff
+          roles bounded by their author, HR and payroll. All of it runs in
+          Turkish, English and Arabic with RTL. Row-level security is the
+          authorization boundary throughout, and tests have been watched
+          failing.
+        </p>
 
-<h2>2. What already works</h2>
-<p>Recorded so the gaps below are read in proportion. Taking a booking with a price, the room calendar with drag-to-move,
-check-in with a readiness warning and an undo, moving rooms, extending and shortening, cancelling and no-shows,
-recording payments and reversals, check-out that confirms the bill it reviewed, the room going dirty through the worker,
-housekeeping and inspection, maintenance holding a room out of order, Close the day charging nights, guest service requests on the staff side,
-an audit log you can actually read, data export, staff roles bounded by their author, HR and payroll. All of it runs in Turkish, English and Arabic with RTL.
-Row-level security is the authorization boundary throughout, and tests have been watched failing.</p>
+        <h2>3. The hotel journey, stage by stage</h2>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>What a desk does every day</th>
+                <th>Ranza today</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Enquiry and booking</td>
+                <td>
+                  "Two doubles, 3–5 Nov, two adults and a child, arriving late,
+                  needs a cot." Quote, hold, take a deposit, send a
+                  confirmation.
+                </td>
+                <td>
+                  <span class="gap">Missing:</span> how many people are staying.
+                  <code>reservations</code> has no adults, children or party
+                  size, and no note or special request
+                  <span class="tag v">VERIFIED</span> (schema: id, guest, unit,
+                  stay type, status, dates, reference, rate, expected arrival,
+                  nothing else). No booking source, so a Booking.com stay looks
+                  the same as a walk-in <span class="tag v">VERIFIED</span>. Two
+                  rooms means two unlinked bookings, because there are no groups
+                  <span class="tag d">RG-DEF-04, AB-DEF-02</span>. A tentative
+                  hold (<code>requested</code>) exists as a status that nothing
+                  writes <span class="tag d">RG-DEF-03</span>. No deposit or
+                  guarantee <span class="tag d">FO-DEF-03</span>. No
+                  confirmation leaves the building, and no email is sent
+                  anywhere in the code <span class="tag v">VERIFIED</span>. One
+                  price per room type, with no weekend, season or desk override
+                  <span class="tag d">RT-DEF-01, RT-DEF-02</span>. No taxes
+                  <span class="tag v">VERIFIED</span>. A repeated email silently
+                  reuses the old Guest and drops the new name
+                  <span class="tag o">OBSERVED 22 OCT</span>.
+                </td>
+              </tr>
+              <tr>
+                <td>Arrival</td>
+                <td>
+                  Confirm identity, fill the registration card, report the Guest
+                  to the police system, take a card pre-authorisation, hand over
+                  a key. Sometimes check in before the official time.
+                </td>
+                <td>
+                  <span class="ok">Built:</span> check-in, readiness warning,
+                  undo, expected arrival time.
+                  <span class="gap">Missing:</span> no identity document,
+                  nationality or registration card fields
+                  <span class="tag v">VERIFIED</span>
+                  <span class="tag d">CI-DEF-05</span>. In Türkiye every
+                  accommodation guest is reported to the police identity system
+                  (KBS) shortly after check-in. A hotel cannot legally go live
+                  without either an integration or an export it can submit
+                  <span class="tag i">INDUSTRY</span>. No early check-in. The
+                  desk moves the booking's dates to get round it
+                  <span class="tag d">CI-DEF-01</span>
+                  <span class="tag o">OBSERVED 22 OCT</span>. A Property has no
+                  check-in or check-out time at all
+                  <span class="tag v">VERIFIED</span>
+                  <span class="tag d">TD-DEF-07</span>. A walk-in is
+                  book-then-check-in, which is acceptable as two steps.
+                </td>
+              </tr>
+              <tr>
+                <td>In the stay</td>
+                <td>
+                  Post minibar, laundry and restaurant charges to the room.
+                  Clean occupied rooms daily. Pass requests to housekeeping and
+                  maintenance. Hand the shift over.
+                </td>
+                <td>
+                  <span class="gap">Missing:</span>
+                  <strong>the front desk role cannot post a charge</strong>.
+                  <code>finance.post_charge</code> is granted to owner and
+                  manager only (migration <code>…002300</code>)
+                  <span class="tag v">VERIFIED</span>. There is no charge
+                  catalogue either, so every charge is free text with a typed
+                  price <span class="tag d">AN-DEF-01</span>.
+                  <strong>Occupied rooms are never cleaned</strong>:
+                  housekeeping covers turnover only
+                  <span class="tag d">HK-DEF-01</span>. In a hotel, stayover
+                  service is most of the housekeeping day
+                  <span class="tag i">INDUSTRY</span>. Rooms cannot be assigned
+                  to a named housekeeper, so blueprint stories 7 and 8 are open
+                  <span class="tag d">HK-DEF-04</span>. A Guest request cannot
+                  become a maintenance job <span class="tag d">MT-DEF-12</span>.
+                  No shift handover <span class="tag d">TD-DEF-03</span>. No
+                  notification of any kind, so "Report a problem" tells the user
+                  nobody is told <span class="tag o">OBSERVED 22 OCT</span>.
+                </td>
+              </tr>
+              <tr>
+                <td>Departure</td>
+                <td>
+                  Settle the bill, split it when a company pays the room and the
+                  Guest pays extras, hand over an invoice, allow a late
+                  check-out for a fee.
+                </td>
+                <td>
+                  <span class="ok">Built:</span> a careful check-out review,
+                  payment recording, an owed balance needs a reason, the room
+                  goes dirty. <span class="gap">Missing:</span> nothing to hand
+                  the Guest: no printable folio, no receipt, no PDF, no e-Arşiv
+                  invoice <span class="tag v">VERIFIED</span>
+                  <span class="tag d">FO-DEF-09</span>. No split folio or
+                  company billing <span class="tag d">FO-DEF-05</span>. A
+                  balance left owing sits on a closed Stay, and there are no
+                  receivables to collect it from
+                  <span class="tag d">roadmap Phase 4</span>. No refunds
+                  <span class="tag d">FO-DEF-03</span>. No late check-out
+                  <span class="tag d">TD-DEF-07</span>.
+                </td>
+              </tr>
+              <tr>
+                <td>After the stay</td>
+                <td>
+                  Recognise the returning Guest, fix their details, see their
+                  history, ask for feedback.
+                </td>
+                <td>
+                  <span class="gap">Missing:</span> there is no Guests page.
+                  Nothing can search, edit or show a Guest's history
+                  <span class="tag v">VERIFIED</span> (no route)
+                  <span class="tag d">RG-DEF-05, 06, 09</span>. A misspelt name
+                  can never be corrected. No feedback.
+                </td>
+              </tr>
+              <tr>
+                <td>Night and back office</td>
+                <td>
+                  Close the day, count the cash drawer per shift, reopen a
+                  mistaken close, read a daily manager flash report.
+                </td>
+                <td>
+                  <span class="ok">Built:</span> Close the day with a backlog
+                  view. <span class="gap">Missing:</span> reopening a closed day
+                  <span class="tag d">CD-DEF-02</span>. No cashier shift or cash
+                  drawer count <span class="tag v">VERIFIED</span>. Close the
+                  day reported "nothing left open" next to 12 overdue departures
+                  <span class="tag o">OBSERVED 22 OCT</span>. Commit
+                  <code>172ef41</code> reworked the backlog view after that test
+                  ran; I have not checked whether it fixed this.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-<h2>3. The hotel journey, stage by stage</h2>
-<div class="scroll">
-<table>
-<thead><tr><th>Stage</th><th>What a desk does every day</th><th>Ranza today</th></tr></thead>
-<tbody>
-<tr>
-  <td>Enquiry and booking</td>
-  <td>"Two doubles, 3–5 Nov, two adults and a child, arriving late, needs a cot." Quote, hold, take a deposit, send a confirmation.</td>
-  <td>
-    <span class="gap">Missing:</span> how many people are staying. <code>reservations</code> has no adults, children or party size, and no note or special request
-    <span class="tag v">VERIFIED</span> (schema: id, guest, unit, stay type, status, dates, reference, rate, expected arrival, nothing else).
-    No booking source, so a Booking.com stay looks the same as a walk-in <span class="tag v">VERIFIED</span>.
-    Two rooms means two unlinked bookings, because there are no groups <span class="tag d">RG-DEF-04, AB-DEF-02</span>.
-    A tentative hold (<code>requested</code>) exists as a status that nothing writes <span class="tag d">RG-DEF-03</span>.
-    No deposit or guarantee <span class="tag d">FO-DEF-03</span>. No confirmation leaves the building, and no email is sent anywhere in the code <span class="tag v">VERIFIED</span>.
-    One price per room type, with no weekend, season or desk override <span class="tag d">RT-DEF-01, RT-DEF-02</span>. No taxes <span class="tag v">VERIFIED</span>.
-    A repeated email silently reuses the old Guest and drops the new name <span class="tag o">OBSERVED 22 OCT</span>.
-  </td>
-</tr>
-<tr>
-  <td>Arrival</td>
-  <td>Confirm identity, fill the registration card, report the Guest to the police system, take a card pre-authorisation, hand over a key. Sometimes check in before the official time.</td>
-  <td>
-    <span class="ok">Built:</span> check-in, readiness warning, undo, expected arrival time.
-    <span class="gap">Missing:</span> no identity document, nationality or registration card fields <span class="tag v">VERIFIED</span> <span class="tag d">CI-DEF-05</span>.
-    In Türkiye every accommodation guest is reported to the police identity system (KBS) shortly after check-in. A hotel cannot legally go live
-    without either an integration or an export it can submit <span class="tag i">INDUSTRY</span>.
-    No early check-in. The desk moves the booking's dates to get round it <span class="tag d">CI-DEF-01</span> <span class="tag o">OBSERVED 22 OCT</span>.
-    A Property has no check-in or check-out time at all <span class="tag v">VERIFIED</span> <span class="tag d">TD-DEF-07</span>.
-    A walk-in is book-then-check-in, which is acceptable as two steps.
-  </td>
-</tr>
-<tr>
-  <td>In the stay</td>
-  <td>Post minibar, laundry and restaurant charges to the room. Clean occupied rooms daily. Pass requests to housekeeping and maintenance. Hand the shift over.</td>
-  <td>
-    <span class="gap">Missing:</span> <strong>the front desk role cannot post a charge</strong>. <code>finance.post_charge</code> is granted to owner and manager only
-    (migration <code>…002300</code>) <span class="tag v">VERIFIED</span>. There is no charge catalogue either, so every charge is free text with a typed price <span class="tag d">AN-DEF-01</span>.
-    <strong>Occupied rooms are never cleaned</strong>: housekeeping covers turnover only <span class="tag d">HK-DEF-01</span>. In a hotel, stayover service is most of the
-    housekeeping day <span class="tag i">INDUSTRY</span>. Rooms cannot be assigned to a named housekeeper, so blueprint stories 7 and 8 are open <span class="tag d">HK-DEF-04</span>.
-    A Guest request cannot become a maintenance job <span class="tag d">MT-DEF-12</span>. No shift handover <span class="tag d">TD-DEF-03</span>. No notification
-    of any kind, so "Report a problem" tells the user nobody is told <span class="tag o">OBSERVED 22 OCT</span>.
-  </td>
-</tr>
-<tr>
-  <td>Departure</td>
-  <td>Settle the bill, split it when a company pays the room and the Guest pays extras, hand over an invoice, allow a late check-out for a fee.</td>
-  <td>
-    <span class="ok">Built:</span> a careful check-out review, payment recording, an owed balance needs a reason, the room goes dirty.
-    <span class="gap">Missing:</span> nothing to hand the Guest: no printable folio, no receipt, no PDF, no e-Arşiv invoice <span class="tag v">VERIFIED</span> <span class="tag d">FO-DEF-09</span>.
-    No split folio or company billing <span class="tag d">FO-DEF-05</span>. A balance left owing sits on a closed Stay, and there are no receivables to collect it from <span class="tag d">roadmap Phase 4</span>.
-    No refunds <span class="tag d">FO-DEF-03</span>. No late check-out <span class="tag d">TD-DEF-07</span>.
-  </td>
-</tr>
-<tr>
-  <td>After the stay</td>
-  <td>Recognise the returning Guest, fix their details, see their history, ask for feedback.</td>
-  <td>
-    <span class="gap">Missing:</span> there is no Guests page. Nothing can search, edit or show a Guest's history <span class="tag v">VERIFIED</span> (no route)
-    <span class="tag d">RG-DEF-05, 06, 09</span>. A misspelt name can never be corrected. No feedback.
-  </td>
-</tr>
-<tr>
-  <td>Night and back office</td>
-  <td>Close the day, count the cash drawer per shift, reopen a mistaken close, read a daily manager flash report.</td>
-  <td>
-    <span class="ok">Built:</span> Close the day with a backlog view.
-    <span class="gap">Missing:</span> reopening a closed day <span class="tag d">CD-DEF-02</span>. No cashier shift or cash drawer count <span class="tag v">VERIFIED</span>.
-    Close the day reported "nothing left open" next to 12 overdue departures <span class="tag o">OBSERVED 22 OCT</span>. Commit <code>172ef41</code> reworked the backlog view
-    after that test ran; I have not checked whether it fixed this.
-  </td>
-</tr>
-</tbody>
-</table>
-</div>
+        <h2>4. The dormitory journey, stage by stage</h2>
+        <p>
+          A dormitory's unit of work is a Resident on a contract for a term,
+          billed monthly, who lives there for months and interacts mostly
+          through the Portal. Ranza models the Resident as a Stay type, and beds
+          as Units under a room (ADR 0025). That part is right. Almost nothing
+          past it exists.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Stage</th>
+                <th>What a dormitory does</th>
+                <th>Ranza today</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Application and allocation</td>
+                <td>
+                  Take applications for a term, keep a waiting list, apply rules
+                  (gender per floor, year, room type), place roommates, renew
+                  last year's Residents.
+                </td>
+                <td>
+                  <span class="gap">Missing entirely.</span> A Property has no
+                  type and no term or academic year exists
+                  <span class="tag v">VERIFIED</span>. Booking a bed open-ended
+                  is the only path.
+                </td>
+              </tr>
+              <tr>
+                <td>Contract</td>
+                <td>
+                  Term dates, monthly rent, security deposit, house rules
+                  acknowledged, a guardian for a minor, an emergency contact.
+                </td>
+                <td>
+                  <span class="gap">Missing.</span> No contract, no deposit
+                  <span class="tag d">FO-DEF-03</span>, no guardian or emergency
+                  contact <span class="tag d">RG-DEF-07</span>.
+                </td>
+              </tr>
+              <tr>
+                <td>Move-in</td>
+                <td>
+                  Room inspection and inventory signed, keys handed over,
+                  registration with the authorities.
+                </td>
+                <td>
+                  <span class="ok">Built:</span> check-in works for a Resident.
+                  <span class="gap">Missing:</span> inspection and inventory,
+                  identity capture. Whether private dormitories in Türkiye have
+                  the same reporting duty as hotels
+                  <span class="tag i">UNKNOWN</span>; ask Seif or counsel.
+                </td>
+              </tr>
+              <tr>
+                <td>Monthly life</td>
+                <td>
+                  Bill rent each month, chase late payers, take requests, post
+                  announcements, record nights out and visitors, accept parcels,
+                  serve meals.
+                </td>
+                <td>
+                  <span class="gap">Rent is never billed.</span> Residents are
+                  excluded from room nights and monthly billing is deferred
+                  <span class="tag d">RT-DEF-04, CD-S3-01</span>. A dormitory on
+                  Ranza has no income line. <br /><span class="gap"
+                    >A Resident cannot reach the Portal.</span
+                  >
+                  Access hangs on <code>stays.user_id</code>, and nothing in the
+                  product writes it. <code>openStayWithin</code> inserts a Stay
+                  without it, and only the dev seed sets it
+                  <span class="tag v">VERIFIED</span>. <br />The Portal shows
+                  one thing, the Stay's dates and room
+                  <span class="tag v">VERIFIED</span>. No balance
+                  <span class="tag d">FO-DEF-11</span>, no requests
+                  <span class="tag d">MT-DEF-02</span>, no announcements, no
+                  night-out permission or curfew, no visitor log, no parcels
+                  <span class="tag v">VERIFIED</span>. Meals wait on F&amp;B,
+                  which has not started.
+                </td>
+              </tr>
+              <tr>
+                <td>Move-out</td>
+                <td>
+                  Notice to vacate, move-out inspection, damage charges, deposit
+                  returned less deductions, summer storage or holding.
+                </td>
+                <td>
+                  <span class="ok">Built:</span> check-out and charging a repair
+                  to a Folio (maintenance).
+                  <span class="gap">Missing:</span> notice, inspection, deposit
+                  return. A deposit cannot be returned when it was never
+                  recorded.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-<h2>4. The dormitory journey, stage by stage</h2>
-<p>A dormitory's unit of work is a Resident on a contract for a term, billed monthly, who lives there for months
-and interacts mostly through the Portal. Ranza models the Resident as a Stay type, and beds as Units under a room
-(ADR 0025). That part is right. Almost nothing past it exists.</p>
-<div class="scroll">
-<table>
-<thead><tr><th>Stage</th><th>What a dormitory does</th><th>Ranza today</th></tr></thead>
-<tbody>
-<tr>
-  <td>Application and allocation</td>
-  <td>Take applications for a term, keep a waiting list, apply rules (gender per floor, year, room type), place roommates, renew last year's Residents.</td>
-  <td><span class="gap">Missing entirely.</span> A Property has no type and no term or academic year exists <span class="tag v">VERIFIED</span>. Booking a bed open-ended is the only path.</td>
-</tr>
-<tr>
-  <td>Contract</td>
-  <td>Term dates, monthly rent, security deposit, house rules acknowledged, a guardian for a minor, an emergency contact.</td>
-  <td><span class="gap">Missing.</span> No contract, no deposit <span class="tag d">FO-DEF-03</span>, no guardian or emergency contact <span class="tag d">RG-DEF-07</span>.</td>
-</tr>
-<tr>
-  <td>Move-in</td>
-  <td>Room inspection and inventory signed, keys handed over, registration with the authorities.</td>
-  <td><span class="ok">Built:</span> check-in works for a Resident. <span class="gap">Missing:</span> inspection and inventory, identity capture.
-  Whether private dormitories in Türkiye have the same reporting duty as hotels <span class="tag i">UNKNOWN</span>; ask Seif or counsel.</td>
-</tr>
-<tr>
-  <td>Monthly life</td>
-  <td>Bill rent each month, chase late payers, take requests, post announcements, record nights out and visitors, accept parcels, serve meals.</td>
-  <td>
-    <span class="gap">Rent is never billed.</span> Residents are excluded from room nights and monthly billing is deferred <span class="tag d">RT-DEF-04, CD-S3-01</span>. A dormitory on Ranza has no income line.
-    <br><span class="gap">A Resident cannot reach the Portal.</span> Access hangs on <code>stays.user_id</code>, and nothing in the product writes it.
-    <code>openStayWithin</code> inserts a Stay without it, and only the dev seed sets it <span class="tag v">VERIFIED</span>.
-    <br>The Portal shows one thing, the Stay's dates and room <span class="tag v">VERIFIED</span>. No balance <span class="tag d">FO-DEF-11</span>, no requests <span class="tag d">MT-DEF-02</span>,
-    no announcements, no night-out permission or curfew, no visitor log, no parcels <span class="tag v">VERIFIED</span>. Meals wait on F&amp;B, which has not started.
-  </td>
-</tr>
-<tr>
-  <td>Move-out</td>
-  <td>Notice to vacate, move-out inspection, damage charges, deposit returned less deductions, summer storage or holding.</td>
-  <td><span class="ok">Built:</span> check-out and charging a repair to a Folio (maintenance). <span class="gap">Missing:</span> notice, inspection, deposit return. A deposit cannot be returned when it was never recorded.</td>
-</tr>
-</tbody>
-</table>
-</div>
+        <h2>5. Cross-cutting gaps that hurt every journey</h2>
+        <ul>
+          <li>
+            <strong>No messages leave the system.</strong> No email, no
+            notification table, nothing consumes the outbox for people
+            <span class="tag v">VERIFIED</span>. Booking confirmations, a
+            Resident's invitation and a maintenance alert all need the same
+            minimal transactional email first.
+          </li>
+          <li>
+            <strong>No global search or command palette</strong>, which
+            blueprint 4.6 puts in the shell <span class="tag v">VERIFIED</span>.
+            Each list searches itself well
+            <span class="tag o">OBSERVED 22 OCT</span>, but a desk answering a
+            phone call wants one box.
+          </li>
+          <li>
+            <strong>Going live needs an import.</strong> A hotel switching
+            systems carries months of future bookings. Rooms can be added in
+            bulk, but there is no import for Guests or future Reservations, and
+            past Stays are refused by design
+            <span class="tag d">CD-DEF-08</span>. Blueprint 19.1 makes import a
+            product workflow.
+          </li>
+          <li>
+            <strong>A second customer needs a Control Plane.</strong>
+            Organizations and Entitlements are written by SQL today
+            <span class="tag d">OA-DEF-04</span>.
+          </li>
+          <li>
+            <strong>Channel manager.</strong> Phase 5, and correctly so for a
+            pilot. Any hotel taking most of its bookings from OTAs will ask for
+            it on the first sales call, though
+            <span class="tag i">INDUSTRY</span>. It is not a dormitory concern.
+          </li>
+        </ul>
 
-<h2>5. Cross-cutting gaps that hurt every journey</h2>
-<ul>
-  <li><strong>No messages leave the system.</strong> No email, no notification table, nothing consumes the outbox for people <span class="tag v">VERIFIED</span>. Booking confirmations, a Resident's invitation and a maintenance alert all need the same minimal transactional email first.</li>
-  <li><strong>No global search or command palette</strong>, which blueprint 4.6 puts in the shell <span class="tag v">VERIFIED</span>. Each list searches itself well <span class="tag o">OBSERVED 22 OCT</span>, but a desk answering a phone call wants one box.</li>
-  <li><strong>Going live needs an import.</strong> A hotel switching systems carries months of future bookings. Rooms can be added in bulk, but there is no import for Guests or future Reservations, and past Stays are refused by design <span class="tag d">CD-DEF-08</span>. Blueprint 19.1 makes import a product workflow.</li>
-  <li><strong>A second customer needs a Control Plane.</strong> Organizations and Entitlements are written by SQL today <span class="tag d">OA-DEF-04</span>.</li>
-  <li><strong>Channel manager.</strong> Phase 5, and correctly so for a pilot. Any hotel taking most of its bookings from OTAs will ask for it on the first sales call, though <span class="tag i">INDUSTRY</span>. It is not a dormitory concern.</li>
-</ul>
+        <h2>6. Existing flows that need improving</h2>
+        <p>
+          From the 22 Oct test, ranked by how much they cost the desk's trust
+          <span class="tag o">OBSERVED 22 OCT</span>. Some may have moved since:
+          <code>d86b3ad</code> and <code>172ef41</code> touched arrivals,
+          departures and the backlog. Re-check before ticketing.
+        </p>
+        <ol>
+          <li>
+            <strong>"What is free tonight" has four answers</strong> (Today,
+            Rooms, calendar, Housekeeping), and the unit picker offered a room
+            still occupied until checkout. Define each count once, label it, and
+            show readiness in the picker.
+          </li>
+          <li>
+            <strong>The duplicate-email match is silent.</strong> Ask "Existing
+            Guest X matched by email: update the phone?" before saving.
+          </li>
+          <li>
+            <strong>Today does not drive the shift.</strong> Arrivals belong in
+            the ordered list with a Check in button, and finished rows should
+            grey out. PR #92 (four layouts) is open and may change this.
+          </li>
+          <li>
+            <strong>Change booking hides the money.</strong> Show the old total,
+            the new total and the difference before saving.
+          </li>
+          <li>
+            <strong>Cancel and no-show are one-way and free.</strong> Add a
+            reinstate with a reason. Add a no-show fee setting, or state plainly
+            that none exists.
+          </li>
+          <li>
+            <strong>Money dialogs fail silently</strong> on 0 and negative
+            amounts, and the payment dialog prefilled the previous amount, not
+            the balance.
+          </li>
+          <li>
+            <strong>Tablet width hides balance and status</strong> behind a
+            sticky action column, exactly where Check out is pressed.
+          </li>
+        </ol>
 
-<h2>6. Existing flows that need improving</h2>
-<p>From the 22 Oct test, ranked by how much they cost the desk's trust <span class="tag o">OBSERVED 22 OCT</span>. Some may have moved since:
-<code>d86b3ad</code> and <code>172ef41</code> touched arrivals, departures and the backlog. Re-check before ticketing.</p>
-<ol>
-  <li><strong>"What is free tonight" has four answers</strong> (Today, Rooms, calendar, Housekeeping), and the unit picker offered a room still occupied until checkout. Define each count once, label it, and show readiness in the picker.</li>
-  <li><strong>The duplicate-email match is silent.</strong> Ask "Existing Guest X matched by email: update the phone?" before saving.</li>
-  <li><strong>Today does not drive the shift.</strong> Arrivals belong in the ordered list with a Check in button, and finished rows should grey out. PR #92 (four layouts) is open and may change this.</li>
-  <li><strong>Change booking hides the money.</strong> Show the old total, the new total and the difference before saving.</li>
-  <li><strong>Cancel and no-show are one-way and free.</strong> Add a reinstate with a reason. Add a no-show fee setting, or state plainly that none exists.</li>
-  <li><strong>Money dialogs fail silently</strong> on 0 and negative amounts, and the payment dialog prefilled the previous amount, not the balance.</li>
-  <li><strong>Tablet width hides balance and status</strong> behind a sticky action column, exactly where Check out is pressed.</li>
-</ol>
+        <h2>7. What to build, in order</h2>
+        <p>
+          Ranked by what removes the most parallel notebooks per unit of work.
+          Each item still goes through <code>feature-design</code> and Seif's
+          approval, and every answer here is <em>proposed</em>.
+        </p>
 
-<h2>7. What to build, in order</h2>
-<p>Ranked by what removes the most parallel notebooks per unit of work. Each item still goes through
-<code>feature-design</code> and Seif's approval, and every answer here is <em>proposed</em>.</p>
+        <div class="tier">
+          <h3>Tier 1: a hotel can run one real week</h3>
+          <ol>
+            <li>
+              <strong>The Guest the desk can manage.</strong> A Guests page with
+              search, edit and history, a confirmed duplicate match, and party
+              size (adults and children) plus a note on the booking. This closes
+              RG-DEF-06 and the first step of RG-DEF-09.
+            </li>
+            <li>
+              <strong>The front desk posts charges.</strong> Grant
+              <code>finance.post_charge</code> to the shipped front desk role,
+              and add a small charge catalogue per Property (item, price,
+              category). The catalogue also unblocks AN-DEF-01. Cheap.
+            </li>
+            <li>
+              <strong>Registration at check-in.</strong> Identity document,
+              nationality and date of birth, recorded at check-in or flagged "ID
+              missing", plus a KBS export or integration. This is legal: start
+              the counsel question now, because it is the slowest item.
+            </li>
+            <li>
+              <strong>Something to hand the Guest.</strong> A printable or PDF
+              folio and receipt now. e-Arşiv later, through Integrations.
+            </li>
+            <li>
+              <strong>Stayover cleaning and assignment.</strong> A daily status
+              for occupied rooms, and rooms assigned to named housekeepers on a
+              phone-first queue. This closes HK-DEF-01 and HK-DEF-04, and
+              blueprint stories 7 and 8.
+            </li>
+            <li>
+              <strong>Check-in and check-out times on the Property.</strong>
+              These unlock early check-in, late check-out, and an "overdue" that
+              means today rather than yesterday.
+            </li>
+            <li>
+              <strong>One transactional email:</strong> a booking confirmation.
+              It lays the delivery foundation the Resident invitation reuses.
+            </li>
+            <li>
+              <strong>Taxes on room nights</strong>, meaning VAT and the
+              accommodation tax. Without them every figure in the books is
+              wrong. Needs an accountant <span class="tag i">INDUSTRY</span>.
+            </li>
+            <li>
+              <strong>Resident Portal activation</strong>, pulled forward from
+              Tier 3. An invitation from the Stay sets <code>user_id</code>. It
+              is a small change, and without it the Portal has no users.
+            </li>
+          </ol>
+        </div>
 
-<div class="tier">
-<h3>Tier 1: a hotel can run one real week</h3>
-<ol>
-  <li><strong>The Guest the desk can manage.</strong> A Guests page with search, edit and history, a confirmed duplicate match, and party size (adults and children) plus a note on the booking. This closes RG-DEF-06 and the first step of RG-DEF-09.</li>
-  <li><strong>The front desk posts charges.</strong> Grant <code>finance.post_charge</code> to the shipped front desk role, and add a small charge catalogue per Property (item, price, category). The catalogue also unblocks AN-DEF-01. Cheap.</li>
-  <li><strong>Registration at check-in.</strong> Identity document, nationality and date of birth, recorded at check-in or flagged "ID missing", plus a KBS export or integration. This is legal: start the counsel question now, because it is the slowest item.</li>
-  <li><strong>Something to hand the Guest.</strong> A printable or PDF folio and receipt now. e-Arşiv later, through Integrations.</li>
-  <li><strong>Stayover cleaning and assignment.</strong> A daily status for occupied rooms, and rooms assigned to named housekeepers on a phone-first queue. This closes HK-DEF-01 and HK-DEF-04, and blueprint stories 7 and 8.</li>
-  <li><strong>Check-in and check-out times on the Property.</strong> These unlock early check-in, late check-out, and an "overdue" that means today rather than yesterday.</li>
-  <li><strong>One transactional email:</strong> a booking confirmation. It lays the delivery foundation the Resident invitation reuses.</li>
-  <li><strong>Taxes on room nights</strong>, meaning VAT and the accommodation tax. Without them every figure in the books is wrong. Needs an accountant <span class="tag i">INDUSTRY</span>.</li>
-  <li><strong>Resident Portal activation</strong>, pulled forward from Tier 3. An invitation from the Stay sets <code>user_id</code>. It is a small change, and without it the Portal has no users.</li>
-</ol>
-</div>
+        <div class="tier">
+          <h3>Tier 2: the desk stops keeping a parallel notebook</h3>
+          <ol>
+            <li>
+              Deposits and guarantees, refunds, split folios and company billing
+              (FO-DEF-03 and FO-DEF-05).
+            </li>
+            <li>
+              Shift handover notes and a cashier shift close with a cash count.
+            </li>
+            <li>
+              Reopen a closed day with a reason (CD-DEF-02 and CD-DEF-03).
+            </li>
+            <li>Reinstate a cancelled booking; a no-show fee setting.</li>
+            <li>
+              Booking source on every Reservation, and group bookings covering
+              several rooms.
+            </li>
+            <li>A global search box and a Guest 360 drawer.</li>
+            <li>
+              Import of Guests and future Reservations, with preview and a
+              row-level error report.
+            </li>
+            <li>
+              A Control Plane, at minimum to create an Organization and its
+              Entitlements without SQL.
+            </li>
+          </ol>
+        </div>
 
-<div class="tier">
-<h3>Tier 2: the desk stops keeping a parallel notebook</h3>
-<ol>
-  <li>Deposits and guarantees, refunds, split folios and company billing (FO-DEF-03 and FO-DEF-05).</li>
-  <li>Shift handover notes and a cashier shift close with a cash count.</li>
-  <li>Reopen a closed day with a reason (CD-DEF-02 and CD-DEF-03).</li>
-  <li>Reinstate a cancelled booking; a no-show fee setting.</li>
-  <li>Booking source on every Reservation, and group bookings covering several rooms.</li>
-  <li>A global search box and a Guest 360 drawer.</li>
-  <li>Import of Guests and future Reservations, with preview and a row-level error report.</li>
-  <li>A Control Plane, at minimum to create an Organization and its Entitlements without SQL.</li>
-</ol>
-</div>
+        <div class="tier">
+          <h3>
+            Tier 3: the dormitory product (Tier 1 if a dormitory customer comes
+            first)
+          </h3>
+          <ol>
+            <li>
+              Contract and term: dates, monthly rent and deposit, attached to
+              the Resident's booking.
+            </li>
+            <li>
+              Monthly billing (RT-DEF-04): the worker posts rent at each period
+              start. Pro-rata for a part month. Late-payment state.
+            </li>
+            <li>
+              Portal: balance (FO-DEF-11), requests and maintenance reports
+              (MT-DEF-02), announcements with acknowledgement.
+            </li>
+            <li>
+              Move-in and move-out inspection with damage charges and deposit
+              return.
+            </li>
+            <li>Guardian and emergency contact (RG-DEF-07).</li>
+            <li>
+              Allocation: applications, waiting list, placement rules, renewal
+              for next term.
+            </li>
+            <li>
+              Night-out permission, visitors and parcels. These are common in
+              Turkish dormitories <span class="tag i">INDUSTRY</span>; confirm
+              with Seif which ones the target customer needs before designing
+              any.
+            </li>
+          </ol>
+        </div>
 
-<div class="tier">
-<h3>Tier 3: the dormitory product (Tier 1 if a dormitory customer comes first)</h3>
-<ol>
-  <li>Contract and term: dates, monthly rent and deposit, attached to the Resident's booking.</li>
-  <li>Monthly billing (RT-DEF-04): the worker posts rent at each period start. Pro-rata for a part month. Late-payment state.</li>
-  <li>Portal: balance (FO-DEF-11), requests and maintenance reports (MT-DEF-02), announcements with acknowledgement.</li>
-  <li>Move-in and move-out inspection with damage charges and deposit return.</li>
-  <li>Guardian and emergency contact (RG-DEF-07).</li>
-  <li>Allocation: applications, waiting list, placement rules, renewal for next term.</li>
-  <li>Night-out permission, visitors and parcels. These are common in Turkish dormitories <span class="tag i">INDUSTRY</span>; confirm with Seif which ones the target customer needs before designing any.</li>
-</ol>
-</div>
+        <div class="tier">
+          <h3>Tier 4: later, as the roadmap already says</h3>
+          <p>
+            Channel manager, payment gateway, door locks, F&amp;B and meal
+            plans, inventory and procurement, revenue management. No change to
+            the roadmap's order is proposed here.
+          </p>
+        </div>
 
-<div class="tier">
-<h3>Tier 4: later, as the roadmap already says</h3>
-<p>Channel manager, payment gateway, door locks, F&amp;B and meal plans, inventory and procurement, revenue management. No change to the roadmap's order is proposed here.</p>
-</div>
+        <h2>8. What I did not check</h2>
+        <ul>
+          <li>
+            I did not use the app. Section 6 is the 22 Oct agents' observation,
+            and a few of those items may since have been fixed by
+            <code>d86b3ad</code>, <code>172ef41</code> or the open PRs #92, #93
+            and #99.
+          </li>
+          <li>
+            Legal duties (KBS, e-Arşiv, accommodation tax, dormitory
+            registration) come from industry knowledge. Blueprint 10.1 itself
+            says they need qualified review.
+          </li>
+          <li>
+            The analytics month report was not reviewed for whether it serves as
+            a daily manager flash report.
+          </li>
+        </ul>
 
-<h2>8. What I did not check</h2>
-<ul>
-  <li>I did not use the app. Section 6 is the 22 Oct agents' observation, and a few of those items may since have been fixed by <code>d86b3ad</code>, <code>172ef41</code> or the open PRs #92, #93 and #99.</li>
-  <li>Legal duties (KBS, e-Arşiv, accommodation tax, dormitory registration) come from industry knowledge. Blueprint 10.1 itself says they need qualified review.</li>
-  <li>The analytics month report was not reviewed for whether it serves as a daily manager flash report.</li>
-</ul>
-
-<footer>Written from origin/main 0393a76 on 23 Oct 2026. Read-only review. No code, schema or tracker changed.</footer>
-</div>
-</main>
-</body>
+        <footer>
+          Written from origin/main 0393a76 on 23 Oct 2026. Read-only review. No
+          code, schema or tracker changed.
+        </footer>
+      </div>
+    </main>
+  </body>
 </html>
