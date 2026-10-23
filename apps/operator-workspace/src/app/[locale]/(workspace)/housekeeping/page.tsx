@@ -13,8 +13,10 @@ import {
   housekeepingInspection,
   MARK_BATCH,
   requireViewer,
+  roomsMaintenance,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { boardByUrgency } from "../../../../server/housekeeping-day";
 import { roomsInFilter } from "../../../../server/today-derive";
 import type { ListFilterKey } from "../../../../features/today/components/list-filter-notice";
 import {
@@ -59,31 +61,39 @@ export default async function HousekeepingPage({
   );
 
   if (!property) {
+    // The Properties listed here are those where the viewer has housekeeping:
+    // when there are some, the one named is not among them and the way on is
+    // the Property control in the bar, not a Subscription (HK-12).
+    const another =
+      properties.length > 0 ? ` ${t("housekeeping.unavailablePick")}` : "";
     return (
       <EmptyState
-        description={t("housekeeping.unavailableDescription")}
+        description={`${t("housekeeping.unavailableDescription")}${another}`}
         title={t("housekeeping.unavailableTitle")}
       />
     );
   }
 
-  const [board, inspection] = await Promise.all([
-    housekeepingBoard(property.propertyId),
-    housekeepingInspection(property.propertyId),
-  ]);
+  const [fullBoard, inspection, arrivalRows, departureRows, maintenance] =
+    await Promise.all([
+      housekeepingBoard(property.propertyId),
+      housekeepingInspection(property.propertyId),
+      arrivals(property.propertyId),
+      departures(property.propertyId, "due"),
+      roomsMaintenance(property.propertyId),
+    ]);
+  const { rooms: roomsByUrgency, days } = boardByUrgency(
+    fullBoard,
+    arrivalRows,
+    departureRows,
+  );
+  const board = { ...fullBoard, rooms: roomsByUrgency };
 
   // A figure on Today counts part of the board; the board opens narrowed to
   // exactly those rooms (TD-S5-01). Two of the figures are rooms somebody is
   // arriving into or leaving, which only the movements say.
   const filter = parseRoomFilter(search.show);
   const floor = parseFloorFilter(search.floor);
-  const [arrivalRows, departureRows] =
-    filter === "for_arrival" || filter === "clean_first"
-      ? await Promise.all([
-          arrivals(property.propertyId),
-          departures(property.propertyId, "due"),
-        ])
-      : [[], []];
   const readyOf = (rooms: readonly HousekeepingRoom[]) =>
     t("dashboard.filterReadyCount", {
       count: rooms.filter((room) => inRoomFilter("ready", room)).length,
@@ -119,9 +129,15 @@ export default async function HousekeepingPage({
       <HousekeepingBoard
         allHref={`${localizeHref(locale, "housekeeping")}?property=${property.propertyId}`}
         board={board}
+        days={days}
         narrowed={narrowed}
         locale={locale}
         markLimit={MARK_BATCH.max}
+        reportHref={
+          maintenance.mayReport
+            ? `${localizeHref(locale, "maintenance")}?property=${property.propertyId}&report=`
+            : null
+        }
         propertyName={property.propertyName}
         timeZone={property.timezone}
       />

@@ -1,6 +1,7 @@
 export { createReservationsModule } from "./module";
 export type { ReservationsModule } from "./module";
 export type { ReservationsDeps } from "./ports";
+export type { RefusalReason } from "./contracts";
 export {
   BALANCE_REASON,
   CANCELLATION_REASON,
@@ -40,6 +41,7 @@ export type {
   AmendedBooking,
   Arrival,
   BookableUnit,
+  GuestMatch,
   BookingChange,
   ChangedDeparture,
   DepartureChange,

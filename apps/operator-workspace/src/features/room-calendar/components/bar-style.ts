@@ -29,6 +29,18 @@ export const BAR_LOOK: Record<BarLook, string> = {
   departed: "border border-border bg-muted text-muted-foreground",
 };
 
+/**
+ * The pill an end grip shows while its bar is hovered, in the bar's own text
+ * colour so it reads on every fill. A departed bar has no grip.
+ */
+export const BAR_GRIP: Record<BarLook, string> = {
+  requested: "text-foreground",
+  confirmed: "text-foreground",
+  inHouse: "text-primary-foreground",
+  overdue: "text-warning",
+  departed: "text-muted-foreground",
+};
+
 export const BAR_ICON: Record<BarLook, LucideIcon> = {
   requested: CircleDashed,
   confirmed: CalendarCheck,

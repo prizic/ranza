@@ -80,7 +80,7 @@ export async function dayRange(
  * Enough ids that a real search finds what it is looking for, and few enough
  * that one letter cannot build an array the size of the Guest list.
  */
-const MATCH_LIMIT = 200;
+export const SEARCH_MATCH_LIMIT = 200;
 
 /**
  * Shorter than this and a search matches everything, which is no search.
@@ -89,7 +89,13 @@ const MATCH_LIMIT = 200;
 export const MIN_SEARCH_LENGTH = 2;
 
 /**
- * What a reader typed, as the actors and subjects it could mean.
+ * What a reader typed, as the actors and subjects it could mean, and whether
+ * it meant more of them than are looked at.
+ *
+ * `capped` is true when any one kind of match reached the limit: the rest of
+ * that kind is not among the ids returned, and the screen says so rather than
+ * show a total as though it were complete. A search that matches exactly the
+ * limit reads as capped too; "200 or more" is the honest reading.
  *
  * "Ayşe" is a Guest, so every Reservation, Stay and Folio of hers is a subject
  * worth finding. "204" is a room, so is everything that happened in it. An
@@ -100,7 +106,7 @@ export async function searchIds(
   tx: AuditClient,
   organizationId: string,
   text: string,
-): Promise<{ actorIds: string[]; subjectIds: string[] }> {
+): Promise<{ actorIds: string[]; subjectIds: string[]; capped: boolean }> {
   const rows = await tx.$queryRawUnsafe<{ kind: string; id: string }[]>(
     `with
        guest as (
@@ -142,7 +148,13 @@ export async function searchIds(
                             where change.kind = 'moved'
                               and change.from_unit_id in (select id from unit)))
           limit $3)
-     select 'actor' as kind, id from person
+     select 'capped' as kind, null::uuid as id
+      where (select count(*) from guest) >= $3
+         or (select count(*) from unit) >= $3
+         or (select count(*) from person) >= $3
+         or (select count(*) from reservation) >= $3
+         or (select count(*) from stay) >= $3
+     union all select 'actor', id from person
      union all select 'subject', id from person
      union all select 'subject', membership.id
        from public.organization_memberships as membership
@@ -162,14 +174,62 @@ export async function searchIds(
         and position(replace(lower($2), chr(775), '') in replace(lower(role.name), chr(775), '')) > 0`,
     organizationId,
     text,
-    MATCH_LIMIT,
+    SEARCH_MATCH_LIMIT,
   );
   return {
     actorIds: rows.filter((row) => row.kind === "actor").map((row) => row.id),
     subjectIds: rows
       .filter((row) => row.kind === "subject")
       .map((row) => row.id),
+    capped: rows.some((row) => row.kind === "capped"),
   };
+}
+
+/**
+ * Everything whose history belongs with one subject's: a Reservation with its
+ * Stays and their Folios, a Stay with its Reservation and Folios, a Folio with
+ * its Stay and Reservation. Any other subject is only itself.
+ *
+ * "Why does this balance differ?" starts on a Folio and is answered by the
+ * booking that was changed and the stay that was moved, so a Folio's history
+ * that stopped at the Folio would not answer it.
+ */
+export async function relatedSubjectIds(
+  tx: AuditClient,
+  organizationId: string,
+  subjectId: string,
+): Promise<string[]> {
+  const rows = await tx.$queryRawUnsafe<{ id: string }[]>(
+    `with seed as (select $2::uuid as id),
+       reservation as (
+         select reservation.id from public.reservations as reservation
+          where reservation.organization_id = $1::uuid
+            and (reservation.id in (select id from seed)
+                 or reservation.id in (select stay.reservation_id from public.stays as stay
+                                        where stay.id in (select id from seed)
+                                          and stay.organization_id = $1::uuid)
+                 or reservation.id in (select stay.reservation_id from public.folios as folio
+                                         join public.stays as stay on stay.id = folio.stay_id
+                                        where folio.id in (select id from seed)
+                                          and folio.organization_id = $1::uuid))),
+       stay as (
+         select stay.id from public.stays as stay
+          where stay.organization_id = $1::uuid
+            and (stay.id in (select id from seed)
+                 or stay.reservation_id in (select id from reservation)
+                 or stay.id in (select folio.stay_id from public.folios as folio
+                                 where folio.id in (select id from seed)
+                                   and folio.organization_id = $1::uuid)))
+     select id from seed
+     union select id from reservation
+     union select id from stay
+     union select folio.id from public.folios as folio
+            where folio.organization_id = $1::uuid
+              and folio.stay_id in (select id from stay)`,
+    organizationId,
+    subjectId,
+  );
+  return rows.map((row) => row.id);
 }
 
 /** Where a record happened, named, and whose clock its time is read on. */
@@ -189,6 +249,11 @@ export interface AuditNames {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Whether text is an id: a `?subject=` in a URL is one somebody can edit. */
+export function isUuid(text: string): boolean {
+  return UUID.test(text);
+}
 
 /** Context keys whose value is a role key rather than an id. */
 const ROLE_KEYS = new Set(["role", "from", "to", "key"]);

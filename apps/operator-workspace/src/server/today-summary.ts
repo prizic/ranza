@@ -1,3 +1,4 @@
+import type { BusinessDayModule, DaysWaiting } from "@ranza/business-day";
 import type {
   AuditPage,
   CapabilityRef,
@@ -18,6 +19,7 @@ import type {
 } from "@ranza/reservations";
 import type { AccommodationModule, UnitMap } from "@ranza/accommodation";
 import {
+  ACTIVITY_WINDOW_DAYS,
   BOOKED_AHEAD_NIGHTS,
   deriveToday,
   grantsFor,
@@ -46,11 +48,15 @@ export interface TodayReads {
   board: (propertyId: string) => Promise<HousekeepingBoard>;
   folios: (propertyId: string) => Promise<readonly FolioSummary[]>;
   maintenance: (propertyId: string) => Promise<TodayMaintenance>;
-  /** The newest records, newest first, of the log the viewer may read. */
-  activity: (propertyId: string) => Promise<AuditPage>;
+  /**
+   * The newest records, newest first, of the log the viewer may read, from
+   * the start of `since` on the Property's own clock.
+   */
+  activity: (propertyId: string, since: string) => Promise<AuditPage>;
   charges: (propertyId: string) => Promise<readonly ChargesPosted[]>;
   /** From the business date, the nights ahead. */
   calendar: (propertyId: string, from: string) => Promise<RoomCalendar>;
+  daysWaiting: (propertyId: string) => Promise<DaysWaiting | null>;
 }
 
 export interface TodayModules {
@@ -60,6 +66,7 @@ export interface TodayModules {
   housekeeping: HousekeepingModule;
   folios: FoliosModule;
   maintenance: MaintenanceModule;
+  businessDay: BusinessDayModule;
 }
 
 export function todayReads(modules: TodayModules, userId: string): TodayReads {
@@ -77,7 +84,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
     folios: (propertyId) => modules.folios.listFolios(userId, propertyId),
     maintenance: (propertyId) =>
       modules.maintenance.todayView(userId, propertyId),
-    activity: (propertyId) => modules.core.auditLog(userId, propertyId, {}),
+    activity: (propertyId, since) =>
+      modules.core.auditLog(userId, propertyId, { from: since }),
     charges: (propertyId) =>
       modules.folios.chargesPostedToday(userId, propertyId),
     calendar: (propertyId, from) =>
@@ -85,7 +93,16 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
         from,
         days: BOOKED_AHEAD_NIGHTS,
       }),
+    daysWaiting: (propertyId) =>
+      modules.businessDay.daysWaiting(userId, propertyId),
   };
+}
+
+/** The day the activity card reads from: the business date, less the window. */
+function activitySince(businessDate: string): string {
+  const since = new Date(`${businessDate}T00:00:00Z`);
+  since.setUTCDate(since.getUTCDate() - ACTIVITY_WINDOW_DAYS);
+  return since.toISOString().slice(0, 10);
 }
 
 /** Where a section's failure goes; the server logs it, a test collects it. */
@@ -185,7 +202,7 @@ export async function readTodaySummary(
   if (needs.activity) {
     input.activity = await attempt(
       "activity",
-      () => reads.activity(propertyId),
+      () => reads.activity(propertyId, activitySince(day.businessDate)),
       report,
     );
   }
@@ -200,6 +217,13 @@ export async function readTodaySummary(
     input.calendar = await attempt(
       "calendar",
       () => reads.calendar(propertyId, day.businessDate),
+      report,
+    );
+  }
+  if (needs.closeDay) {
+    input.daysWaiting = await attempt(
+      "daysWaiting",
+      () => reads.daysWaiting(propertyId),
       report,
     );
   }

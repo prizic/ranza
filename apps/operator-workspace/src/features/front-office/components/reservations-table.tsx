@@ -24,6 +24,32 @@ import {
 } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 
+/** `2026-10-11` as `11.10.2026`, `11/10/2026`, `11.10` and `11/10`. */
+function typedDates(iso: string): string[] {
+  const [year, month, day] = iso.split("-");
+  return [
+    `${day}.${month}.${year}`,
+    `${day}/${month}/${year}`,
+    `${day}.${month}`,
+    `${day}/${month}`,
+  ];
+}
+
+/**
+ * A telephone's digits as a desk may type them: with the country code, without
+ * it, and with the leading zero a Turkish number is dialled with — so `+90 532`
+ * typed as `90532`, `0532` or `532` all find it. The search reads what was typed
+ * by its digits too, so spaces, a plus sign and brackets do not hide a number.
+ */
+function phoneForms(digits: string): string {
+  if (digits === "") return "";
+  const national = digits.startsWith("90") ? digits.slice(2) : digits;
+  const bare = national.replace(/^0+/, "");
+  return [...new Set([digits, national, bare, `0${bare}`, `90${bare}`])].join(
+    " ",
+  );
+}
+
 /** The row an action has just made or changed, so the desk can see it. */
 const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
 
@@ -42,6 +68,8 @@ const JUST_CHANGED = "bg-primary/5 ring-1 ring-primary/30";
 export function ReservationsTable({
   changing,
   locale,
+  mayReadHistory,
+  opening,
   propertyId,
   reservations,
   today,
@@ -53,6 +81,14 @@ export function ReservationsTable({
    */
   changing: string | null;
   locale: SupportedLocale;
+  /** Whether the viewer may open the Audit log at this Property (AUDIT-03). */
+  mayReadHistory: boolean;
+  /**
+   * A booking to open in its detail sheet on arrival, from `?open=` — where a
+   * line elsewhere that names a booking links to it (CLOSE-05). Ignored unless
+   * it is on this list.
+   */
+  opening: string | null;
   reservations: readonly ReservationRow[];
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
@@ -71,6 +107,7 @@ export function ReservationsTable({
   const [tab, setTab] = useState<ReservationTab>("all");
   const [selectedReservation, setSelectedReservation] =
     useState<ReservationListRow | null>(null);
+  const [openingDismissed, setOpeningDismissed] = useState(false);
   // The list is the only proof a booking or a check-in worked, and a tab can
   // narrow it to somewhere the result is not. So when a row appears or changes
   // status after an action, the list goes back to All and points at that row.
@@ -117,20 +154,17 @@ export function ReservationsTable({
               year: "numeric",
               timeZone: "UTC",
             });
-          const dateSearch = [
-            row.startsOn,
-            formatDay(row.startsOn),
-            row.endsOn ? `${row.endsOn} ${formatDay(row.endsOn)}` : "",
-          ]
+          // The forms a desk types a date in: the ISO one, the language's own,
+          // and day.month.year and day/month as a Turkish desk writes them.
+          const dateSearch = [row.startsOn, row.endsOn ?? ""]
             .filter(Boolean)
+            .flatMap((iso) => [iso, formatDay(iso), ...typedDates(iso)])
             .join(" ");
+          const digits = toAsciiDigits(row.guestPhone ?? "").replace(/\D/g, "");
 
           return {
             ...row,
-            guestPhoneDigits: toAsciiDigits(row.guestPhone ?? "").replace(
-              /\D/g,
-              "",
-            ),
+            guestPhoneDigits: phoneForms(digits),
             unitTypeLabel: t(`unitType.${row.unitType}`),
             statusLabel: t(`reservationStatus.${row.status}`),
             dateSearch,
@@ -141,6 +175,10 @@ export function ReservationsTable({
   const linked = reservations.find(
     (row) => row.reservationId === changing && row.mayAmend,
   );
+
+  const linkedSheet = openingDismissed
+    ? undefined
+    : reservations.find((row) => row.reservationId === opening);
 
   // Closing it drops the parameter, so a refresh does not open it again.
   // Stable, because the dialog closes itself from an effect that lists it.
@@ -165,7 +203,10 @@ export function ReservationsTable({
           }}
           value={tab}
         >
-          <TabsList aria-label={t("reservationsViews")}>
+          <TabsList
+            aria-label={t("reservationsViews")}
+            className="max-w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto"
+          >
             {RESERVATION_TABS.map((name) => (
               <TabsTrigger key={name} value={name}>
                 {t(`reservationsTab.${name}`)}{" "}
@@ -194,7 +235,7 @@ export function ReservationsTable({
             />
           )
         }
-        labels={labels}
+        labels={{ ...labels, searchBy: () => t("searchReservations") }}
         getRowId={(row) => row.reservationId}
         onRowClick={(row) => setSelectedReservation(row)}
         rowClassName={(row) =>
@@ -215,12 +256,28 @@ export function ReservationsTable({
       />
       <ReservationDetailSheet
         locale={locale}
+        mayReadHistory={mayReadHistory}
         onOpenChange={(open) => {
-          if (!open) setSelectedReservation(null);
+          if (open) return;
+          setSelectedReservation(null);
+          if (linkedSheet) {
+            setOpeningDismissed(true);
+            const next = new URLSearchParams(search);
+            next.delete("open");
+            router.replace(`${pathname}?${next}`, { scroll: false });
+          }
         }}
-        open={selectedReservation !== null}
+        open={selectedReservation !== null || linkedSheet !== undefined}
         propertyId={propertyId}
-        reservation={selectedReservation}
+        reservation={
+          selectedReservation ??
+          (linkedSheet
+            ? {
+                ...linkedSheet,
+                guestPhoneDigits: "",
+              }
+            : null)
+        }
         today={today}
       />
       {linked ? (

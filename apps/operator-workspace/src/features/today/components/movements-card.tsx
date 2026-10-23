@@ -29,7 +29,7 @@ import { fetchDepartures } from "../../front-office/queries";
 import { unitLabel } from "../../front-office/unit-label";
 import { todayHref } from "../links";
 import type { TodayScope } from "../query-keys";
-import { money, nights, shortDay } from "../format";
+import { money, nights } from "../format";
 import { SectionUnavailable } from "./section-unavailable";
 
 type Tab = "arrivals" | "departures";
@@ -106,10 +106,26 @@ export function MovementsCard({
         <h2 className="text-base font-semibold" id="today-movements">
           {t("movements")}
         </h2>
-        <div className="inline-flex rounded-full bg-muted p-1" role="group">
+        <div
+          aria-labelledby="today-movements"
+          className="inline-flex rounded-full bg-muted p-1"
+          onKeyDown={(event) => {
+            const other = tab === "arrivals" ? "departures" : "arrivals";
+            const available = other === "arrivals" ? arrivals : departures;
+            if (
+              available &&
+              (event.key === "ArrowLeft" || event.key === "ArrowRight")
+            ) {
+              setTab(other);
+              document.getElementById(`today-tab-${other}`)?.focus();
+            }
+          }}
+          role="tablist"
+        >
           {arrivals ? (
             <TabButton
               active={tab === "arrivals"}
+              id="arrivals"
               onClick={() => setTab("arrivals")}
             >
               {t("tabArrivals", {
@@ -120,6 +136,7 @@ export function MovementsCard({
           {departures ? (
             <TabButton
               active={tab === "departures"}
+              id="departures"
               onClick={() => setTab("departures")}
             >
               {t("tabDepartures", {
@@ -131,34 +148,40 @@ export function MovementsCard({
         </div>
       </div>
 
-      {tab === "arrivals" && arrivals ? (
-        arrivals.status === "unavailable" ? (
-          <SectionUnavailable onRetry={onRetry} />
-        ) : (
-          <ArrivalRows
-            locale={locale}
-            onChanged={changed}
-            propertyId={propertyId}
-            remaining={toCome ?? 0}
-            rows={arrivals.data.rows}
-          />
-        )
-      ) : null}
-      {tab === "departures" && departures ? (
-        departures.status === "unavailable" ? (
-          <SectionUnavailable onRetry={onRetry} />
-        ) : (
-          <DepartureRows
-            currency={currency}
-            full={full.data ?? []}
-            locale={locale}
-            onChanged={changed}
-            propertyId={propertyId}
-            rows={departures.data.rows}
-            total={stillHere ?? 0}
-          />
-        )
-      ) : null}
+      <div
+        aria-labelledby={`today-tab-${tab}`}
+        id="today-movements-panel"
+        role="tabpanel"
+      >
+        {tab === "arrivals" && arrivals ? (
+          arrivals.status === "unavailable" ? (
+            <SectionUnavailable onRetry={onRetry} />
+          ) : (
+            <ArrivalRows
+              locale={locale}
+              onChanged={changed}
+              propertyId={propertyId}
+              remaining={toCome ?? 0}
+              rows={arrivals.data.rows}
+            />
+          )
+        ) : null}
+        {tab === "departures" && departures ? (
+          departures.status === "unavailable" ? (
+            <SectionUnavailable onRetry={onRetry} />
+          ) : (
+            <DepartureRows
+              currency={currency}
+              full={full.data ?? []}
+              locale={locale}
+              onChanged={changed}
+              propertyId={propertyId}
+              rows={departures.data.rows}
+              total={stillHere ?? 0}
+            />
+          )
+        ) : null}
+      </div>
     </section>
   );
 }
@@ -166,22 +189,28 @@ export function MovementsCard({
 function TabButton({
   active,
   children,
+  id,
   onClick,
 }: {
   active: boolean;
   children: ReactNode;
+  id: Tab;
   onClick: () => void;
 }) {
   return (
     <button
-      aria-pressed={active}
+      aria-controls="today-movements-panel"
+      aria-selected={active}
       className={cn(
         "min-h-9 rounded-full px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         active
           ? "bg-card text-foreground shadow-xs"
           : "text-muted-foreground hover:text-foreground",
       )}
+      id={`today-tab-${id}`}
       onClick={onClick}
+      role="tab"
+      tabIndex={active ? 0 : -1}
       type="button"
     >
       {children}
@@ -366,7 +395,7 @@ function DepartureRows({
                   {row.overdue && row.endsOn ? (
                     <StatusBadge
                       icon={Clock}
-                      label={shortDay(row.endsOn, locale)}
+                      label={t("overdueLabel", { days: row.overdueDays })}
                       tone="danger"
                     />
                   ) : (

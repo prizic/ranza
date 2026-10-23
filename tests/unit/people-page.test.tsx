@@ -55,6 +55,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
     },
   ],
   permittedProperties: async () => [],
+  whyDenied: async () => ({ reason: "not_reachable" as const }),
 }));
 vi.mock("../../apps/operator-workspace/src/server/staff", () => ({
   readRoster: (organizationId: string) => readRoster(organizationId),

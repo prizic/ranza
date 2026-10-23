@@ -1,7 +1,8 @@
 %% Anything not drawn here is forbidden.
 %% Every transition carries its trigger and its slice.
 %% Four lifecycles: analytics window selection (s1), reported month (s2), day detail (s3)
-%% and the financial visibility gate. Slice 2 retires the mtd window: it is the open month.
+%% and the financial visibility gate. Slice 2 retires the mtd window: it is the month in progress.
+%% The 2026-10 audit rebuilds the windows on the month and adds the incomplete month (AN-S5-04, AN-S5-09).
 stateDiagram-v2
   direction LR
 
@@ -9,32 +10,32 @@ stateDiagram-v2
     state "today (daily snapshot)" as w_today
     state "7d (trailing week)" as w_7d
     state "30d (trailing month)" as w_30d
-    state "mtd (month to date)" as w_mtd
 
+    %% A window is a month with another span (ANALYTICS-09): the same figures and rules, always in progress.
     [*] --> w_today : default / s1
     w_today --> w_7d : select range 7d / s1
     w_today --> w_30d : select range 30d / s1
-    w_today --> w_mtd : select range mtd / s1
     w_7d --> w_today : select range today / s1
     w_7d --> w_30d : select range 30d / s1
-    w_7d --> w_mtd : select range mtd / s1
     w_30d --> w_today : select range today / s1
     w_30d --> w_7d : select range 7d / s1
-    w_30d --> w_mtd : select range mtd / s1
-    w_mtd --> w_today : select range today / s1
-    w_mtd --> w_7d : select range 7d / s1
-    w_mtd --> w_30d : select range 30d / s1
   }
 
   state "Reported month" as month {
-    state "open month (current, N of M days closed)" as m_open
-    state "past month (every day closed)" as m_past
+    state "month in progress (current, N of M days closed)" as m_open
+    state "closed month (every day since opening closed)" as m_past
+    state "incomplete month (over, days never closed)" as m_incomplete
     state "month with no activity" as m_empty
 
     [*] --> m_open : open the screen / s2
-    m_open --> m_past : select an earlier month / s2
+    m_open --> m_past : select an earlier month with every day closed / s2
+    m_open --> m_incomplete : select an earlier month with days never closed / s2
     m_past --> m_past : select previous or next month / s2
+    m_incomplete --> m_incomplete : select previous or next month / s2
+    m_past --> m_incomplete : select an earlier month with days never closed / s2
+    m_incomplete --> m_past : select a month with every day closed / s2
     m_past --> m_open : select the current month / s2
+    m_incomplete --> m_open : select the current month / s2
     m_past --> m_empty : select a month before the Property's first activity / s2
     m_open --> m_empty : select a month before the Property's first activity / s2
     m_empty --> m_past : select a month with activity / s2

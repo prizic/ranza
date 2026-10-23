@@ -4,6 +4,7 @@ import { expect, type APIRequestContext } from "@playwright/test";
 
 import { PASSWORD } from "./front-desk";
 import { psql } from "./local-database";
+import { aBacklog } from "./ux-fixtures";
 
 /**
  * A Property whose day is known exactly, in an Organization of its own.
@@ -80,7 +81,13 @@ export interface KnownDay {
       notReady: number;
       blocked: number;
     };
-    departures: { due: number; departed: number; overdue: number };
+    departures: {
+      due: number;
+      departed: number;
+      overdue: number;
+      /** Days the overdue Guest is past their date. */
+      overdueDays: number;
+    };
     owing: { guests: number; overdueGuests: number };
     openFolios: number;
   };
@@ -393,7 +400,7 @@ export async function aKnownDay(
         notReady: 1,
         blocked: 1,
       },
-      departures: { due: 3, departed: 1, overdue: 1 },
+      departures: { due: 3, departed: 1, overdue: 1, overdueDays: 1 },
       owing: { guests: 2, overdueGuests: 1 },
       openFolios: 4,
     },
@@ -402,7 +409,8 @@ export async function aKnownDay(
 
 /**
  * A second Property in the same Organization, with nothing in it: no Units, no
- * bookings, nobody in house. What Today says when every figure is zero.
+ * bookings, nobody in house, and yesterday closed, so no day waits either.
+ * What Today says when every figure is zero.
  */
 export function aQuietProperty(day: KnownDay): string {
   const propertyId = randomUUID();
@@ -420,5 +428,6 @@ export function aQuietProperty(day: KnownDay): string {
       from public.property_assignments as assignment
      where assignment.property_id = '${day.propertyId}';
   `);
+  aBacklog(propertyId, 1);
   return propertyId;
 }

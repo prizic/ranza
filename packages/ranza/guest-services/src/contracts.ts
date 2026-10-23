@@ -60,6 +60,7 @@ export interface ServiceRequestItem {
   guestId: string | null;
   guestName: string | null;
   assignedToUserId: string | null;
+  /** The assignee's email: an account has no display name, so the caller decides how to show it. */
   assignedToName: string | null;
   reportedByUserId: string | null;
   reportedAt: string;
@@ -89,4 +90,54 @@ export interface UpdateServiceRequestInput {
   category?: ServiceRequestCategory | undefined;
   assignedToUserId?: string | null | undefined;
   accommodationUnitId?: string | null | undefined;
+}
+
+/** What the viewer may do with requests at a Property, for the screen to draw only what will work. */
+export interface ServiceRequestAccess {
+  mayCreate: boolean;
+  mayManage: boolean;
+}
+
+/** Somebody who can take a request: a Staff Member who manages requests and reaches the Property. */
+export interface ServiceRequestStaff {
+  userId: string;
+  email: string;
+}
+
+/** A Unit a request can be about, with who is in house in it, for the reporter to see before choosing. */
+export interface ServiceRequestUnit {
+  unitId: string;
+  name: string;
+  /** The Guest in house in it now, if any. */
+  occupant: string | null;
+}
+
+/**
+ * The write changed no row: the request is gone from the viewer's reach, or
+ * their permission to manage requests was withdrawn after the page was read.
+ * The two look the same to the database and are told apart by nobody.
+ */
+export class ServiceRequestUnavailableError extends Error {
+  constructor() {
+    super("that service request could not be changed");
+    this.name = "ServiceRequestUnavailableError";
+  }
+}
+
+/** The lifecycle refused the move; `reason` says which rule. */
+export class ServiceRequestStateError extends Error {
+  constructor(
+    readonly reason: "resolvedCannotCancel" | "cancelledReopensToNew",
+  ) {
+    super(`that status change is not allowed: ${reason}`);
+    this.name = "ServiceRequestStateError";
+  }
+}
+
+/** A policy, a column grant or a foreign key said no, and gave no reason of its own. */
+export class ServiceRequestRefusedError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("that service request change was refused", options);
+    this.name = "ServiceRequestRefusedError";
+  }
 }

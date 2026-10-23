@@ -15,16 +15,17 @@ const config: NextConfig = {
   // business asking which Properties a Staff Member may reach (blueprint 4.3).
   transpilePackages: [
     "@ranza/auth",
+    "@ranza/branding",
     "@ranza/i18n",
     "@ranza/stays",
     "@ranza/ui",
   ],
   // Every route is locale-prefixed, and the Portal's only destination is the
   // viewer's own Stay. The locale root is a redirect rather than a page,
-  // because a page whose whole body is `redirect()` is one.
+  // because a page whose whole body is `redirect()` is one. The bare root and
+  // other addresses with no language are sent by `proxy.ts`, which knows which.
   async redirects() {
     return [
-      { source: "/", destination: "/tr/stay", permanent: false },
       {
         source: "/:locale(tr|en|ar)",
         destination: "/:locale/stay",

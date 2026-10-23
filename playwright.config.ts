@@ -4,6 +4,7 @@ import {
   AUTH_DATABASE_URL,
   DATABASE_URL,
 } from "./tests/browser/local-database";
+import { portalUrl } from "./tests/browser/portal-url";
 
 /**
  * The Operator Workspace in a browser.
@@ -21,6 +22,13 @@ import {
  * list.
  */
 const WORKSPACE = "http://localhost:3000";
+
+/**
+ * The Guest/Resident Portal, started beside the Workspace for the specs that
+ * look at what a Guest sees (RANZ-47). The same database, a server of its own,
+ * and a port of its own: `tests/browser/portal.ts` reads the same address.
+ */
+const PORTAL = portalUrl();
 
 export default defineConfig({
   testDir: "./tests/browser",
@@ -60,37 +68,55 @@ export default defineConfig({
       dependencies: ["seed"],
     },
   ],
-  webServer: {
-    // Prisma Client is generated, not committed, and the workspace cannot
-    // import `@ranza/db` without it. That is the one way this has produced a
-    // server which starts, stays up, and serves nothing but a module-not-found:
-    // Playwright waits for a URL that answers, a dev server answering 500 is
-    // still answering, and the wait ends in a timeout with the real error
-    // scrolled past above it. Generating takes under a second and makes the
-    // case unreachable — reproduced by deleting the directory, which failed
-    // exactly as CI did, and passes now.
-    //
-    // A server that *exits* needs nothing here. Playwright fails in about a
-    // second and says why — `Process from config.webServer was not able to
-    // start. Exit code: 1` — measured rather than assumed, so that nobody adds
-    // configuration for a case the tool already covers.
-    command:
-      "pnpm --filter @ranza/db generate && pnpm --filter @ranza/operator-workspace dev",
-    url: `${WORKSPACE}/en/sign-in`,
-    reuseExistingServer: !process.env.CI,
-    // A cold `next dev` compiles the route before it answers, and CI starts
-    // with no cache at all.
-    timeout: 180_000,
-    env: {
-      DATABASE_URL,
-      AUTH_DATABASE_URL,
-      // Local, throwaway, and never a real one — the same reasoning that lets
-      // `db:seed:dev` hardcode a password, and true for the same reason: the
-      // import above refuses to run against anything but this machine.
-      BETTER_AUTH_SECRET:
-        process.env.BETTER_AUTH_SECRET ??
-        "browser-tests-only-and-never-a-real-secret",
-      BETTER_AUTH_URL: WORKSPACE,
+  webServer: [
+    {
+      // Prisma Client is generated, not committed, and the workspace cannot
+      // import `@ranza/db` without it. That is the one way this has produced a
+      // server which starts, stays up, and serves nothing but a module-not-found:
+      // Playwright waits for a URL that answers, a dev server answering 500 is
+      // still answering, and the wait ends in a timeout with the real error
+      // scrolled past above it. Generating takes under a second and makes the
+      // case unreachable — reproduced by deleting the directory, which failed
+      // exactly as CI did, and passes now.
+      //
+      // A server that *exits* needs nothing here. Playwright fails in about a
+      // second and says why — `Process from config.webServer was not able to
+      // start. Exit code: 1` — measured rather than assumed, so that nobody adds
+      // configuration for a case the tool already covers.
+      command:
+        "pnpm --filter @ranza/db generate && pnpm --filter @ranza/operator-workspace dev",
+      url: `${WORKSPACE}/en/sign-in`,
+      reuseExistingServer: !process.env.CI,
+      // A cold `next dev` compiles the route before it answers, and CI starts
+      // with no cache at all.
+      timeout: 180_000,
+      env: {
+        DATABASE_URL,
+        AUTH_DATABASE_URL,
+        // Local, throwaway, and never a real one — the same reasoning that lets
+        // `db:seed:dev` hardcode a password, and true for the same reason: the
+        // import above refuses to run against anything but this machine.
+        BETTER_AUTH_SECRET:
+          process.env.BETTER_AUTH_SECRET ??
+          "browser-tests-only-and-never-a-real-secret",
+        BETTER_AUTH_URL: WORKSPACE,
+      },
     },
-  },
+    {
+      // The Portal needs the generated client for the same reason, which the
+      // Workspace's command above has already made by the time this is asked.
+      command: `pnpm --filter @ranza/guest-portal exec next dev --port ${new URL(PORTAL).port}`,
+      url: `${PORTAL}/en/sign-in`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: {
+        DATABASE_URL,
+        AUTH_DATABASE_URL,
+        BETTER_AUTH_SECRET:
+          process.env.BETTER_AUTH_SECRET ??
+          "browser-tests-only-and-never-a-real-secret",
+        BETTER_AUTH_URL: PORTAL,
+      },
+    },
+  ],
 });

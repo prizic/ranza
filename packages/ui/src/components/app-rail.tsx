@@ -35,6 +35,9 @@ export interface RailLabels {
   /** The toggle that folds the sidebar to icons, and the one that opens it. */
   collapse: string;
   expand: string;
+  /** The heading of each group of destinations, by the entries' `section`. A
+      section with no heading here is set apart by a rule instead. */
+  sections?: Readonly<Record<string, string>> | undefined;
   /** Which application this is, under the product's name when there is no
       Organization to name instead. */
   badge?: string | undefined;
@@ -54,10 +57,12 @@ function useActiveHref(root: string) {
 }
 
 /**
- * The workspace sidebar, drawn as the Leaders portal draws its own
- * (leaders-portal/src/components/layout/sidebar-content.tsx): a glass panel
- * floating in its own padded column, the brand at its head, and the account at
- * its foot.
+ * The workspace sidebar: the brand at its head, the destinations, and the
+ * account at its foot, drawn straight onto the frame's colour. It has no panel
+ * of its own — it and the margin around the page are one surface, which is what
+ * lets the page read as a single white sheet set into it. Everything on it is
+ * therefore drawn in the `on-frame` tones, and its focus ring is white: the
+ * emerald ring the rest of the product uses would vanish against the emerald.
  *
  * Leaders tightens its rows on a short screen; the thresholds here are higher
  * because the workspace has a dozen destinations to Leaders' nine, and at
@@ -143,16 +148,18 @@ function AppSidebarInner({
   };
 
   const sections = groupNavEntries(entries);
+  const sectionLabel = (id: string | undefined) =>
+    id === undefined ? undefined : labels.sections?.[id];
 
   return (
     <aside
       aria-label={labels.mainNavigation}
       className={cn(
-        "sticky top-0 z-30 hidden h-svh shrink-0 p-2 transition-[width] duration-300 ease-out select-none md:flex xl:p-3 2xl:p-4",
+        "sticky top-0 z-30 hidden h-svh shrink-0 py-4 ps-3 pe-2 transition-[width] duration-300 ease-out select-none md:flex xl:ps-4 xl:pe-3",
         collapsed ? "w-24" : "w-[240px] xl:w-[260px] 2xl:w-[280px]",
       )}
     >
-      <div className="glass-panel flex min-h-0 w-full flex-col overflow-hidden rounded-2xl lg:rounded-3xl">
+      <div className="flex min-h-0 w-full flex-col overflow-hidden text-on-frame">
         <div
           className={cn(
             "flex shrink-0 items-center",
@@ -167,14 +174,14 @@ function AppSidebarInner({
             <div className="flex w-full flex-col items-center gap-2">
               <Link
                 aria-label={labels.home}
-                className="inline-flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 hover:scale-105 hover:rotate-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="inline-flex size-10 items-center justify-center rounded-xl bg-accent-soft text-primary-text transition-transform duration-500 hover:scale-105 hover:rotate-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame"
                 href={root}
               >
                 {brand}
               </Link>
               <button
                 aria-label={labels.expand}
-                className="inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                className="inline-flex size-7 items-center justify-center rounded-lg text-on-frame-muted transition-colors hover:bg-frame-hover hover:text-on-frame focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame cursor-pointer"
                 onClick={() => setCollapsed(false)}
                 title={labels.expand}
                 type="button"
@@ -186,18 +193,18 @@ function AppSidebarInner({
             <div className="flex w-full items-center gap-2">
               <Link
                 aria-label={labels.home}
-                className="group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:gap-3.5"
+                className="group flex min-w-0 items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame lg:gap-3.5"
                 href={root}
               >
-                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3 lg:size-10 xl:size-11 [@media(max-height:750px)]:size-8">
+                <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-accent-soft text-primary-text transition-transform duration-500 group-hover:scale-105 group-hover:rotate-3 lg:size-10 xl:size-11 [@media(max-height:750px)]:size-8">
                   {brand}
                 </div>
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-semibold tracking-tight text-foreground/80 transition-colors group-hover:text-foreground lg:text-base xl:text-lg">
+                  <span className="truncate text-sm font-semibold tracking-tight text-on-frame lg:text-base xl:text-lg">
                     {labels.home}
                   </span>
                   {(organization ?? labels.badge) ? (
-                    <span className="truncate text-xs font-medium text-muted-foreground xl:text-sm">
+                    <span className="truncate text-xs font-medium text-on-frame-muted xl:text-sm">
                       {organization ?? labels.badge}
                     </span>
                   ) : null}
@@ -206,7 +213,7 @@ function AppSidebarInner({
 
               <button
                 aria-label={labels.collapse}
-                className="ms-auto inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+                className="ms-auto inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-on-frame-muted transition-colors hover:bg-frame-hover hover:text-on-frame focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame cursor-pointer"
                 onClick={toggle}
                 title={labels.collapse}
                 type="button"
@@ -229,18 +236,33 @@ function AppSidebarInner({
               className="space-y-1 lg:space-y-2"
               key={section.id ?? `section-${secIdx}`}
             >
-              {/* Expanded, the sections run together as Leaders' one list;
-                  collapsed to icons, a rule between them keeps the groups
-                  apart where there are no words to do it. */}
-              {collapsed && secIdx > 0 ? (
+              {/* A heading names the group; collapsed to icons there is no room
+                  for words, and a section with no heading has none to show, so
+                  a rule keeps the groups apart instead. The list is named
+                  either way, for a reader who cannot see the heading. */}
+              {!collapsed && sectionLabel(section.id) ? (
+                <p
+                  aria-hidden="true"
+                  className="truncate px-3 pt-3 pb-1 text-[11px] font-semibold tracking-[0.1em] text-on-frame-muted uppercase"
+                >
+                  {sectionLabel(section.id)}
+                </p>
+              ) : secIdx > 0 ? (
                 <div
                   aria-hidden="true"
-                  className="mx-auto my-2 h-px w-8 bg-border/60"
+                  className={cn(
+                    "my-2 h-px bg-frame-line",
+                    collapsed ? "mx-auto w-8" : "mx-3",
+                  )}
                 />
               ) : null}
 
               {/* Entries in this section */}
-              <ul className="space-y-1 lg:space-y-2" role="list">
+              <ul
+                aria-label={sectionLabel(section.id)}
+                className="space-y-1 lg:space-y-2"
+                role="list"
+              >
                 {section.entries.map((entry) =>
                   isNavGroup(entry) ? (
                     <li key={entry.label}>
@@ -279,7 +301,7 @@ function AppSidebarInner({
         {actions ? (
           <div
             className={cn(
-              "mt-auto shrink-0 border-t border-border/20 p-2.5 lg:p-3.5 xl:p-4",
+              "mt-auto shrink-0 border-t border-frame-line p-2.5 lg:p-3.5 xl:p-4",
               collapsed && "flex flex-col items-center gap-2 px-2",
             )}
           >
@@ -303,11 +325,11 @@ function ExpandedLeafItem({
     <Link
       aria-current={active ? "page" : undefined}
       className={cn(
-        "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
         active
-          ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-          : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+          ? "bg-frame-active font-semibold text-on-frame"
+          : "text-on-frame-muted hover:bg-frame-hover hover:text-on-frame",
       )}
       href={leaf.href}
     >
@@ -325,8 +347,8 @@ function ExpandedLeafItem({
           className={cn(
             "ms-auto inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold",
             active
-              ? "bg-primary-foreground/20 text-primary-foreground"
-              : "bg-muted text-muted-foreground",
+              ? "bg-frame-active text-on-frame"
+              : "bg-frame-hover text-on-frame-muted",
           )}
         >
           {leaf.badge}
@@ -355,11 +377,11 @@ function ExpandedGroupItem({
       <button
         aria-expanded={isOpen}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
           hasActiveChild
-            ? "bg-secondary text-secondary-foreground"
-            : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+            ? "font-semibold text-on-frame hover:bg-frame-hover"
+            : "text-on-frame-muted hover:bg-frame-hover hover:text-on-frame",
         )}
         onClick={onToggle}
         type="button"
@@ -383,18 +405,18 @@ function ExpandedGroupItem({
       </button>
 
       {isOpen ? (
-        <div className="relative ms-5 space-y-1 border-s border-border/60 py-1 ps-3 xl:ms-6">
+        <div className="relative ms-5 space-y-1 border-s border-frame-line py-1 ps-3 xl:ms-6">
           {group.children.map((child) => {
             const childActive = isActive(child.href);
             return (
               <Link
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
-                  "hover-lift group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-300 [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
                   childActive
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-                    : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground",
+                    ? "bg-frame-active font-semibold text-on-frame"
+                    : "text-on-frame-muted hover:bg-frame-hover hover:text-on-frame",
                 )}
                 href={child.href}
                 key={child.href}
@@ -428,11 +450,11 @@ function CollapsedLeafItem({
         aria-current={active ? "page" : undefined}
         aria-label={leaf.label}
         className={cn(
-          "hover-lift flex size-11 items-center justify-center rounded-xl transition-colors duration-300",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "flex size-11 items-center justify-center rounded-xl transition-colors duration-300",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
           active
-            ? "bg-primary text-primary-foreground shadow-lg shadow-primary/10"
-            : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+            ? "bg-frame-active text-on-frame"
+            : "text-on-frame-muted hover:bg-frame-hover hover:text-on-frame",
         )}
         href={leaf.href}
       >
@@ -475,10 +497,10 @@ function CollapsedGroupItem({
           aria-label={group.label}
           className={cn(
             "flex size-11 cursor-pointer items-center justify-center rounded-xl transition-colors duration-300",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
             hasActiveChild
-              ? "bg-secondary text-secondary-foreground"
-              : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
+              ? "bg-frame-active text-on-frame"
+              : "text-on-frame-muted hover:bg-frame-hover hover:text-on-frame",
           )}
         >
           <group.icon
@@ -506,7 +528,7 @@ function CollapsedGroupItem({
                   className={cn(
                     "flex items-center gap-2 text-xs",
                     childActive
-                      ? "text-primary font-semibold"
+                      ? "text-primary-text font-semibold"
                       : "text-foreground",
                   )}
                   href={child.href}
@@ -553,25 +575,22 @@ export function AppBottomNav({
   return (
     <nav
       aria-label={label}
-      className="glass-panel fixed inset-x-3 bottom-3 z-20 rounded-2xl md:hidden"
+      className="fixed inset-x-3 bottom-3 z-20 rounded-2xl bg-frame shadow-lg shadow-black/20 md:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="flex items-center justify-around overflow-x-auto px-1 py-1 scrollbar-none">
         {items.map(({ href, icon: Icon, label: itemLabel }) => {
           const active = isActive(href);
           return (
-            <li
-              className="flex flex-1 min-w-[4.25rem] justify-center"
-              key={href}
-            >
+            <li className="flex min-w-[5rem] flex-1 justify-center" key={href}>
               <Link
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex min-h-13 w-full flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium transition-colors",
-                  "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+                  "relative flex min-h-14 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-[10px] font-medium transition-colors",
+                  "focus-visible:ring-on-frame focus-visible:ring-2 focus-visible:outline-none",
                   active
-                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/15"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-frame-active text-on-frame"
+                    : "text-on-frame-muted hover:text-on-frame",
                 )}
                 href={href}
               >
@@ -580,7 +599,9 @@ export function AppBottomNav({
                   className="size-5"
                   strokeWidth={active ? 2 : 1.5}
                 />
-                <span className="max-w-full truncate leading-none">
+                {/* Two lines, not a cut-off word: "Front Offi…" names no
+                    destination (TODAY-10). */}
+                <span className="line-clamp-2 max-w-full text-center leading-tight">
                   {itemLabel}
                 </span>
               </Link>

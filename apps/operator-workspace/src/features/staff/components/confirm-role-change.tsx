@@ -4,15 +4,18 @@ import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { StaffMember } from "@ranza/staff";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import { changeStaffRole, type StaffOutcome } from "../../../server/staff";
+import { asPermission } from "../labels";
 import { heldRoleValue, roleNameOf } from "./role-options";
 
 /** A role change somebody has picked and has not yet confirmed. */
@@ -35,6 +38,10 @@ export interface RoleChangeProposal {
   selfLosesAccess: boolean;
   /** Predicted from the roster; the trigger stays the authority (SP-S1-47). */
   lastAdministrator: boolean;
+  /** What the person can do after that they cannot now (PEOPLE-10). */
+  gained: readonly string[];
+  /** What they can do now and will not be able to. */
+  lost: readonly string[];
 }
 
 /**
@@ -117,6 +124,7 @@ export function ConfirmRoleChange({
       open={open}
     >
       <DialogContent
+        className={dialogFrameClassName("small")}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           document.getElementById(proposal.triggerId)?.focus();
@@ -127,32 +135,43 @@ export function ConfirmRoleChange({
         }}
         showCloseButton={false}
       >
-        <DialogHeader>
-          <DialogTitle>{t("staff.confirmRoleTitle")}</DialogTitle>
+        <DialogMasthead
+          art="/illustrations/dialogs/change-role.svg"
+          eyebrow={t("staff.confirmRoleConfirm")}
+          facts={`${proposal.fromName} → ${proposal.toName}`}
+          heading={proposal.email}
+        />
+        <DialogBody simple>
           <DialogDescription asChild>
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-3 text-sm">
               {changedMeanwhile ? (
-                <p>
+                <p className="m-0">
                   {t("staff.roleChangedMeanwhile", {
                     member: proposal.email,
                     role: current ? roleNameOf(current, t) : proposal.fromName,
                   })}
                 </p>
               ) : proposal.lastAdministrator ? (
-                <p>{t("staff.lastAdministrator")}</p>
+                <p className="m-0">{t("staff.lastAdministrator")}</p>
               ) : (
                 <>
-                  <p>
+                  <p className="m-0">
                     {t("staff.confirmRoleChange", {
                       member: proposal.email,
                       from: proposal.fromName,
                       to: proposal.toName,
                     })}
                   </p>
-                  <p>{t("staff.confirmRoleSessions")}</p>
-                  {proposal.self ? <p>{t("staff.confirmRoleSelf")}</p> : null}
+                  <p className="m-0">{t("staff.confirmRoleSessions")}</p>
+                  <PermissionDifference
+                    lost={proposal.lost}
+                    gained={proposal.gained}
+                  />
+                  {proposal.self ? (
+                    <p className="m-0">{t("staff.confirmRoleSelf")}</p>
+                  ) : null}
                   {proposal.self && proposal.selfLosesAccess ? (
-                    <p>
+                    <p className="m-0">
                       {t("staff.confirmRoleSelfLosesAccess", {
                         to: proposal.toName,
                       })}
@@ -162,39 +181,87 @@ export function ConfirmRoleChange({
               )}
             </div>
           </DialogDescription>
-        </DialogHeader>
-        {outcome !== "idle" &&
-        outcome !== "done" &&
-        outcome !== "roleChangedMeanwhile" ? (
-          <p className="text-sm text-destructive" role="alert">
-            {outcome === "roleRetired"
-              ? t("staff.roleRetired")
-              : outcome === "lastAdministrator"
-                ? t("staff.lastAdministrator")
-                : t("staff.refused")}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <Button
+          {outcome !== "idle" &&
+          outcome !== "done" &&
+          outcome !== "roleChangedMeanwhile" ? (
+            <p className="m-0 text-sm text-destructive" role="alert">
+              {outcome === "roleRetired"
+                ? t("staff.roleRetired")
+                : outcome === "lastAdministrator"
+                  ? t("staff.lastAdministrator")
+                  : t("staff.refused")}
+            </p>
+          ) : null}
+        </DialogBody>
+        <DialogActions>
+          <CancelButton
             disabled={pending}
             onClick={onClose}
             ref={cancelButton}
             type="button"
-            variant="outline"
           >
             {blocked ? t("staff.confirmRoleClose") : t("staff.cancel")}
-          </Button>
+          </CancelButton>
           {blocked ? null : (
-            <Button
+            <ArrowButton
               disabled={pending}
               onClick={() => void confirm()}
               type="button"
             >
               {t("staff.confirmRoleConfirm")}
-            </Button>
+            </ArrowButton>
           )}
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * What a role change gives and takes, in the words of the roles grid.
+ *
+ * Going from Housekeeping to Manager reads as "a different job" until it is
+ * listed as payroll and the ledger. The money and staff items come first
+ * because they are the ones a person would want to have been told about.
+ */
+function PermissionDifference({
+  gained,
+  lost,
+}: {
+  gained: readonly string[];
+  lost: readonly string[];
+}) {
+  const t = useTranslations();
+  const named = (keys: readonly string[]): string =>
+    [...keys]
+      .sort((a, b) => weight(b) - weight(a))
+      .map((key) => {
+        const known = asPermission(key);
+        return known ? t(`staff.permissions.${known}`) : key;
+      })
+      .join(", ");
+
+  return (
+    <>
+      {gained.length > 0 ? (
+        <p className="m-0" data-testid="role-gains">
+          {t("staff.confirmRoleGains", { permissions: named(gained) })}
+        </p>
+      ) : null}
+      {lost.length > 0 ? (
+        <p className="m-0" data-testid="role-losses">
+          {t("staff.confirmRoleLosses", { permissions: named(lost) })}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** Money and staff first: 1 for those, 0 for the rest. */
+function weight(permission: string): number {
+  return permission.startsWith("finance.") ||
+    permission.startsWith("staff.") ||
+    permission.startsWith("hr.")
+    ? 1
+    : 0;
 }

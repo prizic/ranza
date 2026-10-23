@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Guest portal (sign-in and My stay)</title>
+    <style>
+      :root {
+        --fg: #17211f;
+        --muted: #5b6866;
+        --line: #d9dfdd;
+        --bg: #fff;
+        --soft: #f4f6f5;
+        --bad: #a33a35;
+        --ok: #1c6b4f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+        margin: 0 auto;
+        max-width: 1100px;
+        padding: 24px 16px 64px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 36px 0 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      p,
+      li {
+        max-width: 80ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      .box {
+        background: var(--soft);
+        border: 1px solid var(--line);
+        padding: 12px 16px;
+        border-radius: 6px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 6px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: var(--soft);
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 12px;
+        padding: 0 6px;
+        border-radius: 3px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .v {
+        color: var(--ok);
+      }
+      .i {
+        color: var(--muted);
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+      }
+      figure {
+        margin: 0;
+      }
+      figcaption {
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .shots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: flex-start;
+      }
+      .shots figure {
+        width: 200px;
+      }
+      .shots figure.wide {
+        width: 420px;
+      }
+      code {
+        background: var(--soft);
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>UX audit: Guest portal (sign-in and My stay)</h1>
+    <p class="meta">
+      Audited 2026-10-11 against hosted staging,
+      <code>https://ranza-portal.46-225-168-54.nip.io</code>, mode AUDIT ONLY.
+      Persona: a hotel guest on their own phone, possibly Turkish or Arabic
+      speaking, who gives up fast. Primary width 375 px.
+    </p>
+
+    <h2>1. Verdict</h2>
+    <div class="box">
+      <p>
+        <strong>I did not see the signed-in experience.</strong> No guest or
+        Resident test account exists in <code>CLAUDE.local.md</code>,
+        <code>docs/</code> or <code>docs/runbooks/</code>, and the staff
+        accounts are not valid on this host. I did not invent, create or reset
+        one. Everything about <code>/stay</code> below is
+        <span class="tag i">inferred</span> from <code>apps/guest-portal</code>,
+        ADR 0009, the edge-case CSVs and one older evidence screenshot.
+      </p>
+      <p>
+        1. Could this guest use it unaided? The sign-in page, yes: it is clean,
+        fits 375 px with no horizontal scroll, uses 16 px inputs and mirrors
+        correctly in Arabic. What follows sign-in answers one question in five:
+        dates and room. Not the bill, not checkout time, not how to ask for
+        anything.
+      </p>
+      <p>
+        2. Biggest risk: a locked-out guest has no way forward. There is no
+        forgot-password page (404, verified), no "how do I get access" line, no
+        contact. In addition, nothing in the application code I searched ever
+        links a hotel stay to a portal account, so most hotel guests would reach
+        the empty state even with a working password.
+      </p>
+      <p>
+        3. A departed or cancelled guest sees "You have no stay to show", the
+        same screen as someone who was never booked. That is deliberate (ADR
+        0009) but it reads as a lost booking.
+      </p>
+    </div>
+
+    <h2>2. Findings</h2>
+    <div class="wrap">
+      <table>
+        <tr>
+          <th>ID</th>
+          <th>Severity</th>
+          <th>Where</th>
+          <th>What happened</th>
+          <th>Expected</th>
+          <th>Suggested fix</th>
+          <th>Effort</th>
+          <th>Evidence</th>
+          <th>Basis</th>
+        </tr>
+
+        <tr>
+          <td>GP-01</td>
+          <td>blocks work</td>
+          <td>/en/sign-in, signed out</td>
+          <td>
+            No forgot-password link, no help line, no "no account? ask
+            reception". <code>/en/forgot-password</code> and
+            <code>/en/reset-password</code> return the bare 404. A wrong
+            credential shows only "That email and password did not match." with
+            no next step.
+          </td>
+          <td>
+            A guest who cannot sign in can recover, or is told who to ask.
+          </td>
+          <td>
+            Add a "Forgot password" path, or at minimum a line naming the front
+            desk. Needs the invite/reset flow decided first (see Not built).
+          </td>
+          <td>M</td>
+          <td>05, 07; reproduced Y (404 twice)</td>
+          <td><span class="tag v">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-02</td>
+          <td>causes errors</td>
+          <td>
+            /en/stay, signed in, stay departed or cancelled (and any account
+            without a linked stay)
+          </td>
+          <td>
+            The query only returns <code>reserved</code> and
+            <code>in_house</code> stays, so a guest after checkout, or after a
+            cancellation, gets "You have no stay to show. Details appear here
+            once a Property has set up your stay." The copy tells someone who
+            just checked out that their stay has not been set up. The "Departed"
+            and "Cancelled" labels in <code>messages.ts</code> can never be
+            shown (dead copy).
+          </td>
+          <td>
+            A departed guest sees their stay marked as departed; a cancelled one
+            sees "Cancelled". At minimum the empty text does not claim the stay
+            was never set up.
+          </td>
+          <td>
+            Neutral empty copy ("No current stay. If you expected one, contact
+            the property.") now. Separate decision: allow a read-only
+            departed/cancelled row, which reopens ADR 0009's deliberate
+            indistinguishability.
+          </td>
+          <td>S for copy, M for the policy change</td>
+          <td>
+            code: <code>packages/ranza/stays/src/module.ts</code> (<code
+              >where stay.status in ('reserved','in_house')</code
+            >); not seen live
+          </td>
+          <td><span class="tag i">inferred</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-03</td>
+          <td>slows me down</td>
+          <td>Any link without a locale, signed out</td>
+          <td>
+            <code>/</code> redirects to <code>/tr/sign-in</code> whatever the
+            browser language is (my browser sent English).
+            <code>/stay</code> with no locale is a 404. The locale lives only in
+            the URL; no cookie, no localStorage (both empty). A guest who
+            switches to Arabic and later opens the bare link gets Turkish again.
+          </td>
+          <td>
+            First visit follows the browser language; a chosen language sticks;
+            <code>/stay</code> works.
+          </td>
+          <td>
+            Negotiate on Accept-Language at <code>/</code>, remember the choice
+            in a cookie, redirect locale-less paths.
+            <code>CF-DEF-01</code> already defers the Organization default
+            language.
+          </td>
+          <td>M</td>
+          <td>fetch results in session; 04 shows Turkish default</td>
+          <td>
+            <span class="tag v">verified</span> (redirects); persistence absence
+            verified for cookie and localStorage
+          </td>
+        </tr>
+
+        <tr>
+          <td>GP-04</td>
+          <td>slows me down</td>
+          <td>Any unknown route, e.g. <code>/en/forgot-password</code></td>
+          <td>
+            Next's default English "404 This page could not be found." with no
+            styling, no portal chrome, no link back, whatever the locale. The
+            app has no <code>not-found</code>, <code>error</code> or
+            <code>loading</code> files, so a runtime failure on
+            <code>/stay</code> would fall to the framework default too. The
+            portal also has no client error reporter (stated in
+            <code>sign-in-form.tsx</code>).
+          </td>
+          <td>
+            A localized not-found with a link to sign-in or My stay; an error
+            boundary with a retry.
+          </td>
+          <td>
+            Add <code>not-found.tsx</code>, <code>error.tsx</code>, and wire the
+            reporter.
+          </td>
+          <td>S to M</td>
+          <td>05; reproduced Y</td>
+          <td>
+            <span class="tag v">verified</span> (404),
+            <span class="tag i">inferred</span> (no boundaries, found by file
+            search)
+          </td>
+        </tr>
+
+        <tr>
+          <td>GP-05</td>
+          <td>polish</td>
+          <td>/en/sign-in, desktop width</td>
+          <td>
+            The showcase panel promises "residence details, accommodation unit,
+            and stay history". Stay history is not built. The white card of
+            "services" lists Property, Unit, Arrival, Departure, which are
+            fields, not services. "Residence" and "Unit" are dormitory
+            vocabulary on a page a hotel guest reads. The panel is hidden below
+            1024 px, so phone guests never see this.
+          </td>
+          <td>Copy that matches what the page does today.</td>
+          <td>Drop "stay history"; use "room" for hotel properties.</td>
+          <td>S</td>
+          <td>01; reproduced Y</td>
+          <td><span class="tag v">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-06</td>
+          <td>polish</td>
+          <td>/en/stay, signed in</td>
+          <td>
+            The stay-type fact is labelled "My stay" (the page's own name) and
+            shows "Guest" or "Resident", so the screen reads "My stay:
+            Resident". Status "In house" is hotel-internal jargon; departure
+            "Open-ended" for a hotel guest is odd. The account menu is given the
+            email as the display name, so long addresses truncate (see the older
+            evidence shot).
+          </td>
+          <td>
+            Label "Guest type" or drop the row for hotel guests; "Staying now";
+            show the booked end date.
+          </td>
+          <td>
+            Rename the label key; reword status; pass a real name when one
+            exists.
+          </td>
+          <td>S</td>
+          <td>
+            09 (older build, same label); code <code>stay/page.tsx</code>,
+            <code>layout.tsx</code>
+          </td>
+          <td><span class="tag i">inferred</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-07</td>
+          <td>polish</td>
+          <td>/en/stay, signed in, two current stays</td>
+          <td>
+            Stays are ordered newest start first and drawn as stacked sections
+            with no divider or heading. A guest with an in-house stay and a
+            later booking sees the future one on top.
+          </td>
+          <td>Current stay first; sections visibly separate.</td>
+          <td>Sort in-house first; add a divider.</td>
+          <td>S</td>
+          <td>code only</td>
+          <td><span class="tag i">inferred</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-08</td>
+          <td>polish</td>
+          <td>/en/sign-in after a wrong credential</td>
+          <td>
+            Focus ends on <code>BODY</code> after the failed attempt (the submit
+            button is disabled while pending, so focus drops). A keyboard or
+            screen-reader user has to tab from the start. The error box itself
+            is announced and the fields are marked invalid, which is good.
+          </td>
+          <td>Focus returns to the first invalid field or the error.</td>
+          <td>Move focus to the email field on failure.</td>
+          <td>S</td>
+          <td>07; reproduced Y (once, to respect the rate limit)</td>
+          <td><span class="tag v">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-09</td>
+          <td>polish</td>
+          <td>/en/sign-in at 375 px</td>
+          <td>
+            The show-password button is 36 x 36 px and each language menu item
+            is 32 px tall, both under the usual 44 px touch target. The language
+            pill (44 px) and submit (52 px) are fine.
+          </td>
+          <td>44 px target.</td>
+          <td>Enlarge the hit area.</td>
+          <td>S</td>
+          <td>02, 10; measured by script</td>
+          <td><span class="tag v">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>GP-10</td>
+          <td>polish</td>
+          <td>All portal pages</td>
+          <td>
+            Every page title is "Ranza" (even the 404 is its own default), so
+            browser tabs and history cannot tell sign-in from My stay. The
+            sign-in page has no <code>main</code>, <code>nav</code> or
+            <code>header</code> landmark. An empty submit shows the browser's
+            own bubble ("Please fill out this field.") in the browser's
+            language, not the page's, with no inline message.
+          </td>
+          <td>
+            Page-specific titles; a <code>main</code> landmark; messages in the
+            page language.
+          </td>
+          <td>
+            Per-page <code>generateMetadata</code>, wrap form in
+            <code>main</code>, custom validity text from the catalogue.
+          </td>
+          <td>S</td>
+          <td>06; script output</td>
+          <td><span class="tag v">verified</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <h3>Evidence</h3>
+    <div class="shots">
+      <figure class="wide">
+        <img src="01-signin-desktop-en.png" alt="Sign-in, desktop" />
+        <figcaption>01 sign-in at desktop width (GP-05)</figcaption>
+      </figure>
+      <figure>
+        <img src="02-signin-375-en.png" alt="Sign-in 375 English" />
+        <figcaption>
+          02 375 px, English, no recovery link (GP-01, GP-09)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="03-signin-375-ar.png" alt="Sign-in 375 Arabic" />
+        <figcaption>03 375 px, Arabic, mirrored correctly</figcaption>
+      </figure>
+      <figure>
+        <img src="04-signin-375-tr.png" alt="Sign-in 375 Turkish" />
+        <figcaption>04 375 px, Turkish, the default (GP-03)</figcaption>
+      </figure>
+      <figure>
+        <img src="05-404-forgot-password.png" alt="404" />
+        <figcaption>
+          05 forgot-password route is a bare 404 (GP-01, GP-04)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="06-empty-submit-375.png" alt="Empty submit" />
+        <figcaption>
+          06 empty submit, native bubble, no request sent (GP-10)
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="07-wrong-credential-375.png" alt="Wrong credential" />
+        <figcaption>07 wrong credential (GP-01, GP-08)</figcaption>
+      </figure>
+      <figure class="wide">
+        <img src="08-signin-768-en.png" alt="Sign-in 768" />
+        <figcaption>
+          08 768 px: single column, form left-aligned, large empty right side;
+          usable
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="10-language-menu-375.png" alt="Language menu open" />
+        <figcaption>
+          10 language menu at 375 px, items 32 px tall (GP-09)
+        </figcaption>
+      </figure>
+      <figure class="wide">
+        <img
+          src="09-old-signed-in-evidence.png"
+          alt="Older signed-in evidence"
+        />
+        <figcaption>
+          09 older evidence from <code>docs/evidence/m1/RANZ-47</code> (earlier
+          build, branding since changed): the only signed-in view I could find.
+          Not a live capture.
+        </figcaption>
+      </figure>
+    </div>
+
+    <h3>
+      Stay states, as built (all inferred from code and ADR 0009; not seen)
+    </h3>
+    <div class="wrap">
+      <table>
+        <tr>
+          <th>Guest situation</th>
+          <th>What the page shows</th>
+          <th>Judgement</th>
+        </tr>
+        <tr>
+          <td>Upcoming (reserved, linked to the account)</td>
+          <td>
+            Property name, "Reserved", room name, room type, capacity, arrival
+            and departure dates, stay type
+          </td>
+          <td>Works. No check-in time, no days-to-go.</td>
+        </tr>
+        <tr>
+          <td>In house</td>
+          <td>Same, status "In house"</td>
+          <td>Works for dates and room. No checkout time, no bill.</td>
+        </tr>
+        <tr>
+          <td>Departed</td>
+          <td>"You have no stay to show"</td>
+          <td>Misleading (GP-02).</td>
+        </tr>
+        <tr>
+          <td>Cancelled</td>
+          <td>Same empty state</td>
+          <td>Misleading (GP-02).</td>
+        </tr>
+        <tr>
+          <td>
+            No linked stay, staff member, subscription lapsed, capability off
+          </td>
+          <td>Same empty state, by design</td>
+          <td>Safe, but gives the guest no next step.</td>
+        </tr>
+        <tr>
+          <td>Two current stays</td>
+          <td>Stacked, newest first</td>
+          <td>GP-07.</td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>3. Jobs</h2>
+    <div class="wrap">
+      <table>
+        <tr>
+          <th>Job</th>
+          <th>Pass test (written first)</th>
+          <th>Result</th>
+          <th>Seconds</th>
+          <th>Clicks</th>
+        </tr>
+        <tr>
+          <td>Open the portal link on my phone</td>
+          <td>
+            Sign-in fits 375 px, no horizontal scroll, no zoom needed on focus
+          </td>
+          <td>Pass (scrollWidth 375, 16 px inputs)</td>
+          <td>~5</td>
+          <td>0</td>
+        </tr>
+        <tr>
+          <td>Open <code>/en/stay</code> while signed out</td>
+          <td>Lands on sign-in in the same language</td>
+          <td>
+            Pass for <code>/en</code> and <code>/ar</code>;
+            <code>/stay</code> with no locale is a 404
+          </td>
+          <td>~3</td>
+          <td>0</td>
+        </tr>
+        <tr>
+          <td>Sign in with the wrong password and recover</td>
+          <td>Error is clear and a way forward is offered</td>
+          <td>Error clear: pass. Way forward: FAIL (GP-01)</td>
+          <td>~20</td>
+          <td>1 submit (single failed attempt, 401, then stopped)</td>
+        </tr>
+        <tr>
+          <td>Read it in my language and keep it that way</td>
+          <td>Language changes; still mine on the next visit</td>
+          <td>
+            Partial: tr, en, ar each render fully and Arabic mirrors; not
+            remembered (GP-03). The dropdown opens, lists each language in its
+            own name with a check on the current one, and its three links are
+            plain <code>/tr|en|ar/sign-in</code> (verified, shot 10); I switched
+            pages by URL and did not follow the links.
+          </td>
+          <td>~30</td>
+          <td>1 to open the menu</td>
+        </tr>
+        <tr>
+          <td>Find my room and dates</td>
+          <td>Within one screen, no scrolling at 375 px</td>
+          <td>
+            Not run: no guest credentials. Code puts the room name large
+            opposite the property, dates below.
+          </td>
+          <td>n/a</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td>See my bill</td>
+          <td>A balance is visible</td>
+          <td>FAIL by absence: not built (<code>FO-DEF-11</code>)</td>
+          <td>n/a</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td>Ask for something (towels, a late checkout)</td>
+          <td>A request can be raised</td>
+          <td>
+            FAIL by absence: no route (<code>/en/requests</code> is 404), no
+            code in <code>apps/guest-portal</code>. Not built.
+          </td>
+          <td>n/a</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td>Under pressure: locked out at midnight</td>
+          <td>Some route to help within two taps</td>
+          <td>FAIL (GP-01)</td>
+          <td>~15</td>
+          <td>2</td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>4. Top changes, by time saved times frequency</h2>
+    <ol>
+      <li>
+        When I cannot sign in, I am told what to do next (reset, or who to ask).
+        GP-01.
+      </li>
+      <li>
+        After I check out, I see that my stay is over, not that it was never set
+        up. GP-02, copy first.
+      </li>
+      <li>I open the link in my language and it stays that way. GP-03.</li>
+      <li>
+        A wrong link lands me on a page that lets me get back to my stay. GP-04.
+      </li>
+      <li>
+        When something breaks, I get a retry button, not a framework page.
+        GP-04.
+      </li>
+      <li>The sign-in page only promises what exists. GP-05.</li>
+      <li>The stay card reads in a guest's words. GP-06, GP-07.</li>
+      <li>
+        After a failed sign-in my keyboard cursor is where I need it. GP-08,
+        GP-09, GP-10.
+      </li>
+    </ol>
+
+    <h2>5. Inconsistencies</h2>
+    <ul>
+      <li>
+        <strong>Staff Workspace vs Portal on stay state</strong> (<span
+          class="tag i"
+          >inferred</span
+        >): staff screens can see departed and cancelled stays; the Portal hides
+        them. The Portal's <code>stayStatus</code> catalogue still has four
+        labels, two unreachable.
+      </li>
+      <li>
+        <strong>Back button (ADR 0035):</strong> the Portal has one destination,
+        so no inner page exists to carry one. Fine today; becomes a requirement
+        with the first detail view.
+      </li>
+      <li>
+        <strong>Vocabulary:</strong> the portal uses "Unit" and "Resident" for
+        hotel guests, where the Workspace says Room and Guest.
+      </li>
+      <li>
+        <strong>Language:</strong> the staff Workspace and the Portal both keep
+        language in the URL only.
+      </li>
+      <li>
+        <strong>Sign-in:</strong> the Portal reuses the Workspace's sign-in
+        layout component. I did not check whether the Workspace offers a
+        password reset, so I cannot say whether the Portal is behind or level
+        with it (<span class="tag i">unknown</span>).
+      </li>
+    </ul>
+
+    <h2>6. Not built / needs backend work (not UX defects)</h2>
+    <ul>
+      <li>
+        <strong>Guest request creation from the Portal:</strong> not built.
+        <code>docs/roadmap.md</code> row "Guest and Resident services":
+        "Missing: Guest Portal submission side". No route or form exists in
+        <code>apps/guest-portal/src</code>; <code>/en/requests</code> is 404.
+        Staff-side requests exist (<code>GX-S1-*</code>).
+        <span class="tag v">verified</span> (404) and
+        <span class="tag i">inferred</span> (code).
+      </li>
+      <li>
+        <strong>Bill or balance in the Portal:</strong> deferred,
+        <code>FO-DEF-11</code>.
+      </li>
+      <li>
+        <strong>Reporting a maintenance problem from the Portal:</strong>
+        deferred, <code>MT-DEF-02</code>.
+      </li>
+      <li>
+        <strong
+          >Checkout time, check-in time, Wi-Fi, property contact,
+          directions:</strong
+        >
+        not in <code>OwnStay</code>, so there is nothing to show. I found no
+        deferred row for them.
+      </li>
+      <li>
+        <strong>Guest account provisioning:</strong> I found no code in
+        <code>packages/ranza/stays</code> or
+        <code>packages/ranza/reservations</code> that writes
+        <code>stays.user_id</code>. The column is documented as nullable and
+        "most Stays are created by Staff for someone who has never signed in"
+        (<code>OA-S4-06</code>). I found no invite, link or sign-up flow for
+        guests. <span class="tag i">inferred</span>: I could not rule out a path
+        I did not search, such as a seed script. Email and password sign-up is
+        enabled in the auth module and the Portal has no sign-up screen; I did
+        not touch that API.
+      </li>
+      <li><strong>Password reset and any email flow:</strong> none found.</li>
+      <li>
+        <strong>Stay history, announcements, meal choices:</strong> listed in
+        blueprint 4.3, unbuilt (<code>apps/guest-portal/README.md</code>).
+      </li>
+      <li>
+        <strong>Portal client error reporter:</strong> absent, per comments in
+        <code>sign-in-form.tsx</code>.
+      </li>
+      <li>
+        <strong
+          >Organization default language for a guest with no preference:</strong
+        >
+        deferred, <code>CF-DEF-01</code>.
+      </li>
+    </ul>
+
+    <h2>7. What works well and must not regress</h2>
+    <ul>
+      <li>
+        375 px sign-in: no horizontal scroll, 52 px fields at 16 px so iOS does
+        not zoom, full-width 52 px submit. <span class="tag v">verified</span>
+      </li>
+      <li>
+        Arabic mirrors from the first render (<code>dir="rtl"</code>, flag and
+        chevron swap sides, labels right-aligned). Turkish and Arabic copy exist
+        for every string. <span class="tag v">verified</span>
+      </li>
+      <li>
+        Failure copy is honest: wrong credential, rate limit (429) and "not
+        working" are told apart in code, and a 403 never says the password is
+        wrong. Only the wrong-credential case was exercised. The message does
+        not reveal whether the email exists.
+        <span class="tag v">verified</span> for mismatch;
+        <span class="tag i">inferred</span> for the rest.
+      </li>
+      <li>
+        Failed attempt keeps the typed email and password and marks both fields
+        invalid with an announced error. <span class="tag v">verified</span>
+      </li>
+      <li>
+        Empty submit is stopped by the browser before any request is sent
+        (confirmed in code, no <code>noValidate</code>, and in the network
+        list). <span class="tag v">verified</span>
+      </li>
+      <li>
+        Muted subtitle contrast 4.56:1, submit button 8.77:1.
+        <span class="tag v">verified</span>
+      </li>
+      <li>
+        Signed-out <code>/en/stay</code> and <code>/ar/stay</code> redirect to
+        sign-in in the same language, without a loop.
+        <span class="tag v">verified</span>
+      </li>
+      <li>
+        Stay page design intent (inferred from code): room name large at arm's
+        length, dates in UTC so a calendar date never shifts a day, Arabic
+        plural forms for capacity, one empty state that leaks nothing about
+        commercial gates.
+      </li>
+    </ul>
+
+    <p class="meta">
+      Mode compliance: one failed sign-in with a made-up address (401), one
+      empty submit blocked by the browser. No account created, no reset or magic
+      link requested, no other form submitted, no files edited outside this
+      folder. The one unrequested copy in this folder (09) is a read-only copy
+      of an existing evidence image from another worktree.
+    </p>
+  </body>
+</html>

@@ -2496,3 +2496,234 @@ describe("the Reservations list's nights, total and telephone", () => {
     expect(await listed(ids.late)).toMatchObject({ guestPhone: null });
   });
 });
+
+describe("a Guest still in the room past their departure (RANZ-51)", () => {
+  const reservation = reservationId();
+  let unit: string;
+
+  beforeAll(async () => {
+    unit = await aUnit();
+    await reserve(reservation, PROPERTY, ORG, unit, "Overdue Olive", {
+      from: -6,
+      to: -2,
+    });
+    await arrived(reservation, unit, -6, -2);
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: the checked-in booking is listed with its days overdue", async () => {
+    const row = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (candidate) => candidate.reservationId === reservation,
+    );
+    expect(row).toMatchObject({ status: "checked_in", overdueDays: 2 });
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: Departures counts the same days", async () => {
+    const departure = (
+      await reservations.listDepartures(MEMBER, PROPERTY)
+    ).find((candidate) => candidate.unitId === unit);
+    expect(departure).toMatchObject({ overdue: true, overdueDays: 2 });
+  });
+
+  it("a_stay_bar_carries_its_bookings_reference (ROOMCAL-09)", async () => {
+    const [booking] = await owner.$queryRawUnsafe<{ reference: string }[]>(
+      `select reference from public.reservations where id = $1::uuid`,
+      reservation,
+    );
+    const calendar = await reservations.listRoomCalendar(MEMBER, PROPERTY, {
+      from: null,
+      days: 14,
+    });
+    const bar = calendar.units
+      .flatMap((unit) => [unit, ...unit.beds])
+      .flatMap((unit) => unit.bars)
+      .find(
+        (candidate) =>
+          candidate.kind === "stay" && candidate.reservationId === reservation,
+      );
+    expect(bar).toMatchObject({ kind: "stay", reference: booking!.reference });
+  });
+
+  it("an_overdue_guest_stays_on_the_reservations_list_and_says_how_late: a Guest due today is not overdue", async () => {
+    const dueToday = reservationId();
+    const dueUnit = await aUnit();
+    await reserve(dueToday, PROPERTY, ORG, dueUnit, "Due Dahlia", {
+      from: -3,
+      to: 0,
+    });
+    await arrived(dueToday, dueUnit, -3, 0);
+    const row = (await reservations.listReservations(MEMBER, PROPERTY)).find(
+      (candidate) => candidate.reservationId === dueToday,
+    );
+    expect(row).toMatchObject({ status: "checked_in", overdueDays: 0 });
+  });
+});
+
+describe("a refusal says why (RANZ-54)", () => {
+  const WATCHER = randomUUID();
+
+  beforeAll(async () => {
+    await owner.$executeRawUnsafe(
+      `insert into public.users (id, email) values ($1::uuid, $2)`,
+      WATCHER,
+      `refusal-watcher-${WATCHER.slice(0, 8)}@example.test`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.organization_memberships
+         (organization_id, user_id, role, access_scope)
+       values ($1::uuid, $2::uuid, 'housekeeping', 'organization_wide')`,
+      ORG,
+      WATCHER,
+    );
+  });
+
+  const refusalOf = async (attempt: Promise<unknown>) => {
+    const error = await attempt.then(
+      () => null,
+      (caught: unknown) => caught,
+    );
+    return (error as { reason?: string } | null)?.reason;
+  };
+
+  const booked = async (
+    guest: string,
+    nights: { from: number; to: number },
+    status: "confirmed" | "requested" | "cancelled" = "confirmed",
+  ) => {
+    const id = reservationId();
+    await reserve(id, PROPERTY, ORG, await aUnit(), guest, nights);
+    if (status === "cancelled") {
+      await owner.$executeRawUnsafe(
+        `update public.reservations set status = 'cancelled' where id = $1::uuid`,
+        id,
+      );
+    }
+    if (status === "requested") {
+      // No command moves a booking back to requested, so it is written in
+      // replica mode, which skips triggers for one transaction only.
+      await owner.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(
+          `set local session_replication_role = replica`,
+        );
+        await tx.$executeRawUnsafe(
+          `update public.reservations set status = 'requested' where id = $1::uuid`,
+          id,
+        );
+      });
+    }
+    return id;
+  };
+
+  it("a_refused_check_in_names_its_reason: a Guest already in, a withdrawn booking, one not confirmed, one whose nights are gone", async () => {
+    const inHouseId = await booked("Reason In", { from: 0, to: 2 });
+    await reservations.checkIn(MEMBER, inHouseId);
+    expect(await refusalOf(reservations.checkIn(MEMBER, inHouseId))).toBe(
+      "already_checked_in",
+    );
+
+    const cancelled = await booked(
+      "Reason Cancelled",
+      { from: 0, to: 2 },
+      "cancelled",
+    );
+    expect(await refusalOf(reservations.checkIn(MEMBER, cancelled))).toBe(
+      "withdrawn",
+    );
+
+    const requested = await booked(
+      "Reason Requested",
+      { from: 0, to: 2 },
+      "requested",
+    );
+    expect(await refusalOf(reservations.checkIn(MEMBER, requested))).toBe(
+      "not_confirmed",
+    );
+
+    const gone = await booked("Reason Gone", { from: -5, to: -1 });
+    expect(await refusalOf(reservations.checkIn(MEMBER, gone))).toBe(
+      "nights_passed",
+    );
+  });
+
+  it("a_refused_check_in_names_its_reason: a role without the permission is told so, and a stranger is told nothing", async () => {
+    const id = await booked("Reason Permission", { from: 0, to: 2 });
+    expect(await refusalOf(reservations.checkIn(WATCHER, id))).toBe(
+      "not_permitted",
+    );
+
+    const elsewhere = reservationId();
+    const otherUnit = randomUUID();
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, name, unit_type, capacity)
+       values ($1::uuid, $2::uuid, $3::uuid, $4, 'room', 2)`,
+      otherUnit,
+      OTHER_PROPERTY,
+      OTHER_ORG,
+      `FD-${otherUnit.slice(0, 6)}`,
+    );
+    await reserve(
+      elsewhere,
+      OTHER_PROPERTY,
+      OTHER_ORG,
+      otherUnit,
+      "Reason Elsewhere",
+    );
+    expect(await refusalOf(reservations.checkIn(MEMBER, elsewhere))).toBe(
+      "unreachable",
+    );
+    expect(await refusalOf(reservations.checkIn(MEMBER, randomUUID()))).toBe(
+      "unreachable",
+    );
+  });
+
+  it("a_refused_check_out_names_its_reason: already left, not the role's to do, out of reach", async () => {
+    const id = await booked("Reason Out", { from: -3, to: 0 });
+    const unit = await aUnit();
+    const arrivedId = reservationId();
+    await reserve(arrivedId, PROPERTY, ORG, unit, "Reason Left", {
+      from: -3,
+      to: 0,
+    });
+    const stay = await arrived(arrivedId, unit, -3, 0);
+    expect(id).toBeTruthy();
+
+    expect(
+      await refusalOf(reservations.checkOut(WATCHER, stay, ACKNOWLEDGED)),
+    ).toBe("not_permitted");
+    await reservations.checkOut(MEMBER, stay, ACKNOWLEDGED);
+    expect(
+      await refusalOf(reservations.checkOut(MEMBER, stay, ACKNOWLEDGED)),
+    ).toBe("already_checked_out");
+    expect(
+      await refusalOf(
+        reservations.checkOut(MEMBER, randomUUID(), ACKNOWLEDGED),
+      ),
+    ).toBe("unreachable");
+  });
+
+  it("a_refused_cancellation_names_its_reason: an arrived Guest, a booking already cancelled, a no-show before the first night", async () => {
+    const arrivedId = await booked("Reason Arrived", { from: 0, to: 2 });
+    await reservations.checkIn(MEMBER, arrivedId);
+    expect(
+      await refusalOf(
+        reservations.cancelReservation(MEMBER, arrivedId, "oops"),
+      ),
+    ).toBe("already_checked_in");
+
+    const cancelled = await booked(
+      "Reason Done",
+      { from: 0, to: 2 },
+      "cancelled",
+    );
+    expect(
+      await refusalOf(
+        reservations.cancelReservation(MEMBER, cancelled, "twice"),
+      ),
+    ).toBe("withdrawn");
+
+    const later = await booked("Reason Later", { from: 3, to: 5 });
+    expect(await refusalOf(reservations.markNoShow(MEMBER, later))).toBe(
+      "not_started",
+    );
+  });
+});

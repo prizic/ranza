@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { psql } from "./local-database";
 import {
   HOUSEKEEPER_EMAIL,
+  pickUnit,
   portfolioProperty,
   signIn,
   testProperty,
@@ -86,41 +88,24 @@ test("a front desk takes a booking and finds it on the list", async ({
   const dialog = page.getByRole("dialog", { name: "New reservation" });
   await expect(dialog).toBeVisible();
 
-  await dialog.getByLabel("Guest", { exact: true }).fill(guestName);
+  await dialog.getByLabel("Guest name").fill(guestName);
   await dialog.getByLabel("Email").fill(email);
-  // A combobox rather than a native select: the Unit picker is the kit's
-  // searchable one, so the option is a listbox row and not an <option>.
-  // Submitted with no Unit, the booking stops at the Unit: its required value
-  // is carried by a proxy input, and the refusal lands on the trigger.
-  const unit = dialog.getByLabel("Unit");
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
-  await expect(dialog).toBeVisible();
-  await expect(unit).toHaveAttribute("aria-invalid", "true");
-  await expect(unit).toBeFocused();
-  await expect(unit).toHaveAccessibleDescription("Choose one to continue.");
-  await expect(dialog.getByText("Choose one to continue.")).toBeVisible();
-  // The arrow key opens it, as it opened the Select it replaced.
-  await page.keyboard.press("ArrowDown");
-  await page.getByRole("option", { name: new RegExp(unitName) }).click();
-  await expect(unit).not.toHaveAttribute("aria-invalid", "true");
-  // Submitted with no arrival, the booking stops and the calendar opens at
-  // the arrival: the required start is carried by a proxy input the reader
-  // never sees, so this is the only place its message can arrive.
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
-  await expect(page.getByText("Choose the arrival day")).toBeVisible();
-  await expect(dialog).toBeVisible();
+  // Nothing can be sent yet: the button is muted and the footer says what is
+  // missing, and the units wait for the nights they are free on.
+  const create = dialog.getByRole("button", { name: "Create reservation" });
+  await expect(create).toBeDisabled();
+  await expect(
+    dialog.getByText("Add a name, dates and a unit to continue"),
+  ).toBeVisible();
+  await expect(
+    dialog.getByText("Choose dates first to see free units"),
+  ).toBeVisible();
 
+  await openTheCalendar(page, dialog);
   await pickDay(page, propertyDay(propertyId, 7));
-  // A Guest booking needs a departure (RG-S1-11): left without one, the
-  // submit stops the same way and the calendar reopens at the departure.
-  await page.keyboard.press("Escape");
-  await expect(page.getByText("Choose the departure day")).toBeHidden();
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
-  // The calendar opens where the button was, so the pointer is left over one of
-  // its days and the footer shows that hover's nights in place of the prompt.
-  await page.mouse.move(0, 0);
+  // A Guest booking needs a departure (RG-S1-11): the calendar stays open
+  // for the second day, and the units are still waiting for it.
   await expect(page.getByText("Choose the departure day")).toBeVisible();
-  await expect(dialog).toBeVisible();
   await pickDay(page, propertyDay(propertyId, 10));
   // The range is complete: the calendar closes and focus is back on the half
   // just set, so a keyboard reader carries on from where they were.
@@ -128,15 +113,18 @@ test("a front desk takes a booking and finds it on the list", async ({
   await expect(
     dialog.getByRole("button", { name: /^Departure/ }),
   ).toBeFocused();
-  // The second day completes the range and closes the calendar by itself.
   await expect(
     dialog.getByRole("button", { name: /^Departure/ }),
   ).not.toHaveText("Open-ended");
 
+  await expect(create).toBeDisabled();
+  await pickUnit(dialog, unitName);
+  await expect(create).toBeEnabled();
+
   // Optional, and after the dates: the Guest stays first (RG-S4-19).
   await dialog.getByLabel("Expected arrival").fill("15:30");
 
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await create.click();
 
   // The dialog closes by the booking having happened, so its absence is the
   // first thing that says the write went through.
@@ -161,13 +149,11 @@ test("a front desk takes a booking and finds it on the list", async ({
 });
 
 /**
- * Where the browser puts focus when a submit is blocked with more than one
- * field empty. It fires `invalid` at every problem field and then focuses the
- * first whose handler did not cancel it, so a handler that cancels the event
- * hands focus, and the browser's bubble, to whichever field comes next — which
- * jsdom does not do, and which the unit suite therefore cannot see.
+ * A booking with problems cannot be sent: the button stays muted and the footer
+ * names what is missing, in the order a desk is asked for it — the Guest's name
+ * first, then the nights, then the Unit (RG-S4-19).
  */
-test("a_booking_form_with_several_problems_asks_about_the_guest_first: the name is asked about first", async ({
+test("a_booking_form_with_several_problems_cannot_be_sent: and says what is missing", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -177,33 +163,30 @@ test("a_booking_form_with_several_problems_asks_about_the_guest_first: the name 
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  const guest = dialog.getByLabel("Guest", { exact: true });
   const create = dialog.getByRole("button", { name: "Create reservation" });
-
-  /** Focus must be on something a reader can reach, never a proxy input. */
-  const focusIsReal = () =>
-    page.evaluate(
-      () => document.activeElement?.closest("[aria-hidden='true']") === null,
-    );
+  const missing = dialog.getByText("Add a name, dates and a unit to continue");
 
   // Everything empty.
-  await create.click();
-  await expect(guest).toBeFocused();
-  await expect(dialog.getByText("Enter the Guest's name.")).toBeVisible();
-  expect(await focusIsReal()).toBe(true);
+  await expect(create).toBeDisabled();
+  await expect(missing).toBeVisible();
 
-  // A Unit chosen, still no name and no dates: the name is still first, and
-  // the date proxy does not open its calendar over it.
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(unitName) }).click();
-  await create.click();
-  await expect(guest).toBeFocused();
-  await expect(page.getByText("Choose the arrival day")).toBeHidden();
-  expect(await focusIsReal()).toBe(true);
+  // A name and nights, still no Unit.
+  await dialog.getByLabel("Guest name").fill("Somebody");
+  await openTheCalendar(page, dialog);
+  await pickDay(page, propertyDay(propertyId, 40));
+  await pickDay(page, propertyDay(propertyId, 41));
+  await closeCalendar(page);
+  await expect(create).toBeDisabled();
+  await expect(missing).toBeVisible();
 
-  // Typing takes the message away.
-  await guest.fill("Somebody");
-  await expect(dialog.getByText("Enter the Guest's name.")).toBeHidden();
+  // The Unit completes it.
+  await pickUnit(dialog, unitName);
+  await expect(create).toBeEnabled();
+  await expect(missing).toBeHidden();
+
+  // Taking the name away mutes it again.
+  await dialog.getByLabel("Guest name").fill("");
+  await expect(create).toBeDisabled();
 });
 
 /**
@@ -335,7 +318,7 @@ test("a_row_opens_the_bookings_detail_sheet: and the sheet closes back to the li
 
   // Pressed on text in the row, not on a control inside it.
   await row.getByText(booking.unitName).click();
-  const sheet = page.getByRole("dialog", { name: guestName });
+  const sheet = page.getByRole("dialog", { name: "Reservation details" });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByText("Stay timeline")).toBeVisible();
   await expect(sheet.getByText(booking.reference)).toBeVisible();
@@ -391,7 +374,9 @@ test("choosing_from_a_rows_menu_opens_that_action_and_not_the_sheet", async ({
   // on the row either.
   await change.getByText("Stay dates").click();
   await expect(change).toBeVisible();
-  await expect(page.getByRole("dialog", { name: guestName })).toBeHidden();
+  await expect(
+    page.getByRole("dialog", { name: "Reservation details" }),
+  ).toBeHidden();
 });
 
 /**
@@ -452,15 +437,12 @@ async function takeBookingThroughTheScreen(
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  await dialog.getByLabel("Guest", { exact: true }).fill(booking.guestName);
-  await dialog.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(booking.unitName) })
-    .click();
+  await dialog.getByLabel("Guest name").fill(booking.guestName);
   await openTheCalendar(page, dialog);
   await pickDay(page, propertyDay(propertyId, booking.from));
   await pickDay(page, propertyDay(propertyId, booking.to));
   await closeCalendar(page);
+  await pickUnit(dialog, booking.unitName);
   await dialog.getByRole("button", { name: "Create reservation" }).click();
   await expect(dialog).toBeHidden();
 
@@ -521,10 +503,7 @@ test("a_booking_is_taken_changed_moved_and_cancelled_through_the_screen: every s
   // And then the room: the nights stay, the Unit is the other one.
   menu = await openRowMenu(row, page, guestName);
   await menu.getByRole("menuitem", { name: "Change booking" }).click();
-  await change.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(`${second}.*Free`) })
-    .click();
+  await pickUnit(change, second, "Free");
   await change.getByRole("button", { name: "Save change" }).click();
   await expect(change).toBeHidden();
   await expect(row).toContainText(second);
@@ -537,8 +516,9 @@ test("a_booking_is_taken_changed_moved_and_cancelled_through_the_screen: every s
   menu = await openRowMenu(row, page, guestName);
   await menu.getByRole("menuitem", { name: "Cancel booking" }).click();
   const cancel = page.getByRole("dialog", { name: "Cancel this booking" });
-  await cancel.getByRole("button", { name: "Cancel booking" }).click();
-  await expect(cancel).toBeVisible();
+  await expect(
+    cancel.getByRole("button", { name: "Cancel booking" }),
+  ).toBeDisabled();
   await cancel.getByLabel("Reason").fill(reason);
   await cancel.getByRole("button", { name: "Cancel booking" }).click();
   await expect(cancel).toBeHidden();
@@ -653,12 +633,8 @@ test("a_booking_for_today_is_checked_in_moved_while_in_house_and_checked_out: ea
   const menu = await openRowMenu(inHouse, page, guestName);
   await menu.getByRole("menuitem", { name: "Move Guest" }).click();
   const move = page.getByRole("dialog", { name: "Move Guest" });
-  await move.getByLabel("Unit").click();
-  await page
-    .getByRole("option", { name: new RegExp(`${second}.*Free`) })
-    .click();
-  await move.getByRole("combobox", { name: "Reason" }).click();
-  await page.getByRole("option", { name: "The Guest asked" }).click();
+  await pickUnit(move, second, "Free");
+  await move.getByText("The Guest asked", { exact: true }).click();
   await move.getByRole("button", { name: "Move Guest" }).click();
   await expect(move).toBeHidden();
   await expect(inHouse).toContainText(second);
@@ -678,7 +654,9 @@ test("a_booking_for_today_is_checked_in_moved_while_in_house_and_checked_out: ea
   const checkOut = page.getByRole("dialog");
   await expect(checkOut.getByText(guestName)).toBeVisible();
   await checkOut.getByRole("checkbox").click();
-  await checkOut.getByRole("button", { name: "Confirm check-out" }).click();
+  await checkOut
+    .getByRole("button", { name: "Check out", exact: true })
+    .click();
   await expect(checkOut).toBeHidden();
   await expect(inHouse).toHaveCount(0);
 
@@ -688,7 +666,7 @@ test("a_booking_for_today_is_checked_in_moved_while_in_house_and_checked_out: ea
   await expect(listed).toContainText(second);
 });
 
-test("a_booking_over_nights_that_are_taken_is_refused_in_the_desks_words", async ({
+test("a_booking_over_nights_that_are_taken_cannot_be_chosen", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -708,32 +686,28 @@ test("a_booking_over_nights_that_are_taken_is_refused_in_the_desks_words", async
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
   await dialog
-    .getByLabel("Guest", { exact: true })
+    .getByLabel("Guest name")
     .fill(`Second Booking ${randomUUID().slice(0, 8)}`);
-  // The Unit first, then dates that overlap its booking: the picker marks it
-  // taken once the nights are chosen, and the desk who presses anyway is
-  // refused by the database's own constraint.
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(booked.unitName) }).click();
+  // Dates that overlap its booking: the list marks the Unit taken and will not
+  // let it be chosen, so the desk is stopped before the database's own
+  // constraint has to refuse it.
   await openTheCalendar(page, dialog);
   await pickDay(page, propertyDay(propertyId, 8));
   await pickDay(page, propertyDay(propertyId, 9));
   await closeCalendar(page);
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(booked.unitName);
   await expect(
-    dialog.getByText(
-      "This Unit is taken for the nights you chose. Pick another Unit or other dates.",
-    ),
-  ).toBeVisible();
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
-
+    dialog.getByRole("radio", { name: new RegExp(booked.unitName) }),
+  ).toBeDisabled();
   await expect(
-    dialog.getByText("That Unit is already booked for those nights."),
-  ).toBeVisible();
-  await expect(dialog).toBeVisible();
+    dialog.getByRole("button", { name: "Create reservation" }),
+  ).toBeDisabled();
   await evidence(page, "05-double-booking-refused.png");
 });
 
-test("a_booking_over_the_nights_of_somebody_in_house_is_refused_in_the_desks_words", async ({
+test("a_booking_over_the_nights_of_somebody_in_house_cannot_be_chosen", async ({
   page,
 }) => {
   const propertyId = testProperty();
@@ -772,22 +746,25 @@ test("a_booking_over_the_nights_of_somebody_in_house_is_refused_in_the_desks_wor
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
   await dialog
-    .getByLabel("Guest", { exact: true })
+    .getByLabel("Guest name")
     .fill(`Over The Occupant ${randomUUID().slice(0, 8)}`);
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(unitName) }).click();
   await openTheCalendar(page, dialog);
   await pickDay(page, propertyDay(propertyId, 1));
   await pickDay(page, propertyDay(propertyId, 2));
   await closeCalendar(page);
-  await dialog.getByRole("button", { name: "Create reservation" }).click();
 
+  // Somebody in house holds those nights: the list shows the Unit and will not
+  // let it be chosen, so the booking cannot be sent over them. The database's
+  // own refusal of the same thing is the integration suite's to prove.
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(unitName);
   await expect(
-    dialog.getByText(
-      "Somebody is staying in that Unit for some of those nights.",
-    ),
-  ).toBeVisible();
-  await expect(dialog).toBeVisible();
+    dialog.getByRole("radio", { name: new RegExp(unitName) }),
+  ).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Create reservation" }),
+  ).toBeDisabled();
 });
 
 test("a_viewer_who_may_not_book_or_amend_is_offered_neither (RG-S3-05)", async ({
@@ -842,14 +819,13 @@ test("an_email_too_short_to_be_one_is_said_under_the_field (RG-S1-42): from the 
   const message =
     "Enter a valid email address, such as name@example.com, or leave it empty.";
 
-  await dialog.getByLabel("Guest", { exact: true }).fill("Short Email");
+  await dialog.getByLabel("Guest name").fill("Short Email");
   await email.fill("a");
-  await dialog.getByLabel("Unit").click();
-  await page.getByRole("option", { name: new RegExp(unitName) }).click();
   await openTheCalendar(page, dialog);
   await pickDay(page, propertyDay(propertyId, 30));
   await pickDay(page, propertyDay(propertyId, 31));
   await closeCalendar(page);
+  await pickUnit(dialog, unitName);
 
   // The browser refuses it, and the message is ours, under the field.
   await dialog.getByRole("button", { name: "Create reservation" }).click();
@@ -886,7 +862,11 @@ test("an_email_too_short_to_be_one_is_said_under_the_field (RG-S1-42): from the 
   await page.getByRole("button", { name: "حجز جديد" }).click();
   const arabic = page.getByRole("dialog", { name: "حجز جديد" });
   await arabic.getByLabel("البريد الإلكتروني").fill("a");
-  await arabic.getByRole("button", { name: "إنشاء الحجز" }).click();
+  // The button is muted while the form is incomplete, so the browser's own
+  // check is asked for the way a keyboard's Enter would.
+  await arabic.evaluate((element) => {
+    element.querySelector("form")!.requestSubmit();
+  });
   await expect(
     arabic.getByText(
       "أدخل بريدًا إلكترونيًا صالحًا مثل name@example.com، أو اتركه فارغًا.",

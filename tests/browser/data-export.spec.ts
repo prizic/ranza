@@ -152,15 +152,23 @@ function stateOf(exportId: string): string {
   );
 }
 
-async function request(page: Page, datasets: RegExp[]): Promise<void> {
+/** Opens the form, ticks the datasets (nothing is ticked to begin with) and asks. */
+async function request(
+  page: Page,
+  datasets: RegExp[],
+  options: { format?: "JSON"; range?: boolean } = {},
+): Promise<void> {
   await page.goto(`/en/data-export?property=${PROPERTY}`);
-  await page.getByRole("button", { name: "New export" }).click();
+  await page.getByRole("tab", { name: "Request an export" }).click();
   for (const dataset of datasets) {
     await page.getByRole("checkbox", { name: dataset }).click();
   }
-  await page.getByRole("button", { name: "Request Export" }).click();
+  if (options.format) {
+    await page.getByRole("radio", { name: new RegExp(options.format) }).check();
+  }
+  await page.getByRole("button", { name: "Request export" }).click();
   await expect(
-    page.getByText("Data export request created successfully."),
+    page.getByText("Export requested. It appears below while it is prepared."),
   ).toBeVisible();
 }
 
@@ -170,9 +178,8 @@ test("an owner requests an export, the worker makes it, and the file downloads",
   baseURL,
 }) => {
   await signIn(page, EMAIL);
-  // Guests are already ticked, with reservations; the file this checks is of
-  // guests alone, so a plain CSV a spreadsheet opens at once.
-  await request(page, [/Reservations/]);
+  // Guests alone, so a plain CSV a spreadsheet opens at once.
+  await request(page, [/Guests and residents/]);
   const exportId = exportOf(EMAIL);
 
   // A record with a requester and a state, before any worker has been near it.
@@ -206,7 +213,10 @@ test("an owner requests an export, the worker makes it, and the file downloads",
     page.waitForEvent("download"),
     row.getByRole("link", { name: "Download" }).click(),
   ]);
-  expect(download.suggestedFilename()).toMatch(/^export-[0-9a-f]{8}\.csv$/);
+  // Named for the Organization, what is in it and the day it was made.
+  expect(download.suggestedFilename()).toMatch(
+    /^e2e-export-[0-9a-f]{8}-guests-\d{4}-\d{2}-\d{2}\.csv$/,
+  );
   const content = await readFile((await download.path())!, "utf8");
 
   // The Organization is this run's own, so the file is exactly its two
@@ -276,8 +286,8 @@ test("an export whose requester lost the right before the worker came fails, and
 }) => {
   await signIn(page, AUDITOR_EMAIL);
   // The audit log is the dataset this role may ask for only while it holds
-  // audit.read; ticked with the guests it starts with.
-  await request(page, [/Audit Log/]);
+  // audit.read.
+  await request(page, [/Audit log/]);
   const exportId = exportOf(AUDITOR_EMAIL);
   expect(stateOf(exportId)).toBe("pending|");
 
@@ -330,18 +340,161 @@ test("an export whose requester lost the right before the worker came fails, and
   }
 });
 
-test("an export the requester could not have asked for is refused at the form", async ({
+/**
+ * An export this run's owner asked for that is already ready, made as the
+ * owner of the database makes one: the states are drawn by a trigger for every
+ * role, so it walks pending, processing, ready. For a test that is about how a
+ * finished export is shown and not about the worker that makes it.
+ */
+function aReadyExport(
+  datasets: string[],
+  counts: Record<string, number>,
+): string {
+  const id = psql(
+    `with made as (
+       insert into public.data_exports
+         (organization_id, requester_id, requester_name, resource_types, format)
+       select membership.organization_id, membership.user_id, '${NAME}',
+              array[${datasets.map((dataset) => `'${dataset}'`).join(",")}], 'csv'
+         from public.organization_memberships as membership
+        where membership.organization_id = '${ORGANIZATION}'
+          and membership.user_id = (select id from public.users where email = '${EMAIL}')
+       returning id
+     )
+     select id from made`,
+  );
+  psql(
+    `update public.data_exports set status = 'processing' where id = '${id}'`,
+  );
+  psql(
+    `update public.data_exports
+        set status = 'ready', file_name = 'ready-${id.slice(0, 8)}.csv',
+            file_content = 'a,b', file_size_bytes = 3,
+            record_counts = '${JSON.stringify(counts)}'::jsonb,
+            completed_at = now(), expires_at = now() + interval '7 days'
+      where id = '${id}'`,
+  );
+  return id;
+}
+
+const SCREENSHOTS = path.resolve(
+  __dirname,
+  "../../docs/evidence/ux-audit/RANZ-74",
+);
+
+test("the form opens with nothing ticked, says what an export holds and who can fetch it, and warns that several datasets in one CSV are stacked", async ({
+  page,
+}) => {
+  await signIn(page, EMAIL);
+  await page.goto(`/en/data-export?property=${PROPERTY}`);
+  await page.getByRole("tab", { name: "Request an export" }).click();
+
+  // Nothing is ticked, and the button waits for a choice.
+  for (const checkbox of await page.getByRole("checkbox").all()) {
+    await expect(checkbox).not.toBeChecked();
+  }
+  await expect(
+    page.getByRole("button", { name: "Request export" }),
+  ).toBeDisabled();
+
+  // What an export holds, before it is asked for (DX-04), and what cannot leave (DX-07).
+  await expect(
+    page.getByText(
+      /everything in the chosen datasets that you can read in E2E Export/,
+    ),
+  ).toBeVisible();
+  await expect(page.getByText(/Not included: staff and payroll/)).toBeVisible();
+
+  // No warning, no notice, until there is a choice.
+  await expect(page.getByText(/This file will hold personal data/)).toHaveCount(
+    0,
+  );
+  await page.getByRole("checkbox", { name: /Guests and residents/ }).click();
+  await expect(
+    page.getByText(/This file will hold personal data/),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/downloaded for 7 days by you, and by colleagues/),
+  ).toBeVisible();
+  await expect(page.getByText(/share one file/)).toHaveCount(0);
+
+  // A second dataset in CSV is stacked in one file, and the form says so (DX-03).
+  await page.getByRole("checkbox", { name: /Reservations and stays/ }).click();
+  await expect(page.getByText(/share one file/)).toBeVisible();
+  await page.getByText("JSON (structured)").click();
+  await expect(page.getByText(/share one file/)).toHaveCount(0);
+
+  // Rooms alone hold no personal data.
+  await page.getByRole("checkbox", { name: /Guests and residents/ }).click();
+  await page.getByRole("checkbox", { name: /Reservations and stays/ }).click();
+  await page.getByRole("checkbox", { name: /Rooms and beds/ }).click();
+  await expect(page.getByText(/This file will hold personal data/)).toHaveCount(
+    0,
+  );
+
+  // A range that cuts nothing of what is chosen says so.
+  await page.getByRole("button", { name: /^From/ }).click();
+  await page.getByRole("button", { name: "Last 30 days" }).click();
+  await expect(page.getByText(/These dates cut nothing here/)).toBeVisible();
+  await page.getByRole("checkbox", { name: /Audit log/ }).click();
+  await expect(page.getByText(/Days are read on the clock of /)).toBeVisible();
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "request-form.png"),
+    fullPage: true,
+  });
+
+  // Focus is visible on the file types (DX-21): the card, not the hidden radio.
+  await page.getByRole("radio", { name: /CSV/ }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: /JSON/ })).toBeChecked();
+  const ring = await page
+    .locator("label", { has: page.getByRole("radio", { name: /JSON/ }) })
+    .evaluate((label) => getComputedStyle(label).boxShadow);
+  expect(ring).not.toBe("none");
+});
+
+test("a role sees the datasets it will not cover disabled with the permission they need, and a request its role loses between page and press says which dataset", async ({
   page,
 }) => {
   await signIn(page, NO_AUDIT_EMAIL);
   await page.goto(`/en/data-export?property=${PROPERTY}`);
-  await page.getByRole("button", { name: "New export" }).click();
-  await page.getByRole("checkbox", { name: /Audit Log/ }).click();
-  await page.getByRole("button", { name: "Request Export" }).click();
+  await page.getByRole("tab", { name: "Request an export" }).click();
 
+  const audit = page.getByRole("checkbox", { name: /Audit log/ });
+  await expect(audit).toBeDisabled();
   await expect(
-    page.getByText("You may not request an export of these datasets."),
+    page.getByText("Your role needs “Reading the audit log” to export this."),
   ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: /Charges|Folios/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("checkbox", { name: /Rooms and beds/ }),
+  ).toBeEnabled();
+
+  // The role gains audit.read while the page is open, the person ticks it, and
+  // it is taken away again before they press: the database refuses, and the
+  // screen names the dataset and keeps what was ticked (RANZ-54).
+  psql(
+    `update public.staff_roles
+        set permissions = array['data_export.create', 'data_export.read', 'front_desk.book', 'audit.read']
+      where organization_id = '${ORGANIZATION}' and key = 'no_audit'`,
+  );
+  await page.reload();
+  await page.getByRole("tab", { name: "Request an export" }).click();
+  await page.getByRole("checkbox", { name: /Audit log/ }).click();
+  psql(
+    `update public.staff_roles
+        set permissions = array['data_export.create', 'data_export.read', 'front_desk.book']
+      where organization_id = '${ORGANIZATION}' and key = 'no_audit'`,
+  );
+  await page.getByRole("button", { name: "Request export" }).click();
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "Your role cannot export: Audit log." }),
+  ).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: /Audit log/ })).toBeChecked();
   expect(
     psql(
       `select count(*) from public.data_exports
@@ -350,3 +503,196 @@ test("an export the requester could not have asked for is refused at the form", 
     ),
   ).toBe("0");
 });
+
+test("a range is asked for, the worker cuts the audit log by it, and the file and the row say so", async ({
+  page,
+}) => {
+  await signIn(page, EMAIL);
+  await page.goto(`/en/data-export?property=${PROPERTY}`);
+
+  // One export for every date, one for a month long gone, each by the screen.
+  await page.getByRole("tab", { name: "Request an export" }).click();
+  await page.getByRole("checkbox", { name: /Audit log/ }).click();
+  await page.getByRole("button", { name: "Request export" }).click();
+  await expect(page.getByText(/^Export requested\./)).toBeVisible();
+  const whole = exportOf(EMAIL);
+
+  await page.getByRole("tab", { name: "Request an export" }).click();
+  await page.getByRole("checkbox", { name: /Audit log/ }).click();
+  await page.getByRole("button", { name: /^From/ }).click();
+  await page.getByRole("button", { name: "Last month" }).click();
+  await page.getByRole("button", { name: "Request export" }).click();
+  await expect(page.getByText(/^Export requested\./)).toBeVisible();
+  const cut = psql(
+    `select id from public.data_exports
+      where organization_id = '${ORGANIZATION}' and range_from is not null
+      order by requested_at desc limit 1`,
+  );
+  expect(cut).not.toBe(whole);
+  expect(
+    psql(`select range_timezone from public.data_exports where id = '${cut}'`),
+  ).toBe("Europe/Istanbul");
+
+  const worker = startWorker();
+  await whileWorking(
+    worker,
+    Promise.all([
+      expect
+        .poll(() => stateOf(cut), { timeout: WORKER_BUDGET_MS })
+        .toBe("ready|"),
+      expect
+        .poll(() => stateOf(whole), { timeout: WORKER_BUDGET_MS })
+        .toBe("ready|"),
+    ]),
+  );
+
+  // Last month has no audit record of this run's Organization in it.
+  expect(
+    psql(
+      `select record_counts->>'audit_log' from public.data_exports where id = '${cut}'`,
+    ),
+  ).toBe("0");
+  expect(
+    Number(
+      psql(
+        `select record_counts->>'audit_log' from public.data_exports where id = '${whole}'`,
+      ),
+    ),
+  ).toBeGreaterThan(0);
+  expect(
+    psql(`select file_name from public.data_exports where id = '${cut}'`),
+  ).toMatch(
+    /^e2e-export-[0-9a-f]{8}-audit-log-\d{4}-\d{2}-\d{2}-to-\d{4}-\d{2}-\d{2}-\d{4}-\d{2}-\d{2}\.csv$/,
+  );
+
+  await page.reload();
+  const row = page.getByRole("row").filter({ hasText: /0 records/ });
+  await expect(row).toContainText("Audit log");
+  await expect(row.getByRole("link", { name: "Download" })).toBeVisible();
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "history-with-a-range.png"),
+  });
+});
+
+test("an export that failed for size names the limits and what to do, and Request again starts from the same request", async ({
+  page,
+}) => {
+  const id = psql(
+    `with made as (
+       insert into public.data_exports
+         (organization_id, requester_id, requester_name, resource_types, format)
+       select organization_id, user_id, '${NAME}', array['folios_payments', 'audit_log'], 'json'
+         from public.organization_memberships
+        where organization_id = '${ORGANIZATION}'
+          and user_id = (select id from public.users where email = '${EMAIL}')
+       returning id
+     )
+     select id from made`,
+  );
+  psql(
+    `update public.data_exports
+        set status = 'failed', error = 'too_large', completed_at = now()
+      where id = '${id}'`,
+  );
+
+  await signIn(page, EMAIL);
+  await page.goto(`/en/data-export?property=${PROPERTY}`);
+  const row = page.getByRole("row").filter({ hasText: "Too large to export" });
+  await expect(row.first()).toContainText("100,000 rows");
+  await expect(row.first()).toContainText("25 MB");
+  await expect(row.first()).toContainText("choose a range of dates");
+  await row.first().getByRole("button", { name: "Request again" }).click();
+
+  // The form starts from that request: the same datasets and file type.
+  await expect(
+    page.getByRole("checkbox", { name: /Folios and payments/ }),
+  ).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: /Audit log/ })).toBeChecked();
+  await expect(page.getByRole("radio", { name: /JSON/ })).toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: /Guests and residents/ }),
+  ).not.toBeChecked();
+  await page.screenshot({
+    path: path.join(SCREENSHOTS, "too-large-then-again.png"),
+  });
+});
+
+test("a download that is no longer there sends the person back to the screen, which says why; a script gets a bare 404", async ({
+  page,
+}) => {
+  await signIn(page, EMAIL);
+  const gone = randomUUID();
+  await page.goto(
+    `/api/data-export/${gone}/download?locale=en&property=${PROPERTY}`,
+  );
+  await expect(page).toHaveURL(
+    /\/en\/data-export\?property=[0-9a-f-]+&unavailable=1/,
+  );
+  await expect(
+    page
+      .getByRole("alert")
+      .filter({ hasText: "That file is no longer available" }),
+  ).toContainText("Files are kept for 7 days");
+
+  const bare = await page.request.get(`/api/data-export/${gone}/download`);
+  expect(bare.status()).toBe(404);
+  const wrongLocale = await page.request.get(
+    `/api/data-export/${gone}/download?locale=xx&property=${PROPERTY}`,
+    { maxRedirects: 0 },
+  );
+  expect(wrongLocale.status()).toBe(404);
+});
+
+test("a role that may not read exports is told so, not that the Subscription lacks the module", async ({
+  page,
+}) => {
+  await signIn(page, OUTSIDER_EMAIL);
+  await page.goto(`/en/data-export?property=${PROPERTY}`);
+  await expect(page.getByText(/Subscription/)).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "History" })).toHaveCount(0);
+});
+
+for (const width of [375, 768]) {
+  test(`the screen does not scroll sideways at ${width} px and the download is in reach, in English and Arabic`, async ({
+    page,
+  }) => {
+    aReadyExport(["residents_guests", "audit_log"], {
+      residents_guests: 120,
+      audit_log: 1,
+    });
+    await signIn(page, EMAIL);
+    await page.setViewportSize({ width, height: 900 });
+    for (const locale of ["en", "ar"]) {
+      await page.goto(`/${locale}/data-export?property=${PROPERTY}`);
+      const row = page.getByRole("row").filter({ hasText: NAME }).first();
+      await expect(row).toBeVisible();
+      const fits = await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      );
+      expect(fits, `${locale} at ${width}px scrolls sideways`).toBe(true);
+      const download = row.getByRole("link").first();
+      if ((await download.count()) > 0) {
+        const box = await download.boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(0);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+      }
+      // The tabs wrap rather than push the page wide.
+      await page.getByRole("tab").last().click();
+      const stillFits = await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      );
+      expect(stillFits, `${locale} form at ${width}px scrolls sideways`).toBe(
+        true,
+      );
+      if (locale === "ar" && width === 375) {
+        await page.getByRole("tab").nth(2).click();
+        // The programs a CSV opens in are Latin names inside a right-to-left
+        // line, each its own run (DX-18).
+        await expect(page.locator("bdi[dir=ltr]")).toHaveCount(3);
+        await page.screenshot({
+          path: path.join(SCREENSHOTS, "request-form-arabic-375.png"),
+        });
+      }
+    }
+  });
+}

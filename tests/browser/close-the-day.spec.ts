@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./hydration";
 import { psql } from "./local-database";
 import { EMAIL, signIn } from "./front-desk";
 
@@ -158,6 +159,10 @@ test("a day with items open asks for a reason, and what it promises is built", a
   await expect(
     page.getByText(/charges every Guest in house that night/),
   ).toBeVisible();
+  // One sentence says which things need a reason and which never do.
+  await expect(
+    page.getByText(/Nothing here stops a close\. Arrivals and departures/),
+  ).toBeVisible();
 
   // Nothing the product cannot do.
   const body = await page.locator("main").innerText();
@@ -165,13 +170,15 @@ test("a day with items open asks for a reason, and what it promises is built", a
 
   await page.getByRole("button", { name: /^Close / }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/1 item is still open/)).toBeVisible();
+  await expect(
+    dialog.getByRole("heading", { name: /1 item is still open/ }),
+  ).toBeVisible();
   await expect(dialog.getByText(/not available yet/)).toBeVisible();
-  // Required: the browser holds the close back until a reason is written.
-  await dialog.getByRole("button", { name: /^Close / }).click();
-  await expect(dialog).toBeVisible();
+  // Required: the button is muted, and says why, until a reason is written.
+  await expect(dialog.getByRole("button", { name: /^Close / })).toBeDisabled();
+  await expect(dialog.getByText("Add a reason to continue")).toBeVisible();
   await dialog
-    .getByLabel("Reason")
+    .getByLabel("Why close with items open?")
     .fill("Guest rang, arriving tonight instead");
   await dialog.getByRole("button", { name: /^Close / }).click();
 
@@ -197,16 +204,17 @@ test("a quiet day closes without a reason, and a backlog names how many wait", a
 
   await page.goto(`/en/close-day?property=${propertyId}`);
   await expect(
-    page.getByText("2 days are waiting to be closed; the oldest comes first."),
+    page.getByText(/2 days are waiting to be closed, .* to .*\./),
   ).toBeVisible();
   await expect(page.getByText("Nothing left open.").first()).toBeVisible();
   await expect(
     page.getByRole("row").filter({ hasText: "Automatically" }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /^Close / }).click();
+  // Two days wait and nothing holds either, so both ways to close are offered.
+  await page.getByRole("button", { name: /^Close only / }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText(/Nothing is left open/)).toBeVisible();
+  await expect(dialog.getByText(/Nothing is left open/).first()).toBeVisible();
   await expect(dialog.getByLabel("Reason")).toHaveCount(0);
   await dialog.getByRole("button", { name: /^Close / }).click();
 

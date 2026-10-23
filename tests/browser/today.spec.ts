@@ -137,9 +137,10 @@ test("on a phone Today leads with the task and never scrolls sideways", async ({
     .filter({ hasText: "In house" });
   await expect(movements).toBeVisible();
   const top = async (locator: Locator) => (await locator.boundingBox())!.y;
-  // What needs somebody, then the list, then the figures (blueprint 18.8).
-  expect(await top(attention)).toBeLessThan(await top(movements));
-  expect(await top(movements)).toBeLessThan(await top(tile));
+  // What needs somebody, then the figures that say how the day is going, then
+  // the list: a figure 2,900 px down the page is not a figure.
+  expect(await top(attention)).toBeLessThan(await top(tile));
+  expect(await top(tile)).toBeLessThan(await top(movements));
   // Two across: the first two figures share a row.
   expect(Math.abs((await top(tile)) - (await top(occupancy)))).toBeLessThan(2);
 
@@ -286,6 +287,28 @@ test.describe("every number on Today opens the list that explains it", () => {
     return count;
   }
 
+  /** The Finance list's tab for the Folios still open: the figure's own list. */
+  function openTab(page: Page): Locator {
+    return page
+      .getByRole("navigation", { name: "Folios shown" })
+      .getByRole("link", { name: "Open", exact: true });
+  }
+
+  /** The balances the Finance list shows, added: what the Today figure totals. */
+  async function balancesListed(page: Page): Promise<number> {
+    const table = page.locator("table").first();
+    const heads = await table.locator("thead th").allInnerTexts();
+    const column = heads.findIndex((head) => /balance/i.test(head));
+    expect(column, "the list has a Balance column").toBeGreaterThanOrEqual(0);
+    const cells = await table
+      .locator(`tbody tr td:nth-child(${column + 1})`)
+      .allInnerTexts();
+    return cells.reduce((sum, cell) => {
+      const amount = /(-?[\d,]+\.\d{2})/.exec(cell.split("\n")[0] ?? "");
+      return sum + Number(amount?.[1]?.replace(/,/g, "") ?? 0);
+    }, 0);
+  }
+
   /** The notice a narrowed list opens with, as numbers. */
   async function notice(page: Page): Promise<{ count: number; text: string }> {
     const element = page.getByTestId("list-filter-notice");
@@ -352,7 +375,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     await expect(page.getByText("Ready", { exact: true })).toHaveCount(
       arrivals.ready,
     );
-    await expect(page.getByText("Not ready", { exact: true })).toHaveCount(
+    // Arrivals names why: a room waiting to be cleaned is Dirty, one waiting
+    // for its inspection is Awaiting inspection (ARR-04).
+    await expect(page.getByText(/^(Dirty|Awaiting inspection)$/)).toHaveCount(
       arrivals.notReady,
     );
     await capture(page, "arrivals-to-come");
@@ -361,7 +386,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const movements = page.getByRole("region", { name: "Today's movements" });
     await expect(
-      movements.getByRole("button", { name: `Arrivals · ${arrivals.toCome}` }),
+      movements.getByRole("tab", { name: `Arrivals · ${arrivals.toCome}` }),
     ).toBeVisible();
     await follow(
       page,
@@ -379,20 +404,24 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const { departures } = day.expected;
 
-    // "Checked out 1 / 3, 1 overdue": three still to go (one overdue) in the
-    // list, and the one who has gone in the list under it.
+    // "Checked out 1 / 3, 1 to leave, overdue 1 day": three still to go (one
+    // overdue) in the list, and the one who has gone in the list under it.
     const tile = figure(page, "departures", "Checked out");
     const text = await tile.innerText();
     expect(integers(text)).toEqual([
       departures.departed,
       departures.due,
       departures.overdue,
+      departures.overdueDays,
     ]);
+    expect(text).toContain(
+      `${departures.overdue} to leave, overdue ${departures.overdueDays} day`,
+    );
     await follow(page, tile);
     expect(await listed(page)).toBe(
       departures.due - departures.departed + departures.overdue,
     );
-    await expect(page.getByText(/^Overdue since /)).toHaveCount(
+    await expect(page.getByText(/^Overdue · \d+ days?$/)).toHaveCount(
       departures.overdue,
     );
     const leftToday = page.getByTestId("left-today-count");
@@ -407,7 +436,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     const movements = page.getByRole("region", { name: "Today's movements" });
     const stillHere = departures.due - departures.departed + departures.overdue;
     await movements
-      .getByRole("button", { name: `Departures · ${stillHere}` })
+      .getByRole("tab", { name: `Departures · ${stillHere}` })
       .click();
     await follow(
       page,
@@ -437,7 +466,12 @@ test.describe("every number on Today opens the list that explains it", () => {
         .filter({ hasText: /^\D*\d+\D*$/ })
         .last();
     expect(integers(await stat("Occupied").innerText())[0]).toBe(inHouse);
-    expect(integers(await stat("Beds").innerText())[0]).toBe(sellable);
+    // What can be let is counted by the tile that carries it: Beds where a
+    // room is let by the bed, Rooms where none is (the Beds tile is then hidden).
+    const letTile = (await page.getByText("Beds", { exact: true }).count())
+      ? "Beds"
+      : "Rooms";
+    expect(integers(await stat(letTile).innerText())[0]).toBe(sellable);
     expect(inHouse).toBe(4);
   });
 
@@ -449,7 +483,9 @@ test.describe("every number on Today opens the list that explains it", () => {
 
     const card = page.getByRole("region", { name: "Rooms", exact: true });
     const kinds = [
-      { row: "Ready", filter: "ready", expected: 2 },
+      // 101 and 103 are inspected, and 103 has a Guest in it: only 101 is a
+      // room a Guest can be put in tonight.
+      { row: "Ready", filter: "ready", expected: 1 },
       { row: "Clean, awaiting inspection", filter: "awaiting", expected: 5 },
       { row: "Dirty", filter: "dirty", expected: 2 },
       { row: "Out of service", filter: "out", expected: 2 },
@@ -466,10 +502,10 @@ test.describe("every number on Today opens the list that explains it", () => {
     // The ready-rooms figure: ready of the rooms in service.
     await openToday(page);
     const ready = figure(page, "housekeeping", "Ready rooms");
-    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([2, 9]);
+    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([1, 9]);
     await follow(page, ready);
     expect(await listed(page)).toBe(9);
-    expect((await notice(page)).text).toContain("2 ready");
+    expect((await notice(page)).text).toContain("1 ready");
     await capture(page, "housekeeping-in-service");
 
     // By floor: each floor's rooms, and how many of them are ready.
@@ -569,7 +605,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     }
     await openToday(page);
     const ready = figure(page, "housekeeping", "Ready rooms");
-    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([2, 9]);
+    expect(integers(await ready.innerText()).slice(0, 2)).toEqual([1, 9]);
 
     // The clean-first queue: its count and the link under it are the same rooms.
     await openToday(page);
@@ -611,13 +647,14 @@ test.describe("every number on Today opens the list that explains it", () => {
     expect(integers(await folios.innerText())[0]).toBe(openFolios);
     await follow(page, folios);
     expect(await listed(page)).toBe(openFolios);
-    expect((await notice(page)).count).toBe(openFolios);
+    await expect(openTab(page)).toHaveAttribute("aria-current", "page");
 
     await openToday(page);
     const balance = figure(page, "finance", "Balance across open Folios");
     await follow(page, balance);
     expect(await listed(page)).toBe(openFolios);
-    expect((await notice(page)).text).toContain("255");
+    await expect(openTab(page)).toHaveAttribute("aria-current", "page");
+    expect(await balancesListed(page)).toBe(255);
   });
 
   test("the Organization strip is absent with a single Property", async ({
@@ -771,6 +808,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     /^\d{1,2}:\d{2}/,
     /\d{4}$/,
     /^Updated \d/,
+    // Between midnight and the cutoff, the sentence that says the working day is
+    // still yesterday's and when the Property moves on (TD-S1-09).
+    /^It is .+ on the clock; the Property moves to the new day at \d/,
     // How many items the "Needs attention" row below it holds; each one is a link.
     /^\d+$/,
   ];
@@ -844,7 +884,7 @@ test.describe("every number on Today opens the list that explains it", () => {
         name: "Check in",
       }),
     ).toBeVisible();
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     await expect(movementRow(page, day.guest.owing)).toBeVisible();
     await expect(
       movementRow(page, day.guest.owing).getByRole("button"),
@@ -862,7 +902,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     await expect(
       movementRow(page, day.guest.ready).getByRole("link"),
     ).toHaveCount(1);
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     await expect(
       movementRow(page, day.guest.owing).getByRole("button", {
         name: CHECK_OUT,
@@ -961,7 +1001,7 @@ test.describe("every number on Today opens the list that explains it", () => {
   }) => {
     await signInAs(page, "front_desk");
     await openToday(page);
-    await page.getByRole("button", { name: /^Departures/ }).click();
+    await page.getByRole("tab", { name: /^Departures/ }).click();
     const departedBefore = integers(
       await figure(page, "departures", "Checked out").innerText(),
     )[0]!;
@@ -971,7 +1011,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     await free.getByRole("button", { name: CHECK_OUT }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText(day.guest.leavesFree);
-    await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+    await dialog
+      .getByRole("button", { name: "Check out", exact: true })
+      .click();
     await expect(movementRow(page, day.guest.leavesFree)).toHaveCount(0);
     await expect
       .poll(
@@ -993,7 +1035,7 @@ test.describe("every number on Today opens the list that explains it", () => {
       .getByLabel("Why the balance stays open")
       .fill("Agreed with the manager");
     await capture(page, "check-out-from-today-review");
-    await owing.getByRole("button", { name: "Confirm check-out" }).click();
+    await owing.getByRole("button", { name: "Check out", exact: true }).click();
     await expect(movementRow(page, day.guest.owing)).toHaveCount(0);
     await expect
       .poll(

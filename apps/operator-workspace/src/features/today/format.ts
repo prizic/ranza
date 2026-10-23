@@ -35,6 +35,16 @@ export function shortDay(isoDate: string, locale: SupportedLocale): string {
   });
 }
 
+/** The day of the month alone, for a tick under a chart. */
+export function dayNumber(isoDate: string, locale: SupportedLocale): string {
+  return formatDate(asDay(isoDate), locale, {
+    day: "numeric",
+    month: undefined,
+    year: undefined,
+    timeZone: "UTC",
+  });
+}
+
 export function clockAt(
   instant: number,
   locale: SupportedLocale,
@@ -82,4 +92,18 @@ export function nights(startsOn: string, endsOn: string | null): number | null {
   return Math.round(
     (asDay(endsOn).getTime() - asDay(startsOn).getTime()) / 86_400_000,
   );
+}
+
+/**
+ * The name of a Property's time zone in the reader's language: "Türkiye
+ * Time", not the identifier it is stored under.
+ */
+export function zoneName(timeZone: string, locale: SupportedLocale): string {
+  const name = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    timeZoneName: "longGeneric",
+  })
+    .formatToParts(new Date())
+    .find((part) => part.type === "timeZoneName");
+  return name?.value ?? timeZone;
 }

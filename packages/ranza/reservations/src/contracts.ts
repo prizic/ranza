@@ -105,6 +105,11 @@ export interface Arrival {
    */
   unitIsReady: boolean;
   /**
+   * Why housekeeping says the room is not ready: it has not been cleaned, or
+   * it is clean and waits for inspection. Null when it is ready.
+   */
+  unitNotReadyBecause: "dirty" | "awaiting_inspection" | null;
+  /**
    * Whether check-in would succeed, from the same conditions `checkIn` and the
    * triggers apply — asserted against the command in the integration suite.
    * The two drifted apart once already, and a button that raises when pressed
@@ -199,6 +204,11 @@ export interface DepartedStay {
   unitType: AccommodationUnitType;
   /** The moment they left, as an ISO instant. */
   departedAt: string;
+  /**
+   * Housekeeping's answer for the room now (ADR 0029): false while it waits to
+   * be cleaned, which is where a check-out leaves it.
+   */
+  unitIsReady: boolean;
 }
 
 export interface Departure {
@@ -224,8 +234,18 @@ export interface Departure {
   roomName: string | null;
   unitType: AccommodationUnitType;
   unitStatus: string;
+  /**
+   * Whether checking this Guest out marks their room dirty: only where the
+   * Property uses housekeeping (ADR 0029), so the dialog says it only then.
+   */
+  roomWillBeDirty: boolean;
   /** Past their planned departure and still here. */
   overdue: boolean;
+  /**
+   * How many days past it, on the Property's own calendar; zero unless
+   * `overdue`. Counted by the database so every screen says the same number.
+   */
+  overdueDays: number;
   /** Leaving before their planned departure if they leave today. */
   early: boolean;
   /** The open Folio, or null when the Property does no billing. */
@@ -308,6 +328,28 @@ export interface CheckedOut {
 }
 
 /**
+ * Why a command on a booking or a Stay was refused, when the module can say.
+ *
+ * `unreachable` is the one answer for everything the caller must not be able to
+ * tell apart: out of reach, another Organization's, never existed. Every other
+ * reason is given only when the caller can already read the row, so it confirms
+ * nothing they could not see — a front desk that is told "already checked in"
+ * about a Guest it is looking at learns nothing, and one told "cannot be
+ * checked in" can do nothing about it.
+ */
+export type RefusalReason =
+  | "unreachable"
+  | "not_permitted"
+  | "already_checked_in"
+  | "already_checked_out"
+  | "withdrawn"
+  | "not_confirmed"
+  | "nights_passed"
+  | "not_started"
+  | "day_closed"
+  | "booking_mismatch";
+
+/**
  * A check-in that did not happen.
  *
  * One type for every reason on purpose. "That Reservation is in another
@@ -316,7 +358,10 @@ export interface CheckedOut {
  * the first of them would otherwise confirm that a Reservation exists.
  */
 export class CheckInError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "CheckInError";
   }
@@ -488,7 +533,10 @@ export class StayMovedError extends CheckInReversalError {
  * that a Stay the caller cannot see is there.
  */
 export class CheckOutError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "CheckOutError";
   }
@@ -623,6 +671,11 @@ export interface ReservationRow {
   /** That Stay's open Folio; null before check-in or without billing. */
   folioId: string | null;
   /**
+   * Days the in-house Stay is past its planned departure, on the Property's own
+   * calendar; zero for everything else. The same count Departures gives.
+   */
+  overdueDays: number;
+  /**
    * Nights of the stay as it stands: the Stay's own dates once there is one,
    * because a late arrival or an early departure makes the booking's dates say
    * more than was slept. Null when open-ended or when the booking ended
@@ -631,6 +684,19 @@ export interface ReservationRow {
   stayNights: number | null;
   /** `stayNights` at the rate the booking was taken at; null when either is. */
   totalMinor: number | null;
+}
+
+/**
+ * A Guest already on file whose name or telephone matches what is being typed
+ * into a new booking, so the desk can see a returning person before a second
+ * record is made. A suggestion only: nothing here merges Guests, which
+ * blueprint 18.7 forbids, and the booking still matches on an exact email.
+ */
+export interface GuestMatch {
+  guestId: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
 }
 
 /**
@@ -729,7 +795,10 @@ export const CANCELLATION_REASON = { min: 3, max: 2000 } as const;
  * exception, and it is `ReservationReasonError`.
  */
 export class ReservationEndError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "ReservationEndError";
   }
@@ -971,7 +1040,10 @@ export interface AmendedBooking {
  * to a caller who could not see it.
  */
 export class BookingChangeError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly reason: RefusalReason = "unreachable",
+  ) {
     super(message);
     this.name = "BookingChangeError";
   }
@@ -1091,6 +1163,8 @@ export interface RoomCalendarStayBar extends RoomCalendarBarBase {
   kind: "stay";
   stayId: string;
   reservationId: string | null;
+  /** The booking's reference, as the Move dialog names it; null without a booking. */
+  reference: string | null;
   /**
    * The stretch the Guest is in now. False on a stretch in a room they were
    * moved out of, which is drawn as history (AB-S3-06).

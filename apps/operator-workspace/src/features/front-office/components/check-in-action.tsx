@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button, FormError } from "@ranza/ui";
 import { claimCheckInFocus } from "../check-in-focus";
+import { refusalMessage } from "../refusal";
 import {
   checkInReservation,
   type CheckInOutcome,
@@ -25,18 +26,40 @@ import {
  * form around the table: two rows must be able to fail differently.
  */
 export function CheckInAction({
+  guestName,
   locale,
   onDone,
   reservationId,
+  room,
 }: {
+  /** Names the button, so a screen reader hears whom it checks in. */
+  guestName?: string | undefined;
   locale: string;
   /** Called once the Guest is in: Today refreshes its figures (TD-S2-01). */
   onDone?: () => void;
   reservationId: string;
+  /**
+   * The room's name and why housekeeping says it is not ready, so the question
+   * names the room and the cause rather than an either/or. Absent for a room
+   * that is ready, and for a screen that does not know.
+   */
+  room?:
+    { label: string; because: "dirty" | "awaiting_inspection" } | undefined;
 }) {
   const t = useTranslations();
+  const form = useRef<HTMLFormElement>(null);
   const [outcome, act, pending] = useActionState<CheckInOutcome, FormData>(
-    checkInReservation,
+    async (previous, data) => {
+      // The next row's button is found before the action runs and focused the
+      // moment it answers "done", because this row's form is replaced by its
+      // Undo button when the list is read again and a hook inside it would
+      // never run. The desk checks Guests in one after another: the keyboard
+      // goes to the next, not back to the top of the page after every Guest.
+      const next = nextCheckIn(form.current);
+      const result = await checkInReservation(previous, data);
+      if (result === "done") next?.focus();
+      return result;
+    },
     "idle",
   );
 
@@ -54,6 +77,7 @@ export function CheckInAction({
     if (outcome === "done") onDone?.();
   }, [outcome, onDone]);
 
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "unavailable"
       ? t("unitUnavailable")
@@ -63,8 +87,8 @@ export function CheckInAction({
           ? t("unitNotInService")
           : outcome === "tooEarly"
             ? t("checkInTooEarly")
-            : outcome === "refused"
-              ? t("checkInRefused")
+            : refusal
+              ? t(refusal)
               : null;
 
   return (
@@ -72,6 +96,7 @@ export function CheckInAction({
       action={act}
       className="grid justify-items-end gap-1.5"
       onSubmit={() => setDeclined(false)}
+      ref={form}
     >
       <input name="reservation" type="hidden" value={reservationId} />
       <input name="locale" type="hidden" value={locale} />
@@ -81,8 +106,15 @@ export function CheckInAction({
         // server reads readiness again rather than trusting this screen
         // (HK-S2-15, HK-S2-17).
         <div aria-live="polite" className="grid justify-items-end gap-1.5">
-          <p className="max-w-48 text-end text-step--1 whitespace-normal text-warning">
-            {t("roomNotReady")}
+          <p className="max-w-48 text-end text-step--1 whitespace-normal [overflow-wrap:anywhere] text-warning">
+            {room
+              ? t(
+                  room.because === "awaiting_inspection"
+                    ? "roomNotReadyInspection"
+                    : "roomNotReadyDirty",
+                  { room: room.label },
+                )
+              : t("roomNotReady")}
           </p>
           {/* Stacked rather than side by side: at a desk's usual width the
               row's edge padding (packages/ui data-table ROW_CARD) already
@@ -113,7 +145,15 @@ export function CheckInAction({
           </div>
         </div>
       ) : (
-        <Button disabled={pending} ref={button} size="sm" type="submit">
+        <Button
+          {...(guestName
+            ? { "aria-label": t("checkInFor", { guest: guestName }) }
+            : {})}
+          disabled={pending}
+          ref={button}
+          size="sm"
+          type="submit"
+        >
           {pending ? t("checkingIn") : t("checkIn")}
         </Button>
       )}
@@ -128,4 +168,21 @@ export function CheckInAction({
       ) : null}
     </form>
   );
+}
+
+/**
+ * The check-in button of the next row in the table that has one, if any. A DOM
+ * walk and not state, because the rows are cells of a table another component
+ * draws and this form can see only its own place in it.
+ */
+function nextCheckIn(form: HTMLFormElement | null): HTMLButtonElement | null {
+  let row = form?.closest("tr")?.nextElementSibling ?? null;
+  while (row) {
+    const next = row.querySelector<HTMLButtonElement>(
+      "form button[type='submit']:not([disabled])",
+    );
+    if (next) return next;
+    row = row.nextElementSibling;
+  }
+  return null;
 }

@@ -17,10 +17,12 @@ export type {
   ClosedDay,
   CloseTheDay,
   DayCloserReport,
+  DaysWaiting,
   FolioLeftOpen,
   NightNotCharged,
   NightNotChargedReason,
   NightsToCharge,
   OpenArrival,
   OpenDeparture,
+  WaitingDay,
 } from "./contracts";

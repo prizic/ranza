@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { test } from "./hydration";
 import { psql } from "./local-database";
 import { signIn, testProperty } from "./front-desk";
 
@@ -93,16 +94,20 @@ test("an early departure with money owed is checked out with a reason", async ({
   // Twice: the balance, and the sentence saying it stays open.
   await expect(dialog.getByText("TRY 45.00").first()).toBeVisible();
 
-  // Neither the acknowledgement nor the reason is given: the browser holds the
-  // form back and nothing reaches the server.
-  await dialog.getByRole("button", { name: "Confirm check-out" }).click();
-  await expect(dialog).toBeVisible();
+  // Neither the acknowledgement nor the reason is given: the button is muted,
+  // the footer says what is missing, and nothing can reach the server.
+  const confirm = dialog.getByRole("button", {
+    name: "Check out",
+    exact: true,
+  });
+  await expect(confirm).toBeDisabled();
+  await expect(dialog.getByText("Tick the box and add a reason")).toBeVisible();
 
   await dialog.getByRole("checkbox").click();
   await dialog
     .getByLabel("Why the balance stays open")
     .fill("the company pays by transfer");
-  await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+  await confirm.click();
 
   await expect(dialog).toBeHidden();
   await expect(row).toHaveCount(0);
@@ -136,7 +141,7 @@ test("a bill that changed while the dialog was open is not settled", async ({
   // Reviewed with nothing owed; a charge lands before the button is pressed.
   charge(guestName, 1200);
   await dialog.getByRole("checkbox").click();
-  await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+  await dialog.getByRole("button", { name: "Check out", exact: true }).click();
 
   await expect(
     dialog.getByText(/Something was posted to the bill while you were looking/),

@@ -1,12 +1,14 @@
 import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { Geist, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Geist, IBM_Plex_Sans_Arabic, Newsreader } from "next/font/google";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
-import { DirectionProvider } from "@ranza/ui";
+import { DirectionProvider, OverlayLabelsProvider } from "@ranza/ui";
 import { NextIntlClientProvider } from "next-intl";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { LOCATION_HEADER } from "../../lib/return-path";
 
 /**
  * Geist for Turkish and English, as in the Leaders portal the interface is
@@ -16,6 +18,18 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 const geist = Geist({
   subsets: ["latin", "latin-ext"],
   variable: "--font-geist",
+  display: "swap",
+});
+
+/**
+ * The display face of a dialog's masthead: the Guest, the booking or the day
+ * it is about, set large in italic. Latin only; Arabic keeps Plex, which draws
+ * no italic, so the shared theme leaves the slant off there.
+ */
+const newsreader = Newsreader({
+  subsets: ["latin", "latin-ext"],
+  style: ["normal", "italic"],
+  variable: "--font-newsreader",
   display: "swap",
 });
 
@@ -45,7 +59,23 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) return {};
   const t = await getTranslations({ locale });
-  return { title: t("productName") };
+  const navigation = await getTranslations({ locale, namespace: "navigation" });
+
+  // Which page this is, from the path the proxy wrote down: a layout is not
+  // handed its own route, and every tab titled "Ranza" was indistinguishable
+  // from the next (SIGN-10).
+  const here = (await headers()).get(LOCATION_HEADER) ?? "";
+  const segment = here.split("?")[0]?.split("/")[2] ?? "";
+  const page =
+    segment === "sign-in"
+      ? t("signIn")
+      : segment === "security"
+        ? t("security")
+        : navigation.has(segment)
+          ? navigation(segment)
+          : null;
+
+  return { title: page ? `${page} · ${t("productName")}` : t("productName") };
 }
 
 export default async function LocaleLayout({
@@ -67,10 +97,11 @@ export default async function LocaleLayout({
   // Without it every page that reads a string becomes dynamic, and
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
+  const t = await getTranslations();
 
   return (
     <html
-      className={`${geist.variable} ${plex.variable}`}
+      className={`${geist.variable} ${plex.variable} ${newsreader.variable}`}
       dir={directionFor(locale)}
       lang={locale}
     >
@@ -79,7 +110,9 @@ export default async function LocaleLayout({
             being handed to each client component as a `copy` prop. */}
         <NextIntlClientProvider>
           <DirectionProvider dir={directionFor(locale)}>
-            {children}
+            <OverlayLabelsProvider labels={{ close: t("closeDialog") }}>
+              {children}
+            </OverlayLabelsProvider>
           </DirectionProvider>
         </NextIntlClientProvider>
       </body>

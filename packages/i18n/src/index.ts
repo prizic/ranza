@@ -121,6 +121,9 @@ export function formatDate(
   }).format(value);
 }
 
+/** The marks ICU writes before an Arabic amount: RLM, LRM, and the Arabic letter mark. */
+const leadingDirectionMarks = /^[\u200e\u200f\u061c]+/;
+
 /**
  * An amount of money, from integer minor units.
  *
@@ -134,6 +137,15 @@ export function formatDate(
  * rather than assumed to be two. The division is the only floating-point
  * arithmetic anywhere near money in this product, and it happens after every
  * sum, at the moment of display. Nothing computed from the result is stored.
+ *
+ * In a right-to-left locale the amount is one left-to-right unit: sign, digits
+ * and currency in the order Intl wrote them, whatever the cell around it does.
+ * Left to the bidirectional algorithm, a positive Arabic amount reads
+ * "TRY 740.00" and a negative one in the same column "-100.00 TRY", because
+ * ICU puts a right-to-left mark before one and a left-to-right mark before
+ * the sign of the other. Those marks are dropped and a left-to-right isolate
+ * (U+2066 … U+2069) takes their place. Left-to-right locales already read in
+ * logical order, so their strings stay free of invisible characters.
  */
 export function formatMoney(
   amountMinor: number,
@@ -146,7 +158,9 @@ export function formatMoney(
   });
   const minorUnits =
     10 ** (format.resolvedOptions().maximumFractionDigits ?? 2);
-  return format.format(amountMinor / minorUnits);
+  const formatted = format.format(amountMinor / minorUnits);
+  if (directionFor(locale) === "ltr") return formatted;
+  return `\u2066${formatted.replace(leadingDirectionMarks, "")}\u2069`;
 }
 
 /**

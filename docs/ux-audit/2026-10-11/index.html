@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ranza UX audit, 2026-10-11</title>
+    <style>
+      :root {
+        --bg: #faf8f3;
+        --fg: #1b1b18;
+        --muted: #5e5e57;
+        --line: #d9d5c8;
+        --accent: #0f5a45;
+        --warn: #8a3b12;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121311;
+          --fg: #ecebe4;
+          --muted: #a6a69b;
+          --line: #33342e;
+          --accent: #6fd0aa;
+          --warn: #f0a272;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.55 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 16px 80px;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 1.35rem;
+        margin: 44px 0 10px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 22px 0 6px;
+      }
+      p,
+      li {
+        max-width: 75ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 24px;
+      }
+      a {
+        color: var(--accent);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+        display: block;
+        overflow-x: auto;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      td.n {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .warn {
+        color: var(--warn);
+      }
+      code {
+        font-size: 0.9em;
+      }
+      .tag {
+        color: var(--muted);
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Ranza UX audit, lived experience</h1>
+      <p class="meta">
+        2026-10-11. Hosted staging, code identical to <code>main</code> 4b15c30
+        (84 migrations and file hashes compared). 21 surfaces, one Sonnet 5.5
+        agent each, audit-only mode. Per-page reports are linked in section 5;
+        shared brief: <a href="BRIEF.md">BRIEF.md</a>.
+      </p>
+
+      <h2>1. Verdict</h2>
+      <p>
+        <strong
+          >A front-desk or manager user can run an ordinary day unaided on a
+          wide desktop. They cannot on a tablet or phone, and they cannot trust
+          the system on the day something is out of the ordinary.</strong
+        >
+        The agents logged 291 findings: 12 block work, 74 cause errors, 122 slow
+        the user down, 83 are polish. Most of the ones that matter are the same
+        five problems appearing on many pages (section 3), not 292 separate
+        ones.
+      </p>
+      <ul>
+        <li>
+          <strong>Biggest risk:</strong> one overdue guest (Room 102, ten days
+          past departure) makes at least eight screens say different things. The
+          Reservations list omits them, the Room calendar and Finance show them
+          as cheap and short, Today counts their room as ready, and Close day's
+          main button is Extend.
+        </li>
+        <li>
+          <strong>Second risk:</strong> the primary button on Arrivals,
+          Departures, Reservations and Housekeeping is off-screen at tablet and
+          phone width, inside a table that scrolls sideways with no cue.
+        </li>
+        <li>
+          <strong>Third risk:</strong> denial and failure states lie or say
+          nothing. Four pages say "This module is not in your Subscription" when
+          the real cause is a missing permission; several actions are refused or
+          fail silently.
+        </li>
+        <li>
+          <strong>Honest limit:</strong> staging has 3 rooms, 1 booking, 0 folio
+          lines, 0 service requests, 0 maintenance requests, 0 employees, 15
+          audit records. A large share of findings are read from code, not seen.
+          Each report labels each claim verified or inferred. I did not total
+          the split across reports.
+        </li>
+      </ul>
+
+      <h2>2. How this was run, and what did not go to plan</h2>
+      <ul>
+        <li>
+          <strong>Mode:</strong> audit-only (your prompt's default when no mode
+          is given). Agents could read, search, filter and open dialogs, and
+          were to stop before any valid submit. Because of that, "pass/fail" on
+          create, check-in, check-out and close flows is partly inferred from
+          code. A pass that actually saves data would need a separate, tagged
+          run.
+        </li>
+        <li>
+          <strong>Three agents went further than the brief allowed.</strong>
+          Today pressed Check in on an arrival row (refused by the server).
+          Rooms submitted duplicate-name room adds (refused; room count stayed
+          3). Finance submitted a charge with an amount in a format it expected
+          to be rejected (rejected). I added a hard rule to the prompts after
+          Today and Rooms; Finance's prompt carried it and the agent still did
+          it.
+        </li>
+        <li>
+          <strong>I checked the staging database read-only afterwards:</strong>
+          folio lines 0, rooms 3, stays 1, and the only domain event in the six
+          hours before the check was one <code>reservation.created</code> at
+          14:55, which is before the audits began and matches another session's
+          evidence run. No check-in, charge or room-add event exists. This was
+          my check, run once, after the three agents reported; it does not cover
+          anything written after it.
+        </li>
+        <li>
+          <strong>Sign-in side effects:</strong> the Sign-in agent made one
+          failed sign-in with the Housekeeping address (the auth code has a
+          3-per-10-seconds throttle and no per-account lockout) and left a Front
+          Desk session signed in, because the app has no sign-out (SIGN-01). The
+          Guest portal agent made one failed sign-in with a made-up address.
+        </li>
+        <li>
+          <strong>Not seen at all:</strong> the signed-in guest portal (no guest
+          test account exists in the repo; none was created), the populated
+          Portfolio (every account reaches one Property), the populated
+          Integrations page (the staging Property lacks the capability), and
+          every two-factor screen.
+        </li>
+        <li>
+          <strong>Timings</strong> in the per-page jobs tables are mostly rough
+          hand counts, not stopwatch readings. Clicks are counted.
+        </li>
+      </ul>
+
+      <h2>3. Problems that repeat across pages</h2>
+      <h3>3.1 The primary action is off-screen below laptop width</h3>
+      <p>
+        Check in (ARR-01, blocks work), Check out (DEP-01, DEP-02), Check in and
+        row menu on Reservations at 1200 px (RES-02), the mark-clean menu on
+        Housekeeping at 375 px (HK-01, blocks work), and Who and Why on the
+        Audit log (AUDIT-06) and the schedule button on Data export (DX) at 768
+        px. All are the same shape: a wide table scrolling sideways, action
+        column last. Probably one shared table component.
+        <span class="tag">verified by measurement on each</span>
+      </p>
+      <h3>3.2 The overdue guest</h3>
+      <p>
+        RES-01 (missing from the list and the In house tab, blocks work),
+        ROOMCAL-04 (2 nights, TRY 0.00, bar runs 10 nights past), TODAY-02 and
+        TODAY-08 (room counted ready; overdue hidden in "0 / 0"), CLOSE-01 and
+        CLOSE-02 (ten days waiting, Extend offered as primary), DEP-03 (owing
+        filter says nobody is leaving), FIN-09 (folio 0 lines, nothing says no
+        nights are charged), ANALYTICS-03 (September labelled Month to date, 24
+        open days). Likely one underlying data state plus several pages with no
+        rule for it.
+      </p>
+      <h3>3.3 The same number, different answers</h3>
+      <p>
+        Occupancy: Today 33% against "Booked ahead" 67% on one screen
+        (TODAY-01), Analytics Today and 7-day tabs 0.0% while Today and the
+        table rows show 33% (ANALYTICS-01). Balance: Departures row ignores
+        nights check-out will charge (DEP-04, inferred). Portfolio money tile
+        has no "counted at x of y" note (PORTFOLIO-02, inferred). Room wording
+        differs across Arrivals, Rooms, Housekeeping and Today (HK-07, ROOMS-08,
+        ARR-11).
+      </p>
+      <h3>3.4 The rail and the page disagree; the denial text is wrong</h3>
+      <p>
+        Owner and Manager see Integrations, click it, and get "This module is
+        not in your Subscription" (INTEGRATIONS-01, seen in EN/TR/AR). Front
+        Desk and Housekeeping typing the Data export URL get the same false text
+        (DX-01). A stale <code>?property=</code> on Portfolio gets it too
+        (PORTFOLIO-03). HR is in the rail for Front Desk, who lacks the
+        permission, and the page says "No employees registered" (HR-01). The
+        Audit log is the good example: a clear "You can't read the audit log"
+        (works well, section 6).
+      </p>
+      <h3>3.5 Actions that fail or refuse without saying why</h3>
+      <p>
+        Today's Check in: "That Reservation cannot be checked in." on a row
+        marked Not ready (TODAY-03). Rooms: "those rooms cannot be added" to a
+        Front Desk user who was offered the button (ROOMS-01). Guest experience:
+        every status change drops the server's answer, and Reopen can never
+        succeed (GX-02, GX-03, inferred). Finance: a valid-looking amount is
+        rejected with a generic message and both fields are cleared (FIN-04).
+      </p>
+      <h3>3.6 Confirm steps that do not name the consequence</h3>
+      <p>
+        Add up to 60 rooms in one click with no preview, and no way to rename or
+        delete afterwards (ROOMS-02). Revoke access: single press, no confirm,
+        undo window unstated (PEOPLE-02, inferred). Approve and lock payroll on
+        placeholder deduction rates, dialog says employees "will be paid"
+        (HR-04). Move to Done silently returns the room to sale dirty (MAINT-03,
+        inferred). Close day's dialog does not name the open items (CLOSE-03).
+        Configuration's Housekeeping and Maintenance dropdowns save on change
+        and alter every Property with no confirm (CONFIG-02, inferred).
+      </p>
+      <h3>
+        3.7 Who may see money and guest contact details is undecided in the docs
+        and inconsistent on screen
+      </h3>
+      <p>
+        Housekeeping and Finance get guest email, phone and price on
+        Reservations (RES-14). Housekeeping reads folios and balances (FIN-08)
+        and the stay balance in the Room calendar drawer (ROOMCAL-15). Front
+        Desk, Manager and Finance all see the full revenue view (ANALYTICS-07).
+        Housekeeping opens Finance from Today and sees a name and balance
+        (TODAY-04). The folio docs call this undecided (FO-S7-02) while Today's
+        docs say balances are hidden without <code>finance.manage_folio</code>.
+        <strong>This is an owner decision, not a bug I can rank.</strong>
+      </p>
+
+      <h2>4. Top 10 changes, ranked by time saved × how often</h2>
+      <ol>
+        <li>
+          <strong
+            >I can press Check in, Check out and Mark clean from a tablet or
+            phone without scrolling sideways.</strong
+          >
+          One shared table fix; used dozens of times a day. (ARR-01, DEP-01,
+          RES-02, HK-01)
+        </li>
+        <li>
+          <strong
+            >I see every guest who is in the building, including overdue ones,
+            on one list, and every screen treats them the same way.</strong
+          >
+          (RES-01, CLOSE-02, TODAY-02, ROOMCAL-04, FIN-09)
+        </li>
+        <li>
+          <strong
+            >I get one number for tonight, and it is the same on every
+            screen.</strong
+          >
+          (TODAY-01, ANALYTICS-01, DEP-04)
+        </li>
+        <li>
+          <strong
+            >When something is refused, I am told why and what to do
+            next.</strong
+          >
+          (TODAY-03, ROOMS-01, GX-02, GX-03, FIN-04)
+        </li>
+        <li>
+          <strong
+            >I am only shown pages and buttons I can use, and if I am blocked
+            the screen names the real reason.</strong
+          >
+          (INTEGRATIONS-01, DX-01, HR-01, PORTFOLIO-03)
+        </li>
+        <li>
+          <strong
+            >The queue shows what is next: oldest, urgent, due out, expected
+            first.</strong
+          >
+          Arrivals sort and overdue (ARR-02), Housekeeping dirty-first and
+          due-out marked for the desk that marks rooms for the attendants
+          (HK-04), Guest experience age and urgent-first (GX-04), Close day
+          backlog on Today (CLOSE-06).
+        </li>
+        <li>
+          <strong>A request can be given an owner.</strong> No UI exists
+          although the data field and an approved edge case do (GX-01); a
+          blocked room can be reported to maintenance in one step, not two
+          (MAINT-01).
+        </li>
+        <li>
+          <strong>Before a click I can see what it will do.</strong> Room names
+          preview (ROOMS-02), revoke consequences (PEOPLE-02), payroll lock
+          wording (HR-04), Done returns the room to sale (MAINT-03).
+        </li>
+        <li>
+          <strong>A new colleague can get in, and anyone can get out.</strong>
+          An invited receptionist cannot get a password (PEOPLE-01, inferred),
+          the portal has no forgot-password and the URL is a bare 404 (GP-01),
+          the staff app has no sign-out (SIGN-01), a deep link loses its
+          destination after sign-in (SIGN-02).
+        </li>
+        <li>
+          <strong>I can find out who changed what in one look.</strong> Before
+          and after values in the list (AUDIT-09), subject links (AUDIT-02,
+          AUDIT-03), action words searchable (AUDIT-04). Rare but urgent, and
+          the audit log's whole job.
+        </li>
+      </ol>
+      <p class="tag">
+        Also high-frequency and small: the Room calendar's single-letter 30-day
+        header with no month marker, Turkish "P C C P" (ROOMCAL-02, causes
+        errors); Configuration's navigate-away with an unsaved draft and no
+        warning, with no guard anywhere in the app (CONFIG-03).
+      </p>
+
+      <h2>5. Per-page reports</h2>
+      <p>
+        Counts come from each report's own findings table, in the order block
+        work / cause errors / slow down / polish. An earlier version of this
+        page used the agents' summaries, which disagreed with their tables for
+        Reservations, Guest experience and People. Seen = how much of the page
+        was on screen on staging. Filed in Backstage as RANZ-50 to RANZ-56
+        (cross-page problems and the money-visibility decision) and RANZ-57 to
+        RANZ-77 (one task per page).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th class="n">Total</th>
+            <th class="n">B/E/S/P</th>
+            <th>Top finding</th>
+            <th>What staging let us see</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="today/report.html">Today</a></td>
+            <td class="n">16</td>
+            <td class="n">0/4/7/5</td>
+            <td>TODAY-01 two occupancy figures for one night</td>
+            <td>Full page, tiny data</td>
+          </tr>
+          <tr>
+            <td><a href="reservations/report.html">Reservations</a></td>
+            <td class="n">17</td>
+            <td class="n">1/5/8/3</td>
+            <td>RES-01 overdue guest missing from the list</td>
+            <td>One booking</td>
+          </tr>
+          <tr>
+            <td><a href="room-calendar/report.html">Room calendar</a></td>
+            <td class="n">15</td>
+            <td class="n">0/2/9/4</td>
+            <td>ROOMCAL-02 header has no month marker</td>
+            <td>3 rooms</td>
+          </tr>
+          <tr>
+            <td><a href="arrivals/report.html">Arrivals</a></td>
+            <td class="n">16</td>
+            <td class="n">1/0/8/7</td>
+            <td>ARR-01 Check in off-screen below 1180 px</td>
+            <td>One arrival, room not ready</td>
+          </tr>
+          <tr>
+            <td><a href="departures/report.html">Departures</a></td>
+            <td class="n">10</td>
+            <td class="n">1/2/5/2</td>
+            <td>DEP-01 Check out off-screen; DEP-03 false empty state</td>
+            <td>One overdue, zero balance</td>
+          </tr>
+          <tr>
+            <td><a href="rooms/report.html">Rooms</a></td>
+            <td class="n">15</td>
+            <td class="n">0/5/6/4</td>
+            <td>ROOMS-02 add 60 rooms, no preview</td>
+            <td>3 rooms</td>
+          </tr>
+          <tr>
+            <td><a href="close-day/report.html">Close day</a></td>
+            <td class="n">12</td>
+            <td class="n">0/3/6/3</td>
+            <td>CLOSE-01 ten-day backlog, one typed reason each (inferred)</td>
+            <td>Backlog state only</td>
+          </tr>
+          <tr>
+            <td><a href="guest-experience/report.html">Guest experience</a></td>
+            <td class="n">12</td>
+            <td class="n">1/5/4/2</td>
+            <td>GX-01 no way to assign a request</td>
+            <td>Zero requests; 8 of 12 inferred</td>
+          </tr>
+          <tr>
+            <td><a href="housekeeping/report.html">Housekeeping</a></td>
+            <td class="n">13</td>
+            <td class="n">1/2/6/4</td>
+            <td>HK-01 mark menu off-screen at 375 px</td>
+            <td>3 rooms, 0 dirty</td>
+          </tr>
+          <tr>
+            <td><a href="maintenance/report.html">Maintenance</a></td>
+            <td class="n">17</td>
+            <td class="n">0/4/9/4</td>
+            <td>MAINT-01 block a room with no request created</td>
+            <td>Zero requests, zero equipment</td>
+          </tr>
+          <tr>
+            <td><a href="finance/report.html">Finance</a></td>
+            <td class="n">14</td>
+            <td class="n">0/5/5/4</td>
+            <td>
+              FIN-09 folio says nothing about unpriced or uncharged nights
+            </td>
+            <td>One folio, 0 lines</td>
+          </tr>
+          <tr>
+            <td><a href="people/report.html">People</a></td>
+            <td class="n">14</td>
+            <td class="n">1/4/4/5</td>
+            <td>PEOPLE-01 invited user cannot get a password (inferred)</td>
+            <td>5 logins; no pending invites</td>
+          </tr>
+          <tr>
+            <td><a href="hr/report.html">HR</a></td>
+            <td class="n">18</td>
+            <td class="n">2/6/6/4</td>
+            <td>HR-02, HR-03 no start date, no edit; HR-04 payroll lock</td>
+            <td>0 employees; 13 of 18 partly inferred</td>
+          </tr>
+          <tr>
+            <td><a href="analytics/report.html">Analytics</a></td>
+            <td class="n">14</td>
+            <td class="n">0/7/5/2</td>
+            <td>ANALYTICS-01 0.0% against 33%</td>
+            <td>No priced night, payment or charge</td>
+          </tr>
+          <tr>
+            <td><a href="portfolio/report.html">Portfolio</a></td>
+            <td class="n">7</td>
+            <td class="n">0/1/5/1</td>
+            <td>
+              PORTFOLIO-01 nothing shows which Property is behind (inferred)
+            </td>
+            <td>Never populated</td>
+          </tr>
+          <tr>
+            <td><a href="integrations/report.html">Integrations</a></td>
+            <td class="n">12</td>
+            <td class="n">2/4/5/1</td>
+            <td>INTEGRATIONS-01 rail link opens a denial</td>
+            <td>Denial screen only</td>
+          </tr>
+          <tr>
+            <td><a href="configuration/report.html">Configuration</a></td>
+            <td class="n">13</td>
+            <td class="n">0/4/4/5</td>
+            <td>CONFIG-03 no unsaved-changes guard; 11 of 13 seen</td>
+            <td>Full page, nothing saved</td>
+          </tr>
+          <tr>
+            <td><a href="data-export/report.html">Data export</a></td>
+            <td class="n">21</td>
+            <td class="n">1/6/6/8</td>
+            <td>DX-01 false "not in your Subscription"</td>
+            <td>No exports or schedules</td>
+          </tr>
+          <tr>
+            <td><a href="audit-log/report.html">Audit log</a></td>
+            <td class="n">13</td>
+            <td class="n">0/1/7/5</td>
+            <td>AUDIT-09 no before/after in the list</td>
+            <td>15 records, one page</td>
+          </tr>
+          <tr>
+            <td>
+              <a href="sign-in-security/report.html">Sign-in and security</a>
+            </td>
+            <td class="n">12</td>
+            <td class="n">0/3/5/4</td>
+            <td>SIGN-01 no sign-out anywhere</td>
+            <td>No two-factor screen seen</td>
+          </tr>
+          <tr>
+            <td><a href="guest-portal/report.html">Guest portal</a></td>
+            <td class="n">10</td>
+            <td class="n">1/1/2/6</td>
+            <td>GP-01 no forgot-password; 404 on the URL</td>
+            <td>Sign-in only; "My stay" never seen</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr>
+            <th>All 21</th>
+            <th class="n">291</th>
+            <th class="n">12/74/122/83</th>
+            <th></th>
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+
+      <h2>6. Inconsistencies between screens</h2>
+      <ul>
+        <li>
+          <strong>Maintenance is ahead of its siblings.</strong> It has assignee
+          and priority filters, a read-only notice for people who cannot manage,
+          and equipment context. Guest experience has none, and Guest
+          experience's "Housekeeping" and "Maintenance" categories create
+          nothing on those boards (GX).
+        </li>
+        <li>
+          <strong
+            >"Block bed" on Rooms vs "Report a problem" to Maintenance.</strong
+          >
+          Two ways to take a room out of service; only one tells anyone
+          (ROOMS-07, MAINT-01).
+        </li>
+        <li>
+          <strong>People vs HR.</strong> 5 logins in one, 0 employees in the
+          other, no link, and nothing says which to use (HR-10).
+        </li>
+        <li>
+          <strong>Save patterns.</strong> Most Configuration cards have Save;
+          Housekeeping and Maintenance cards save on change. The read-only
+          message has four wordings (CONFIG).
+        </li>
+        <li>
+          <strong>Search.</strong> Departures searches guest, room and
+          reservation; Finance only the guest name (FIN-01); Audit log ignores
+          action words (AUDIT-04).
+        </li>
+        <li>
+          <strong>Docs against the app.</strong> MT-DEF-04 says the Today
+          maintenance card is not built but <code>MaintenanceCard</code> exists.
+          FO-S7-02 and the Today docs disagree on who sees balances. RG-S4-16
+          promises phone and date search that RES-04 shows failing.
+        </li>
+        <li>
+          <strong>Language.</strong> Turkish and Arabic (mirrored) were reported
+          complete or nearly so wherever agents tested them. Exceptions found:
+          an untranslated "Close" label on dialogs, "Unit" in the Turkish
+          refusal text (ROOMS-03), a garbled Arabic Excel hint on Data export.
+        </li>
+      </ul>
+
+      <h2>7. Not built, or needs backend work (not counted as UX defects)</h2>
+      <ul>
+        <li>
+          Assignment of work to a named housekeeper (HK-DEF-04). Room beds,
+          rename, delete, CSV import (Rooms section 6). Walk-in booking from
+          Arrivals. Unassigned bookings and overbooking warnings (the database
+          refuses overlaps). Maintenance photos (MT-DEF-03).
+        </li>
+        <li>
+          Guest portal: request creation, bill and balance (FO-DEF-11), checkout
+          time, and guest account provisioning (the Guest portal agent found no
+          code writing <code>stays.user_id</code>, inferred).
+        </li>
+        <li>
+          Integrations: no Connect flow, credentials, webhooks, API keys or
+          delivery log; nothing writes a connection or a failure (inferred).
+        </li>
+        <li>
+          Audit log does not record denied or failed attempts, by design. Close
+          day has no "unposted charges" blocker. Two-factor has no QR code and
+          no self-service recovery. Bulk staff onboarding.
+        </li>
+        <li>
+          Food and Beverage and Inventory are routes with no screen and had no
+          agent. The Enterprise-plan gate on Portfolio is an open owner
+          question.
+        </li>
+      </ul>
+
+      <h2>8. What already works and must not regress</h2>
+      <ul>
+        <li>
+          Today: every number is a link; the clock and freshness line are
+          honest; no raw errors.
+        </li>
+        <li>
+          Departures: the check-out review names guest, room and bill, and
+          keyboard focus lands on "Keep in house", not the destructive button.
+        </li>
+        <li>
+          Arrivals: check-in is one tap for a ready room, a plain question for a
+          room that is not ready, and safe against two desks pressing at once
+          (inferred from edge-case rows).
+        </li>
+        <li>
+          Close day: steps say Done or "N open" and link to where each blocker
+          is cleared; the confirm dialog names the date.
+        </li>
+        <li>
+          Reservations: availability marked on the Unit list; conflicts disable
+          Save with a reason; cancel and no-show name their consequences.
+        </li>
+        <li>
+          Room calendar: icon-plus-word legend, tinted today column,
+          Free-per-night row.
+        </li>
+        <li>
+          Rooms: bulk add (1 to 60 numbered in sequence), with clean refusals.
+        </li>
+        <li>
+          Audit log: Owner and Manager read it; Front Desk and Finance get a
+          clear "You can't read the audit log".
+        </li>
+        <li>
+          Portfolio: null is never zero, money is never summed across
+          currencies, and a one-Property viewer gets "Nothing to compare yet"
+          with a way out.
+        </li>
+        <li>
+          People: Front Desk gets a read-only roster with a one-line
+          explanation.
+        </li>
+        <li>
+          The back button (ADR 0035) was confirmed present on the pages where
+          agents checked it (for example Arrivals, HR, Portfolio), and Arabic
+          mirrors correctly in every report that tested it.
+        </li>
+      </ul>
+
+      <h2>9. Decisions for the owner</h2>
+      <ul>
+        <li>
+          <strong
+            >Answered 2026-10-11 (Albaraa Zain): housekeeping can use the app,
+            but mostly does not, so the desk marks rooms and sees all
+            tasks.</strong
+          >
+          This is already the approved design and is shipped, not a new
+          decision: Owner, Manager, Front Desk and Housekeeping all hold
+          <code>housekeeping.update_status</code> (HK-S2-11, migration
+          <code>20260916003100</code>; Finance does not), and the board supports
+          marking one room or several.
+          <em>Consequence for the findings:</em> the desk on a desktop or tablet
+          is the primary user of the Housekeeping page. The desk-facing findings
+          move up: dirty-first order and a due-out / arriving-today marker
+          (HK-04), select-all in a filter and a sticky selection bar for marking
+          many rooms (HK-08, HK-09), a floor filter (HK-05), and status chips on
+          top of the board (HK-03). The phone-with-wet-hands findings (HK-01
+          off-screen menu, HK-02 tap size) stay as real defects, because
+          attendants can use the app, but rank below the desk ones. The
+          off-screen-action table fix still matters because the desk uses
+          tablets too (section 3.1). Assignment of work to a named housekeeper
+          stays out of scope (HK-DEF-04).
+        </li>
+        <li>
+          <strong>Who may see money and guest contact details,</strong> per role
+          (section 3.7). The docs disagree, so no agent could call it a defect.
+        </li>
+        <li>
+          <strong>A write-enabled pass.</strong> Everything above stops at the
+          final submit. The check-in, check-out, payment, close-day and bulk-add
+          flows are judged from code. A second pass with tagged test data would
+          test them for real.
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

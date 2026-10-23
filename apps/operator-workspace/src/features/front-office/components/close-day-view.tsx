@@ -34,11 +34,13 @@ import {
   TableRow,
 } from "@ranza/ui";
 import type { CloseTheDay } from "../../../server/viewer";
+import type { Scope } from "../query-keys";
 import { unitLabel } from "../unit-label";
 import {
   ChangeDepartureDialog,
   type ChangeableStay,
 } from "./change-departure-dialog";
+import { CloseDayCheckOut } from "./close-day-check-out";
 import { CloseDayDialog } from "./close-day-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
@@ -62,14 +64,57 @@ import { FrontDeskRowMenu } from "./row-menu";
 export function CloseDayView({
   day,
   locale,
+  scope,
 }: {
   day: CloseTheDay;
   locale: SupportedLocale;
+  /** The viewer's, for reading the Departures list a check-out reviews. */
+  scope: Scope;
 }) {
   const t = useTranslations();
   const open = day.notArrived.length + day.notDeparted.length;
   const arrivalsHref = `${localizeHref(locale, "arrivals")}?property=${day.propertyId}`;
-  const departuresHref = `${localizeHref(locale, "departures")}?property=${day.propertyId}`;
+  const reservationsHref = `${localizeHref(locale, "reservations")}?property=${day.propertyId}`;
+  const firstWaiting = day.waitingDays[0];
+  const lastWaiting = day.waitingDays.at(-1);
+  // Items only accumulate, so the same count on the first and the last waiting
+  // day is the same items holding every one of them (CLOSE-01).
+  const sameItemsEveryDay =
+    firstWaiting !== undefined &&
+    lastWaiting !== undefined &&
+    day.waitingDays.length > 1 &&
+    firstWaiting.openItems === lastWaiting.openItems;
+  const holding = [
+    ...day.notDeparted.map((row) => ({
+      name: row.guestName ?? unitLabel(row.roomName, row.unitName),
+      detail: [
+        unitLabel(row.roomName, row.unitName),
+        t("overdueDays", { count: row.overdueDays }),
+      ].join(" · "),
+    })),
+    ...day.notArrived.map((row) => ({
+      name: row.guestName,
+      detail: [
+        unitLabel(row.roomName, row.unitName),
+        t("closeDay.dueOn", { date: shortDay(row.startsOn, locale) }),
+      ].join(" · "),
+    })),
+  ];
+  const charges = day.nightsToCharge
+    ? [
+        t("closeDay.roomNightsToCharge", { n: day.nightsToCharge.nights }),
+        ...(day.nightsToCharge.amountMinor !== null &&
+        day.nightsToCharge.nights > 0
+          ? [
+              formatMoney(
+                day.nightsToCharge.amountMinor,
+                day.nightsToCharge.currency,
+                locale,
+              ),
+            ]
+          : []),
+      ].join(" · ")
+    : null;
 
   return (
     <div className="grid gap-6">
@@ -102,26 +147,93 @@ export function CloseDayView({
           </CardAction>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {day.waiting > 1 ? (
-            <p className="text-step--1">
-              {t("closeDay.waiting", { n: day.waiting })}
-            </p>
+          <p className="text-step--1 text-muted-foreground">
+            {t("closeDay.businessDateNow", {
+              date: longDay(day.today, locale),
+              zone: day.timezone,
+              time: day.cutoff,
+            })}
+          </p>
+          {day.waiting > 1 && firstWaiting && lastWaiting ? (
+            <div className="grid gap-2">
+              <p className="text-step--1">
+                {t("closeDay.waiting", {
+                  n: day.waiting,
+                  from: shortDay(firstWaiting.date, locale),
+                  to: shortDay(lastWaiting.date, locale),
+                })}{" "}
+                {t("closeDay.oldestAgo", {
+                  date: shortDay(firstWaiting.date, locale),
+                  n: daysBetween(firstWaiting.date, day.today),
+                })}
+              </p>
+              {sameItemsEveryDay ? (
+                <p className="text-step--1">
+                  {t("closeDay.holdsEveryDay", {
+                    n: firstWaiting.openItems,
+                    names: holding.map((item) => item.name).join(", "),
+                  })}
+                </p>
+              ) : (
+                <div className="grid gap-1 text-step--1">
+                  <p className="font-medium">{t("closeDay.holdsByDay")}</p>
+                  <ul className="grid gap-0.5 text-muted-foreground">
+                    {day.waitingDays.slice(0, 7).map((waiting) => (
+                      <li key={waiting.date}>
+                        {t("closeDay.dayOpen", {
+                          date: shortDay(waiting.date, locale),
+                          n: waiting.openItems,
+                        })}
+                      </li>
+                    ))}
+                    {day.waitingDays.length > 7 ? (
+                      <li>
+                        {t("closeDay.moreDays", {
+                          n: day.waitingDays.length - 7,
+                        })}
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              )}
+            </div>
           ) : null}
           <p className="text-step--1 text-muted-foreground">
-            {t("closeDay.automatic")}
+            {t("closeDay.whatHolds")} {t("closeDay.automatic")}
           </p>
           {day.dayToClose ? (
             day.mayClose ? (
-              <div>
+              <div className="flex flex-wrap gap-2">
+                {sameItemsEveryDay && lastWaiting ? (
+                  <CloseDayDialog
+                    all={{
+                      count: day.waiting,
+                      from: shortDay(day.dayToClose, locale),
+                      to: shortDay(lastWaiting.date, locale),
+                    }}
+                    businessDate={day.dayToClose}
+                    charges={charges}
+                    dayLabel={longDay(day.dayToClose, locale)}
+                    items={holding}
+                    key={`${day.dayToClose}:all`}
+                    locale={locale}
+                    openItems={open}
+                    propertyId={day.propertyId}
+                    waitingMany
+                  />
+                ) : null}
                 <CloseDayDialog
                   businessDate={day.dayToClose}
+                  charges={charges}
                   dayLabel={longDay(day.dayToClose, locale)}
+                  items={holding}
                   // A new day to close is a new form: a reason typed for the
                   // day before must not survive into this one.
                   key={day.dayToClose}
                   locale={locale}
                   openItems={open}
                   propertyId={day.propertyId}
+                  waitingMany={day.waiting > 1}
                 />
               </div>
             ) : (
@@ -164,6 +276,13 @@ export function CloseDayView({
                     tone="neutral"
                   />
                 ) : null}
+                {row.expected ? (
+                  <StatusBadge
+                    icon={Clock}
+                    label={t("closeDay.expectedToday")}
+                    tone="info"
+                  />
+                ) : null}
                 {row.arrivable ? (
                   <Button asChild size="sm" variant="outline">
                     <Link href={arrivalsHref}>
@@ -177,7 +296,9 @@ export function CloseDayView({
                     reference: row.reference,
                     unitLabel: unitLabel(row.roomName, row.unitName),
                     mayCancel: row.mayCancel,
-                    mayMarkNoShow: row.mayMarkNoShow,
+                    // Not before the day has ended: until then the Guest may
+                    // still arrive, and a no-show cannot be taken back.
+                    mayMarkNoShow: row.mayMarkNoShow && !row.expected,
                   }}
                   folioId={null}
                   guestName={row.guestName}
@@ -201,14 +322,38 @@ export function CloseDayView({
               className="flex flex-wrap items-center justify-between gap-3 py-3"
               key={row.stayId}
             >
-              <StayLine
-                detail={t("closeDay.dueOutOn", {
-                  date: shortDay(row.endsOn, locale),
-                })}
-                guestName={row.guestName}
-                unit={unitLabel(row.roomName, row.unitName)}
-              />
-              <div className="flex flex-wrap gap-2">
+              <div className="grid gap-0.5">
+                <StayLine
+                  detail={[
+                    t("closeDay.dueOutOn", {
+                      date: shortDay(row.endsOn, locale),
+                    }),
+                    ...(row.overdueDays > 0
+                      ? [t("overdueDays", { count: row.overdueDays })]
+                      : []),
+                  ].join(" · ")}
+                  guestName={row.guestName}
+                  unit={unitLabel(row.roomName, row.unitName)}
+                  {...(row.reference ? { reference: row.reference } : {})}
+                />
+                {row.overdueDays > 0 ? (
+                  <span className="text-step--1 text-muted-foreground">
+                    {t("overdueNightsNote")}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {row.mayCheckOut ? (
+                  <CloseDayCheckOut
+                    locale={locale}
+                    scope={scope}
+                    stayId={row.stayId}
+                  />
+                ) : (
+                  <span className="max-w-64 text-step--1 text-muted-foreground">
+                    {t("closeDay.departuresViewOnly")}
+                  </span>
+                )}
                 {row.mayAmend ? (
                   <ExtendStay
                     locale={locale}
@@ -219,14 +364,10 @@ export function CloseDayView({
                       unitLabel: unitLabel(row.roomName, row.unitName),
                       startsOn: row.startsOn,
                       endsOn: row.endsOn,
+                      unpriced: !row.priced,
                     }}
                   />
                 ) : null}
-                <Button asChild size="sm" variant="outline">
-                  <Link href={departuresHref}>
-                    {t("closeDay.openDepartures")}
-                  </Link>
-                </Button>
               </div>
             </li>
           ))}
@@ -285,20 +426,47 @@ export function CloseDayView({
                         {rows.length}
                       </span>
                     </h3>
+                    {reason === "unpriced" ? (
+                      <p className="text-step--1 text-muted-foreground">
+                        {t("closeDay.unpricedNote")}
+                      </p>
+                    ) : null}
                     <ul className="divide-y divide-border">
                       {rows.map((row) => (
-                        <li className="py-2" key={row.stayId}>
-                          <bdi className="tabular-nums">
-                            {row.guestName ??
-                              unitLabel(row.roomName, row.unitName)}
-                          </bdi>
-                          {row.guestName ? (
-                            <span className="text-step--1 text-muted-foreground">
-                              {" · "}
-                              <bdi className="tabular-nums">
-                                {unitLabel(row.roomName, row.unitName)}
-                              </bdi>
-                            </span>
+                        <li
+                          className="flex flex-wrap items-center justify-between gap-2 py-2"
+                          key={row.stayId}
+                        >
+                          <span>
+                            <bdi className="tabular-nums">
+                              {row.guestName ??
+                                unitLabel(row.roomName, row.unitName)}
+                            </bdi>
+                            {row.guestName ? (
+                              <span className="text-step--1 text-muted-foreground">
+                                {" · "}
+                                <bdi className="tabular-nums">
+                                  {unitLabel(row.roomName, row.unitName)}
+                                </bdi>
+                              </span>
+                            ) : null}
+                          </span>
+                          {row.reservationId ? (
+                            <Link
+                              className="text-step--1 underline underline-offset-4"
+                              href={`${reservationsHref}&open=${row.reservationId}`}
+                              prefetch={false}
+                            >
+                              {t("closeDay.openBooking")}
+                              {row.reference ? (
+                                <>
+                                  {" "}
+                                  <bdi className="font-mono tabular-nums">
+                                    {row.reference}
+                                  </bdi>
+                                </>
+                              ) : null}
+                            </Link>
                           ) : null}
                         </li>
                       ))}
@@ -364,90 +532,161 @@ export function CloseDayView({
         {day.recent.length === 0 ? (
           <p className="text-muted-foreground">{t("closeDay.recentEmpty")}</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("closeDay.day")}</TableHead>
-                <TableHead>{t("closeDay.closedBy")}</TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.arrived")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.departed")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.nights")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.roomNightsColumn")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.leftOpen")}
-                </TableHead>
-                <TableHead className="text-end">
-                  {t("closeDay.foliosOpen")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Below 640 px each close is a card: seven columns do not fit a
+                phone, and the ones that fell off the edge were the room
+                nights and what was left open (CLOSE-10). */}
+            <ul className="grid gap-3 sm:hidden">
               {day.recent.map((close) => (
-                <TableRow key={close.closeId}>
-                  <TableCell>
-                    <time dateTime={close.businessDate}>
+                <li
+                  className="grid gap-1 rounded-xl border bg-card p-4 text-step--1"
+                  key={close.closeId}
+                >
+                  <p className="flex items-baseline justify-between gap-2">
+                    <time className="font-medium" dateTime={close.businessDate}>
                       {shortDay(close.businessDate, locale)}
                     </time>
-                  </TableCell>
-                  <TableCell>
-                    {close.automatic ? (
-                      <span className="text-muted-foreground">
-                        {t("closeDay.automatically")}
-                      </span>
-                    ) : (
-                      <bdi>{close.closedBy}</bdi>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {close.arrived}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {close.departed}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {close.nightsOccupied}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    <span className="block">
+                    <span className="text-muted-foreground">
+                      {close.automatic ? (
+                        t("closeDay.automatically")
+                      ) : (
+                        <bdi>{close.closedBy}</bdi>
+                      )}
+                    </span>
+                  </p>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular-nums">
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.arrived")}
+                    </dt>
+                    <dd className="text-end">{close.arrived}</dd>
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.departed")}
+                    </dt>
+                    <dd className="text-end">{close.departed}</dd>
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.nights")}
+                    </dt>
+                    <dd className="text-end">{close.nightsOccupied}</dd>
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.roomNightsColumn")}
+                    </dt>
+                    <dd className="text-end">
                       {close.roomNightsCharged}
                       {close.roomRevenueMinor !== null &&
-                      close.roomRevenueCurrency ? (
-                        <span className="text-muted-foreground">
-                          {" · "}
-                          {formatMoney(
+                      close.roomRevenueCurrency
+                        ? ` · ${formatMoney(
                             close.roomRevenueMinor,
                             close.roomRevenueCurrency,
                             locale,
-                          )}
+                          )}`
+                        : ""}
+                      {close.roomNightsNotCharged > 0 ? (
+                        <span className="block text-warning">
+                          {t("closeDay.roomNightsNotCharged", {
+                            n: close.roomNightsNotCharged,
+                          })}
                         </span>
                       ) : null}
-                    </span>
-                    {close.roomNightsNotCharged > 0 ? (
-                      <span className="block text-step--1 text-warning">
-                        {t("closeDay.roomNightsNotCharged", {
-                          n: close.roomNightsNotCharged,
-                        })}
-                      </span>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {close.leftOpen}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {close.foliosLeftOpen}
-                  </TableCell>
-                </TableRow>
+                    </dd>
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.leftOpen")}
+                    </dt>
+                    <dd className="text-end">{close.leftOpen}</dd>
+                    <dt className="text-muted-foreground">
+                      {t("closeDay.foliosOpen")}
+                    </dt>
+                    <dd className="text-end">{close.foliosLeftOpen}</dd>
+                  </dl>
+                </li>
               ))}
-            </TableBody>
-          </Table>
+            </ul>
+            <div className="hidden sm:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("closeDay.day")}</TableHead>
+                    <TableHead>{t("closeDay.closedBy")}</TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.arrived")}
+                    </TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.departed")}
+                    </TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.nights")}
+                    </TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.roomNightsColumn")}
+                    </TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.leftOpen")}
+                    </TableHead>
+                    <TableHead className="text-end">
+                      {t("closeDay.foliosOpen")}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {day.recent.map((close) => (
+                    <TableRow key={close.closeId}>
+                      <TableCell>
+                        <time dateTime={close.businessDate}>
+                          {shortDay(close.businessDate, locale)}
+                        </time>
+                      </TableCell>
+                      <TableCell>
+                        {close.automatic ? (
+                          <span className="text-muted-foreground">
+                            {t("closeDay.automatically")}
+                          </span>
+                        ) : (
+                          <bdi>{close.closedBy}</bdi>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {close.arrived}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {close.departed}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {close.nightsOccupied}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        <span className="block">
+                          {close.roomNightsCharged}
+                          {close.roomRevenueMinor !== null &&
+                          close.roomRevenueCurrency ? (
+                            <span className="text-muted-foreground">
+                              {" · "}
+                              {formatMoney(
+                                close.roomRevenueMinor,
+                                close.roomRevenueCurrency,
+                                locale,
+                              )}
+                            </span>
+                          ) : null}
+                        </span>
+                        {close.roomNightsNotCharged > 0 ? (
+                          <span className="block text-step--1 text-warning">
+                            {t("closeDay.roomNightsNotCharged", {
+                              n: close.roomNightsNotCharged,
+                            })}
+                          </span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {close.leftOpen}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {close.foliosLeftOpen}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
         {day.recent.length > 0 ? (
           <p className="text-step--1 text-muted-foreground">
@@ -466,16 +705,24 @@ export function CloseDayView({
 function StayLine({
   detail,
   guestName,
+  reference,
   unit,
 }: {
   detail: string;
   guestName: string | null;
+  reference?: string;
   unit: string;
 }) {
   return (
     <div className="grid gap-0.5">
       <bdi className="font-medium tabular-nums">{guestName ?? unit}</bdi>
       <span className="text-step--1 text-muted-foreground">
+        {reference ? (
+          <>
+            <bdi className="font-mono tabular-nums">{reference}</bdi>
+            {" · "}
+          </>
+        ) : null}
         {guestName ? (
           <>
             <bdi className="tabular-nums">{unit}</bdi>
@@ -562,6 +809,14 @@ function longDay(iso: string, locale: SupportedLocale): string {
   });
 }
 
+/** Whole calendar days from one `YYYY-MM-DD` to a later one, counted in UTC. */
+function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      86_400_000,
+  );
+}
+
 function shortDay(iso: string, locale: SupportedLocale): string {
   return formatDate(new Date(`${iso}T00:00:00Z`), locale, {
     month: "short",
@@ -585,7 +840,12 @@ function ExtendStay({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button onClick={() => setOpen(true)} size="sm" type="button">
+      <Button
+        onClick={() => setOpen(true)}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
         {t("extendStay")}
       </Button>
       {open ? (

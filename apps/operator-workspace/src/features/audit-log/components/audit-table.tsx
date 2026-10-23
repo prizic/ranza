@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CircleCheck, Undo2 } from "lucide-react";
-import type { AuditPage } from "@ranza/core";
+import type { AuditEntry, AuditPage } from "@ranza/core";
 import {
   Button,
   EmptyState,
+  ScrollCue,
   StatusBadge,
   Table,
   TableBody,
@@ -18,7 +19,9 @@ import {
 } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { isCorrection, readAs } from "../actions";
-import { useAuditWords, whenLabel } from "../words";
+import { historyHref, subjectHref, type SubjectReach } from "../links";
+import { useAuditSummary } from "../summary";
+import { useAuditWords, whenLabel, type AuditWords } from "../words";
 
 /**
  * One page of the log, newest first.
@@ -43,6 +46,8 @@ export function AuditTable({
   newestHref,
   olderHref,
   page,
+  propertyId,
+  reach,
   recordHref,
   viewerId,
 }: {
@@ -54,12 +59,21 @@ export function AuditTable({
   /** The next page, when there is one. */
   olderHref: string | null;
   page: AuditPage;
+  /** The Property the log is opened from, which every link keeps. */
+  propertyId: string;
+  /** Which of the screens a subject opens in the viewer may open. */
+  reach: SubjectReach;
   /** The list URL that a row's link extends with `&record=`. */
   recordHref: string;
   viewerId: string;
 }) {
   const t = useTranslations();
   const words = useAuditWords(page, viewerId);
+  const summaryOf = useAuditSummary(words, locale);
+  // One clock for the whole list is said once, in the column's heading; a list
+  // that spans Properties in two zones says each time's own instead (AUDIT-10).
+  const zones = [...new Set(page.entries.map((entry) => entry.timeZone))];
+  const [onlyZone] = zones;
 
   if (page.entries.length === 0 && !newestHref) {
     return (
@@ -85,12 +99,18 @@ export function AuditTable({
         {t("auditMatching", { n: page.total })}
       </p>
 
-      <div className="overflow-x-auto rounded-lg border">
+      <ScrollCue className="overflow-hidden rounded-lg border">
         <Table>
           <TableCaption className="sr-only">{t("auditLog")}</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead>{t("when")}</TableHead>
+              <TableHead>
+                {zones.length === 1 && onlyZone
+                  ? t("auditWhenIn", { timezone: onlyZone })
+                  : zones.length > 1
+                    ? t("auditWhenEach")
+                    : t("when")}
+              </TableHead>
               <TableHead>{t("what")}</TableHead>
               <TableHead>{t("auditWhere")}</TableHead>
               <TableHead>{t("who")}</TableHead>
@@ -108,7 +128,7 @@ export function AuditTable({
                     {whenLabel(entry.occurredAt, locale, entry.timeZone)}
                   </time>
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell className="align-top whitespace-normal">
                   {/* Not prefetched: one row is one request, and all it would
                       fetch is the loading boundary — the row's own data is
                       read on the click. */}
@@ -135,16 +155,29 @@ export function AuditTable({
                         {words.action(entry)}
                       </span>
                     )}
-                    <span
-                      className="block text-step--1 text-muted-foreground"
-                      title={entry.subjectId}
-                    >
-                      {words.subjectType(entry.subjectType)} ·{" "}
-                      {words.name(entry.subjectId)}
-                    </span>
                   </Link>
+                  {/* What the change was, for a setting or a price: the fact
+                      that decides whether the record is worth opening. */}
+                  {summaryOf(entry) ? (
+                    <span className="block text-step--1">
+                      {summaryOf(entry)}
+                    </span>
+                  ) : null}
+                  <SubjectLine
+                    entry={entry}
+                    locale={locale}
+                    propertyId={propertyId}
+                    reach={reach}
+                    words={words}
+                  />
+                  {/* Who is the column a phone scrolls past before it is
+                      ever in view, and a log that says what happened and not
+                      who did it is half a log (AUDIT-06). */}
+                  <span className="block text-step--1 text-muted-foreground sm:hidden">
+                    {t("who")}: {words.actor(entry.actorId)}
+                  </span>
                 </TableCell>
-                <TableCell className="align-top text-step--1">
+                <TableCell className="align-top whitespace-normal text-step--1">
                   {words.where(entry)}
                 </TableCell>
                 <TableCell className="align-top">
@@ -159,9 +192,12 @@ export function AuditTable({
                     {words.actor(entry.actorId)}
                   </span>
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell className="align-top whitespace-normal">
                   {entry.reason ? (
-                    <span className="line-clamp-2 max-w-prose">
+                    // A width of its own: `max-w-prose` is 65 characters, which
+                    // made the column wider than a laptop and cut the reason
+                    // mid-word at the edge of the table (AUDIT-05).
+                    <span className="line-clamp-2 max-w-72 min-w-40 break-words">
                       {entry.reason}
                     </span>
                   ) : (
@@ -177,7 +213,7 @@ export function AuditTable({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollCue>
 
       <p className="text-step--1 text-muted-foreground">
         {t("auditLocalTime")}
@@ -200,5 +236,55 @@ export function AuditTable({
         </nav>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The subject of a record, as a link where there is somewhere to open it: the
+ * screen that shows it, or for a booking or a stay, which no screen shows
+ * alone, every record the log holds about it and what belongs with it
+ * (AUDIT-02).
+ */
+function SubjectLine({
+  entry,
+  locale,
+  propertyId,
+  reach,
+  words,
+}: {
+  entry: AuditEntry;
+  locale: SupportedLocale;
+  propertyId: string;
+  reach: SubjectReach;
+  words: AuditWords;
+}) {
+  const label = `${words.subjectType(entry.subjectType)} · ${words.name(entry.subjectId)}`;
+  const opens =
+    subjectHref(
+      locale,
+      propertyId,
+      entry.subjectType,
+      entry.subjectId,
+      reach,
+    ) ??
+    (entry.subjectType === "reservation" || entry.subjectType === "stay"
+      ? historyHref(locale, propertyId, entry.subjectId)
+      : null);
+  return opens ? (
+    <Link
+      className="block text-step--1 text-muted-foreground hover:text-foreground hover:underline"
+      href={opens}
+      prefetch={false}
+      title={entry.subjectId}
+    >
+      {label}
+    </Link>
+  ) : (
+    <span
+      className="block text-step--1 text-muted-foreground"
+      title={entry.subjectId}
+    >
+      {label}
+    </span>
   );
 }

@@ -23,6 +23,7 @@ const viewer = vi.hoisted(() => {
     entitledProperties: vi.fn(),
     portfolio: vi.fn(),
     requireViewer: vi.fn(),
+    whyDenied: vi.fn(),
     PortfolioTooLargeError,
   };
 });
@@ -61,6 +62,8 @@ const { default: PortfolioPage } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/portfolio/page");
 const { PortfolioView } =
   await import("../../apps/operator-workspace/src/features/portfolio");
+const { ScreenDenied } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/screen-denied");
 
 function entitled(
   propertyId: string,
@@ -78,16 +81,18 @@ function entitled(
 const KADIKOY = entitled("aa000000-0000-4000-8000-00000000000a", "org-1");
 const MODA = entitled("aa000000-0000-4000-8000-00000000000b", "org-2");
 
-const open = (property?: string) =>
+const open = (property?: string, more: { sort?: string; view?: string } = {}) =>
   PortfolioPage({
     params: Promise.resolve({ locale: "en" }),
-    searchParams: Promise.resolve(property ? { property } : {}),
+    searchParams: Promise.resolve(property ? { property, ...more } : more),
   }) as Promise<ReactElement<Record<string, unknown>>>;
 
 beforeEach(() => {
   viewer.entitledProperties.mockReset();
   viewer.portfolio.mockReset();
   viewer.requireViewer.mockReset();
+  viewer.whyDenied.mockReset();
+  viewer.whyDenied.mockResolvedValue({ reason: "not_reachable" });
   state.remembered = undefined;
   viewer.entitledProperties.mockResolvedValue([KADIKOY, MODA]);
 });
@@ -112,17 +117,27 @@ describe("all_properties_route", () => {
   });
 
   it("a_property_the_viewer_does_not_reach_reads_no_portfolio", async () => {
-    const page = await open("aa000000-0000-4000-8000-0000000000ff");
+    const stale = "aa000000-0000-4000-8000-0000000000ff";
+    const page = await open(stale);
     expect(viewer.portfolio).not.toHaveBeenCalled();
-    expect(page.props.title).toBe("notEntitledTitle");
+    // Told why, with what the URL named: a stale link is not "not in your
+    // Subscription" (PORTFOLIO-03).
+    expect(page.type).toBe(ScreenDenied);
+    expect(viewer.whyDenied).toHaveBeenCalledWith(
+      { capability: { moduleKey: "analytics", capabilityKey: "analytics" } },
+      stale,
+    );
+    expect(page.props.denial).toEqual({ reason: "not_reachable" });
   });
 
   it("no_property_with_analytics_reads_no_portfolio", async () => {
     viewer.entitledProperties.mockResolvedValue([]);
     state.remembered = KADIKOY.propertyId;
+    viewer.whyDenied.mockResolvedValue({ reason: "not_enabled" });
     const page = await open(KADIKOY.propertyId);
     expect(viewer.portfolio).not.toHaveBeenCalled();
-    expect(page.props.title).toBe("notEntitledTitle");
+    expect(page.type).toBe(ScreenDenied);
+    expect(page.props.denial).toEqual({ reason: "not_enabled" });
   });
 
   it("more_than_the_ceiling_is_a_message_with_the_count_and_not_a_shorter_list", async () => {
@@ -142,14 +157,34 @@ describe("all_properties_route", () => {
 
   it("a_session_that_ended_since_the_check_reads_as_not_available", async () => {
     viewer.portfolio.mockResolvedValue(null);
+    viewer.whyDenied.mockResolvedValue({ reason: "not_subscribed" });
     const page = await open(KADIKOY.propertyId);
-    expect(page.props.title).toBe("notEntitledTitle");
+    expect(page.type).toBe(ScreenDenied);
+    expect(page.props.denial).toEqual({ reason: "not_subscribed" });
   });
 
   it("the_figures_are_stamped_in_the_working_propertys_own_zone", async () => {
     viewer.portfolio.mockResolvedValue(aPortfolio([aProperty(), aProperty()]));
     const page = await open(KADIKOY.propertyId);
-    // 09:30Z is 12:30 in Istanbul.
-    expect(page.props.asOf).toBe('portfolio.asOf {"time":"12:30"}');
+    // 09:30Z is 12:30 in Istanbul, and the day and the zone are said with it:
+    // a tab left open overnight must not show yesterday at a plausible hour
+    // (PORTFOLIO-05).
+    expect(page.props.asOf).toMatch(
+      /^portfolio\.asOf \{"when":"Sep 16, 2026, 12:30 · [^"]+"\}$/,
+    );
+  });
+
+  it("passes the order and the shape asked for, and falls back to name and cards", async () => {
+    viewer.portfolio.mockResolvedValue(aPortfolio([aProperty(), aProperty()]));
+    const asked = await open(KADIKOY.propertyId, {
+      sort: "occupancy",
+      view: "table",
+    });
+    expect(asked.props).toMatchObject({ sort: "occupancy", view: "table" });
+    const nonsense = await open(KADIKOY.propertyId, {
+      sort: "colour",
+      view: "wall",
+    });
+    expect(nonsense.props).toMatchObject({ sort: "name", view: "cards" });
   });
 });

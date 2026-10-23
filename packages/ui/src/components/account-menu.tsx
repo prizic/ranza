@@ -23,7 +23,7 @@ function initials(name: string, email: string, locale: string): string {
 }
 
 const CARD =
-  "flex w-full items-center gap-2.5 overflow-hidden rounded-xl border border-white/50 bg-secondary/30 p-1.5 text-start select-none lg:gap-3 lg:rounded-2xl lg:p-2";
+  "flex w-full items-center gap-2.5 overflow-hidden rounded-xl border border-frame-line bg-frame-hover p-1.5 text-start select-none lg:gap-3 lg:rounded-2xl lg:p-2";
 
 /**
  * The account control, in Leaders' two forms: the card at the foot of the
@@ -64,14 +64,14 @@ export function AccountMenu({
   const identity = (
     <div className="flex min-w-0 flex-1 flex-col py-0.5">
       <span
-        className="truncate text-sm leading-tight font-medium text-foreground/90 xl:text-[15px]"
+        className="truncate text-sm leading-tight font-medium text-on-frame xl:text-[15px]"
         dir={showEmail ? undefined : "ltr"}
       >
         {name || email}
       </span>
       {showEmail ? (
         <span
-          className="mt-0.5 truncate text-[11px] text-muted-foreground opacity-80 lg:text-xs"
+          className="mt-0.5 truncate text-[11px] text-on-frame-muted lg:text-xs"
           dir="ltr"
         >
           {email}
@@ -103,20 +103,25 @@ export function AccountMenu({
           aria-label={label}
           className={cn(
             CARD,
-            "group cursor-pointer transition-all duration-300 hover:bg-white/60 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+            "group cursor-pointer transition-colors duration-300 hover:bg-frame-active focus-visible:ring-2 focus-visible:ring-on-frame focus-visible:outline-none",
           )}
         >
           <Initials letters={letters} size="md" />
           {identity}
           <ChevronsUpDown
             aria-hidden="true"
-            className="size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground"
+            className="size-4 shrink-0 text-on-frame-muted transition-colors group-hover:text-on-frame"
           />
         </DropdownMenuTrigger>
       ) : (
         <DropdownMenuTrigger
           aria-label={label}
-          className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none md:size-9"
+          className={cn(
+            "inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none md:size-9",
+            inSidebar
+              ? "focus-visible:ring-on-frame"
+              : "focus-visible:ring-ring",
+          )}
         >
           <Initials letters={letters} size="sm" />
         </DropdownMenuTrigger>

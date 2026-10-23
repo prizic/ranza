@@ -63,7 +63,7 @@ export type ScopeFilter = Omit<ScopeQuery, "limit"> & { limit?: number };
  *
  * Empty when the acting user cannot reach the scope — the same answer as
  * "nothing has happened", and deliberately so. An id that is not a uuid in
- * `locationId`, `actorIds` or `subjectIds` narrows to nothing rather than
+ * `locationId`, `actorIds`, `subjectIds` or `onlySubjectIds` narrows to nothing rather than
  * raising, because those arrive from a URL somebody can edit.
  */
 export async function recentWithin(
@@ -80,6 +80,7 @@ export async function recentWithin(
     ...filter,
     actorIds: uuids(filter.actorIds),
     subjectIds: uuids(filter.subjectIds),
+    onlySubjectIds: uuids(filter.onlySubjectIds),
     limit: bounded(filter.limit ?? DEFAULT_LIMIT),
   });
 }

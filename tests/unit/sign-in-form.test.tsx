@@ -67,7 +67,13 @@ const apps: {
   },
   {
     name: "the Guest Portal",
-    Form: PortalSignInForm,
+    // The Portal also links to where a guest who cannot sign in is helped.
+    Form: ({ redirectTo }: { redirectTo: string }) => (
+      <PortalSignInForm
+        forgotHref="/en/forgot-password"
+        redirectTo={redirectTo}
+      />
+    ),
     messages: portalMessages as never,
   },
 ];

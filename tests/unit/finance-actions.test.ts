@@ -83,7 +83,7 @@ describe("an amount typed on the Finance screen (FO-S2-05)", () => {
     ["١٢,٥٠", "TRY", 1250],
     ["۱۲۵", "JPY", 125],
     ["12.5", "TRY", 1250],
-    ["1,250", "KWD", 1250],
+    ["1.250", "KWD", 1250],
   ])("%s %s is %i minor units", async (typed, currency, minor) => {
     await expect(
       finance.postCharge("idle", charge(typed, currency)),
@@ -96,19 +96,78 @@ describe("an amount typed on the Finance screen (FO-S2-05)", () => {
   });
 
   it.each([
-    ["12.505", "TRY"],
-    ["12.5", "JPY"],
-    ["12abc", "TRY"],
-    ["", "TRY"],
+    ["12.505", "TRY", "amountDecimals"],
+    ["12.5", "JPY", "amountDecimals"],
+    ["12abc", "TRY", "amountFormat"],
+    ["", "TRY", "amountFormat"],
+    ["9999999999999", "TRY", "amountSize"],
+    ["0", "TRY", "amountZero"],
   ])(
-    "%s %s is not an amount, and nothing is posted",
-    async (typed, currency) => {
+    "%s %s is not an amount, says why, and nothing is posted",
+    async (typed, currency, outcome) => {
       await expect(
         finance.postCharge("idle", charge(typed, currency)),
-      ).resolves.toBe("invalid");
+      ).resolves.toBe(outcome);
       expect(postCharge).not.toHaveBeenCalled();
     },
   );
+
+  it("FIN-04: reads the grouping of the language the amount was typed in", async () => {
+    await expect(
+      finance.postCharge(
+        "idle",
+        form({
+          locale: "tr",
+          folio: FOLIO,
+          description: "Minibar",
+          currency: "TRY",
+          amount: "1.250,00",
+        }),
+      ),
+    ).resolves.toBe("done");
+    await expect(
+      finance.postCharge(
+        "idle",
+        form({
+          locale: "en",
+          folio: FOLIO,
+          description: "Minibar",
+          currency: "TRY",
+          amount: "1,250.00",
+        }),
+      ),
+    ).resolves.toBe("done");
+    expect(postCharge).toHaveBeenNthCalledWith(1, VIEWER, {
+      amountMinor: 125000,
+      description: "Minibar",
+      folioId: FOLIO,
+    });
+    expect(postCharge).toHaveBeenNthCalledWith(2, VIEWER, {
+      amountMinor: 125000,
+      description: "Minibar",
+      folioId: FOLIO,
+    });
+  });
+
+  it.each([
+    ["", "descriptionRequired"],
+    ["   ", "descriptionRequired"],
+    ["x".repeat(201), "descriptionTooLong"],
+  ])("a description of %j is refused as %s", async (description, outcome) => {
+    await expect(
+      finance.postCharge(
+        "idle",
+        form({
+          locale: "en",
+          folio: FOLIO,
+          description,
+          currency: "TRY",
+          amount: "5",
+        }),
+      ),
+    ).resolves.toBe(outcome);
+    expect(postCharge).not.toHaveBeenCalled();
+  });
 
   it("posts a payment with valid payment method", async () => {
     await expect(
@@ -122,12 +181,15 @@ describe("an amount typed on the Finance screen (FO-S2-05)", () => {
     });
   });
 
-  it("rejects an invalid payment method", async () => {
-    await expect(
-      finance.postPayment("idle", payment("50", "bitcoin", "TRY")),
-    ).resolves.toBe("invalid");
-    expect(postPayment).not.toHaveBeenCalled();
-  });
+  it.each(["bitcoin", ""])(
+    "FIN-06: a payment method of %j is asked for, not defaulted",
+    async (method) => {
+      await expect(
+        finance.postPayment("idle", payment("50", method, "TRY")),
+      ).resolves.toBe("methodRequired");
+      expect(postPayment).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("what a failed action says (FO-S9-04)", () => {
@@ -173,15 +235,27 @@ describe("what a failed action says (FO-S9-04)", () => {
     });
   }
 
-  it("an amount the viewer can fix is invalid, not refused", async () => {
-    reverseLine.mockRejectedValue(new FolioAmountError("too short"));
-    await expect(
-      finance.reverseLine(
-        "idle",
-        form({ locale: "en", line: LINE, reason: "x" }),
-      ),
-    ).resolves.toBe("invalid");
-    expect(logged).not.toHaveBeenCalled();
+  it.each([
+    ["x", "reasonTooShort"],
+    ["  ab  ", "reasonTooShort"],
+    ["x".repeat(201), "reasonTooLong"],
+  ])(
+    "a reversal reason of %j is something the viewer can fix: %s",
+    async (reason, outcome) => {
+      await expect(
+        finance.reverseLine("idle", form({ locale: "en", line: LINE, reason })),
+      ).resolves.toBe(outcome);
+      expect(reverseLine).not.toHaveBeenCalled();
+      expect(logged).not.toHaveBeenCalled();
+    },
+  );
+
+  it("an amount error the module raises after our own checks is a defect, recorded", async () => {
+    postCharge.mockRejectedValue(new FolioAmountError("slipped through"));
+    await expect(finance.postCharge("idle", charge("5"))).resolves.toBe(
+      "refused",
+    );
+    expect(logged).toHaveBeenCalled();
   });
 });
 

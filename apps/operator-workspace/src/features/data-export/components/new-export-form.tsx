@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Download, FileJson, FileSpreadsheet, Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useState, type FormEvent } from "react";
+import { Download, Loader2, TriangleAlert } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Card,
@@ -11,250 +12,260 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Checkbox,
+  DateRangeField,
+  Field,
 } from "@ranza/ui";
+import { requestDataExportAction } from "../../../server/data-export";
 import {
-  EXPORT_RESOURCE_TYPES,
+  holdsPersonalData,
+  inCatalogueOrder,
+  rangeCutsAny,
+  rangePresets,
+} from "../helpers";
+import {
+  EXPORT_RETENTION_DAYS,
+  type ExportAbilities,
   type ExportFormat,
+  type ExportRange,
   type ExportResourceType,
 } from "../types";
-import { requestDataExportAction } from "../../../server/data-export";
+import { DatasetPicker } from "./dataset-picker";
+import { FormatPicker } from "./format-picker";
 
-interface NewExportFormProps {
-  locale: string;
-  propertyId: string;
-  onSuccess?: () => void;
+/** What the form starts with: nothing, or a request being made again. */
+export interface ExportDraft {
+  resources: ExportResourceType[];
+  format: ExportFormat;
+  range: ExportRange | null;
 }
 
 export function NewExportForm({
-  locale,
+  abilities,
+  draft,
+  onCancel,
+  onRequested,
+  organization,
   propertyId,
-  onSuccess,
-}: NewExportFormProps) {
+  timezone,
+  today,
+}: {
+  abilities: ExportAbilities;
+  draft: ExportDraft;
+  onCancel: () => void;
+  onRequested: () => void;
+  organization: string;
+  propertyId: string;
+  timezone: string;
+  /** The Property's own day, `YYYY-MM-DD`. */
+  today: string;
+}) {
   const t = useTranslations("dataExport");
+  const permissions = useTranslations("staff.permissions");
+  const locale = useLocale() as SupportedLocale;
+  const [resources, setResources] = useState<ExportResourceType[]>(
+    draft.resources.filter((dataset) => abilities.datasets[dataset]),
+  );
+  const [format, setFormat] = useState<ExportFormat>(draft.format);
+  const [range, setRange] = useState<{ from?: string; to?: string }>({
+    ...(draft.range?.from ? { from: draft.range.from } : {}),
+    ...(draft.range?.to ? { to: draft.range.to } : {}),
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
-  const getDatasetLabel = (res: ExportResourceType): string => {
-    switch (res) {
-      case "residents_guests":
-        return t("datasets.residents_guests");
-      case "reservations_stays":
-        return t("datasets.reservations_stays");
-      case "rooms_beds":
-        return t("datasets.rooms_beds");
-      case "folios_payments":
-        return t("datasets.folios_payments");
-      case "audit_log":
-        return t("datasets.audit_log");
-    }
-  };
+  const chosen = inCatalogueOrder(resources);
+  const ranged = Boolean(range.from || range.to);
+  const presets = rangePresets(today);
 
-  const getDatasetDescription = (res: ExportResourceType): string => {
-    switch (res) {
-      case "residents_guests":
-        return t("datasetDescriptions.residents_guests");
-      case "reservations_stays":
-        return t("datasetDescriptions.reservations_stays");
-      case "rooms_beds":
-        return t("datasetDescriptions.rooms_beds");
-      case "folios_payments":
-        return t("datasetDescriptions.folios_payments");
-      case "audit_log":
-        return t("datasetDescriptions.audit_log");
-    }
-  };
-  const [selectedResources, setSelectedResources] = useState<
-    ExportResourceType[]
-  >(["residents_guests", "reservations_stays"]);
-  const [format, setFormat] = useState<ExportFormat>("csv");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-
-  const toggleResource = (res: ExportResourceType) => {
-    setSelectedResources((prev) =>
-      prev.includes(res) ? prev.filter((r) => r !== res) : [...prev, res],
-    );
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedResources.length === 0) return;
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setProblem(null);
     try {
-      const res = await requestDataExportAction(locale, propertyId, {
-        resourceTypes: selectedResources,
+      const result = await requestDataExportAction(locale, propertyId, {
+        resourceTypes: chosen,
         format,
+        range: ranged
+          ? { from: range.from ?? null, to: range.to ?? null }
+          : null,
       });
-
-      if (res.status === "done") {
-        setFeedback({ type: "success", message: t("requestSuccess") });
-        if (onSuccess) {
-          setTimeout(onSuccess, 1000);
-        }
-      } else {
-        setFeedback({
-          type: "error",
-          message:
-            res.status === "refused" ? t("requestRefused") : t("requestFailed"),
-        });
+      switch (result.status) {
+        case "done":
+          onRequested();
+          return;
+        case "refused":
+          setProblem(
+            !abilities.mayCreate || result.datasets.length === 0
+              ? t("cannotRequest", {
+                  permission: permissions("createDataExports"),
+                })
+              : t("refusedDatasets", {
+                  datasets: result.datasets
+                    .map((dataset) => t(`datasets.${dataset}`))
+                    .join(", "),
+                }),
+          );
+          return;
+        case "invalid":
+          setProblem(t(`invalid.${result.problem}`));
+          return;
+        default:
+          setProblem(t("requestFailed"));
       }
-    } catch {
-      setFeedback({ type: "error", message: t("requestFailed") });
+    } catch (error) {
+      console.error("data_export.request_threw", error);
+      setProblem(t("requestFailed"));
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <Card className="border-border max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg font-semibold text-foreground">
+    <Card className="max-w-3xl">
+      <form onSubmit={submit}>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
             {t("newExportTitle")}
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            {t("newExportDescription")}
+          <CardDescription>
+            {t("newExportDescription", { organization })}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 p-4 sm:p-6 sm:pt-0">
-          {/* Datasets Selection */}
-          <div className="space-y-3">
-            <div>
-              <h3 className="text-sm font-medium text-foreground">
-                {t("datasetsTitle")}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {t("datasetsDescription")}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {EXPORT_RESOURCE_TYPES.map((res) => {
-                const isChecked = selectedResources.includes(res);
-                return (
-                  <label
-                    key={res}
-                    className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-colors ${
-                      isChecked
-                        ? "border-emerald-600 bg-emerald-50/50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => toggleResource(res)}
-                      className="mt-0.5"
-                    />
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium leading-none block text-foreground">
-                        {getDatasetLabel(res)}
-                      </span>
-                      <p className="text-xs text-muted-foreground leading-normal">
-                        {getDatasetDescription(res)}
-                      </p>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Format Selection */}
-          <div className="space-y-3 pt-2">
-            <div>
-              <h3 className="text-sm font-medium text-foreground">
-                {t("formatTitle")}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {t("formatDescription")}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <label
-                className={`flex items-center gap-3 p-3.5 rounded-lg border cursor-pointer transition-colors ${
-                  format === "csv"
-                    ? "border-emerald-600 bg-emerald-50/50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                    : "border-border hover:bg-muted/50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="format"
-                  value="csv"
-                  checked={format === "csv"}
-                  onChange={() => setFormat("csv")}
-                  className="sr-only"
-                />
-                <FileSpreadsheet className="size-5 text-emerald-600 dark:text-emerald-400" />
-                <div>
-                  <span className="text-sm font-medium block text-foreground">
-                    {t("formats.csv.title")}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {t("formats.csv.hint")}
-                  </span>
-                </div>
-              </label>
-
-              <label
-                className={`flex items-center gap-3 p-3.5 rounded-lg border cursor-pointer transition-colors ${
-                  format === "json"
-                    ? "border-emerald-600 bg-emerald-50/50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                    : "border-border hover:bg-muted/50"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="format"
-                  value="json"
-                  checked={format === "json"}
-                  onChange={() => setFormat("json")}
-                  className="sr-only"
-                />
-                <FileJson className="size-5 text-amber-600 dark:text-amber-400" />
-                <div>
-                  <span className="text-sm font-medium block text-foreground">
-                    {t("formats.json.title")}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {t("formats.json.hint")}
-                  </span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          {feedback && (
-            <div
-              className={`p-3 rounded-md text-sm ${
-                feedback.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800"
-                  : "bg-destructive/15 text-destructive border border-destructive/30"
-              }`}
+        <CardContent className="grid gap-6">
+          {abilities.mayCreate ? (
+            <p className="text-sm text-muted-foreground">
+              {t("scope", { organization })}
+            </p>
+          ) : (
+            <p
+              className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
+              role="note"
             >
-              {feedback.message}
-            </div>
+              <TriangleAlert
+                aria-hidden="true"
+                className="mt-0.5 size-4 shrink-0"
+              />
+              {t("cannotRequest", {
+                permission: permissions("createDataExports"),
+              })}
+            </p>
           )}
+
+          <div className="grid gap-2">
+            <DatasetPicker
+              abilities={abilities}
+              idPrefix="export-dataset"
+              onChange={setResources}
+              value={resources}
+            />
+            <p className="text-xs text-muted-foreground">{t("notIncluded")}</p>
+          </div>
+
+          <div className="grid gap-2">
+            <Field htmlFor="export-period" label={t("rangeTitle")}>
+              <DateRangeField
+                defaultValue={{ from: range.from, to: range.to }}
+                id="export-period"
+                labels={{
+                  from: t("rangeFrom"),
+                  to: t("rangeTo"),
+                  emptyFrom: t("rangeEmptyFrom"),
+                  emptyTo: t("rangeEmptyTo"),
+                  pickFrom: t("rangePickFrom"),
+                  pickTo: t("rangePickTo"),
+                  clear: t("rangeClear"),
+                  done: t("rangeDone"),
+                  // Both ends are included: the 3rd to the 5th is three days.
+                  span: (days) => t("rangeSpan", { count: days + 1 }),
+                }}
+                locale={locale}
+                names={{ from: "from", to: "to" }}
+                onChange={setRange}
+                presets={[
+                  { label: t("presetLast30"), ...presets.last30 },
+                  { label: t("presetThisMonth"), ...presets.thisMonth },
+                  { label: t("presetLastMonth"), ...presets.lastMonth },
+                  { label: t("presetThisYear"), ...presets.thisYear },
+                ]}
+                today={today}
+              />
+            </Field>
+            <p className="text-xs text-muted-foreground">
+              {t("rangeDescription")}
+            </p>
+            {ranged && chosen.length > 0 && !rangeCutsAny(chosen) ? (
+              <p className="text-xs text-foreground" role="status">
+                {t("rangeMoot")}
+              </p>
+            ) : null}
+            {ranged && chosen.includes("audit_log") ? (
+              <p className="text-xs text-muted-foreground">
+                {t("rangeClock", { timezone })}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2">
+            <FormatPicker
+              idPrefix="export"
+              onChange={setFormat}
+              value={format}
+            />
+            {format === "csv" && chosen.length > 1 ? (
+              <p
+                className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
+                role="note"
+              >
+                <TriangleAlert
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 shrink-0"
+                />
+                {t("stackedWarning")}
+              </p>
+            ) : null}
+            <p className="text-xs text-muted-foreground">{t("columnsNote")}</p>
+          </div>
+
+          {chosen.length > 0 ? (
+            <div
+              className="grid gap-1 rounded-lg border bg-muted/40 p-3 text-sm"
+              role="note"
+            >
+              {holdsPersonalData(chosen) ? (
+                <p className="font-medium">{t("personalData")}</p>
+              ) : null}
+              <p className="text-muted-foreground">
+                {t("whoCanDownload", { days: EXPORT_RETENTION_DAYS })}
+              </p>
+            </div>
+          ) : null}
+
+          {problem ? (
+            <p
+              className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              {problem}
+            </p>
+          ) : null}
         </CardContent>
-        <CardFooter className="p-4 sm:p-6 sm:pt-0 flex justify-end">
+        <CardFooter className="flex flex-wrap justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="ghost">
+            {t("cancel")}
+          </Button>
           <Button
+            disabled={submitting || !abilities.mayCreate || chosen.length === 0}
             type="submit"
-            disabled={isSubmitting || selectedResources.length === 0}
-            className="gap-2 bg-emerald-700 hover:bg-emerald-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
           >
-            {isSubmitting ? (
+            {submitting ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>{t("requesting")}</span>
+                <Loader2 aria-hidden="true" className="animate-spin" />
+                {t("requesting")}
               </>
             ) : (
               <>
-                <Download className="size-4" />
-                <span>{t("requestButton")}</span>
+                <Download aria-hidden="true" />
+                {t("requestButton")}
               </>
             )}
           </Button>

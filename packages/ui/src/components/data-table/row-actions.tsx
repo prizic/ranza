@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -29,7 +30,8 @@ export function DataTableRowActions({
   label,
 }: {
   actions: readonly RowAction[];
-  /** Accessible name for the trigger. Localized by the caller. */
+  /** Names the trigger, and heads the open menu. Localized by the caller, and
+      says whose row it is: "Actions for 101". */
   label: string;
 }) {
   const safe = actions.filter((action) => !action.destructive);
@@ -40,7 +42,7 @@ export function DataTableRowActions({
       <DropdownMenuTrigger asChild>
         <Button
           aria-label={label}
-          className="size-8 text-muted-foreground data-[state=open]:bg-muted"
+          className="size-8 text-muted-foreground pointer-coarse:size-11 data-[state=open]:bg-muted"
           size="icon"
           variant="ghost"
         >
@@ -48,6 +50,13 @@ export function DataTableRowActions({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-40">
+        {/* Names whose actions these are. A menu opened from a pinned cell sits
+            beside none of the row's other cells, and on a phone the row may
+            have scrolled out from under it (HK-01). */}
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+          {label}
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
         {safe.map((action) => (
           <DropdownMenuItem key={action.label} onSelect={action.onSelect}>
             <action.icon className="size-4" />

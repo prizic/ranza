@@ -1,8 +1,8 @@
 /**
  * Analytics against a real database (docs/features/analytics, slices 1 to 3).
  *
- * Every test here calls the query — `getPropertyAnalytics` for the trailing
- * ranges, `getMonthReport` for a month — as `ranza_app` under the policies.
+ * Every test here calls the query — `getWindowReport` for the trailing
+ * windows, `getMonthReport` for a month — as `ranza_app` under the policies.
  * The first version of the slice-1 tests restated the formulas inline and never
  * called anything (AN-DIFF-06), so none of them could fail. Who reaches a
  * Property, whether the Organization bought analytics, whether a viewer may
@@ -118,10 +118,11 @@ import {
   buildMonthReport,
   getDayDetail,
   getMonthReport,
-  getPropertyAnalytics,
+  getWindowReport,
   resolveAnalyticsView,
   type DayDetail,
   type MonthReport,
+  type WindowReport,
 } from "../../apps/operator-workspace/src/server/analytics";
 import {
   addDays,
@@ -528,12 +529,12 @@ async function month(
 }
 
 async function trailing(userId: string, property: Property, range: string) {
-  const analytics = await getPropertyAnalytics(userId, property.id, range);
+  const analytics = await getWindowReport(userId, property.id, range);
   expect(analytics).not.toBeNull();
   return analytics!;
 }
 
-function figures(report: MonthReport) {
+function figures(report: MonthReport | WindowReport) {
   expect(report.figures).not.toBeNull();
   return report.figures!;
 }
@@ -1172,15 +1173,15 @@ afterAll(async () => {
 
 // -- slice 1: the trailing ranges -------------------------------------------
 
-describe("the trailing ranges, run through the query", () => {
+describe("the trailing windows, run through the query", () => {
   it(
     "unentitled_viewer_sees_empty_state",
     async () => {
       expect(
-        await getPropertyAnalytics(FINANCE_USER, uncapable.id, "7d"),
+        await getWindowReport(FINANCE_USER, uncapable.id, "7d"),
       ).toBeNull();
       expect(
-        await getPropertyAnalytics(FINANCE_USER, trail.id, "7d"),
+        await getWindowReport(FINANCE_USER, trail.id, "7d"),
       ).not.toBeNull();
     },
     BUDGET_MS,
@@ -1189,38 +1190,35 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "cross_organization_analytics_isolated",
     async () => {
-      expect(await getPropertyAnalytics(OUTSIDER, trail.id, "7d")).toBeNull();
-      expect(
-        await getPropertyAnalytics(FINANCE_USER, foreign.id, "7d"),
-      ).toBeNull();
-      expect(
-        await getPropertyAnalytics(OUTSIDER, foreign.id, "7d"),
-      ).not.toBeNull();
+      expect(await getWindowReport(OUTSIDER, trail.id, "7d")).toBeNull();
+      expect(await getWindowReport(FINANCE_USER, foreign.id, "7d")).toBeNull();
+      expect(await getWindowReport(OUTSIDER, foreign.id, "7d")).not.toBeNull();
     },
     BUDGET_MS,
   );
 
   it(
-    "zero_units_produces_zero_occupancy",
+    "zero_units_produces_no_occupancy_figure_and_not_a_zero",
     async () => {
-      const analytics = await trailing(FINANCE_USER, zero, "7d");
-      expect(analytics.totalSellableUnits).toBe(0);
-      expect(analytics.availableRoomNights).toBe(0);
-      expect(analytics.occupancyRatePercent).toBe(0);
+      // A Property that has never had a Stay has nothing to report: not an
+      // occupancy of zero (ANALYTICS-10).
+      const report = await trailing(FINANCE_USER, zero, "7d");
+      expect(report.state).toBe("no_activity");
+      expect(report.figures).toBeNull();
+      expect(report.daysBeforeOpening).toBe(report.days.length);
     },
     BUDGET_MS,
   );
 
   it(
-    "zero_stays_produces_zero_adr_revpar",
+    "zero_stays_produces_no_adr_revpar_and_not_a_zero",
     async () => {
-      const analytics = await trailing(FINANCE_USER, quiet, "7d");
-      // Two units over the six closed days of the window.
-      expect(analytics.availableRoomNights).toBe(12);
-      expect(analytics.occupiedRoomNights).toBe(0);
-      expect(analytics.adrMinor).toBe(0);
-      expect(analytics.revParMinor).toBe(0);
-      expect(analytics.occupancyRatePercent).toBe(0);
+      const report = await trailing(FINANCE_USER, quiet, "7d");
+      expect(report.state).toBe("no_activity");
+      expect(report.figures).toBeNull();
+      expect(report.days.every((day) => day.occupancyPercent === null)).toBe(
+        true,
+      );
     },
     BUDGET_MS,
   );
@@ -1228,9 +1226,9 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "reversals_subtracted_from_revenue",
     async () => {
-      const analytics = await trailing(FINANCE_USER, revp, "7d");
+      const report = await trailing(FINANCE_USER, revp, "7d");
       // 2 x 10000 charged, one reversed.
-      expect(analytics.roomRevenueMinor).toBe(10000);
+      expect(figures(report).roomRevenue?.netMinor).toBe(10000);
     },
     BUDGET_MS,
   );
@@ -1238,9 +1236,9 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "reversals_subtracted_from_payments",
     async () => {
-      const analytics = await trailing(FINANCE_USER, revp, "7d");
-      expect(analytics.paymentsByMethod?.cashMinor).toBe(0);
-      expect(analytics.netPaymentsMinor).toBe(6000);
+      const report = await trailing(FINANCE_USER, revp, "7d");
+      expect(figures(report).payments?.cashMinor).toBe(0);
+      expect(figures(report).collectedMinor).toBe(6000);
     },
     BUDGET_MS,
   );
@@ -1248,8 +1246,8 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "payment_methods_aggregated_accurately",
     async () => {
-      const analytics = await trailing(FINANCE_USER, revp, "7d");
-      expect(analytics.paymentsByMethod).toEqual({
+      const report = await trailing(FINANCE_USER, revp, "7d");
+      expect(figures(report).payments).toEqual({
         cashMinor: 0,
         cardMinor: 3000,
         bankTransferMinor: 2000,
@@ -1263,12 +1261,12 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "viewer_with_permission_sees_financials",
     async () => {
-      const analytics = await trailing(FINANCE_USER, revp, "7d");
-      expect(analytics.mayReadMoney).toBe(true);
-      expect(analytics.roomRevenueMinor).toBe(10000);
+      const report = await trailing(FINANCE_USER, revp, "7d");
+      expect(report.mayReadMoney).toBe(true);
+      expect(figures(report).roomRevenue?.netMinor).toBe(10000);
       // 10000 over the two charged guest nights, and over six available nights.
-      expect(analytics.adrMinor).toBe(5000);
-      expect(analytics.revParMinor).toBe(1667);
+      expect(figures(report).adrMinor).toBe(5000);
+      expect(figures(report).revParMinor).toBe(1667);
     },
     BUDGET_MS,
   );
@@ -1276,23 +1274,23 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "viewer_without_permission_sees_no_financials",
     async () => {
-      const analytics = await trailing(HOUSEKEEPER, revp, "7d");
-      expect(analytics.mayReadMoney).toBe(false);
-      expect(analytics.occupiedRoomNights).toBe(2);
+      const report = await trailing(HOUSEKEEPER, revp, "7d");
+      expect(report.mayReadMoney).toBe(false);
+      expect(figures(report).occupiedNights).toBe(2);
       for (const money of [
-        analytics.roomRevenueMinor,
-        analytics.otherRevenueMinor,
-        analytics.totalRevenueMinor,
-        analytics.adrMinor,
-        analytics.revParMinor,
-        analytics.netPaymentsMinor,
-        analytics.paymentsByMethod,
+        figures(report).roomRevenue,
+        figures(report).otherRevenueMinor,
+        figures(report).totalRevenueMinor,
+        figures(report).adrMinor,
+        figures(report).revParMinor,
+        figures(report).collectedMinor,
+        figures(report).payments,
       ]) {
         expect(money).toBeNull();
       }
-      expect(
-        analytics.dailySeries.every((day) => day.roomRevenueMinor === null),
-      ).toBe(true);
+      expect(report.days.every((day) => day.roomRevenueMinor === null)).toBe(
+        true,
+      );
     },
     BUDGET_MS,
   );
@@ -1310,11 +1308,11 @@ describe("the trailing ranges, run through the query", () => {
       const utcToday = new Date().toISOString().slice(0, 10);
       const dates: string[] = [];
       for (const property of [behind, ahead]) {
-        const analytics = await trailing(FINANCE_USER, property, "today");
-        expect(analytics.today).toBe(property.today);
-        expect(analytics.endDate).toBe(property.today);
-        expect(analytics.startDate).toBe(property.today);
-        dates.push(analytics.today);
+        const report = await trailing(FINANCE_USER, property, "today");
+        expect(report.today).toBe(property.today);
+        expect(report.endDate).toBe(property.today);
+        expect(report.startDate).toBe(property.today);
+        dates.push(report.today);
       }
       expect(dates.some((date) => date !== utcToday)).toBe(true);
     },
@@ -1324,10 +1322,11 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "trailing_week_window_computed",
     async () => {
-      const analytics = await trailing(FINANCE_USER, trail, "7d");
-      expect(analytics.startDate).toBe(addDays(trail.today, -6));
-      expect(analytics.endDate).toBe(trail.today);
-      expect(analytics.dailySeries).toHaveLength(7);
+      const report = await trailing(FINANCE_USER, trail, "7d");
+      expect(report.startDate).toBe(addDays(trail.today, -6));
+      expect(report.endDate).toBe(trail.today);
+      expect(report.days).toHaveLength(7);
+      expect(report.state).toBe("in_progress");
     },
     BUDGET_MS,
   );
@@ -1335,24 +1334,38 @@ describe("the trailing ranges, run through the query", () => {
   it(
     "trailing_month_window_computed",
     async () => {
-      const analytics = await trailing(FINANCE_USER, trail, "30d");
-      expect(analytics.startDate).toBe(addDays(trail.today, -29));
-      expect(analytics.endDate).toBe(trail.today);
-      expect(analytics.dailySeries).toHaveLength(30);
+      const report = await trailing(FINANCE_USER, trail, "30d");
+      expect(report.startDate).toBe(addDays(trail.today, -29));
+      expect(report.endDate).toBe(trail.today);
+      expect(report.days).toHaveLength(30);
     },
     BUDGET_MS,
   );
 
   it(
-    "month_to_date_window_computed",
+    "a_window_and_the_month_say_the_same_thing_of_the_same_day",
     async () => {
-      const analytics = await trailing(FINANCE_USER, trail, "mtd");
+      // One definition: the window's row for today is the month's row for
+      // today, and the window of today alone is the month's figure for it.
+      const window = await trailing(FINANCE_USER, trail, "today");
+      const report = await month(FINANCE_USER, trail);
+      const row = report.days.find((day) => day.date === trail.today)!;
+      expect(window.days).toHaveLength(1);
+      expect(window.days[0]).toEqual(row);
+      expect(figures(window).occupancyPercent).toBe(row.occupancyPercent);
+      // And the month counts every day so far, today included.
       const elapsed = Number(trail.today.slice(8, 10));
-      expect(analytics.startDate).toBe(monthStart(monthOf(trail.today)));
-      expect(analytics.endDate).toBe(trail.today);
-      expect(analytics.dailySeries).toHaveLength(elapsed);
-      // Amended by AN-S2-04: its figures cover the closed days, not today.
-      expect(analytics.daysClosed).toBe(elapsed - 1);
+      expect(report.daysClosed).toBe(elapsed - 1);
+      expect(report.daysCounted).toBe(elapsed);
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "mtd_is_the_current_month_and_not_a_window",
+    async () => {
+      const view = resolveAnalyticsView({ range: "mtd" });
+      expect(view).toEqual({ kind: "month", month: null });
     },
     BUDGET_MS,
   );
@@ -1367,14 +1380,14 @@ describe("what the first version got wrong, now run", () => {
       // AN-DIFF-01: a payment is stored negative and its reversal positive,
       // and the screen summed them as stored.
       const week = await trailing(FINANCE_USER, trail, "7d");
-      expect(week.paymentsByMethod).toEqual({
+      expect(figures(week).payments).toEqual({
         cashMinor: 10000,
         cardMinor: 4000,
         bankTransferMinor: 0,
         otherMinor: 0,
         totalMinor: 14000,
       });
-      expect(week.netPaymentsMinor).toBe(14000);
+      expect(figures(week).collectedMinor).toBe(14000);
 
       // AN-S2-13: 100.00 collected, 40.00 collected and reversed, by method,
       // each on the day it was posted, and every figure positive.
@@ -1412,8 +1425,8 @@ describe("what the first version got wrong, now run", () => {
       expect(cast?.differs).toBe(true);
 
       const week = await trailing(FINANCE_USER, trail, "7d");
-      expect(week.otherRevenueMinor).toBe(2000);
-      expect(week.paymentsByMethod?.cashMinor).toBe(10000);
+      expect(figures(week).otherRevenueMinor).toBe(2000);
+      expect(figures(week).payments?.cashMinor).toBe(10000);
 
       // AN-S2-12: the one way a date is computed, held in the source too.
       const source = readFileSync(
@@ -1432,8 +1445,10 @@ describe("what the first version got wrong, now run", () => {
       // AN-DIFF-03: D2 was created on T-3. The first version multiplied
       // today's two units by the days in the window.
       const week = await trailing(FINANCE_USER, trail, "7d");
-      // D1 on six closed days, D2 on T-3, T-2 and T-1.
-      expect(week.availableRoomNights).toBe(9);
+      // Over the days that have closed: D1 on six, D2 on T-3, T-2 and T-1.
+      expect(figures(week).closedAvailableNights).toBe(9);
+      // Over every day so far, tonight too: both units tonight.
+      expect(figures(week).availableNights).toBe(11);
 
       // AN-S2-08: A3 was created on the 20th of M1, a month of L days.
       const report = await month(FINANCE_USER, main, M1);
@@ -1452,24 +1467,27 @@ describe("what the first version got wrong, now run", () => {
   );
 
   it(
-    "open_day_excluded_from_rates",
+    "open_day_counts_in_occupancy_and_in_no_revenue",
     async () => {
       // AN-DIFF-04: G3 is in house tonight, and tonight is charged when the
-      // day closes. The first version counted the night and not the charge.
+      // day closes. The first version counted the night and not the charge;
+      // it now counts the night in occupancy, which needs no charge, and
+      // leaves it out of every figure that divides a charge (RANZ-52).
       const week = await trailing(FINANCE_USER, trail, "7d");
-      expect(week.occupiedRoomNights).toBe(4);
-      expect(week.availableRoomNights).toBe(9);
-      expect(week.roomRevenueMinor).toBe(42000);
-      expect(week.adrMinor).toBe(10500);
-      expect(week.revParMinor).toBe(4667);
-      expect(week.occupancyRatePercent).toBe(44.4);
-      const today = week.dailySeries.at(-1);
+      // Four closed nights and G3's tonight, of eleven available.
+      expect(figures(week).occupiedNights).toBe(5);
+      expect(figures(week).availableNights).toBe(11);
+      expect(figures(week).occupancyPercent).toBe(45.5);
+      expect(figures(week).roomRevenue?.netMinor).toBe(42000);
+      expect(figures(week).adrMinor).toBe(10500);
+      expect(figures(week).revParMinor).toBe(4667);
+      const today = week.days.at(-1);
       expect(today).toMatchObject({ date: trail.today, state: "open" });
       expect(today?.roomRevenueMinor).toBeNull();
 
       // AN-S2-05, in the month it falls in. B1 sleeps T-2 and T-1 (closed) and
-      // B1 and B2 sleep tonight (open); only the closed nights that fall in
-      // today's month count.
+      // B1 and B2 sleep tonight (open); the nights that fall in today's month
+      // are all occupancy, the closed ones alone are revenue.
       const t = open.today;
       const report = await month(FINANCE_USER, open);
       const closedNights = [-2, -1].filter(
@@ -1480,8 +1498,9 @@ describe("what the first version got wrong, now run", () => {
         state: "open",
         occupiedNights: 2,
       });
-      expect(figures(report).occupiedNights).toBe(closedNights);
-      expect(figures(report).availableNights).toBe(2 * daysClosed);
+      expect(figures(report).occupiedNights).toBe(closedNights + 2);
+      expect(figures(report).availableNights).toBe(2 * (daysClosed + 1));
+      expect(figures(report).closedAvailableNights).toBe(2 * daysClosed);
       expect(figures(report).adrMinor).toBe(closedNights > 0 ? 8000 : null);
       expect(figures(report).revParMinor).toBe(
         daysClosed > 0
@@ -1499,7 +1518,7 @@ describe("what the first version got wrong, now run", () => {
       // today. The first version dated the reversal by its own posting date and
       // took 10000 off a week that never held the night.
       const week = await trailing(FINANCE_USER, trail, "7d");
-      expect(week.roomRevenueMinor).toBe(42000);
+      expect(figures(week).roomRevenue?.netMinor).toBe(42000);
 
       // AN-S2-09: the 5th of M1 reversed today. M1 shows it gross, as a
       // correction and net, on the night's own date; today's month shows
@@ -1542,8 +1561,13 @@ describe("what the first version got wrong, now run", () => {
         night(tx, mutable, stay.folioId!, addDays(t, -3), 7000),
       );
       const after = await trailing(FINANCE_USER, mutable, "7d");
-      expect(after.roomRevenueMinor! - before.roomRevenueMinor!).toBe(7000);
-      expect(after.occupiedRoomNights).toBe(before.occupiedRoomNights);
+      expect(
+        after.figures!.roomRevenue!.netMinor -
+          before.figures!.roomRevenue!.netMinor,
+      ).toBe(7000);
+      expect(after.figures!.occupiedNights).toBe(
+        before.figures!.occupiedNights,
+      );
     },
     BUDGET_MS,
   );
@@ -1616,13 +1640,16 @@ describe("a month on the screen", () => {
     async () => {
       const report = await month(FINANCE_USER, open, M0);
       const elapsed = Number(open.today.slice(8, 10)) - 1;
-      expect(report.state).toBe("open");
+      expect(report.state).toBe("in_progress");
       expect(report.daysInMonth).toBe(daysInMonth(M0));
       expect(report.daysClosed).toBe(elapsed);
       expect(report.closedThrough).toBe(
         elapsed > 0 ? addDays(open.today, -1) : null,
       );
-      expect(figures(report).availableNights).toBe(2 * elapsed);
+      // Occupancy counts every day so far, today included; revenue's
+      // denominator only the closed days.
+      expect(figures(report).availableNights).toBe(2 * (elapsed + 1));
+      expect(figures(report).closedAvailableNights).toBe(2 * elapsed);
       expect(report.days.filter((day) => day.state === "closed")).toHaveLength(
         elapsed,
       );
@@ -1639,7 +1666,7 @@ describe("a month on the screen", () => {
     async () => {
       // Today's month against M1, day for day as far as it has got.
       const report = await month(FINANCE_USER, main, M0);
-      expect(report.state).toBe("open");
+      expect(report.state).toBe("in_progress");
       expect(report.prior).toMatchObject({ month: M1, sameElapsedDays: true });
       const elapsed = report.daysClosed;
       // Each occupied Unit-night of M1 and what it earned net, by day of the
@@ -1655,13 +1682,18 @@ describe("a month on the screen", () => {
         [22, 0],
         [23, 0],
       ];
-      const inWindow = nights.filter(([day]) => day <= elapsed);
+      // Nights are compared over the days that have happened, today's number
+      // included; revenue over the days that have closed.
+      const dayNumber = elapsed + 1;
+      const nightsInWindow = nights.filter(([day]) => day <= dayNumber);
+      const closedInWindow = nights.filter(([day]) => day <= elapsed);
+      expect(report.prior?.figures?.occupiedNights).toBe(nightsInWindow.length);
       if (elapsed === 0) {
-        expect(report.prior?.figures).toBeNull();
+        // No day has closed: no revenue to compare, and so no revenue figure.
+        expect(report.prior?.figures?.roomRevenue).toBeNull();
       } else {
-        expect(report.prior?.figures?.occupiedNights).toBe(inWindow.length);
         expect(report.prior?.figures?.roomRevenue?.netMinor).toBe(
-          inWindow.reduce((sum, [, net]) => sum + net, 0),
+          closedInWindow.reduce((sum, [, net]) => sum + net, 0),
         );
       }
 
@@ -1875,16 +1907,9 @@ describe("a month on the screen", () => {
         kind: "month",
         month: M1,
       });
-      // And it is the same figure.
-      const range = await trailing(FINANCE_USER, open, "mtd");
+      // And the month it opens is the current one.
       const report = await month(FINANCE_USER, open);
       expect(report.month).toBe(monthOf(open.today));
-      expect(range.availableRoomNights).toBe(figures(report).availableNights);
-      expect(range.occupiedRoomNights).toBe(figures(report).occupiedNights);
-      expect(range.roomRevenueMinor).toBe(
-        figures(report).roomRevenue?.netMinor,
-      );
-      expect(range.netPaymentsMinor).toBe(figures(report).collectedMinor);
     },
     BUDGET_MS,
   );
@@ -2611,6 +2636,338 @@ describe("one day opened", () => {
         { isolationLevel?: string } | undefined;
       spy.mockRestore();
       expect(options?.isolationLevel).toBe("RepeatableRead");
+    },
+    BUDGET_MS,
+  );
+});
+
+// -- the 2026-10-11 audit: what a figure counts, and what it cannot know -----
+
+describe("what a period counts and when it is settled (ANALYTICS-01 to 05)", () => {
+  /**
+   * GAP: units G1 from the 3rd of last month, so the 1st and 2nd are before it
+   * opened. Closed from the 5th to the 10th; the rest of the month never was.
+   *   a closed stay  G1  6th to 8th    2 nights   10000, charged
+   *   an unclosed    G1  12th to 14th  2 nights   not charged: no close reached them
+   */
+  const gapMonth = async () => {
+    const gap = await newProperty();
+    const last = shiftMonth(monthOf(gap.today), -1);
+    const day = (n: number) => addDays(monthStart(last), n - 1);
+    const unit = await addUnit(gap, "G1", day(3));
+    await inReplica(async (tx) => {
+      await tx.$executeRawUnsafe(
+        `insert into public.business_day_closes
+           (organization_id, property_id, business_date, closed_by_job)
+         select $1::uuid, $2::uuid, d::date, 'test.fixture'
+           from generate_series($3::date, $4::date, interval '1 day') as d`,
+        gap.organization,
+        gap.id,
+        day(5),
+        day(10),
+      );
+      const closed = await addStay(tx, gap, unit, {
+        status: "departed",
+        from: day(6),
+        to: day(8),
+      });
+      await night(tx, gap, closed.folioId!, day(6), 10000);
+      await night(tx, gap, closed.folioId!, day(7), 10000);
+      await addStay(tx, gap, unit, {
+        status: "departed",
+        from: day(12),
+        to: day(14),
+      });
+    });
+    return { gap, last, day };
+  };
+
+  it(
+    "a_past_month_with_days_never_closed_is_incomplete_and_counts_only_days_since_opening",
+    async () => {
+      const { gap, last, day } = await gapMonth();
+      const report = await month(FINANCE_USER, gap, last);
+      expect(report.state).toBe("incomplete");
+      expect(report.daysClosed).toBe(6);
+      expect(report.daysBeforeOpening).toBe(2);
+      expect(report.daysCounted).toBe(daysInMonth(last) - 2);
+      expect(report.days[0]).toMatchObject({
+        date: day(1),
+        beforeOpening: true,
+        occupancyPercent: null,
+      });
+      expect(report.days[2]).toMatchObject({
+        date: day(3),
+        beforeOpening: false,
+      });
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "occupancy_counts_the_days_nobody_closed_and_revenue_does_not",
+    async () => {
+      const { gap, last } = await gapMonth();
+      const report = await month(FINANCE_USER, gap, last);
+      // Four nights slept, two of them on days no close reached.
+      expect(figures(report).occupiedNights).toBe(4);
+      expect(figures(report).availableNights).toBe(daysInMonth(last) - 2);
+      // Revenue and the nights it divides over are the closed days' only.
+      expect(figures(report).closedAvailableNights).toBe(6);
+      expect(figures(report).roomRevenue?.netMinor).toBe(20000);
+      expect(figures(report).chargedGuestNights).toBe(2);
+      expect(figures(report).revParMinor).toBe(Math.round(20000 / 6));
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "a_month_with_every_day_closed_is_closed_and_the_current_month_is_in_progress",
+    async () => {
+      expect((await month(FINANCE_USER, main, M1)).state).toBe("closed");
+      expect((await month(FINANCE_USER, main, M0)).state).toBe("in_progress");
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "the_days_waiting_are_what_the_close_the_day_screen_counts",
+    async () => {
+      // Close the day counts from the day after the last close, or yesterday
+      // when none has ever been made.
+      const never = await newProperty();
+      await inReplica(async (tx) => {
+        await addStay(tx, never, await addUnit(never, "W1"), {
+          status: "in_house",
+          from: addDays(never.today, -2),
+          to: addDays(never.today, 2),
+        });
+      });
+      expect((await trailing(FINANCE_USER, never, "7d")).daysWaiting).toBe(1);
+
+      const behind = await newProperty();
+      await inReplica(async (tx) => {
+        await addStay(tx, behind, await addUnit(behind, "W2"), {
+          status: "in_house",
+          from: addDays(behind.today, -6),
+          to: addDays(behind.today, 2),
+        });
+        await tx.$executeRawUnsafe(
+          `insert into public.business_day_closes
+             (organization_id, property_id, business_date, closed_by_job)
+           values ($1::uuid, $2::uuid, $3::date, 'test.fixture')`,
+          behind.organization,
+          behind.id,
+          addDays(behind.today, -4),
+        );
+      });
+      // Closed through T-4, so T-3, T-2 and T-1 wait.
+      expect((await trailing(FINANCE_USER, behind, "7d")).daysWaiting).toBe(3);
+
+      const current = await newProperty();
+      await closeBefore(current, 10);
+      await inReplica(async (tx) => {
+        await addStay(tx, current, await addUnit(current, "W3"), {
+          status: "in_house",
+          from: addDays(current.today, -2),
+          to: addDays(current.today, 2),
+        });
+      });
+      expect((await trailing(FINANCE_USER, current, "7d")).daysWaiting).toBe(0);
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "only_a_viewer_who_may_close_the_day_is_sent_to_close_it",
+    async () => {
+      expect((await trailing(HOUSEKEEPER, trail, "7d")).mayCloseDay).toBe(
+        false,
+      );
+      expect(
+        typeof (await trailing(FINANCE_USER, trail, "7d")).mayCloseDay,
+      ).toBe("boolean");
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "no_money_is_shown_while_no_day_has_closed_and_occupancy_still_is",
+    async () => {
+      const fresh = await newProperty();
+      await inReplica(async (tx) => {
+        const stay = await addStay(tx, fresh, await addUnit(fresh, "N1"), {
+          status: "in_house",
+          from: addDays(fresh.today, -1),
+          to: addDays(fresh.today, 2),
+        });
+        await night(tx, fresh, stay.folioId!, addDays(fresh.today, -1), 9000);
+      });
+      const report = await trailing(FINANCE_USER, fresh, "7d");
+      expect(report.daysClosed).toBe(0);
+      expect(figures(report).occupancyPercent).not.toBeNull();
+      expect(figures(report).roomRevenue).toBeNull();
+      expect(figures(report).adrMinor).toBeNull();
+      expect(figures(report).revParMinor).toBeNull();
+      expect(figures(report).collectedMinor).toBeNull();
+      expect(figures(report).totalRevenueMinor).toBeNull();
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "a_month_the_property_did_not_exist_in_is_not_stepped_back_to",
+    async () => {
+      expect((await month(FINANCE_USER, main, M1)).previousMonth).toBe(M2);
+      // M3 ended before the first night anyone slept.
+      expect((await month(FINANCE_USER, main, M2)).previousMonth).toBeNull();
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "a_prior_with_no_activity_is_a_dash_and_a_month_with_no_closed_day_still_compares_occupancy",
+    async () => {
+      const report = await month(FINANCE_USER, main, M2);
+      expect(report.prior?.figures).toBeNull();
+      // The current month with nothing closed yet still has occupancy to set
+      // beside last month's: only revenue waits for a close.
+      const fresh = await newProperty();
+      const lastMonth = shiftMonth(monthOf(fresh.today), -1);
+      await inReplica(async (tx) => {
+        await addStay(tx, fresh, await addUnit(fresh, "P1"), {
+          status: "departed",
+          from: monthStart(lastMonth),
+          to: addDays(monthStart(lastMonth), 3),
+        });
+        await addStay(tx, fresh, await addUnit(fresh, "P2"), {
+          status: "in_house",
+          from: monthStart(monthOf(fresh.today)),
+          to: addDays(fresh.today, 2),
+        });
+      });
+      const current = await month(FINANCE_USER, fresh);
+      expect(current.daysClosed).toBe(0);
+      expect(current.prior?.figures).not.toBeNull();
+      expect(current.prior?.changes?.occupancyPoints).not.toBeNull();
+      expect(current.prior?.changes?.roomRevenuePercent).toBeNull();
+    },
+    BUDGET_MS,
+  );
+});
+
+describe("a figure that cannot be known is not a zero (ANALYTICS-02)", () => {
+  const stayWith = async (charge: boolean) => {
+    const property = await newProperty();
+    await closeBefore(property, 10);
+    const t = property.today;
+    await inReplica(async (tx) => {
+      const stay = await addStay(tx, property, await addUnit(property, "U1"), {
+        status: "departed",
+        from: addDays(t, -3),
+        to: addDays(t, -1),
+      });
+      if (charge)
+        await night(tx, property, stay.folioId!, addDays(t, -3), 7000);
+    });
+    return property;
+  };
+
+  it(
+    "nights_slept_and_none_charged_leave_no_revenue_to_work_out",
+    async () => {
+      const report = await trailing(FINANCE_USER, await stayWith(false), "7d");
+      expect(figures(report)).toMatchObject({
+        roomRevenueUnknown: true,
+        unchargedGuestNights: 2,
+        chargedGuestNights: 0,
+        adrMinor: null,
+        revParMinor: null,
+      });
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "some_nights_charged_leaves_revenue_understated_and_counts_the_rest",
+    async () => {
+      const report = await trailing(FINANCE_USER, await stayWith(true), "7d");
+      expect(figures(report)).toMatchObject({
+        roomRevenueUnknown: false,
+        unchargedGuestNights: 1,
+        chargedGuestNights: 1,
+      });
+      expect(figures(report).revParMinor).not.toBeNull();
+    },
+    BUDGET_MS,
+  );
+});
+
+describe("tonight is one number (RANZ-52)", () => {
+  it(
+    "a_blocked_or_out_of_order_room_nobody_is_in_is_not_available_tonight_and_not_in_the_past",
+    async () => {
+      const property = await newProperty();
+      await closeBefore(property, 10);
+      const t = property.today;
+      const free = await addUnit(property, "T1");
+      const blocked = await addUnit(property, "T2");
+      const broken = await addUnit(property, "T3");
+      const blockedWithGuest = await addUnit(property, "T4");
+      await addUnit(property, "T5");
+      await inReplica(async (tx) => {
+        await tx.$executeRawUnsafe(
+          `update public.accommodation_units
+              set status = 'blocked', status_reason = 'Painting'
+            where id in ($1::uuid, $2::uuid)`,
+          blocked,
+          blockedWithGuest,
+        );
+        await tx.$executeRawUnsafe(
+          `update public.accommodation_units set status = 'out_of_service' where id = $1::uuid`,
+          broken,
+        );
+        await addStay(tx, property, free, {
+          status: "in_house",
+          from: addDays(t, -1),
+          to: addDays(t, 2),
+        });
+        await addStay(tx, property, blockedWithGuest, {
+          status: "in_house",
+          from: addDays(t, -1),
+          to: addDays(t, 2),
+        });
+      });
+      const week = await trailing(FINANCE_USER, property, "7d");
+      const row = (date: string) => week.days.find((day) => day.date === date)!;
+      // Five units; the blocked and the out-of-order room are out tonight,
+      // the blocked one with a Guest in it is not: they hold it.
+      expect(row(t)).toMatchObject({ availableNights: 3, occupiedNights: 2 });
+      // Nothing records a block on a past date, so it is not told one.
+      expect(row(addDays(t, -1))).toMatchObject({
+        availableNights: 5,
+        occupiedNights: 2,
+      });
+    },
+    BUDGET_MS,
+  );
+});
+
+describe("a Stay in the day names its booking (ANALYTICS-11)", () => {
+  it(
+    "the_day_carries_the_booking_a_stay_came_from_and_none_for_one_that_had_none",
+    async () => {
+      const booked = await getDayDetail(FINANCE_USER, expl.id, d(5));
+      const stay = booked!.stays.find(
+        (row) => row.displayName === "Ada Guest",
+      )!;
+      expect(stay.reservationId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(stay.reference).toMatch(/^R[0-9A-F]{6}$/);
+
+      const unbooked = await getDayDetail(FINANCE_USER, expl.id, d(20));
+      const walkIn = unbooked!.stays.find((row) => row.displayName === null)!;
+      expect(walkIn.reservationId).toBeNull();
+      expect(walkIn.reference).toBeNull();
     },
     BUDGET_MS,
   );

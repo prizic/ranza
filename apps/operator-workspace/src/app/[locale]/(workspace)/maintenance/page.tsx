@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { setRequestLocale } from "next-intl/server";
+import { gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { MaintenanceBoard } from "../../../../features/maintenance/components/maintenance-board";
 import {
   CANCEL_REASON,
@@ -20,6 +21,7 @@ import {
   SERVICE_INTERVAL,
   TITLE,
   VENDOR,
+  whyDenied,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
@@ -43,9 +45,8 @@ export default async function MaintenancePage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
-  await requireViewer(locale);
+  const viewer = await requireViewer(locale);
 
-  const t = await getTranslations();
   const query = await searchParams;
   const properties = await entitledProperties(MAINTENANCE_CAPABILITY);
   const property = await frontDeskProperty(
@@ -56,9 +57,12 @@ export default async function MaintenancePage({
 
   if (!property) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("maintenance"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }
@@ -101,6 +105,7 @@ export default async function MaintenancePage({
       reportUnitId={reportUnitId}
       settings={settings}
       timeZone={property.timezone}
+      viewerId={viewer.userId}
     />
   );
 }

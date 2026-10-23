@@ -103,3 +103,49 @@ describe("the connection string", () => {
     await composition.disconnect();
   });
 });
+
+// The one switch that widens where a webhook may be sent (ADR 0045). A test
+// sets it to run a receiver on this machine; a deployment must not be able to.
+describe("the webhook allowance for this machine", () => {
+  it("INT-S1-54: a production worker told to allow it refuses to start", async () => {
+    await withEnv(
+      {
+        WORKER_DATABASE_URL: worker,
+        WEBHOOK_ALLOW_LOOPBACK_HTTP: "true",
+        NODE_ENV: "production",
+      },
+      async () => {
+        await expect(createComposition()).rejects.toThrow(
+          /WEBHOOK_ALLOW_LOOPBACK_HTTP must not be set in production/,
+        );
+      },
+    );
+  });
+
+  it("INT-S1-54: outside production the worker starts with the allowance set to anything or nothing", async () => {
+    for (const value of ["true", "1", "yes", undefined]) {
+      const composition = await withEnv(
+        {
+          WORKER_DATABASE_URL: worker,
+          WEBHOOK_ALLOW_LOOPBACK_HTTP: value,
+          NODE_ENV: "test",
+        },
+        createComposition,
+      );
+      expect(composition.webhooks).toBeDefined();
+      await composition.disconnect();
+    }
+  });
+
+  it("INT-S1-54: production without the allowance starts", async () => {
+    const composition = await withEnv(
+      {
+        WORKER_DATABASE_URL: worker,
+        WEBHOOK_ALLOW_LOOPBACK_HTTP: undefined,
+        NODE_ENV: "production",
+      },
+      createComposition,
+    );
+    await composition.disconnect();
+  });
+});

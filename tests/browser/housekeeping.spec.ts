@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { expect, test } from "@playwright/test";
+import { expect } from "@playwright/test";
+import { test } from "./hydration";
 
 import { psql } from "./local-database";
 import {
@@ -203,7 +204,9 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
   // Three nights early on a booking of two, with nothing owed: the
   // acknowledgement is all the dialog asks.
   await checkOut.getByRole("checkbox").click();
-  await checkOut.getByRole("button", { name: "Confirm check-out" }).click();
+  await checkOut
+    .getByRole("button", { name: "Check out", exact: true })
+    .click();
   await expect(checkOut).toBeHidden();
 
   const stayId = psql(
@@ -294,13 +297,13 @@ test("a check-out leaves the room dirty through the worker, and a cleaner takes 
     await cleanerPage.getByRole("menuitem", { name: "Mark clean" }).click();
     await expect(cleanerPage.getByText("1 room updated")).toBeVisible();
     await expect(row).toContainText("Clean");
-    await expect(row).toContainText("Waiting for inspection");
+    await expect(row).toContainText("Awaiting inspection");
 
     // Clean to inspected, which is.
     await row.getByRole("button", { name: `Actions for ${unitName}` }).click();
     await cleanerPage.getByRole("menuitem", { name: "Mark inspected" }).click();
     await expect(row).toContainText("Inspected");
-    await expect(row).not.toContainText("Waiting for inspection");
+    await expect(row).not.toContainText("Awaiting inspection");
     await cleanerPage.screenshot({
       path: path.join(EVIDENCE, "cleaner-marks-the-room-inspected.png"),
     });
@@ -323,7 +326,7 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
   page,
 }) => {
   const propertyId = testProperty();
-  const { guestName } = aRoomWithAnArrival(propertyId);
+  const { guestName, unitName } = aRoomWithAnArrival(propertyId);
 
   const ready = aRoomWithAnArrival(propertyId, "clean");
 
@@ -338,16 +341,16 @@ test("arrivals asks before checking a Guest into a room that is not ready", asyn
 
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });
-  await expect(row).toContainText("Not ready");
+  await expect(row).toContainText("Dirty");
 
   await row.getByRole("button", { name: "Check in" }).click();
-  await expect(row).toContainText("isn't ready yet");
+  await expect(row).toContainText("has not been cleaned yet");
 
   // The whole warning, inside its cell, at a desk's usual width: the reason
   // is the part that was once cut off, after "it hasn't been clean".
   await page.setViewportSize({ width: 1440, height: 900 });
-  const warning = row.getByText("isn't ready yet");
-  await expect(warning).toContainText("waiting for inspection");
+  const warning = row.getByText("has not been cleaned yet");
+  await expect(warning).toContainText(unitName);
   expect(
     await warning.evaluate(
       (element) => element.scrollWidth - element.clientWidth,
@@ -377,16 +380,22 @@ test("a manager switches inspection on for one Property and sees what it means",
   await page.getByRole("combobox", { name: "For this Property" }).click();
   await page.getByRole("option", { name: "On", exact: true }).click();
 
-  await expect(page.getByText("Saved")).toBeVisible();
+  // The flow shows what the choice would do before anything is written; the
+  // choice is saved when a Save is pressed (CONFIG-02).
   await expect(flow).toContainText("Inspected");
+  await expect(page.getByText("Not saved yet.")).toBeVisible();
+  await page.getByRole("button", { name: "Save for this Property" }).click();
+  await expect(page.getByText("Saved")).toBeVisible();
 
   await page.getByRole("combobox", { name: "For this Property" }).click();
   await page
     .getByRole("option", { name: /Use the Organization's setting/ })
     .click();
+  await page.getByRole("button", { name: "Save for this Property" }).click();
   await expect(
     page.getByRole("combobox", { name: "For this Property" }),
   ).toContainText("Use the Organization's setting");
+  await expect(page.getByText("Saved")).toBeVisible();
 });
 
 test("a Property with housekeeping switched off shows the empty state, not another Property's rooms", async ({
@@ -399,7 +408,7 @@ test("a Property with housekeeping switched off shows the empty state, not anoth
 
   // HK-S1-24: the board of the first Property with housekeeping, under this
   // one's name in the switcher, is what this once showed.
-  await expect(page.getByText(/Which rooms need cleaning at/)).toHaveCount(0);
+  await expect(page.getByText(/Every room at/)).toHaveCount(0);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(
     page.getByText("Housekeeping is not on at this Property"),
@@ -423,7 +432,7 @@ test.afterEach(() => {
   switchedOffForTheTest = undefined;
 });
 
-test("from a page with no Property named, the rail opens Housekeeping at the one the switcher names", async ({
+test("from a page with no Property named, the rail does not offer Housekeeping where the switcher's Property has it off, and its links carry that Property", async ({
   page,
 }) => {
   // Signing in lands on Today with no ?property=, and the switcher names its
@@ -454,24 +463,28 @@ test("from a page with no Property named, the rail opens Housekeeping at the one
   switchedOffForTheTest = named;
   await page.reload();
 
-  await page
-    .locator("aside")
-    .getByRole("link", { name: "Housekeeping" })
-    .click();
-  // Arrived and rendered before anything is asserted absent: an absence
-  // checked mid-navigation is true of the page being left.
-  await expect(page).toHaveURL(/\/en\/housekeeping/);
-  await expect(page.locator('main [aria-busy="true"]')).toHaveCount(0);
-  await expect(page.locator("main").getByRole("heading").first()).toBeVisible();
+  // The rail lists what is open at the Property being worked in, so a page
+  // that Property has switched off is not offered there (RANZ-53); every link
+  // it does offer carries that Property, so none of them opens another one.
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Housekeeping" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator("aside").getByRole("link", { name: "Maintenance" }),
+  ).toHaveAttribute("href", new RegExp(`property=${named}$`));
 
-  // HK-S1-24 through the everyday path: the rail once linked to the screen
-  // with no Property, and the screen then showed the board of the first
-  // Property that has housekeeping while the switcher still named this one.
+  // HK-S1-24 through the typed address: the screen is not on there, and the
+  // switcher still names this Property rather than the first that has it.
+  //
+  // Typed from a blank page, as an address is. Left from Today, the request
+  // makes the development server compile, Today's Fast Refresh client hears
+  // it and navigates Today again, and that cancels this navigation with
+  // ERR_ABORTED — in CI's trace, 24 ms after it started. Only a page left
+  // mid-compile does this, and only under `next dev`.
+  await page.goto("about:blank");
+  await page.goto(`/en/housekeeping?property=${named}`);
   await expect(page.getByRole("table")).toHaveCount(0);
   await expect(switcher).toContainText(name);
-  await expect(page).toHaveURL(
-    new RegExp(`/en/housekeeping\\?property=${named}$`),
-  );
 
   // The empty state's copy is the server's, and a page reached by in-app
   // navigation is rendered in the default locale — the audit evidence run's

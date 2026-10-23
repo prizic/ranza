@@ -9,6 +9,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  fieldMatches,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -21,6 +22,22 @@ export interface PickerOption {
   detail?: string;
   /** Extra words a search matches, such as the code a label spells out. */
   keywords?: readonly string[];
+}
+
+/**
+ * A typed word is found where it appears in the name or in any of its
+ * keywords, ignoring case and Turkish dots — and nowhere else. The list's own
+ * fuzzy match found the letters of "Turkey" scattered through Louisville and
+ * Yekaterinburg and nothing of Istanbul (CONFIG-05).
+ */
+function matches(
+  value: string,
+  search: string,
+  keywords: string[] | undefined,
+): number {
+  return [value, ...(keywords ?? [])].some((term) => fieldMatches(term, search))
+    ? 1
+    : 0;
 }
 
 /**
@@ -82,7 +99,7 @@ export function SearchablePicker({
         {open ? (
           // Opens on the current choice, highlighted and scrolled to, rather
           // than at the top of four hundred.
-          <Command defaultValue={value}>
+          <Command defaultValue={value} filter={matches}>
             <CommandInput placeholder={search} />
             <CommandList>
               <CommandEmpty>{empty}</CommandEmpty>

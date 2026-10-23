@@ -8,6 +8,7 @@ import type { PriceList, PricedUnitType } from "@ranza/rates";
 import { FormError, Input, Label } from "@ranza/ui";
 import { toMinorUnits, toTypedAmount } from "../../../lib/amount";
 import { savePrices, type PricesOutcome } from "../../../server/rates";
+import { unpricedKinds } from "../unpriced";
 import { SaveBar } from "./save-bar";
 import { SettingsCard } from "./settings-card";
 
@@ -35,6 +36,8 @@ export function RatesCard({
   priceList: PriceList;
 }) {
   const t = useTranslations("rates");
+  const configuration = useTranslations("configuration");
+  const permissions = useTranslations("staff.permissions");
   const unitTypes = useTranslations("unitType");
   const [draft, setDraft] = useState<Draft>({});
   const [outcome, setOutcome] = useState<PricesOutcome>(IDLE);
@@ -42,6 +45,10 @@ export function RatesCard({
   const fields = useRef<Partial<Record<PricedUnitType, HTMLInputElement>>>({});
 
   const { currency } = priceList;
+  // A kind the Property has Units of and no price for takes bookings that are
+  // never charged: the one thing on this page that costs money when it is left
+  // (CONFIG-01).
+  const unpriced = unpricedKinds(priceList);
   const saved = (unitType: PricedUnitType): string => {
     const entry = priceList.entries.find((e) => e.unitType === unitType);
     return entry?.amountMinor == null || entry.currency === null
@@ -118,13 +125,16 @@ export function RatesCard({
               : { status: outcome.status }
           }
           pending={pending}
-          readOnly={t("readOnly")}
+          readOnly={configuration("readOnly", {
+            permission: permissions("manageRates"),
+          })}
         />
       }
       hint={t("hint")}
       icon={Banknote}
       id="rates"
       title={t("title")}
+      tone={unpriced.length > 0 ? "warning" : undefined}
     >
       <ul className="grid gap-5">
         {priceList.entries.map((entry) => {
@@ -183,8 +193,18 @@ export function RatesCard({
                         entry.sellableUnits > 0 ? (
                         // Only where it changes something: a kind the
                         // Property has none of cannot be booked unpriced.
-                        <p className="text-step--2 text-muted-foreground">
+                        <p className="flex items-start gap-1.5 text-step--2 text-warning">
+                          <TriangleAlert
+                            aria-hidden="true"
+                            className="mt-0.5 size-3.5 shrink-0"
+                          />
                           {t("unpricedHint")}
+                        </p>
+                      ) : entry.sellableUnits === 0 ? (
+                        // A price for a kind it has none of is not wasted, and
+                        // not yet in use: say which (CONFIG-12).
+                        <p className="text-step--2 text-muted-foreground">
+                          {t("noUnitsHint")}
                         </p>
                       ) : null}
                     </div>
@@ -192,9 +212,22 @@ export function RatesCard({
                 ) : (
                   <p className="text-step--1 sm:pt-2">
                     {entry.amountMinor === null || entry.currency === null ? (
-                      <span className="text-muted-foreground">
-                        {t("noPrice")}
-                      </span>
+                      entry.sellableUnits > 0 ? (
+                        <span className="inline-flex items-center gap-1.5 text-warning">
+                          <TriangleAlert
+                            aria-hidden="true"
+                            className="size-3.5 shrink-0"
+                          />
+                          {t("noPrice")}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          {t("noPrice")}
+                          <span className="block text-step--2">
+                            {t("noUnitsHint")}
+                          </span>
+                        </span>
+                      )
                     ) : (
                       <>
                         <bdi className="tabular-nums">

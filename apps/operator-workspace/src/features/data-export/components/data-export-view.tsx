@@ -2,48 +2,77 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Calendar,
-  CheckCircle2,
-  Clock,
-  Download,
-  FileSpreadsheet,
-  Plus,
-} from "lucide-react";
+import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { DataExportRecord, ExportScheduleRecord } from "../types";
+import type { SupportedLocale } from "@ranza/i18n";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@ranza/ui";
+  EXPORT_RETENTION_DAYS,
+  type DataExportRecord,
+  type ExportAbilities,
+  type ExportFormat,
+  type ExportRange,
+  type ExportResourceType,
+  type ExportScheduleRecord,
+} from "../types";
 import { ExportSchedulesTable } from "./export-schedules-table";
-import { NewExportForm } from "./new-export-form";
+import { NewExportForm, type ExportDraft } from "./new-export-form";
 import { NewScheduleForm } from "./new-schedule-form";
 import { RecentExportsTable } from "./recent-exports-table";
 
-interface DataExportViewProps {
-  exports: DataExportRecord[];
-  schedules: ExportScheduleRecord[];
-  locale: string;
-  propertyId: string;
-}
+type Panel = "exports" | "schedules" | "new" | "new-schedule";
 
+const NOTHING_CHOSEN: ExportDraft = {
+  resources: [],
+  format: "csv",
+  range: null,
+};
+
+/**
+ * Data export: what was asked for and how it ended, what repeats, and the two
+ * forms that ask for more.
+ *
+ * One set of tabs for all four panels, so the page always says where you are
+ * (DX-16), and a form has a Cancel that goes back to the list it came from.
+ */
 export function DataExportView({
+  abilities,
   exports,
-  schedules,
+  initialDraft,
   locale,
+  organization,
   propertyId,
-}: DataExportViewProps) {
+  schedules,
+  timezone,
+  today,
+  unavailable,
+}: {
+  abilities: ExportAbilities;
+  exports: DataExportRecord[];
+  /** A request being made from a link, such as the audit log's. */
+  initialDraft: ExportDraft | null;
+  locale: SupportedLocale;
+  organization: string;
+  propertyId: string;
+  schedules: ExportScheduleRecord[];
+  timezone: string;
+  /** The Property's own day, `YYYY-MM-DD`. */
+  today: string;
+  /** The person followed a download link to a file that is no longer there. */
+  unavailable: boolean;
+}) {
   const t = useTranslations("dataExport");
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<string>("exports");
+  const [panel, setPanel] = useState<Panel>(initialDraft ? "new" : "exports");
+  const [draft, setDraft] = useState<ExportDraft>(
+    initialDraft ?? NOTHING_CHOSEN,
+  );
+  // Remounts the form when a request is made again, so it starts from that
+  // request and not from whatever it held.
+  const [draftVersion, setDraftVersion] = useState(0);
+  const [notice, setNotice] = useState<
+    "requestSuccess" | "scheduleSuccess" | null
+  >(null);
 
   // An export is produced by the worker, not by the request, so a screen that
   // is showing one still waiting is asked to read again until it is not.
@@ -56,154 +85,125 @@ export function DataExportView({
     return () => clearInterval(timer);
   }, [unfinished, router]);
 
-  const totalExports = exports.length;
-  const readyExports = exports.filter((e) => e.status === "ready").length;
-  const activeSchedules = schedules.filter((s) => s.status === "active").length;
-  const lastExport = exports[0]?.requestedAt
-    ? new Date(exports[0].requestedAt).toLocaleString(locale, {
-        dateStyle: "short",
-        timeStyle: "short",
-      })
-    : "—";
+  function requestAgain(item: DataExportRecord) {
+    setDraft({
+      resources: item.resourceTypes as ExportResourceType[],
+      format: item.format as ExportFormat,
+      range: item.range as ExportRange | null,
+    });
+    setDraftVersion((version) => version + 1);
+    setNotice(null);
+    setPanel("new");
+  }
+
+  function startNew() {
+    setDraft(NOTHING_CHOSEN);
+    setDraftVersion((version) => version + 1);
+    setPanel("new");
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("recentExportsTitle")}</span>
-              <FileSpreadsheet
-                aria-hidden="true"
-                className="size-4 text-emerald-600 dark:text-emerald-400"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">
-              {totalExports}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="grid gap-4">
+      {unavailable ? (
+        <p
+          className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
+          role="alert"
+        >
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          />
+          {t("unavailable", { days: EXPORT_RETENTION_DAYS })}
+        </p>
+      ) : null}
+      {notice &&
+      panel === (notice === "requestSuccess" ? "exports" : "schedules") ? (
+        <p
+          className="flex items-start gap-2 rounded-lg border border-success/25 bg-success-soft p-3 text-sm text-success"
+          role="status"
+        >
+          <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          {t(notice)}
+        </p>
+      ) : null}
 
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("statuses.ready")}</span>
-              <CheckCircle2
-                aria-hidden="true"
-                className="size-4 text-emerald-600 dark:text-emerald-400"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">
-              {readyExports}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("schedulesTitle")}</span>
-              <Calendar
-                aria-hidden="true"
-                className="size-4 text-blue-600 dark:text-blue-400"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-2xl font-bold text-foreground">
-              {activeSchedules}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("tableHeaders.requestedAt")}</span>
-              <Clock
-                aria-hidden="true"
-                className="size-4 text-muted-foreground"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-sm font-semibold text-foreground truncate mt-1">
-              {lastExport}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Main Tabs */}
       <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4"
+        className="gap-4"
+        onValueChange={(next) => {
+          if (next === "new") startNew();
+          else setPanel(next as Panel);
+          setNotice(null);
+        }}
+        value={panel}
       >
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="bg-muted/60 p-1">
-            <TabsTrigger value="exports" className="text-sm gap-1.5">
-              <Download className="size-4" />
-              <span>{t("tabs.exports")}</span>
-            </TabsTrigger>
-            <TabsTrigger value="schedules" className="text-sm gap-1.5">
-              <Calendar className="size-4" />
-              <span>{t("tabs.schedules")}</span>
-            </TabsTrigger>
-          </TabsList>
+        <TabsList className="h-auto! w-full flex-wrap justify-start gap-1 sm:w-fit">
+          <TabsTrigger className="h-9! flex-none" value="exports">
+            {t("tabs.exports")}
+          </TabsTrigger>
+          <TabsTrigger className="h-9! flex-none" value="schedules">
+            {t("tabs.schedules")}
+          </TabsTrigger>
+          <TabsTrigger className="h-9! flex-none" value="new">
+            {t("tabs.newExport")}
+          </TabsTrigger>
+          <TabsTrigger className="h-9! flex-none" value="new-schedule">
+            {t("tabs.newSchedule")}
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={activeTab === "new" ? "default" : "outline"}
-              onClick={() => setActiveTab("new")}
-              className="gap-1.5"
-            >
-              <Plus className="size-4" />
-              <span>{t("tabs.newExport")}</span>
-            </Button>
-            <Button
-              size="sm"
-              variant={activeTab === "new-schedule" ? "default" : "outline"}
-              onClick={() => setActiveTab("new-schedule")}
-              className="gap-1.5"
-            >
-              <Plus className="size-4" />
-              <span>{t("scheduleTitle")}</span>
-            </Button>
-          </div>
-        </div>
-
-        <TabsContent value="exports" className="mt-0">
-          <RecentExportsTable exports={exports} locale={locale} />
+        <TabsContent value="exports">
+          <RecentExportsTable
+            exports={exports}
+            locale={locale}
+            onRequestAgain={requestAgain}
+            onRequestNew={startNew}
+            organization={organization}
+            propertyId={propertyId}
+            timezone={timezone}
+            today={today}
+          />
         </TabsContent>
 
-        <TabsContent value="schedules" className="mt-0">
+        <TabsContent value="schedules">
           <ExportSchedulesTable
+            locale={locale}
+            onNew={() => setPanel("new-schedule")}
+            organization={organization}
+            propertyId={propertyId}
             schedules={schedules}
-            locale={locale}
-            propertyId={propertyId}
+            timezone={timezone}
           />
         </TabsContent>
 
-        <TabsContent value="new" className="mt-0">
+        <TabsContent value="new">
           <NewExportForm
-            locale={locale}
+            abilities={abilities}
+            draft={draft}
+            key={draftVersion}
+            onCancel={() => setPanel("exports")}
+            onRequested={() => {
+              setNotice("requestSuccess");
+              setPanel("exports");
+              router.refresh();
+            }}
+            organization={organization}
             propertyId={propertyId}
-            onSuccess={() => setActiveTab("exports")}
+            timezone={timezone}
+            today={today}
           />
         </TabsContent>
 
-        <TabsContent value="new-schedule" className="mt-0">
+        <TabsContent value="new-schedule">
           <NewScheduleForm
-            locale={locale}
+            abilities={abilities}
+            onCancel={() => setPanel("schedules")}
+            onCreated={() => {
+              setNotice("scheduleSuccess");
+              setPanel("schedules");
+              router.refresh();
+            }}
             propertyId={propertyId}
-            onSuccess={() => setActiveTab("schedules")}
+            timezone={timezone}
           />
         </TabsContent>
       </Tabs>

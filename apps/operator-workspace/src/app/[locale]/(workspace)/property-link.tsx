@@ -13,11 +13,14 @@ import { useWithProperty } from "../../../lib/nav";
 export function PropertyLink({
   defaultProperty,
   href,
+  knownProperties,
   ...props
 }: ComponentProps<typeof Link> & {
   defaultProperty: string | undefined;
   href: string;
+  /** The Properties the viewer can switch to; a `?property=` outside them is not carried. */
+  knownProperties: readonly string[];
 }) {
-  const withProperty = useWithProperty(defaultProperty);
+  const withProperty = useWithProperty(defaultProperty, knownProperties);
   return <Link href={withProperty(href)} {...props} />;
 }

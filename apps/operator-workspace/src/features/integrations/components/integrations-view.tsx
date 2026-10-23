@@ -1,162 +1,151 @@
 "use client";
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  Network,
-  XCircle,
-} from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, CheckCircle2, Network, XCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Stat } from "@ranza/ui";
 import type {
-  FailedOperationRecord,
-  IntegrationRecord,
+  EndpointsView,
+  FailedOperationPage,
+  FailureView,
 } from "../../../server/viewer";
-import { Card, CardContent, CardHeader, CardTitle } from "@ranza/ui";
+import { AddEndpointDialog } from "./add-endpoint-dialog";
+import { EndpointCards } from "./endpoint-cards";
 import { FailedOperationsTable } from "./failed-operations-table";
-import { IntegrationCards } from "./integration-cards";
 
 interface IntegrationsViewProps {
-  integrations: IntegrationRecord[];
-  failedOperations: FailedOperationRecord[];
+  endpoints: EndpointsView;
+  failures: FailedOperationPage;
+  /** The two lists of failures, as the links that open them. */
+  hrefs: { open: string; closed: string };
+  /** Whether the viewer holds integrations.manage at this Property. */
+  mayActOnFailures: boolean;
   locale: string;
+  /** How many failures at the Property are open, whichever list is shown. */
+  openTotal: number;
+  page: number;
+  pageSize: number;
   propertyId: string;
+  view: FailureView;
+  viewerId: string | null;
 }
 
 export function IntegrationsView({
-  integrations,
-  failedOperations,
+  endpoints,
+  failures,
+  hrefs,
+  mayActOnFailures,
   locale,
+  openTotal,
+  page,
+  pageSize,
   propertyId,
+  view,
+  viewerId,
 }: IntegrationsViewProps) {
   const t = useTranslations("integrations");
 
-  const connectedCount = integrations.filter(
-    (i) => i.status === "connected",
-  ).length;
-  const errorCount = integrations.filter((i) => i.status === "error").length;
-  const notConnectedCount = integrations.filter(
-    (i) => i.status === "not_connected",
-  ).length;
+  const count = (health: "delivering" | "failing") =>
+    endpoints.endpoints.filter((endpoint) => endpoint.health === health).length;
 
   return (
-    <div className="space-y-6">
-      {/* Metrics Summary */}
+    <div className="space-y-8">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-step--1 font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("connectedCount")}</span>
-              <CheckCircle2
-                aria-hidden="true"
-                className="size-4 text-emerald-600 dark:text-emerald-400"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-step-2 font-bold text-foreground">
-              {connectedCount}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-step--1 font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("errorCount")}</span>
-              <AlertTriangle
-                aria-hidden="true"
-                className="size-4 text-destructive"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div
-              className={`text-step-2 font-bold ${
-                errorCount > 0 ? "text-destructive" : "text-foreground"
-              }`}
-            >
-              {errorCount}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-step--1 font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("notConnectedCount")}</span>
-              <XCircle
-                aria-hidden="true"
-                className="size-4 text-muted-foreground"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div className="text-step-2 font-bold text-foreground">
-              {notConnectedCount}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border">
-          <CardHeader className="p-4 pb-2">
-            <CardTitle className="text-step--1 font-medium text-muted-foreground flex items-center justify-between">
-              <span>{t("failedOperationsTitle")}</span>
-              <Clock
-                aria-hidden="true"
-                className="size-4 text-muted-foreground"
-              />
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <div
-              className={`text-step-2 font-bold ${
-                failedOperations.length > 0
-                  ? "text-destructive"
-                  : "text-foreground"
-              }`}
-            >
-              {failedOperations.length}
-            </div>
-          </CardContent>
-        </Card>
+        <Stat
+          icon={Network}
+          label={t("endpointsCount")}
+          value={endpoints.endpoints.length}
+        />
+        <Stat
+          icon={CheckCircle2}
+          label={t("deliveringCount")}
+          value={count("delivering")}
+        />
+        <Stat
+          icon={AlertTriangle}
+          label={t("failingCount")}
+          value={count("failing")}
+        />
+        <Stat icon={XCircle} label={t("openFailuresCount")} value={openTotal} />
       </div>
 
-      {/* Failed Operations Section */}
       <section
         aria-labelledby="failed-operations-heading"
         className="space-y-3"
       >
-        <h2 id="failed-operations-heading" className="sr-only">
+        <h2 className="sr-only" id="failed-operations-heading">
           {t("failedOperationsTitle")}
         </h2>
+        <nav
+          aria-label={t("failuresViewLabel")}
+          className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1"
+        >
+          {(["open", "closed"] as const).map((tab) => (
+            <Link
+              aria-current={view === tab ? "page" : undefined}
+              className={`flex min-h-9 shrink-0 items-center rounded-sm px-3 text-sm font-medium whitespace-nowrap transition-all ${
+                view === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              data-testid={`failures-tab-${tab}`}
+              href={hrefs[tab]}
+              key={tab}
+            >
+              {tab === "open"
+                ? t("tabOpen", { count: openTotal })
+                : t("tabClosed")}
+            </Link>
+          ))}
+        </nav>
         <FailedOperationsTable
-          failedOperations={failedOperations}
+          failures={failures}
+          hrefs={hrefs}
           locale={locale}
+          mayAct={mayActOnFailures}
+          page={page}
+          pageSize={pageSize}
           propertyId={propertyId}
+          view={view}
+          viewerId={viewerId}
         />
       </section>
 
-      {/* Configured Integrations Section */}
-      <section
-        aria-labelledby="active-integrations-heading"
-        className="space-y-3"
-      >
-        <div className="flex items-center justify-between">
+      <section aria-labelledby="endpoints-heading" className="space-y-4">
+        {/* One dialog, in one place, whether or not there are endpoints yet: the
+            signing secret of a new one lives in its state, and moving it in the
+            tree when the first endpoint appears would drop the only copy. */}
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2
-              id="active-integrations-heading"
-              className="text-step-0 font-semibold text-foreground flex items-center gap-2"
+              className="flex items-center gap-2 text-step-0 font-semibold"
+              id="endpoints-heading"
             >
               <Network aria-hidden="true" className="size-4 text-primary" />
-              <span>{t("activeIntegrations")}</span>
+              {t("endpointsTitle")}
             </h2>
-            <p className="text-step--1 text-muted-foreground mt-0.5">
-              {t("activeIntegrationsDescription")}
+            <p className="mt-0.5 text-step--1 text-muted-foreground">
+              {t("endpointsDescription")}
+            </p>
+            <p
+              className="mt-0.5 text-step--1 text-muted-foreground"
+              data-testid="integrations-availability"
+            >
+              {t("othersNotAvailable")}
             </p>
           </div>
+          {endpoints.mayManage ? (
+            <AddEndpointDialog locale={locale} propertyId={propertyId} />
+          ) : null}
         </div>
-        <IntegrationCards integrations={integrations} locale={locale} />
+        {!endpoints.mayManage && endpoints.endpoints.length > 0 ? (
+          <p className="text-step--1 text-muted-foreground">{t("readOnly")}</p>
+        ) : null}
+        <EndpointCards
+          locale={locale}
+          propertyId={propertyId}
+          view={endpoints}
+        />
       </section>
     </div>
   );

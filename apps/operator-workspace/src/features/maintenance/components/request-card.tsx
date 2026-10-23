@@ -5,6 +5,8 @@ import { UserRound } from "lucide-react";
 import type { MaintenanceRequestCard } from "@ranza/maintenance";
 import { isolate, type SupportedLocale } from "@ranza/i18n";
 import { Card } from "@ranza/ui";
+import { ageSince } from "../../../lib/age";
+import { staffName } from "../../../lib/staff-name";
 import { formatDay, OutOfOrderBadge, PriorityBadge } from "./look";
 
 /**
@@ -76,6 +78,18 @@ export function RequestCard({
                 })}
           </p>
         ) : null}
+        {/* The age changes with the clock, so a server and a browser a second
+            apart may not agree on it. */}
+        {request.status === "done" || request.status === "cancelled" ? null : (
+          <p className="text-xs text-muted-foreground" suppressHydrationWarning>
+            {t("reportedAge", { age: ageSince(request.reportedAt, locale) })}
+            {request.status === "waiting_for_parts"
+              ? ` · ${t("movedAge", {
+                  age: ageSince(request.statusChangedAt, locale),
+                })}`
+              : ""}
+          </p>
+        )}
         <p
           className={
             request.assignee
@@ -86,7 +100,7 @@ export function RequestCard({
           <UserRound aria-hidden="true" className="size-3.5 shrink-0" />
           <span className="truncate">
             {request.assignee
-              ? isolate(request.assignee.email ?? t("formerStaff"))
+              ? isolate(staffName(request.assignee.email, t("formerStaff")))
               : t("notAssigned")}
           </span>
         </p>

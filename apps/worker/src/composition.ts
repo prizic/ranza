@@ -9,6 +9,10 @@ import {
   type OutboxDispatcher,
 } from "@ranza/platform-outbox";
 import { createExportRunner, type ExportRunner } from "@ranza/data-export";
+import {
+  createWebhookDelivery,
+  type WebhookDelivery,
+} from "@ranza/integrations";
 
 /**
  * The composition root, and the only file in this application that reads the
@@ -31,11 +35,29 @@ function required(name: string): string {
   return value;
 }
 
+/**
+ * Whether a webhook may be sent over plain http to this machine, which exists
+ * so a test can run a receiver here. A deployment sets NODE_ENV=production, and
+ * a production worker told to allow it refuses to start rather than quietly
+ * widening the one guard standing between an endpoint's URL and the network the
+ * worker lives in (ADR 0045).
+ */
+function allowsLoopbackWebhooks(): boolean {
+  if (process.env.WEBHOOK_ALLOW_LOOPBACK_HTTP !== "true") return false;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "WEBHOOK_ALLOW_LOOPBACK_HTTP must not be set in production: it lets a webhook reach this machine",
+    );
+  }
+  return true;
+}
+
 export interface Composition {
   db: PrismaClient;
   outbox: OutboxDispatcher;
   closer: DayCloser;
   dataExport: ExportRunner;
+  webhooks: WebhookDelivery;
   disconnect(): Promise<void>;
 }
 
@@ -60,6 +82,8 @@ export async function createComposition(): Promise<Composition> {
     );
   }
 
+  const allowLoopbackHttp = allowsLoopbackWebhooks();
+
   const db = createPrismaClient(url);
   try {
     await assertUnprivileged(db, "WORKER_DATABASE_URL");
@@ -73,6 +97,7 @@ export async function createComposition(): Promise<Composition> {
     outbox: createOutboxDispatcher({ db }),
     closer: createDayCloser({ db }),
     dataExport: createExportRunner({ db }),
+    webhooks: createWebhookDelivery({ db, allowLoopbackHttp }),
     disconnect: () => db.$disconnect(),
   };
 }

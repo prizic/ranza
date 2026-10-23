@@ -27,6 +27,7 @@
  *   the same check removed from the trigger only                       HR-S1-46 (the half that goes past the module)
  *   the same check removed from both                                   HR-S1-46
  *   `hr_employee_is_reachable` removed from the shift read policy      HR-S1-47 (TypeError: null.firstName, the page's crash)
+ *   hr_employees_organization_login_key dropped                         HR-S1-51 (the second record), HR-S1-52 (a leaver registered again)
  *
  * Each layer of a pair above is enough on its own, which is why removing one
  * shows nothing: the pgTAP suite is what proves the database layer by itself.
@@ -45,6 +46,7 @@ import {
   HrRefusedError,
 } from "../../packages/ranza/hr/src";
 import { createStaffModule } from "../../packages/ranza/staff/src";
+import { loginsWithoutEmployment } from "../../apps/operator-workspace/src/lib/unregistered-staff";
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const hr = createHrModule({ db: prisma });
@@ -224,6 +226,8 @@ let empty: Fixture;
 let lapsing: Fixture;
 let clashing: Fixture;
 let leavers: Fixture;
+let logins: Fixture;
+let wages: Fixture;
 
 beforeAll(async () => {
   main = await seed("main");
@@ -232,6 +236,8 @@ beforeAll(async () => {
   lapsing = await seed("lapsing");
   clashing = await seed("clashing");
   leavers = await seed("leavers");
+  logins = await seed("logins");
+  wages = await seed("wages");
   await hr.registerEmployee(currencies.manager, anEmployee(currencies));
 });
 
@@ -1306,5 +1312,472 @@ describe("a lapsed Organization", () => {
       anEmployee(lapsing),
     );
     expect(record.status).toBe("active");
+  });
+});
+
+describe("a login is offered for registration until it has an employment record", () => {
+  /** What the Employees screen offers, from the real roster and the real records. */
+  async function offered(fixture: Fixture): Promise<string[]> {
+    const [roster, employees] = await Promise.all([
+      staff.readRoster({ userId: fixture.admin }, fixture.organization),
+      hr.employees(fixture.manager, fixture.organization),
+    ]);
+    return loginsWithoutEmployment(roster, employees)
+      .map((login) => login.userId)
+      .sort();
+  }
+
+  it("HR-S1-49: every active login with no employment record is offered", async () => {
+    const everyone = [
+      logins.admin,
+      logins.manager,
+      logins.scoped,
+      logins.viewer,
+      logins.outsider,
+      logins.linked,
+    ].sort();
+    expect(await offered(logins)).toEqual(everyone);
+  });
+
+  it("HR-S1-50: registering from a login links the record to it and takes the login off the offer", async () => {
+    const record = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.outsider }),
+    );
+
+    expect(record.userId).toBe(logins.outsider);
+    expect(await offered(logins)).not.toContain(logins.outsider);
+    // The other logins are still offered: one registration is one login.
+    expect(await offered(logins)).toContain(logins.linked);
+    const written = await latestRecord(owner, "employee.registered", record.id);
+    expect(written?.context).toMatchObject({ hasSystemAccess: true });
+  });
+
+  it("HR-S1-51: the same login cannot be registered twice, one after the other or at once", async () => {
+    const first = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.viewer }),
+    );
+    await expect(
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.viewer }),
+      ),
+    ).rejects.toMatchObject({ reason: "already_registered" });
+
+    const settled = await Promise.allSettled([
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.scoped }),
+      ),
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.scoped }),
+      ),
+    ]);
+    expect(
+      settled.filter((outcome) => outcome.status === "fulfilled"),
+    ).toHaveLength(1);
+    const rejected = settled.find((outcome) => outcome.status === "rejected");
+    expect(rejected).toMatchObject({
+      reason: { reason: "already_registered" },
+    });
+
+    for (const login of [logins.viewer, logins.scoped]) {
+      expect(
+        await count(
+          `select count(*) as n from public.hr_employees
+            where organization_id = $1::uuid and user_id = $2::uuid`,
+          logins.organization,
+          login,
+        ),
+      ).toBe(1);
+    }
+    expect(first.userId).toBe(logins.viewer);
+  });
+
+  it("HR-S1-51: the same person may be employed in another Organization", async () => {
+    const record = await hr.registerEmployee(
+      currencies.manager,
+      anEmployee(currencies, { userId: logins.viewer }),
+    );
+    expect(record.userId).toBe(logins.viewer);
+  });
+
+  it("HR-S1-52: a terminated employee's login is not offered again, nor registered again", async () => {
+    const record = await hr.registerEmployee(
+      logins.manager,
+      anEmployee(logins, { userId: logins.admin }),
+    );
+    await hr.terminateEmployee(logins.manager, {
+      organizationId: logins.organization,
+      employeeId: record.id,
+      terminatedOn: new Date("2026-01-15"),
+    });
+
+    expect(await offered(logins)).not.toContain(logins.admin);
+    await expect(
+      hr.registerEmployee(
+        logins.manager,
+        anEmployee(logins, { userId: logins.admin }),
+      ),
+    ).rejects.toMatchObject({ reason: "already_registered" });
+  });
+
+  it("HR-S1-53: a login whose membership is revoked is not offered", async () => {
+    expect(await offered(logins)).toContain(logins.linked);
+    await staff.revoke(
+      { userId: logins.admin },
+      { organizationId: logins.organization, userId: logins.linked },
+    );
+    expect(await offered(logins)).not.toContain(logins.linked);
+  });
+});
+
+/**
+ * Who somebody is is editable, and what they are paid is dated (HR-02, HR-03).
+ *
+ * A raise is a row from a month on, and never a rewrite: a run already approved
+ * keeps its payslips, an earlier month that is still a draft reads the pay it
+ * had, and a month an approved run covers refuses a wage that claims to start in
+ * it — for a manager who cannot read the run too, which is why the question is
+ * asked by a definer.
+ */
+describe("an employee's record and wage can be changed", () => {
+  const register = (overrides: Parameters<typeof anEmployee>[1] = {}) =>
+    hr.registerEmployee(
+      wages.manager,
+      anEmployee(wages, { grossPayMinor: 1_000_000, ...overrides }),
+    );
+
+  const raise = (
+    employeeId: string,
+    effectiveFrom: string,
+    grossPayMinor: number,
+    actor = wages.manager,
+  ) =>
+    hr.changeWage(actor, {
+      organizationId: wages.organization,
+      employeeId,
+      effectiveFrom,
+      grossPayMinor,
+    });
+
+  const grossIn = async (period: string, employeeId: string) =>
+    (
+      await hr.payrollSummary(wages.manager, wages.organization, period)
+    )?.payslips.find((slip) => slip.employeeId === employeeId)?.grossPayMinor;
+
+  it("HR-S1-56: a hire date is recorded as given, and not ahead of the Property's today", async () => {
+    const earlier = await register({ hiredOn: new Date("2024-02-10") });
+    expect(earlier.hiredOn.toISOString().slice(0, 10)).toBe("2024-02-10");
+
+    const tomorrow = new Date(
+      `${await today(wages.organization, wages.north)}T00:00:00Z`,
+    );
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    await expect(register({ hiredOn: tomorrow })).rejects.toMatchObject({
+      field: "dates",
+    });
+  });
+
+  it("HR-S1-57: a raise starts in its month, and an earlier month still reads the old pay", async () => {
+    const person = await register();
+    await raise(person.id, "2026-03", 1_200_000);
+    await raise(person.id, "2026-05", 1_500_000);
+
+    expect(await grossIn("2026-02", person.id)).toBe(1_000_000);
+    expect(await grossIn("2026-03", person.id)).toBe(1_200_000);
+    expect(await grossIn("2026-04", person.id)).toBe(1_200_000);
+    expect(await grossIn("2026-05", person.id)).toBe(1_500_000);
+
+    const [seen] = (
+      await hr.employees(wages.manager, wages.organization)
+    ).filter((row) => row.id === person.id);
+    expect(seen?.wageChanges).toEqual([
+      { effectiveFrom: "2026-03", grossPayMinor: 1_200_000 },
+      { effectiveFrom: "2026-05", grossPayMinor: 1_500_000 },
+    ]);
+    // The pay in force now is the newest change that has begun.
+    expect(seen?.grossPayMinor).toBe(1_500_000);
+  });
+
+  it("HR-S1-58: the newest of a month's changes is the correction that counts", async () => {
+    const person = await register();
+    await raise(person.id, "2026-08", 2_000_000);
+    await raise(person.id, "2026-08", 2_100_000);
+    expect(await grossIn("2026-08", person.id)).toBe(2_100_000);
+  });
+
+  it("HR-S1-59: an approved run keeps what it paid, and no later wage can claim its month", async () => {
+    const person = await register({ hiredOn: new Date("2025-01-01") });
+    await raise(person.id, "2025-03", 1_300_000);
+    const approved = await hr.approvePayroll(wages.manager, {
+      organizationId: wages.organization,
+      period: "2025-04",
+    });
+    expect(
+      approved.payslips.find((slip) => slip.employeeId === person.id)
+        ?.grossPayMinor,
+    ).toBe(1_300_000);
+
+    // A wage that starts in an approved month, or any month before one, would
+    // record a raise that was never paid. Refused for the Manager who can read
+    // the run and, below, for the one who cannot.
+    for (const month of ["2025-04", "2025-02"]) {
+      await expect(raise(person.id, month, 9_900_000)).rejects.toMatchObject({
+        reason: "wage_period_approved",
+      });
+    }
+    await expect(
+      raise(person.id, "2025-04", 9_900_000, wages.scoped),
+    ).rejects.toMatchObject({ reason: "wage_period_approved" });
+
+    // After it is fine, and the approved run is exactly as it was.
+    await raise(person.id, "2025-05", 1_400_000);
+    const again = await hr.payrollSummary(
+      wages.manager,
+      wages.organization,
+      "2025-04",
+    );
+    expect(
+      again?.payslips.find((slip) => slip.employeeId === person.id)
+        ?.grossPayMinor,
+    ).toBe(1_300_000);
+    expect(again?.status).toBe("approved");
+  });
+
+  it("HR-S1-59: a wage dated into a month and that month's approval never both succeed with the old wage paid", async () => {
+    // Each round is an Organization of its own, because an approved run is
+    // history. Without the Organization's payroll lock a wage could commit while
+    // its month was being approved: the run paid the old wage, and the history
+    // said the raise started in that month.
+    const outcomes = { approvedFirst: 0, wageFirst: 0 };
+    for (let round = 0; round < 30; round += 1) {
+      const org = await seed(`race${round}`);
+      const person = await hr.registerEmployee(
+        org.manager,
+        anEmployee(org, { grossPayMinor: 1_000_000 }),
+      );
+      const settled = await Promise.allSettled([
+        hr.approvePayroll(org.manager, {
+          organizationId: org.organization,
+          period: "2025-06",
+        }),
+        hr.changeWage(org.manager, {
+          organizationId: org.organization,
+          employeeId: person.id,
+          effectiveFrom: "2025-06",
+          grossPayMinor: 2_000_000,
+        }),
+      ]);
+      const [approval, wage] = settled;
+      expect(approval?.status, `round ${round}: the approval`).toBe(
+        "fulfilled",
+      );
+      const paid =
+        approval?.status === "fulfilled"
+          ? approval.value.payslips.find(
+              (slip) => slip.employeeId === person.id,
+            )?.grossPayMinor
+          : undefined;
+      if (wage?.status === "fulfilled") {
+        // The raise was recorded for the month, so the run must have paid it.
+        expect(
+          paid,
+          `round ${round}: wage dated 2025-06 but run paid old pay`,
+        ).toBe(2_000_000);
+        outcomes.wageFirst += 1;
+      } else {
+        expect(wage?.reason).toMatchObject({ reason: "wage_period_approved" });
+        expect(paid).toBe(1_000_000);
+        outcomes.approvedFirst += 1;
+      }
+    }
+    // The race was actually run: both orders have to be possible, or the
+    // assertions above held for one order only.
+    expect(outcomes.approvedFirst + outcomes.wageFirst).toBe(30);
+  }, 120_000);
+
+  it("HR-S1-60: a wage cannot start before the month somebody was hired", async () => {
+    const person = await register({ hiredOn: new Date("2026-06-15") });
+    await expect(raise(person.id, "2026-05", 1)).rejects.toBeInstanceOf(
+      HrInputError,
+    );
+    await raise(person.id, "2026-06", 1_100_000);
+  });
+
+  it("HR-S1-61: pay is not written in place, by anybody the application connects as", async () => {
+    const person = await register();
+    await expect(
+      withOrganizationContext(prisma, { userId: wages.manager }, (tx) =>
+        tx.$executeRawUnsafe(
+          "update public.hr_employees set gross_pay_minor = 1 where id = $1::uuid",
+          person.id,
+        ),
+      ),
+    ).rejects.toThrow(/permission denied/i);
+  });
+
+  it("HR-S1-62: a viewer, an outsider and a leaver change no wage", async () => {
+    const person = await register();
+    await expect(
+      raise(person.id, "2027-01", 1, wages.viewer),
+    ).rejects.toMatchObject({ reason: "not_permitted" });
+    await expect(
+      raise(person.id, "2027-01", 1, wages.outsider),
+    ).rejects.toMatchObject({ reason: "not_permitted" });
+    await hr.terminateEmployee(wages.manager, {
+      organizationId: wages.organization,
+      employeeId: person.id,
+      terminatedOn: new Date("2025-06-01"),
+    });
+    await expect(raise(person.id, "2027-01", 1)).rejects.toMatchObject({
+      reason: "employee_terminated",
+    });
+  });
+
+  it("HR-S1-63: a wage change is audited with the month and the amount, at the employee's Property", async () => {
+    const person = await register();
+    await raise(person.id, "2027-02", 1_234_500);
+    const record = await latestRecord(
+      owner,
+      "employee.wage_changed",
+      person.id,
+    );
+    expect(record?.locationId).toBe(wages.north);
+    expect(record?.context).toMatchObject({
+      effectiveFrom: "2027-02",
+      currency: "TRY",
+      grossPayMinor: 1_234_500,
+    });
+  });
+
+  it("HR-S1-64: editing changes the record, and the audit names the fields and never their values", async () => {
+    const person = await register();
+    const changed = await hr.updateEmployee(wages.manager, {
+      organizationId: wages.organization,
+      employeeId: person.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      department: "Housekeeping",
+      position: "Supervisor",
+      contractType: "part_time",
+      phone: "+90 555 000 1234",
+      email: "supervisor@example.test",
+      iban: IBAN,
+      hiredOn: new Date("2024-09-01"),
+    });
+    expect([...changed].sort()).toEqual(
+      [
+        "contractType",
+        "department",
+        "email",
+        "hiredOn",
+        "iban",
+        "phone",
+        "position",
+      ].sort(),
+    );
+
+    const [after] = (
+      await hr.employees(wages.manager, wages.organization)
+    ).filter((row) => row.id === person.id);
+    expect(after).toMatchObject({
+      department: "Housekeeping",
+      position: "Supervisor",
+      contractType: "part_time",
+      phone: "+90 555 000 1234",
+      ibanMasked: IBAN_MASKED,
+    });
+    expect(after?.hiredOn.toISOString().slice(0, 10)).toBe("2024-09-01");
+
+    const record = await latestRecord(owner, "employee.updated", person.id);
+    const written = JSON.stringify(record?.context);
+    expect(written).not.toContain("1234");
+    expect(written).not.toContain("supervisor@");
+    expect(written).not.toContain("TR33");
+    expect(record?.context).toMatchObject({
+      fields: expect.arrayContaining(["phone", "iban"]),
+    });
+  });
+
+  it("HR-S1-65: a save that changes nothing writes nothing, and a blank IBAN keeps the one on record", async () => {
+    const person = await register({ iban: IBAN });
+    const before = await count(
+      `select count(*) as n from audit.records
+        where action = 'employee.updated' and subject_id = $1::uuid`,
+      person.id,
+    );
+    const changed = await hr.updateEmployee(wages.manager, {
+      organizationId: wages.organization,
+      employeeId: person.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      department: person.department,
+      position: person.position,
+      contractType: person.contractType,
+      hiredOn: person.hiredOn,
+    });
+    expect(changed).toEqual([]);
+    expect(
+      await count(
+        `select count(*) as n from audit.records
+          where action = 'employee.updated' and subject_id = $1::uuid`,
+        person.id,
+      ),
+    ).toBe(before);
+    const [row] = (
+      await hr.employees(wages.manager, wages.organization)
+    ).filter((candidate) => candidate.id === person.id);
+    expect(row?.ibanMasked).toBe(IBAN_MASKED);
+  });
+
+  it("HR-S1-66: a hire date cannot be edited to a day that has not come, and a leaver is not edited", async () => {
+    const person = await register();
+    const future = new Date(
+      `${await today(wages.organization, wages.north)}T00:00:00Z`,
+    );
+    future.setUTCDate(future.getUTCDate() + 3);
+    const edit = (hiredOn: Date, employeeId = person.id) =>
+      hr.updateEmployee(wages.manager, {
+        organizationId: wages.organization,
+        employeeId,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        department: person.department,
+        position: person.position,
+        contractType: person.contractType,
+        hiredOn,
+      });
+    await expect(edit(future)).rejects.toMatchObject({ field: "dates" });
+
+    const leaver = await register();
+    await hr.terminateEmployee(wages.manager, {
+      organizationId: wages.organization,
+      employeeId: leaver.id,
+      terminatedOn: new Date("2025-06-01"),
+    });
+    await expect(edit(new Date("2025-01-01"), leaver.id)).rejects.toMatchObject(
+      {
+        reason: "employee_terminated",
+      },
+    );
+  });
+
+  it("HR-S1-66: somebody who may only view HR edits nothing", async () => {
+    const person = await register();
+    await expect(
+      hr.updateEmployee(wages.viewer, {
+        organizationId: wages.organization,
+        employeeId: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        department: "Other",
+        position: person.position,
+        contractType: person.contractType,
+        hiredOn: person.hiredOn,
+      }),
+    ).rejects.toBeInstanceOf(HrRefusedError);
   });
 });

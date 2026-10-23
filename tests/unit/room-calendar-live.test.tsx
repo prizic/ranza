@@ -142,7 +142,6 @@ function renderCalendar(
             }}
             lengths={[7, 14, 30]}
             locale={locale}
-            propertyName="Calendar Property"
             scope={scope}
           />
         </Hydrated>
@@ -162,7 +161,7 @@ describe("a window that cannot be opened", () => {
     const RANGE = "Sep 21, 2026 – Oct 4, 2026";
     expect(screen.getByText(RANGE)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next 7 days" }));
     await letTimePass();
 
     expect(
@@ -190,7 +189,7 @@ describe("a window that cannot be opened", () => {
     // Found by the evidence run: the note outlived the outage that caused it
     // and sat over a calendar the next poll had already read.
     renderCalendar();
-    fireEvent.click(screen.getByRole("button", { name: "Next week" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next 7 days" }));
     await letTimePass();
     expect(
       await screen.findByText(/That window couldn't be opened/),
@@ -451,9 +450,9 @@ describe("when the page itself fails", () => {
 });
 
 describe("who sees it in the rail", () => {
-  const railFor = (entitled: string[]) =>
+  const railFor = (reachable: string[]) =>
     // The Property comes from the URL, so there is no default to fall back to.
-    renderHook(() => useWorkspaceNav("en", entitled, undefined), {
+    renderHook(() => useWorkspaceNav("en", reachable, undefined), {
       wrapper: ({ children }) => (
         <NextIntlClientProvider locale="en" messages={messages.en}>
           {children}
@@ -461,13 +460,13 @@ describe("who sees it in the rail", () => {
       ),
     }).result.current;
 
-  it("RC-S1-43: without front_desk the rail has no Room calendar", () => {
+  it("RC-S1-43: without the front desk the rail has no Room calendar", () => {
     const labels = JSON.stringify(railFor(["today"]));
     expect(labels).not.toContain("Room calendar");
   });
 
-  it("RC-S1-43: with front_desk it sits under Front Office", () => {
-    const frontOffice = railFor(["today", "front_desk"]).find(
+  it("RC-S1-43: with the front desk it sits under Front Office", () => {
+    const frontOffice = railFor(["today", "room-calendar"]).find(
       (entry) => "children" in entry && entry.children,
     );
     // And carries the Property, so opening it does not switch Property.

@@ -131,7 +131,8 @@ async function openBare({
       <WorkspaceRail
         brand={<span>R</span>}
         defaultProperty={first.propertyId}
-        entitled={["today", "housekeeping"]}
+        reachable={["today", "housekeeping"]}
+        segmentsByProperty={{}}
         labels={{
           collapse: "Daralt",
           expand: "Genişlet",

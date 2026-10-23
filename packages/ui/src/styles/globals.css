@@ -48,6 +48,8 @@
 
   --radius: 1rem;
 
+  --sheet-radius: 1.75rem;
+
   /*
    * Geist, as Leaders sets it, for Turkish and English. Geist draws no Arabic,
    * so an Arabic page leads with IBM Plex Sans Arabic instead — its digits and
@@ -55,6 +57,9 @@
    * for the Arabic a Latin page still shows, such as a language's own name.
    */
   --font-stack: var(--font-geist), var(--font-plex), system-ui, sans-serif;
+  /* The display face of a dialog's masthead; see DialogMasthead. */
+  --font-display-stack:
+    var(--font-newsreader), "Iowan Old Style", Georgia, serif;
 
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.06);
   --shadow-low: 0 4px 14px rgba(10, 41, 36, 0.04);
@@ -67,6 +72,10 @@
   --popover: var(--surface);
   --popover-foreground: var(--ink);
   --primary: var(--accent);
+  /* Text and outlines drawn in the brand colour on the white canvas. The theme's
+     own is dark enough to be both; an Organization's is a shade of its colour
+     that reads there (ADR 0046). */
+  --primary-text: var(--primary);
   --primary-foreground: hsl(0 0% 100%);
   --secondary: var(--accent-soft);
   --secondary-foreground: var(--accent);
@@ -84,6 +93,7 @@
 /* Arabic leads with the face that draws it; see --font-stack. */
 :root:lang(ar) {
   --font-stack: var(--font-plex), system-ui, sans-serif;
+  --font-display-stack: var(--font-plex), system-ui, sans-serif;
 }
 
 /* Which way "from the start edge" is, for the entrance keyframes below. */
@@ -99,6 +109,7 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-text: var(--primary-text);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -128,6 +139,41 @@
 
   --color-surface-strong: var(--surface-strong);
 
+  /*
+   * The frame: the sidebar and the margin around the page are one surface in
+   * the primary colour, and the page is a white sheet set into it. Drawn from
+   * `--primary` and `--primary-foreground` at the point of use rather than
+   * restated as tokens of their own, so an Organization's brand (ADR 0046),
+   * which sets those two on the shell, repaints the frame and keeps its text
+   * readable on a light brand colour. The tones are the foreground at three
+   * strengths because text and hover fills on this surface are drawn over it
+   * rather than chosen against it; at 74% white on the default emerald the
+   * muted tone is about 7:1.
+   */
+  --color-frame: var(--primary);
+  --color-on-frame: var(--primary-foreground);
+  --color-on-frame-muted: color-mix(
+    in srgb,
+    var(--primary-foreground) 74%,
+    transparent
+  );
+  --color-frame-line: color-mix(
+    in srgb,
+    var(--primary-foreground) 14%,
+    transparent
+  );
+  --color-frame-hover: color-mix(
+    in srgb,
+    var(--primary-foreground) 8%,
+    transparent
+  );
+  --color-frame-active: color-mix(
+    in srgb,
+    var(--primary-foreground) 15%,
+    transparent
+  );
+  --radius-sheet: var(--sheet-radius);
+
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-ink-muted: var(--ink-muted);
@@ -155,6 +201,7 @@
   --text-step-3: 1.953rem;
 
   --font-sans: var(--font-stack);
+  --font-display: var(--font-display-stack);
 }
 
 /* The sign-in screen's entrance, once, on arrival, as keyframes. Removed with every other motion when a reader asks
@@ -257,22 +304,9 @@
 
 /*
  * The surfaces the Leaders direction is built from. Utilities rather than
- * classes, so they compose with variants (`md:glass-panel`, `hover:`) like
+ * classes, so they compose with variants (`md:glass`, `hover:`) like
  * everything else and a component never names a bespoke class.
  */
-
-/* A floating panel: near-opaque white, a hairline you feel more than see, and
-   a long soft shadow that lifts it off the white canvas. Leaders' values. */
-@utility glass-panel {
-  background: rgb(255 255 255 / 85%);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgb(0 0 0 / 3%);
-  box-shadow:
-    0 4px 6px -1px rgb(0 0 0 / 2%),
-    0 2px 4px -1px rgb(0 0 0 / 2%),
-    0 20px 40px -8px rgb(0 0 0 / 4%);
-}
 
 /* A lighter translucent chip, for controls laid over a surface. */
 @utility glass {

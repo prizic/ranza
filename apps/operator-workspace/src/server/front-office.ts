@@ -2,34 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { isSupportedLocale } from "@ranza/i18n";
-import { GuestDetailsError } from "@ranza/guests";
+import type { GuestDetailsError } from "@ranza/guests";
 import {
   BALANCE_REASON,
-  BalanceReasonError,
-  BookingChangedError,
-  BookingChangeError,
   CANCELLATION_REASON,
-  ChangeNoteError,
   MOVE_REASONS,
   type MoveReason,
-  CheckInError,
-  CheckInTooEarlyError,
-  CheckOutError,
-  EarlyDepartureError,
-  ExpectedArrivalError,
-  FolioChangedError,
-  ReservationEndError,
-  ReservationPeriodError,
-  ReservationReasonError,
   REVERSAL_REASON,
-  PriceChangedError,
-  ReservationRefusedError,
-  UnitHasOccupantError,
-  UnitNotInServiceError,
   UnitNotReadyError,
-  UnitUnavailableError,
   type ReservationStayType,
 } from "@ranza/reservations";
+import type { RefusalReason } from "@ranza/reservations";
+import type { RefusalOutcome } from "../features/front-office/refusal";
 import { getComposition } from "./composition";
 import { undoOutcomeFor, type ReverseCheckInOutcome } from "./undo-outcome";
 import { currentViewer } from "./viewer";
@@ -47,11 +31,11 @@ import { currentViewer } from "./viewer";
 /**
  * What the form shows afterwards.
  *
- * `refused` covers every reason the check-in did not happen except the three
- * a front desk can act on — the nights are taken, somebody is still in the
- * room, the room is blocked: out of reach, cancelled, already arrived, gone.
- * They are one outcome on purpose, because telling them apart would confirm
- * that a Reservation the viewer cannot see exists.
+ * A refusal is `RefusalOutcome`: the reason the module gives for a Reservation
+ * the viewer can read — already arrived, cancelled, not theirs to check in, the
+ * day closed — and `refused` only for one they cannot, which is one outcome on
+ * purpose, because telling out of reach from never existed would confirm that
+ * a Reservation the viewer cannot see exists. `failed` is a fault, recorded.
  *
  * `notReady` is not a refusal: housekeeping says the room is dirty, nothing was
  * written, and the desk is asked whether to check in anyway (HK-S2-14).
@@ -70,29 +54,52 @@ export type CheckInOutcome =
   | "notInService"
   | "notReady"
   | "tooEarly"
-  | "refused";
+  | RefusalOutcome;
 
 /**
- * Whether `error` is a `kind`, by class or by name.
+ * Whether `error` is the module error called `name`.
  *
- * A dev server can hold the module that threw an error and this file in
- * different bundles, so the same class is two classes and `instanceof` says no
- * about an error that plainly is one. The name survives, and every error of the
- * module sets its own. Room calendar drags meet it on a refusal, which is the
- * one answer they cannot do without (RC-S3-09).
+ * By name and not by class: a dev server can hold the module that threw an
+ * error and this file in different bundles, so the same class is two classes
+ * and `instanceof` says no about an error that plainly is one — and a build
+ * that renames classes would make comparing against `kind.name` say no as well.
+ * Every error of the module sets its own `name` to its class's literal name, so
+ * the literal is what is compared. Room calendar drags meet it on a refusal,
+ * which is the one answer they cannot do without (RC-S3-09).
  */
-function isA(
-  error: unknown,
-  kind: abstract new (...args: never[]) => Error,
-): boolean {
-  return (
-    error instanceof kind ||
-    (error instanceof Error && error.name === kind.name)
-  );
+function isA(error: unknown, name: string): boolean {
+  return error instanceof Error && error.name === name;
+}
+
+/** The errors that carry a `reason`: every refusal the module gives on a booking or a Stay. */
+const REASONED_ERRORS = [
+  "CheckInError",
+  "CheckOutError",
+  "BookingChangeError",
+  "ReservationEndError",
+] as const;
+
+const OUTCOME_OF_REASON: Record<RefusalReason, RefusalOutcome> = {
+  unreachable: "refused",
+  not_permitted: "notPermitted",
+  already_checked_in: "alreadyCheckedIn",
+  already_checked_out: "alreadyCheckedOut",
+  withdrawn: "withdrawn",
+  not_confirmed: "notConfirmed",
+  nights_passed: "nightsPassed",
+  not_started: "notStarted",
+  day_closed: "dayClosed",
+  booking_mismatch: "bookingMismatch",
+};
+
+/** The outcome a refusal of the module's own names, or null for anything else. */
+function refusalOf(error: unknown): RefusalOutcome | null {
+  if (!REASONED_ERRORS.some((name) => isA(error, name))) return null;
+  return OUTCOME_OF_REASON[(error as { reason: RefusalReason }).reason];
 }
 
 function isNotReady(error: unknown): error is UnitNotReadyError {
-  return isA(error, UnitNotReadyError);
+  return isA(error, "UnitNotReadyError");
 }
 
 /**
@@ -118,11 +125,11 @@ export async function checkInReservation(
   form: FormData,
 ): Promise<CheckInOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const reservationId = String(form.get("reservation") ?? "");
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   // The second press, after the warning: the submit button that says
   // "check in anyway" carries this, and nothing else does.
@@ -134,21 +141,21 @@ export async function checkInReservation(
     });
   } catch (error) {
     if (isNotReady(error)) return "notReady";
-    if (error instanceof UnitUnavailableError) return "unavailable";
-    if (error instanceof UnitHasOccupantError) return "occupied";
-    if (error instanceof UnitNotInServiceError) return "notInService";
-    if (error instanceof CheckInTooEarlyError) return "tooEarly";
+    if (isA(error, "UnitUnavailableError")) return "unavailable";
+    if (isA(error, "UnitHasOccupantError")) return "occupied";
+    if (isA(error, "UnitNotInServiceError")) return "notInService";
+    if (isA(error, "CheckInTooEarlyError")) return "tooEarly";
     // A refusal this module raised is the answer, not an incident. Anything
-    // else — a lost connection, a schema that moved — is shown the same way and
-    // recorded, like the other commands on this screen.
-    if (!(error instanceof CheckInError)) {
-      console.error(
-        "checkInReservation failed unexpectedly",
-        { reservationId },
-        error,
-      );
-    }
-    return "refused";
+    // else — a lost connection, a schema that moved — is a fault: said as one,
+    // and recorded, like the other commands on this screen.
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
+    console.error(
+      "checkInReservation failed unexpectedly",
+      { reservationId },
+      error,
+    );
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -158,9 +165,10 @@ export async function checkInReservation(
 /**
  * What the check-out dialog shows afterwards.
  *
- * `refused` covers every reason the Stay could not be ended — out of reach,
- * already departed, gone — as one outcome, because telling them apart would
- * confirm that a Stay the viewer cannot see exists. The rest are about the
+ * A refusal is `RefusalOutcome`, with the reason for a Stay the viewer can read
+ * (already departed, not theirs to check out, the day closed) and `refused` for
+ * one they cannot, because telling out of reach from gone would confirm that a
+ * Stay the viewer cannot see exists. The rest are about the
  * review the desk is looking at, which the viewer already holds: the bill
  * changed, the early departure was not acknowledged, or the balance needs a
  * reason, or one of the right length.
@@ -173,7 +181,7 @@ export type CheckOutOutcome =
   | "balanceReasonRequired"
   | "reasonTooShort"
   | "reasonTooLong"
-  | "refused";
+  | RefusalOutcome;
 
 /**
  * The line count the review showed, as the form carried it. Empty is "there
@@ -211,19 +219,22 @@ export async function checkOutStay(
   form: FormData,
 ): Promise<CheckOutOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const stayId = String(form.get("stay") ?? "");
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
+  // A form this screen did not send, or an older one from before nights were
+  // charged at check-out: the bill it reviewed is not the bill, so it is read
+  // again rather than refused as if the Stay were the problem.
   const version = folioVersion(form.get("folioVersion"));
-  if (version === undefined) return "refused";
+  if (version === undefined) return "folioChanged";
   // The nights the review said check-out would charge (ADR 0038).
   const pendingNights = wholeNumber(form.get("pendingNights"));
   const pendingMinor = wholeNumber(form.get("pendingMinor"));
   if (pendingNights === undefined || pendingMinor === undefined) {
-    return "refused";
+    return "folioChanged";
   }
 
   const reason = String(form.get("balanceReason") ?? "").trim();
@@ -241,15 +252,13 @@ export async function checkOutStay(
       balanceReason: reason.length > 0 ? reason : null,
     });
   } catch (error) {
-    if (error instanceof FolioChangedError) return "folioChanged";
-    if (error instanceof EarlyDepartureError) return "earlyNotAcknowledged";
-    if (error instanceof BalanceReasonError) return "balanceReasonRequired";
-    // A refusal this module raised is the answer, not an incident. Anything
-    // else is shown the same way and recorded.
-    if (!(error instanceof CheckOutError)) {
-      console.error("checkOutStay failed unexpectedly", { stayId }, error);
-    }
-    return "refused";
+    if (isA(error, "FolioChangedError")) return "folioChanged";
+    if (isA(error, "EarlyDepartureError")) return "earlyNotAcknowledged";
+    if (isA(error, "BalanceReasonError")) return "balanceReasonRequired";
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
+    console.error("checkOutStay failed unexpectedly", { stayId }, error);
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -331,7 +340,7 @@ export type CreateReservationOutcome =
   | "invalidEmail"
   | "invalidArrival"
   | "priceChanged"
-  | "refused";
+  | RefusalOutcome;
 
 /** Only the two the database will accept; anything else is not a stay type. */
 function stayType(value: unknown): ReservationStayType | null {
@@ -371,10 +380,10 @@ export async function createReservation(
   form: FormData,
 ): Promise<CreateReservationOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   const propertyId = String(form.get("property") ?? "");
   const accommodationUnitId = String(form.get("unit") ?? "");
@@ -417,28 +426,31 @@ export async function createReservation(
       expectedArrival: optional(form, "expectedArrival"),
     });
   } catch (error) {
-    if (error instanceof UnitUnavailableError) return "unavailable";
-    if (error instanceof UnitHasOccupantError) return "occupied";
-    if (error instanceof ReservationPeriodError) return "invalidPeriod";
-    if (error instanceof GuestDetailsError) {
-      return error.field === "email" ? "invalidEmail" : "invalidGuest";
+    if (isA(error, "UnitUnavailableError")) return "unavailable";
+    if (isA(error, "UnitHasOccupantError")) return "occupied";
+    if (isA(error, "ReservationPeriodError")) return "invalidPeriod";
+    // By name, like the rest: `instanceof` is false for an error thrown by a
+    // copy of the module that a dev server bundled apart from this file.
+    if (isA(error, "GuestDetailsError")) {
+      return (error as GuestDetailsError).field === "email"
+        ? "invalidEmail"
+        : "invalidGuest";
     }
-    if (error instanceof ExpectedArrivalError) return "invalidArrival";
+    if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
     // The dialog is read again with the price that stands now.
-    if (error instanceof PriceChangedError) {
+    if (isA(error, "PriceChangedError")) {
       revalidateFrontDesk(locale);
       return "priceChanged";
     }
     // Out of reach, unentitled, out of service: the module's own answer, not
     // an incident (RG-S3-09).
-    if (error instanceof ReservationRefusedError) return "refused";
+    if (isA(error, "ReservationRefusedError")) return "refused";
 
     // Every refusal this slice raises is named above, so anything left is a
-    // lost connection, a schema that moved, or a defect here. Reported as
-    // "refused" because there is nothing else to show a front desk, but never
-    // quietly — the same line as `reverseCheckIn` above it.
+    // lost connection, a schema that moved, or a defect here: said as a fault
+    // and recorded — the same line as `reverseCheckIn` above it.
     console.error("createReservation failed unexpectedly", error);
-    return "refused";
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -448,23 +460,23 @@ export async function createReservation(
 /**
  * What cancelling a booking, or marking a no-show, shows afterwards.
  *
- * `refused` is every reason the booking could not be ended — already arrived,
- * already ended, out of reach — as one outcome, for the reason every other
- * refusal here is one. The reason's length is the viewer's own to correct.
+ * A refusal is `RefusalOutcome`: already arrived, already ended, not theirs to
+ * end, each with its own message, and `refused` only for a booking they cannot
+ * read. The reason's length is the viewer's own to correct.
  */
 export type EndBookingOutcome =
-  "idle" | "done" | "reasonTooShort" | "reasonTooLong" | "refused";
+  "idle" | "done" | "reasonTooShort" | "reasonTooLong" | RefusalOutcome;
 
 async function endBooking(
   form: FormData,
   run: (userId: string, reservationId: string) => Promise<unknown>,
 ): Promise<EndBookingOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const reservationId = String(form.get("reservation") ?? "");
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   try {
     await run(viewer.userId, reservationId);
@@ -472,15 +484,15 @@ async function endBooking(
     // Out of the module's bounds either way. cancelBooking has already
     // measured both, so reaching this means the two copies of the bounds
     // disagree — and "too short" is the likelier of the two.
-    if (error instanceof ReservationReasonError) return "reasonTooShort";
-    if (!(error instanceof ReservationEndError)) {
-      console.error(
-        "ending a booking failed unexpectedly",
-        { reservationId },
-        error,
-      );
-    }
-    return "refused";
+    if (isA(error, "ReservationReasonError")) return "reasonTooShort";
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
+    console.error(
+      "ending a booking failed unexpectedly",
+      { reservationId },
+      error,
+    );
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -510,7 +522,7 @@ export async function cancelBooking(
  *
  * `unavailable`, `occupied` and `notInService` are the Unit's answers the desk
  * can act on by choosing another; `changed` and `priceChanged` re-read the
- * dialog; `refused` is every reason the booking is not the viewer's to change.
+ * dialog; a refusal says why the booking is not the viewer's to change.
  */
 export type ChangeBookingOutcome =
   | "idle"
@@ -523,7 +535,7 @@ export type ChangeBookingOutcome =
   | "invalidArrival"
   | "priceChanged"
   | "changed"
-  | "refused";
+  | RefusalOutcome;
 
 /**
  * Changing a booking that has not arrived: its nights, its Unit, or both.
@@ -539,10 +551,10 @@ export async function changeBooking(
   form: FormData,
 ): Promise<ChangeBookingOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   const reservationId = String(form.get("reservation") ?? "");
   const accommodationUnitId = String(form.get("unit") ?? "");
@@ -585,24 +597,25 @@ export async function changeBooking(
       note: note.length === 0 ? null : note,
     });
   } catch (error) {
-    if (isA(error, UnitUnavailableError)) return "unavailable";
-    if (isA(error, UnitHasOccupantError)) return "occupied";
-    if (isA(error, UnitNotInServiceError)) return "notInService";
-    if (isA(error, ReservationPeriodError)) return "invalidPeriod";
-    if (isA(error, ExpectedArrivalError)) return "invalidArrival";
-    if (isA(error, PriceChangedError)) return "priceChanged";
-    if (isA(error, ChangeNoteError)) return "invalidNote";
-    if (isA(error, BookingChangedError)) {
+    if (isA(error, "UnitUnavailableError")) return "unavailable";
+    if (isA(error, "UnitHasOccupantError")) return "occupied";
+    if (isA(error, "UnitNotInServiceError")) return "notInService";
+    if (isA(error, "ReservationPeriodError")) return "invalidPeriod";
+    if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
+    if (isA(error, "PriceChangedError")) return "priceChanged";
+    if (isA(error, "ChangeNoteError")) return "invalidNote";
+    if (isA(error, "BookingChangedError")) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (isA(error, BookingChangeError)) return "refused";
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
     console.error(
       "changeBooking failed unexpectedly",
       { reservationId },
       error,
     );
-    return "refused";
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -621,7 +634,7 @@ export type ChangeDepartureOutcome =
   | "invalidPeriod"
   | "invalidNote"
   | "changed"
-  | "refused";
+  | RefusalOutcome;
 
 /**
  * Extending or shortening an in-house Guest's Stay, or giving an open-ended
@@ -633,10 +646,10 @@ export async function changeDeparture(
   form: FormData,
 ): Promise<ChangeDepartureOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   const stayId = String(form.get("stay") ?? "");
   const version = Number(form.get("version"));
@@ -662,16 +675,17 @@ export async function changeDeparture(
       note: note.length === 0 ? null : note,
     });
   } catch (error) {
-    if (isA(error, UnitHasOccupantError)) return "occupied";
-    if (isA(error, ReservationPeriodError)) return "invalidPeriod";
-    if (isA(error, ChangeNoteError)) return "invalidNote";
-    if (isA(error, BookingChangedError)) {
+    if (isA(error, "UnitHasOccupantError")) return "occupied";
+    if (isA(error, "ReservationPeriodError")) return "invalidPeriod";
+    if (isA(error, "ChangeNoteError")) return "invalidNote";
+    if (isA(error, "BookingChangedError")) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (isA(error, BookingChangeError)) return "refused";
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
     console.error("changeDeparture failed unexpectedly", { stayId }, error);
-    return "refused";
+    return "failed";
   }
 
   revalidateFrontDesk(locale);
@@ -692,7 +706,7 @@ export type MoveGuestOutcome =
   | "notInService"
   | "invalidNote"
   | "changed"
-  | "refused";
+  | RefusalOutcome;
 
 function moveReason(value: FormDataEntryValue | null): MoveReason | null {
   return (MOVE_REASONS as readonly string[]).includes(String(value))
@@ -710,10 +724,10 @@ export async function moveGuest(
   form: FormData,
 ): Promise<MoveGuestOutcome> {
   const viewer = await currentViewer();
-  if (!viewer) return "refused";
+  if (!viewer) return "signedOut";
 
   const locale = String(form.get("locale") ?? "");
-  if (!isSupportedLocale(locale)) return "refused";
+  if (!isSupportedLocale(locale)) return "failed";
 
   const stayId = String(form.get("stay") ?? "");
   const accommodationUnitId = String(form.get("unit") ?? "");
@@ -748,17 +762,18 @@ export async function moveGuest(
     });
   } catch (error) {
     if (isNotReady(error)) return "notReady";
-    if (isA(error, UnitHasOccupantError)) return "occupied";
-    if (isA(error, UnitUnavailableError)) return "unavailable";
-    if (isA(error, UnitNotInServiceError)) return "notInService";
-    if (isA(error, ChangeNoteError)) return "invalidNote";
-    if (isA(error, BookingChangedError)) {
+    if (isA(error, "UnitHasOccupantError")) return "occupied";
+    if (isA(error, "UnitUnavailableError")) return "unavailable";
+    if (isA(error, "UnitNotInServiceError")) return "notInService";
+    if (isA(error, "ChangeNoteError")) return "invalidNote";
+    if (isA(error, "BookingChangedError")) {
       revalidateFrontDesk(locale);
       return "changed";
     }
-    if (isA(error, BookingChangeError)) return "refused";
+    const refusal = refusalOf(error);
+    if (refusal) return refusal;
     console.error("moveGuest failed unexpectedly", { stayId }, error);
-    return "refused";
+    return "failed";
   }
 
   revalidateFrontDesk(locale);

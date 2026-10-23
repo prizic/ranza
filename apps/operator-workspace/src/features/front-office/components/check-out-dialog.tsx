@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { LogOut } from "lucide-react";
+import { AlarmClock, ArrowUpRight, Info, LogOut } from "lucide-react";
 import type { Departure } from "@ranza/reservations";
 import {
   formatDate,
@@ -13,28 +13,34 @@ import {
   type SupportedLocale,
 } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
-  Checkbox,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogFigure,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  DialogSettled,
+  dialogFrameClassName,
   DialogTrigger,
-  Fact,
-  FactList,
-  Field,
   FormError,
-  Label,
+  SuggestionRow,
+  TickRow,
   Textarea,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   checkOutStay,
   type CheckOutOutcome,
 } from "../../../server/front-office";
 import { unitLabel } from "../unit-label";
+import { refusalMessage } from "../refusal";
 
 /**
  * Checking a Guest out, from a review of their bill (CO-S1-12).
@@ -44,7 +50,8 @@ import { unitLabel } from "../unit-label";
  * leaving, from where, and what they owe before it is final. It asks for more
  * only when there is more to decide — an acknowledgement when the Guest is
  * leaving early, a reason when money is left on the Folio — so a Guest leaving
- * on the day with nothing owed is one press after the review.
+ * on the day with nothing owed is one press after the review, and the button
+ * stays muted, with the footer saying what is missing, until the rest is given.
  *
  * The Folio's line count travels back hidden. The module compares it with the
  * bill under the Stay's lock, so a charge posted while this was open is not
@@ -97,6 +104,7 @@ export function CheckOutDialog({
   // the desk is deciding about.
   const due = departure.balanceMinor + departure.pendingMinor;
   const owes = due !== 0;
+  const inCredit = due < 0;
   const room = unitLabel(departure.roomName, departure.unitName);
   const balance = formatMoney(due, departure.currency, locale);
   const unpriced =
@@ -104,6 +112,41 @@ export function CheckOutDialog({
     departure.nightlyRateMinor === null &&
     departure.folioId !== null;
 
+  const leaving = departure.overdue
+    ? t("overdue")
+    : departure.early
+      ? t("checkOutStatusEarly")
+      : t("checkOutStatusOnSchedule");
+  const folioHref = departure.folioId
+    ? `${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`
+    : null;
+  // A new tab when money is owed: the Folio is where it is settled, and
+  // leaving this one closes the dialog and forgets the reason already typed.
+  // The bill is checked again when it is confirmed.
+  const folioLink = folioHref ? (
+    <Link
+      className="inline-flex items-center gap-1 font-medium text-primary-text underline-offset-4 hover:underline"
+      href={folioHref}
+      prefetch={false}
+      {...(owes ? { rel: "noopener", target: "_blank" } : {})}
+    >
+      {owes ? t("reviewFolioNewTab") : t("reviewFolio")}
+      <ArrowUpRight aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
+    </Link>
+  ) : null;
+
+  const needsAcknowledgement = departure.early && !acknowledged;
+  const needsReason = owes && reason.trim().length < REASON.min;
+  const missing =
+    needsAcknowledgement && needsReason
+      ? t("checkOutHintTickAndReason")
+      : needsAcknowledgement
+        ? t("checkOutHintTick")
+        : needsReason
+          ? t("dialogHintReason")
+          : null;
+
+  const refusal = refusalMessage(outcome);
   const message =
     outcome === "folioChanged"
       ? t("checkOutFolioChanged")
@@ -115,8 +158,8 @@ export function CheckOutDialog({
             ? t("reasonTooShort", { min: REASON.min })
             : outcome === "reasonTooLong"
               ? t("reasonTooLong", { max: REASON.max })
-              : outcome === "refused"
-                ? t("checkOutRefused")
+              : refusal
+                ? t(refusal)
                 : null;
 
   return (
@@ -140,162 +183,159 @@ export function CheckOutDialog({
         </Button>
       </DialogTrigger>
 
-      <DialogContent>
-        <form action={act} className="grid gap-4">
-          <DialogHeader>
-            <DialogTitle>{t("checkOutTitle")}</DialogTitle>
-            <DialogDescription>{t("checkOutSummary")}</DialogDescription>
-          </DialogHeader>
+      <DialogContent className={dialogFrameClassName("small")}>
+        <form action={act} className="grid">
+          <DialogMasthead
+            art="/illustrations/check-out/key.svg"
+            eyebrow={t("checkOutTitle")}
+            facts={`${t("unit")} ${room} · ${leaving}`}
+            heading={name}
+          />
 
-          <FactList className="gap-4 pt-0">
-            <Fact label={t("guest")}>
-              <bdi>{name}</bdi>
-            </Fact>
-            <Fact label={t("unit")}>
-              <bdi className="tabular-nums">{room}</bdi>
-            </Fact>
-            <Fact label={t("plannedDeparture")}>
-              {departure.endsOn ? (
-                <time dateTime={departure.endsOn}>
-                  {day(departure.endsOn, locale)}
-                </time>
-              ) : (
-                t("openEnded")
-              )}
-            </Fact>
-            {departure.pendingNights > 0 ? (
-              <Fact label={t("checkOutNightsToCharge")}>
-                <span className="tabular-nums">
-                  {t("checkOutPendingNights", {
-                    count: departure.pendingNights,
-                    amount: formatMoney(
-                      departure.pendingMinor,
-                      departure.currency,
-                      locale,
-                    ),
-                  })}
-                </span>
-              </Fact>
+          <DialogBody simple>
+            <DialogDescription className="sr-only">
+              {t("checkOutSummary")}
+            </DialogDescription>
+
+            {departure.overdue && departure.endsOn ? (
+              <DialogNotice icon={AlarmClock}>
+                {t("checkOutOverdue", {
+                  count: departure.overdueDays,
+                  date: day(departure.endsOn, locale),
+                })}
+              </DialogNotice>
             ) : null}
-            <Fact
-              label={
-                departure.pendingNights > 0
-                  ? t("balanceAfterCheckOut")
-                  : t("balance")
-              }
-            >
-              {departure.folioId ? (
-                <span
-                  className={
-                    owes ? "font-semibold tabular-nums" : "tabular-nums"
-                  }
-                >
-                  {balance}
-                </span>
-              ) : (
-                t("noFolio")
-              )}
-            </Fact>
-          </FactList>
 
-          {unpriced ? (
-            <p className="text-step--1 text-muted-foreground">
-              {t("checkOutUnpriced")}
-            </p>
-          ) : null}
+            {unpriced ? (
+              <DialogNotice icon={Info}>{t("checkOutUnpriced")}</DialogNotice>
+            ) : null}
 
-          {departure.folioId ? (
-            <Link
-              className="text-step--1 underline underline-offset-4"
-              href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`}
-              prefetch={false}
-            >
-              {t("reviewFolio")}
-            </Link>
-          ) : null}
+            {owes ? (
+              <DialogFigure
+                amount={formatMoney(Math.abs(due), departure.currency, locale)}
+                caption={
+                  <>
+                    {departure.pendingNights > 0 ? (
+                      <span>
+                        {t("checkOutNightsToCharge")}:{" "}
+                        {t("checkOutPendingNights", {
+                          count: departure.pendingNights,
+                          amount: formatMoney(
+                            departure.pendingMinor,
+                            departure.currency,
+                            locale,
+                          ),
+                        })}
+                      </span>
+                    ) : null}
+                    {folioLink}
+                  </>
+                }
+                label={
+                  inCredit ? t("checkOutCreditLabel") : t("checkOutDueLabel")
+                }
+              />
+            ) : (
+              <DialogSettled
+                title={
+                  departure.folioId
+                    ? t("checkOutNothingOwedTitle")
+                    : t("noFolio")
+                }
+              >
+                {departure.folioId ? (
+                  <>
+                    {t("checkOutNothingOwedBody")} {folioLink}
+                  </>
+                ) : (
+                  t("checkOutNoFolioBody")
+                )}
+              </DialogSettled>
+            )}
 
-          <input name="stay" type="hidden" value={departure.stayId} />
-          <input name="locale" type="hidden" value={locale} />
-          <input
-            name="folioVersion"
-            type="hidden"
-            value={departure.folioVersion ?? ""}
-          />
-          <input
-            name="pendingNights"
-            type="hidden"
-            value={departure.pendingNights}
-          />
-          <input
-            name="pendingMinor"
-            type="hidden"
-            value={departure.pendingMinor}
-          />
+            <input name="stay" type="hidden" value={departure.stayId} />
+            <input name="locale" type="hidden" value={locale} />
+            <input
+              name="folioVersion"
+              type="hidden"
+              value={departure.folioVersion ?? ""}
+            />
+            <input
+              name="pendingNights"
+              type="hidden"
+              value={departure.pendingNights}
+            />
+            <input
+              name="pendingMinor"
+              type="hidden"
+              value={departure.pendingMinor}
+            />
 
-          {departure.early && departure.endsOn ? (
-            <div className="flex items-start gap-3">
-              <Checkbox
+            {departure.early && departure.endsOn ? (
+              <TickRow
                 checked={acknowledged}
                 id={`early-${departure.stayId}`}
                 name="earlyDeparture"
-                onCheckedChange={(checked) => setAcknowledged(checked === true)}
+                onCheckedChange={setAcknowledged}
                 required
-                value="yes"
-              />
-              <Label
-                className="leading-snug"
-                htmlFor={`early-${departure.stayId}`}
               >
                 {t("checkOutEarlyAcknowledge", {
                   date: day(departure.endsOn, locale),
                 })}
-              </Label>
-            </div>
-          ) : null}
+              </TickRow>
+            ) : null}
 
-          {owes ? (
-            <>
-              <Field
-                htmlFor={`balance-reason-${departure.stayId}`}
-                label={t("checkOutBalanceReason")}
+            {owes ? (
+              <DialogSection
+                hint={t("checkOutBalanceHint", { balance })}
+                labelFor={`balance-reason-${departure.stayId}`}
+                tag={{ label: t("dialogTagRequired"), required: true }}
+                title={t("checkOutBalanceReason")}
               >
                 <Textarea
-                  aria-describedby={`balance-hint-${departure.stayId}`}
+                  className={textareaClassName}
+                  aria-describedby={`balance-reason-${departure.stayId}-hint`}
                   id={`balance-reason-${departure.stayId}`}
                   maxLength={REASON.max}
                   minLength={REASON.min}
                   name="balanceReason"
                   onChange={(event) => setReason(event.target.value)}
+                  placeholder={t("checkOutReasonPlaceholder")}
                   required
                   rows={3}
                   value={reason}
                 />
-              </Field>
-              <p
-                className="text-step--1 text-muted-foreground"
-                id={`balance-hint-${departure.stayId}`}
-              >
-                {t("checkOutBalanceHint", { balance })}
-              </p>
-            </>
-          ) : null}
+                <SuggestionRow
+                  items={[
+                    t("checkOutReasonWillPayLater"),
+                    t("checkOutReasonCompanyInvoice"),
+                    t("checkOutReasonDisputed"),
+                  ]}
+                  label={t("dialogQuickPicks")}
+                  onPick={setReason}
+                />
+              </DialogSection>
+            ) : null}
 
-          {message ? (
-            <div aria-live="polite">
-              <FormError>{message}</FormError>
-            </div>
-          ) : null}
+            {departure.roomWillBeDirty ? (
+              <DialogNotice>{t("checkOutRoomDirty")}</DialogNotice>
+            ) : null}
 
-          <DialogFooter>
+            {message ? (
+              <div aria-live="polite">
+                <FormError>{message}</FormError>
+              </div>
+            ) : null}
+          </DialogBody>
+
+          <DialogActions hint={missing}>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("keepInHouse")}
-              </Button>
+              <CancelButton type="button">{t("keepInHouse")}</CancelButton>
             </DialogClose>
-            <Button disabled={pending} type="submit">
-              {pending ? t("checkingOut") : t("confirmCheckOut")}
-            </Button>
-          </DialogFooter>
+            <ArrowButton disabled={pending || missing !== null} type="submit">
+              {pending ? t("checkingOut") : t("checkOut")}
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

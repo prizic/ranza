@@ -61,6 +61,18 @@ export interface AuditFilters {
   to?: string | undefined;
   /** A Guest, a room, a colleague's address, or words from a reason. */
   q?: string | undefined;
+  /**
+   * Actions that `q` is a word for on the screen ("rate" is "Nightly rates
+   * changed"). Only the host knows what an action is called, so it names them;
+   * a record of one of them matches `q` as one about a Guest it names does.
+   */
+  textActions?: readonly string[] | undefined;
+  /**
+   * The history of one thing: a Reservation, a Stay or a Folio and the others
+   * of the three that belong to it, or any other subject by itself. Narrows,
+   * unlike `q`, which only finds.
+   */
+  subjectId?: string | undefined;
   /** From a previous page's `nextCursor`. */
   cursor?: string | undefined;
 }
@@ -79,6 +91,18 @@ export interface AuditPage extends AuditNames {
   /** Records matching the filters, across every page. */
   total: number;
   nextCursor: string | null;
+  /**
+   * The search named more Guests, rooms or colleagues than it looks at, so the
+   * records about the rest are not among these. Said on the screen: "nothing
+   * matched" and "that was too broad" must not look alike (AUDIT-11).
+   */
+  searchCapped: boolean;
+  /**
+   * What `subjectId` stood for, when it was given: how many subjects its
+   * history spans (a booking's, its stays' and their folios'), so the screen
+   * can say it shows more than one.
+   */
+  subjectSpan: number | null;
 }
 
 /**
@@ -89,6 +113,34 @@ export interface AuditPage extends AuditNames {
 export interface BillingNotice {
   organizationId: string;
   organizationName: string;
+}
+
+/**
+ * Why a destination is closed to the viewer, from the gate that stopped them
+ * first — Subscription and Entitlement, then the Property, then their role.
+ *
+ * `not_reachable` is a Property the URL names that the viewer does not reach:
+ * stale, forged, or one they were unassigned from. It stays one answer for all
+ * of those, so a Property that exists is not distinguishable from one that does
+ * not. `open` is the answer when nothing denies, which a page that refused
+ * moments ago can still be told if a gate changed in between.
+ */
+export type Denial =
+  | { reason: "no_property" }
+  | { reason: "not_reachable" }
+  | { reason: "not_subscribed" }
+  | { reason: "not_enabled" }
+  | { reason: "no_permission"; permission: string }
+  | { reason: "open" };
+
+/** What a destination asks of a Property and of the person, as `listPermittedProperties` does. */
+export interface DenialQuestion {
+  /** Gates 1 to 3. Absent for a destination no package selection may remove. */
+  capability?: CapabilityRef | undefined;
+  /** The permission a role must hold in the Organization; any one of several. */
+  permission?: string | readonly string[] | undefined;
+  /** The `?property=` the viewer arrived with, as typed. */
+  propertyId?: string | undefined;
 }
 
 /** A Property the acting Staff Member may use a capability in. */

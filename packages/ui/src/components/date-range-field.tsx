@@ -315,7 +315,7 @@ export function DateRangeField({
           "flex h-full min-w-0 flex-1 items-center rounded-xl px-2 text-start outline-none transition-colors hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-primary/20",
           open &&
             editing === edge &&
-            "bg-primary/10 text-primary hover:bg-primary/10",
+            "bg-primary/10 text-primary-text hover:bg-primary/10",
         )}
         // With the start locked the end is the one control, so the field's
         // label names it.
@@ -352,7 +352,7 @@ export function DateRangeField({
             className={cn(
               "flex size-6 shrink-0 items-center justify-center rounded-xl transition-colors",
               from || to
-                ? "bg-primary/10 text-primary"
+                ? "bg-primary/10 text-primary-text"
                 : "bg-muted/80 text-muted-foreground group-hover:text-foreground",
             )}
           >
@@ -462,9 +462,9 @@ export function DateRangeField({
                 return (
                   <button
                     className={cn(
-                      "shrink-0 rounded-lg px-2.5 py-1.5 text-start text-[11px] font-semibold transition-colors hover:bg-primary/10 hover:text-primary",
+                      "shrink-0 rounded-lg px-2.5 py-1.5 text-start text-[11px] font-semibold transition-colors hover:bg-primary/10 hover:text-primary-text",
                       active
-                        ? "bg-primary/10 text-primary"
+                        ? "bg-primary/10 text-primary-text"
                         : "text-muted-foreground",
                     )}
                     key={preset.label}

@@ -4,11 +4,12 @@ import { roomDirtySubscription } from "./room-dirty";
 import { roomMovedSubscription } from "./room-moved";
 import { roomReturnedSubscription } from "./room-returned";
 import { staffReachSubscription } from "./staff-reach";
+import { webhookSubscriptions } from "./webhook-deliveries";
 
 /**
  * Which consumer wants which event.
  *
- * Four.
+ * Five, and the last is one subscription per subscribable event.
  *
  *   - `staff.reach_changed` ends every session that Staff Member holds — the
  *     handler that makes Staff and permissions mean anything, because without
@@ -25,7 +26,12 @@ import { staffReachSubscription } from "./staff-reach";
  *     same table and the same shape as a departure, and the same later-word
  *     rule, so a room cleaned before the worker got there stays clean.
  *
- * `stay.checked_in` is still published and still unconsumed, and the other
+ *   - every event an Organization can subscribe a webhook endpoint to is queued
+ *     for delivery to each endpoint that asked for it (ADR 0045). The handler
+ *     only queues; sending is `apps/worker/src/webhooks`, outside any
+ *     transaction, because a slow receiver must not pin a connection.
+ *
+ * `stay.checked_in` is published and only webhooks consume it, and the other
  * candidates for `stay.checked_out` are still waiting for workflows that do
  * not exist, which blueprint section 13 forbids building ahead of:
  *
@@ -57,4 +63,5 @@ export const subscriptions: readonly OutboxSubscription[] = [
   roomMovedSubscription,
   roomReturnedSubscription,
   folioLinePostedSubscription,
+  ...webhookSubscriptions,
 ];

@@ -37,7 +37,13 @@ crossed by exactly one named capability rather than widened
 
 Send the invitation. There is no Notifications module (blueprint 5.12), so
 `invite()` returns the token once and a person passes it on. Only its SHA-256
-digest is stored.
+digest is stored. The page behind the link (`apps/operator-workspace`, ADR 0053)
+asks `invitationState()` what state the link is in, creates the login through
+the sign-up route, ties it to the invited user with `@ranza/auth`'s
+`linkInvitedUser()` and calls `accept()`, which records
+`staff.invitation_accepted`. `reissueInvitation()` makes a new link and
+withdraws the old one; `readd()` brings back somebody revoked past the undo
+window on the same membership.
 
 ## Design
 

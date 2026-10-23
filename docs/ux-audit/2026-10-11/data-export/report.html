@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Data export</title>
+    <style>
+      :root {
+        --fg: #1b2420;
+        --muted: #5b6761;
+        --line: #d9dfdb;
+        --bg: #fbfaf6;
+        --accent: #0f4f43;
+        --warn: #8a4b00;
+        --bad: #9b1c1c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 40px 0 12px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 16px;
+        margin: 20px 0 6px;
+      }
+      p,
+      li {
+        max-width: 80ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0 16px;
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+      }
+      th {
+        background: #eef2ef;
+        position: sticky;
+        top: 0;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .sev {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .sev.blocks {
+        color: var(--bad);
+      }
+      .sev.errors {
+        color: var(--warn);
+      }
+      .tag {
+        display: inline-block;
+        padding: 0 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 12px;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      .verified {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .inferred {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+      figure {
+        margin: 12px 0 20px;
+      }
+      figure img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+      }
+      figure.narrow img {
+        max-width: 360px;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      code {
+        background: #eef2ef;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+      .box {
+        border: 1px solid var(--line);
+        background: #fff;
+        padding: 12px 16px;
+        border-radius: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Data export</h1>
+      <p class="meta">
+        Route <code>/en/data-export</code> (no sub-routes; the only linked
+        endpoint is <code>/api/data-export/[id]/download</code>) &middot; hosted
+        staging, 2026-10-11 &middot; persona: the owner or their accountant who
+        needs "everything for the tax office" or "my guests list for the new
+        software", and later needs to be sure nothing is trapped in the product
+        &middot; roles checked: Owner, Finance, Manager, Front Desk &middot;
+        mode: AUDIT ONLY, nothing was submitted, requested or downloaded.
+      </p>
+
+      <div class="box">
+        <strong>Labels used throughout.</strong>
+        <span class="tag verified">verified</span> I saw it in the running app.
+        <span class="tag inferred">inferred</span> I read it in code or docs and
+        did not run it. <span class="tag">unknown</span> I could not find out.
+        <p>
+          Data state found: the Organization "Prizic Demo" has
+          <strong>zero exports and zero schedules</strong> (verified,
+          screenshots 01 and 04). So the in-progress, failed, expired and ready
+          states, the history table, the download and the schedule table with
+          rows were never on screen. Those are judged from the components and
+          the feature docs only and are marked inferred. I did not request an
+          export to create data, and I did not press Download, because a
+          download writes a <code>data_export.downloaded</code> audit record in
+          the same transaction (read in <code>download/route.ts</code>), which
+          breaks the "records nothing beyond a read" condition.
+        </p>
+      </div>
+
+      <h2>1. Verdict</h2>
+      <ol>
+        <li>
+          <strong>Could the persona use it unaided? Partly.</strong> An owner
+          who wants "all guests as a spreadsheet" can find the page, tick one
+          box and ask. An accountant who wants "everything for 2025 for the tax
+          office" cannot: there is no date range, no statement of scope, and the
+          file is named <code>export-1a2b3c4d.csv</code> (inferred).
+        </li>
+        <li>
+          <strong
+            >Biggest risk: the form promises more than it delivers, and says
+            nothing about what it leaves out.</strong
+          >
+          It offers five datasets to every role, pre-ticks two the Finance role
+          may not be allowed to export, and does not say that several modules
+          (staff, payroll, rates, food and beverage, inventory, maintenance)
+          cannot be exported at all. "Nothing is trapped" cannot be confirmed
+          from this page.
+        </li>
+        <li>
+          <strong>Defect to fix first:</strong> a user without the permission
+          who types the URL is told "This module is not in your Subscription",
+          which is false (verified, DX-01).
+        </li>
+        <li>
+          <strong
+            >The default selection (Guests plus Reservations, as CSV) produces
+            one stacked file with <code># dataset:</code> section lines</strong
+          >
+          (inferred from <code>render.ts</code>, doc EXP-DEF-02), which a new
+          system will not import as a guest list (DX-03).
+        </li>
+        <li>
+          Counts: 21 findings: 1 blocks work, 6 cause errors, 6 slow me down, 8
+          polish. Thirteen rest at least partly on something I saw in the app;
+          eight are inferred from code only.
+        </li>
+      </ol>
+
+      <h2>2. Findings</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DX-01</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>/en/data-export</code>, Front Desk and Housekeeping, typed
+                URL
+              </td>
+              <td>
+                The page shows "This module is not in your Subscription. It
+                appears here once your Organization subscribes to it and the
+                Property has it enabled." The same Organization shows the module
+                to Owner, Manager and Finance, so the Subscription is not the
+                cause: the Front Desk and Housekeeping roles lack
+                <code>data_export.read</code>. The rail correctly hides the
+                entry for both. Housekeeping showed exactly the same text (read
+                from the page, no separate screenshot).
+              </td>
+              <td>
+                "You do not have permission to export data. Ask an Owner." A
+                front-desk user told the company has not subscribed will report
+                a billing problem or stop asking.
+              </td>
+              <td>
+                In <code>page.tsx</code> the single
+                <code>!property</code> branch covers both "not entitled" and "no
+                permission". Split it: when the Property is entitled but the
+                role lacks the permission, render a permission message.
+              </td>
+              <td>S</td>
+              <td>
+                09-frontdesk-typed-url.png; reproduced on a second role
+                (Housekeeping)
+              </td>
+              <td>
+                <span class="tag verified">verified</span> screen,
+                <span class="tag inferred">inferred</span> cause
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-02</td>
+              <td class="sev errors">causes errors</td>
+              <td>New Export form, Finance and Manager</td>
+              <td>
+                The form is identical for every role: all five datasets are
+                enabled, Guests and Reservations are pre-ticked. Per the docs,
+                Guests and Reservations need a front-desk permission and the
+                Audit log needs <code>audit.read</code> (EXP-S1-01, EXP-DEF-04
+                says the guest rule "excludes Finance and Housekeeping"). The
+                refusal happens on submit, with one generic sentence "You may
+                not request an export of these datasets" that does not say which
+                (EXP-S1-46 states this is deliberate). I did not press submit to
+                see it.
+              </td>
+              <td>
+                The Finance accountant should see only what the role may export,
+                with Folios and Payments ticked, or each blocked dataset
+                disabled with a one-line reason. Pressing the default button
+                should not be a guaranteed refusal.
+              </td>
+              <td>
+                Expose the role's allowed datasets to the form (the map exists
+                in <code>app.data_export_resource_permissions()</code>), disable
+                the rest with "needs front desk access", pre-tick the allowed
+                set. Whether Finance holds <code>data_export.create</code> at
+                all is <span class="tag">unknown</span>.
+              </td>
+              <td>M</td>
+              <td>
+                08-finance-new-export.png, 10-manager-new-export.png (form
+                identical to Owner's in 02)
+              </td>
+              <td>
+                <span class="tag verified">verified</span> form,
+                <span class="tag inferred">inferred</span> refusal
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-03</td>
+              <td class="sev errors">causes errors</td>
+              <td>New Export, any role, default state</td>
+              <td>
+                The form opens with Guests and Reservations ticked and CSV
+                chosen. When several datasets are chosen in CSV, the code stacks
+                them in one file, each under a <code># dataset: name</code> line
+                with a blank line between (<code>renderCsv</code>), and a
+                spreadsheet opens it as one sheet. The form does not say this.
+                Someone who wants "my guest list for the new software" and does
+                not untick Reservations gets a file that no importer reads.
+                Documented as deferred (EXP-DEF-02).
+              </td>
+              <td>
+                Either one file per dataset, or a visible line under the
+                datasets: "Several datasets in CSV are stacked in one file.
+                Choose one dataset per export if you want to import it." Better:
+                pre-tick nothing.
+              </td>
+              <td>
+                Short term: pre-tick nothing and add the sentence when two or
+                more datasets and CSV are chosen. Long term: zip of one CSV per
+                dataset (EXP-DEF-02).
+              </td>
+              <td>S for the warning, L for the zip</td>
+              <td>02-owner-new-export.png, 03-owner-new-export-full.png</td>
+              <td>
+                <span class="tag verified">verified</span> default and silence,
+                <span class="tag inferred">inferred</span> file shape
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-04</td>
+              <td class="sev errors">causes errors</td>
+              <td>New Export and Create Schedule, all roles</td>
+              <td>
+                The page never says what an export contains in scope. Code: it
+                is every row, all dates, everything the requester can read
+                (EXP-S1-23, reach not the Property in the header). The header
+                shows "Demo Otel İstanbul" and the description says "your
+                organization". An owner of two Properties cannot tell whether
+                the file is this hotel or both, and the accountant cannot tell
+                whether it is this year or all time.
+              </td>
+              <td>
+                A one-line scope statement above the Request button: "All dates.
+                Properties you have access to: A, B." Plus a date range (see Not
+                built).
+              </td>
+              <td>Add the scope line first (S). Date range is backend work.</td>
+              <td>S</td>
+              <td>03-owner-new-export-full.png</td>
+              <td>
+                <span class="tag verified">verified</span> absence of text,
+                <span class="tag inferred">inferred</span> actual scope
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-05</td>
+              <td class="sev blocks">blocks work</td>
+              <td>
+                Any export that grows past 100,000 rows in one dataset or 25 MiB
+              </td>
+              <td>
+                The export fails with "Too large to export." and nothing else.
+                With no date range and no way to export one Property or a
+                smaller piece, the owner has no way to make it smaller. The
+                limit is 100,000 rows per dataset and 25 MiB per file
+                (<code>contracts.ts</code>, EXP-S1-45, <code>runner.ts</code>).
+                Folio lines and the audit log of a busy hotel will reach 100,000
+                rows. Failing loudly rather than truncating is correct; the dead
+                end is the problem. Not seen on screen (empty data).
+              </td>
+              <td>
+                The failed row says what to do ("Choose fewer datasets or a
+                shorter period") and the form offers a way to narrow.
+              </td>
+              <td>
+                Add a next step to the failure text now (S); a date range makes
+                it actionable (M, backend).
+              </td>
+              <td>S to M</td>
+              <td>none (inferred, no data)</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-06</td>
+              <td class="sev errors">causes errors</td>
+              <td>New Export form, download</td>
+              <td>
+                The Guests dataset is names, emails, phone numbers; Folio lines
+                carry free-text descriptions; the Audit log carries context.
+                Nothing on the page warns that the file contains personal data,
+                how long it stays available (7 days is shown only on a ready
+                row, never on the form), or who can download it (anyone holding
+                the read permission plus the dataset permissions, EXP-S1-38).
+                The only hint is the card text "Names, email addresses and phone
+                numbers".
+              </td>
+              <td>
+                A sentence on the form: "This file contains guest personal data.
+                Store it securely. Anyone with export access can download it for
+                7 days. Requests and downloads are logged." Turkish customers
+                will expect a KVKK note.
+              </td>
+              <td>Add the notice to the form and to the ready row.</td>
+              <td>S</td>
+              <td>03-owner-new-export-full.png</td>
+              <td><span class="tag verified">verified</span> absence</td>
+            </tr>
+
+            <tr>
+              <td>DX-07</td>
+              <td class="sev errors">causes errors</td>
+              <td>New Export form, all roles</td>
+              <td>
+                The five datasets are the only things that can leave: guests,
+                reservations and stays, rooms and beds, folios and payments,
+                audit log (<code>datasets.ts</code>). Staff, HR and payroll,
+                rates, food and beverage, inventory, maintenance requests,
+                housekeeping history and guest-experience requests have no
+                dataset. The page does not say so. For "be sure nothing about
+                the hotel is trapped", the owner is falsely reassured by a list
+                that looks complete. A fifth caveat: after a Subscription ends,
+                every dataset except the audit log returns no data (EXP-DEF-03,
+                owner decision still open).
+              </td>
+              <td>
+                A short "Not included yet" list under the datasets, or a link to
+                a page saying how to get the rest.
+              </td>
+              <td>
+                Add a static note listing what is not included. Whether to build
+                the rest is a product decision (see section 6).
+              </td>
+              <td>S</td>
+              <td>03-owner-new-export-full.png</td>
+              <td>
+                <span class="tag verified">verified</span> absence,
+                <span class="tag inferred">inferred</span> missing modules
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-08</td>
+              <td class="sev slows">slows me down</td>
+              <td>Downloaded file, all roles</td>
+              <td>
+                The filename is <code>export-</code> plus the first 8 characters
+                of the id plus the extension (migration
+                <code>20260916010710</code>, line 550; the link falls back to
+                the same pattern). Twenty exports a quarter means twenty
+                indistinguishable files in the Downloads folder, with nothing to
+                say which hotel, dataset or date.
+              </td>
+              <td>
+                Something like <code>prizic-demo-guests-2026-10-11.csv</code>.
+              </td>
+              <td>
+                Build the name in the database function from Organization,
+                dataset keys and the request date.
+              </td>
+              <td>S</td>
+              <td>none</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-09</td>
+              <td class="sev slows">slows me down</td>
+              <td>Export history table, ready row</td>
+              <td>
+                The table shows requested time, requester, datasets, format,
+                status, size, action. The record counts per dataset are stored
+                (<code>recordCounts</code>, and a "Records" header string exists
+                in the messages) but the table does not render them. A 1 KB size
+                is the only clue that an export is empty, and an empty dataset
+                keeps its header row (EXP-S1-43), so it looks like a success.
+              </td>
+              <td>
+                "1,248 guests, 3,102 reservations" on the row, so the owner can
+                check the number against what they know before trusting the
+                file.
+              </td>
+              <td>
+                Render <code>recordCounts</code> in the datasets cell or a
+                Records column.
+              </td>
+              <td>S</td>
+              <td>none (no rows)</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-10</td>
+              <td class="sev slows">slows me down</td>
+              <td>Downloaded CSV and JSON, accountant</td>
+              <td>
+                Columns are raw database names:
+                <code>amount_minor</code> (integer minor units, so 5000 means
+                50.00), <code>reservation_status</code>, <code>stay_type</code>,
+                UUID ids, <code>created_at</code> as an ISO instant (UTC). The
+                Folios card promises "charges, payments, and balances" and the
+                column list has no balance column. No VAT or tax column and no
+                invoice-style layout. An accountant will need to rebuild the
+                file before the tax office can use it.
+              </td>
+              <td>
+                Headers in plain words in the user's language, money as decimals
+                with the currency, and the card text matching what the file
+                holds.
+              </td>
+              <td>
+                Correct the card text now (S). Human-readable headers and
+                decimal amounts are a design decision (M).
+              </td>
+              <td>S to M</td>
+              <td>none</td>
+              <td>
+                <span class="tag inferred">inferred</span> from
+                <code>datasets.ts</code> and <code>render.ts</code>
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-11</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                History table, pending / processing / failed / expired rows
+              </td>
+              <td>
+                While waiting, the row shows an italic "Pending" or "Processing"
+                with no elapsed time. The worker picks requests up every 15 s
+                and the page re-reads every 5 s
+                (<code>data-export.service.ts</code>,
+                <code>data-export-view.tsx</code>), so a normal wait is about 20
+                s. If the worker is down, a pending row has no timeout in the
+                UI; the sweep only fails a <em>processing</em> row after 30
+                minutes (EXP-S1-31). Failed and expired rows end with a reason
+                or a word and no button to request the same thing again. Whether
+                the worker is running on staging is
+                <span class="tag">unknown</span>.
+              </td>
+              <td>
+                "Requested 14 minutes ago, still waiting" in a warning tone
+                after a few minutes, and a "Request again" button on failed and
+                expired rows that reopens the form with the same choices.
+              </td>
+              <td>Add elapsed time and "Request again".</td>
+              <td>M</td>
+              <td>none</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-12</td>
+              <td class="sev slows">slows me down</td>
+              <td>Schedules tab and Create Schedule form</td>
+              <td>
+                The form asks for name, frequency (daily, weekly, monthly),
+                format and datasets. It does not ask for a weekday or time of
+                day and does not say when the first run will be (the code sets
+                it one step from now, EXP-S1-34). A paused schedule shows only
+                "Paused", with no reason, even when it was paused because the
+                creator lost permission (EXP-S1-33). There is no edit or delete
+                in the table, only Pause and Resume. The card says "Active
+                Export Schedules" but lists paused ones too. Each run just lands
+                in the history for 7 days; nobody is emailed. The example name
+                "Weekly Financial Backup" (Turkish placeholder) and the JSON
+                hint "backup" suggest a backup, while a monthly schedule's file
+                expires after 7 days unless somebody logs in to fetch it.
+              </td>
+              <td>
+                Say when it runs and where the result appears, show why a
+                schedule is paused, and be honest that this is not a backup.
+              </td>
+              <td>
+                Add the "next run" text and the "appears here for 7 days" line
+                to the form; add a paused reason; rename the card.
+              </td>
+              <td>M</td>
+              <td>
+                05-owner-new-schedule.png (form, empty state); table rows not
+                seen
+              </td>
+              <td>
+                <span class="tag verified">verified</span> form,
+                <span class="tag inferred">inferred</span> table behaviour
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-13</td>
+              <td class="sev slows">slows me down</td>
+              <td>Ready row, Download link</td>
+              <td>
+                The download route returns a bodiless 404 for any file the
+                downloader may no longer have (requester lost a right since
+                asking, EXP-S1-40, or it has expired but not yet been cleared).
+                The link is a plain <code>&lt;a download&gt;</code>, so the
+                click ends in a browser "failed" download or an empty tab with
+                no message in Ranza.
+              </td>
+              <td>
+                A readable message: "This file is no longer available. Request
+                it again."
+              </td>
+              <td>Return a small JSON or redirect to the page with a toast.</td>
+              <td>S</td>
+              <td>none</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-14</td>
+              <td class="sev polish">polish</td>
+              <td>768 px wide, Owner</td>
+              <td>
+                The page scrolls sideways: document width 885 px in a 768 px
+                viewport. The "Create Export Schedule" button is cut off at the
+                right edge ("Create E") and the breadcrumb reads "WORKSP".
+                Measured twice (screenshot, then script). At 375 px there was no
+                horizontal overflow.
+              </td>
+              <td>The action buttons wrap below the tabs at 768 px.</td>
+              <td>Allow the tab/button row to wrap.</td>
+              <td>S</td>
+              <td>13-owner-768.png; reproduced Y</td>
+              <td><span class="tag verified">verified</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-15</td>
+              <td class="sev polish">polish</td>
+              <td>Metric tiles, all sizes</td>
+              <td>
+                Four large tiles sit above the work: "Recent Export Records 0",
+                "Ready 0", "Active Export Schedules 0", and a tile titled
+                "Requested At" holding "—" (it means the time of the last
+                export). On a phone they fill the first screen and push the
+                actions below the fold. "Recent Export Records" is a count of
+                the last 50 at most (the list reads up to 50, EXP-S1-12), so a
+                count of 50 is a cap, not a total.
+              </td>
+              <td>
+                Short labels ("Exports", "Ready", "Schedules", "Last export")
+                and smaller tiles, or none.
+              </td>
+              <td>Rename the tiles; drop them on small screens.</td>
+              <td>S</td>
+              <td>01-owner-history.png, 12-owner-375-viewport.png</td>
+              <td>
+                <span class="tag verified">verified</span> layout,
+                <span class="tag inferred">inferred</span> cap
+              </td>
+            </tr>
+
+            <tr>
+              <td>DX-16</td>
+              <td class="sev polish">polish</td>
+              <td>Header of the page, all roles</td>
+              <td>
+                "Export History" and "Schedules" are tabs; "New Export" and
+                "Create Export Schedule" are buttons that swap the same panel.
+                When a button is active, no tab is highlighted, so there is no
+                marker for where I am, and the form has no Cancel. After a
+                successful request the page returns to History by itself after
+                one second.
+              </td>
+              <td>
+                Four views as one navigation, or two forms opened as a panel
+                with a Cancel link.
+              </td>
+              <td>Make the four panels one tab set, or add Cancel.</td>
+              <td>S</td>
+              <td>02-owner-new-export.png, 05-owner-new-schedule.png</td>
+              <td><span class="tag verified">verified</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-17</td>
+              <td class="sev polish">polish</td>
+              <td>New Export vs Create Schedule</td>
+              <td>
+                Same decisions, different controls and defaults: New Export
+                pre-ticks Guests and Reservations and picks format with cards;
+                Schedule pre-ticks Guests and Folios and picks format with a
+                dropdown. The buttons are "Create Export Schedule", "Create
+                Schedule" and (Turkish) "Planı Kaydet". Titles are Title Case
+                ("Recent Export Records") while other screens use sentence case
+                ("Needs attention", "Today's movements").
+              </td>
+              <td>One shared dataset picker and one default.</td>
+              <td>Reuse the same component.</td>
+              <td>S</td>
+              <td>03 and 05</td>
+              <td><span class="tag verified">verified</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-18</td>
+              <td class="sev polish">polish</td>
+              <td><code>/ar/data-export</code></td>
+              <td>
+                The format hint "Excel, Numbers, Sheets" is rendered as
+                "Sheets&#1608; Numbers&#1608; Excel" with the conjunction
+                attached to the wrong word, because Latin product names sit in a
+                right-to-left line. Everything else mirrors correctly.
+              </td>
+              <td>
+                The three names read in order with the Arabic "and" between
+                them.
+              </td>
+              <td>Wrap the product names in a left-to-right span.</td>
+              <td>S</td>
+              <td>07-owner-arabic.png</td>
+              <td><span class="tag verified">verified</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-19</td>
+              <td class="sev polish">polish</td>
+              <td>Export history and schedule tables</td>
+              <td>
+                The tables format times with
+                <code>toLocaleString(locale)</code> in a client component, so
+                the time shown is in the <em>browser's</em> time zone and with
+                the locale's short date, not in the Property's zone
+                (Europe/Istanbul) that the Today page shows. The file itself
+                holds UTC ISO instants. An accountant abroad will see a
+                different time from the audit log.
+              </td>
+              <td>Property time zone, with an unambiguous date.</td>
+              <td>Format on the server with the Property time zone.</td>
+              <td>S</td>
+              <td>none</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-20</td>
+              <td class="sev polish">polish</td>
+              <td>History table at 375 px</td>
+              <td>
+                The Download button is the last of seven columns inside an
+                <code>overflow-x-auto</code> wrapper, so on a phone the person
+                must scroll sideways to find the one thing the page is for. No
+                row exists on staging to see it.
+              </td>
+              <td>
+                On narrow screens each export is a card with Download visible.
+              </td>
+              <td>Card layout below <code>sm</code>.</td>
+              <td>M</td>
+              <td>none</td>
+              <td><span class="tag inferred">inferred</span></td>
+            </tr>
+
+            <tr>
+              <td>DX-21</td>
+              <td class="sev polish">polish</td>
+              <td>New Export, format picker, keyboard only</td>
+              <td>
+                The CSV and JSON choice is a visually hidden radio inside a
+                card. Moving focus to the JSON radio (it holds focus:
+                <code>document.activeElement</code> was that radio) changes
+                nothing on screen: no outline, no shadow, no border change on
+                either card, and CSV still looks selected. A keyboard-only user
+                cannot see where focus is or what is chosen. The dataset
+                checkboxes are visible controls and were not tested for focus
+                rings.
+              </td>
+              <td>
+                A visible focus ring on the card that holds focus, and the
+                selected card clearly marked.
+              </td>
+              <td>
+                Add <code>focus-within</code> ring classes to the two format
+                labels (and the dataset labels).
+              </td>
+              <td>S</td>
+              <td>
+                14-owner-keyboard-format-focus.png; reproduced once (computed
+                style: outline none, box-shadow none)
+              </td>
+              <td><span class="tag verified">verified</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Screenshots cited above</h3>
+      <div class="grid">
+        <figure>
+          <img src="01-owner-history.png" alt="Owner, history tab, empty" />
+          <figcaption>
+            01 Owner, history tab with no exports (empty state, four zero
+            tiles).
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="02-owner-new-export.png" alt="Owner, new export form" />
+          <figcaption>
+            02 Owner, New Export: no tab highlighted, Guests and Reservations
+            pre-ticked.
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="04-owner-schedules-empty.png"
+            alt="Owner, schedules empty"
+          />
+          <figcaption>04 Owner, Schedules tab, empty.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="05-owner-new-schedule.png"
+            alt="Owner, create schedule form"
+          />
+          <figcaption>
+            05 Create Export Schedule: different defaults and a dropdown for
+            format.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="08-finance-new-export.png" alt="Finance, new export form" />
+          <figcaption>
+            08 Finance sees the same form and the same defaults.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="09-frontdesk-typed-url.png" alt="Front Desk typed URL" />
+          <figcaption>
+            09 Front Desk, typed URL: "not in your Subscription".
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="10-manager-new-export.png" alt="Manager, new export form" />
+          <figcaption>10 Manager, same form.</figcaption>
+        </figure>
+        <figure>
+          <img src="07-owner-arabic.png" alt="Arabic layout" />
+          <figcaption>
+            07 Arabic, right-to-left, translated; the format hint is garbled.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="06-owner-turkish.png" alt="Turkish layout" />
+          <figcaption>06 Turkish, fully translated.</figcaption>
+        </figure>
+        <figure class="narrow">
+          <img src="12-owner-375-viewport.png" alt="375 px" />
+          <figcaption>
+            12 At 375 px: tiles fill the first screen, actions below.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="13-owner-768.png" alt="768 px" />
+          <figcaption>13 At 768 px: the schedule button is cut off.</figcaption>
+        </figure>
+        <figure class="narrow">
+          <img src="11-owner-375-new-export.png" alt="500 px full page" />
+          <figcaption>
+            11 Full page at the browser's 500 px minimum width (not 375). The
+            bottom navigation bar floating in the middle is an artifact of the
+            full-page capture.
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="14-owner-keyboard-format-focus.png"
+            alt="Keyboard focus on JSON radio, no visible change"
+          />
+          <figcaption>
+            14 The JSON radio holds keyboard focus; neither format card shows
+            it. (The sidebar sits lower only because of full-page capture.)
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="03-owner-new-export-full.png"
+            alt="Owner, new export full page"
+          />
+          <figcaption>
+            03 Full New Export form: no date range, no scope line, no
+            personal-data note.
+          </figcaption>
+        </figure>
+      </div>
+
+      <h2>3. Jobs</h2>
+      <p>
+        Pass/fail test written before the attempt. Times are rough (a few
+        seconds either way), not stopwatch measurements. "Stopped" means I
+        reached the confirm step and did not submit.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Pass/fail test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                J1 First time: find Data export and understand what I can get
+                (Owner)
+              </td>
+              <td>
+                Within 30 s I can say which data I can take out and which I
+                cannot.
+              </td>
+              <td>
+                <strong>Fail.</strong> Found it in the rail at once and the five
+                datasets are plain words, but nothing says what is not covered
+                (DX-07), the scope (DX-04) or the personal-data aspect (DX-06).
+              </td>
+              <td>~40</td>
+              <td>2 (rail, New Export)</td>
+            </tr>
+            <tr>
+              <td>J2 "Everything for the tax office" (Finance accountant)</td>
+              <td>
+                I can ask for one year of financial records and get a file named
+                for it.
+              </td>
+              <td>
+                <strong>Fail.</strong> No date range. The default ticks Guests
+                and Reservations, which Finance may not export (DX-02). Stopped
+                before submit; not persisted.
+              </td>
+              <td>~60</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J3 "My guests list for the new software" (Owner)</td>
+              <td>One CSV with only guests that a new system could import.</td>
+              <td>
+                <strong>Fail by default, pass if I untick Reservations.</strong>
+                The pre-ticked Reservations would stack a second table into the
+                same file (DX-03, inferred). Stopped before submit.
+              </td>
+              <td>~30</td>
+              <td>3 (rail, New Export, untick)</td>
+            </tr>
+            <tr>
+              <td>J4 Large volume: export a big hotel's folio lines</td>
+              <td>If it is too large I am told what to do.</td>
+              <td>
+                <strong>Fail (inferred).</strong> Failure text is "Too large to
+                export." with no next step (DX-05). Could not test: no data and
+                no submit.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>
+                J5 Error recovery: a user without the right opens the page
+              </td>
+              <td>The message names the real cause and what to do.</td>
+              <td>
+                <strong>Fail.</strong> Front Desk typed URL gets the
+                Subscription message (DX-01). The rail correctly hides the link.
+                Reproduced once.
+              </td>
+              <td>~25</td>
+              <td>0 (typed URL)</td>
+            </tr>
+            <tr>
+              <td>
+                J6 Under pressure: "the auditor is here, give me all folio lines
+                now"
+              </td>
+              <td>
+                I can see the request move to ready and download it without
+                leaving the page.
+              </td>
+              <td>
+                <strong>Not run.</strong> Stopped before submit. From code the
+                row refreshes by itself every 5 s and the worker polls every 15
+                s, so about 20 s to Ready (inferred); no elapsed-time or stuck
+                warning (DX-11).
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J7 Later assurance: "nothing is trapped"</td>
+              <td>
+                From this page alone I can name every module whose data can and
+                cannot leave.
+              </td>
+              <td>
+                <strong>Fail.</strong> Five datasets listed; the unlisted
+                modules are not mentioned (DX-07).
+              </td>
+              <td>~30</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>J8 Set up a monthly export</td>
+              <td>
+                I can say when it will run and where the result will appear.
+              </td>
+              <td>
+                <strong>Partial.</strong> Form reached; Create Schedule is
+                disabled until a name is typed (code and screenshot 05). No
+                weekday, time, or delivery explanation (DX-12). Stopped before
+                submit.
+              </td>
+              <td>~45</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J9 Switch to Turkish and Arabic</td>
+              <td>Everything translated, Arabic mirrors.</td>
+              <td>
+                <strong>Pass</strong> with the small bidi glitch (DX-18).
+                Verified in 06 and 07.
+              </td>
+              <td>~30</td>
+              <td>2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>4. Top changes</h2>
+      <ol>
+        <li>
+          <strong
+            >I can see which datasets I am allowed to export and none of them is
+            refused.</strong
+          >
+          Fix DX-02 and DX-01 together: gate the form by role and tell a
+          no-permission user the truth.
+        </li>
+        <li>
+          <strong>I can export one year, not all history,</strong> and the page
+          says what scope I am getting (DX-04 now, date range in section 6).
+          Removes the tax-office workaround and most of the "too large" dead end
+          (DX-05).
+        </li>
+        <li>
+          <strong>I get a file I can open and recognise:</strong> name with
+          hotel, dataset and date (DX-08), headers and amounts a person can read
+          (DX-10), and a clear note when several datasets share one CSV (DX-03).
+        </li>
+        <li>
+          <strong>I know what is in the file before I trust it:</strong> record
+          counts on the row (DX-09).
+        </li>
+        <li>
+          <strong>I know what I am handling:</strong> a personal-data and
+          7-day-availability notice on the form (DX-06).
+        </li>
+        <li>
+          <strong>I can tell what is not exportable</strong> and when I would
+          lose access (DX-07).
+        </li>
+        <li>
+          <strong
+            >When an export fails or expires I can ask again in one
+            click,</strong
+          >
+          and a stuck request says it is stuck (DX-11, DX-13).
+        </li>
+        <li><strong>I can use it on a tablet</strong> (DX-14, DX-20).</li>
+      </ol>
+
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <strong>Audit log:</strong> that page has date filters and is hidden
+          from Finance; Data export has no date filter and offers the Audit log
+          as a dataset to Finance, who cannot open that page (rail verified for
+          Finance: no Audit log entry; the dataset checkbox is enabled,
+          verified).
+        </li>
+        <li>
+          <strong>Headings:</strong> "Recent Export Records", "Active Export
+          Schedules" are Title Case; Today uses sentence case ("Needs
+          attention", "Today's movements").
+        </li>
+        <li>
+          <strong>Names:</strong> the dataset "Folios &amp; Payments" is called
+          "Finance" in the rail; the rail item for the audit log is "Audit log"
+          and the dataset "Audit Log".
+        </li>
+        <li>
+          <strong>No-access message:</strong> this page reuses the "not in your
+          Subscription" empty state also used for modules that are genuinely not
+          subscribed (shared <code>notEntitledTitle</code>), so it cannot tell
+          the two cases apart (inferred from <code>page.tsx</code>).
+        </li>
+        <li>
+          <strong>Back button (ADR 0035):</strong> present on this page, leads
+          to Today, mirrors in Arabic (verified in 01, 07).
+        </li>
+        <li>
+          <strong>Date range:</strong> the sibling Date range field
+          (flight-style picker) exists in <code>packages/ui</code> and is not
+          used here.
+        </li>
+      </ul>
+
+      <h2>6. Not built / needs backend work</h2>
+      <p>Kept apart from the defects above.</p>
+      <ul>
+        <li>
+          <strong>Date range or any filter on an export</strong> (all rows, all
+          dates). Not in <code>edge-cases.csv</code> at all, not in the roadmap
+          line for data export. Needs a request column and the export functions
+          to take it. Verified absence in the form; code confirms the request
+          carries only datasets and format (<code>requestExport</code> input).
+        </li>
+        <li>
+          <strong>One file per dataset (zip)</strong>: EXP-DEF-02, deferred.
+          Until then, several datasets in CSV are stacked.
+        </li>
+        <li>
+          <strong>Object storage for files</strong>: EXP-DEF-01, deferred. Files
+          are text in a database column, bounded at 25 MiB and 100,000 rows per
+          dataset; the worker builds the file in memory before storing it
+          (inferred from <code>runner.ts</code>, <code>render.ts</code>).
+        </li>
+        <li>
+          <strong>Exporting after a Subscription ends</strong>: EXP-DEF-03, an
+          open owner decision. Today the answer is no data except the audit log.
+        </li>
+        <li>
+          <strong>A read permission for guests and reservations</strong>
+          (<code>front_desk.read</code>): EXP-DEF-04, proposed. Source of the
+          Finance refusal in DX-02.
+        </li>
+        <li>
+          <strong>Datasets for the rest of the product</strong> (staff, HR and
+          payroll, rates, food and beverage, inventory, maintenance,
+          housekeeping and guest-experience records): none exists in
+          <code>datasets.ts</code>. Whether these are in scope is a product
+          decision; blueprint section 13 forbids building ahead of a workflow,
+          so this needs the owner.
+        </li>
+        <li>
+          <strong>Excel (.xlsx)</strong>: removed on purpose (EXP-S1-08:
+          "nothing ever wrote one"). CSV opens in Excel with a UTF-8 byte-order
+          mark.
+        </li>
+        <li>
+          <strong>Delivery of scheduled exports</strong> (email, storage,
+          webhook): nothing is sent; results stay in the page for 7 days.
+        </li>
+        <li>
+          <strong
+            >Edit or delete a schedule; keep an export longer than 7 days;
+            per-Property exports</strong
+          >: not in the code or the edge cases.
+        </li>
+        <li>
+          <strong>Observability:</strong> the request and the download are
+          audited (<code>data_export.requested</code>,
+          <code>data_export.downloaded</code> in <code>module.ts</code>, and
+          both are in the Audit log screen's action list). Completed and failed
+          are published as events, not audit rows (EXP-S1-29, 30). No export
+          existed on staging, so I could not look at a real audit entry (<span
+            class="tag"
+            >unknown</span
+          >).
+        </li>
+      </ul>
+
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          <strong>Permission-aware rail</strong>
+          <span class="tag verified">verified</span>: Owner and Manager see Data
+          export and Audit log, Finance sees Data export only, Front Desk and
+          Housekeeping see neither.
+        </li>
+        <li>
+          <strong>Plain dataset names and one-line descriptions</strong> in all
+          three languages <span class="tag verified">verified</span>; Turkish
+          and Arabic fully translated, Arabic mirrored including the back arrow
+          and rail (screenshots 06, 07).
+        </li>
+        <li>
+          <strong>Back button</strong> at the leading edge of the page bar and
+          the empty states with a sentence, not a blank table
+          <span class="tag verified">verified</span>.
+        </li>
+        <li>
+          <strong>Turkish characters in CSV</strong>
+          <span class="tag inferred">inferred</span>: the file begins with a
+          UTF-8 byte-order mark and the response is
+          <code>text/csv; charset=utf-8</code>, so Excel will read İ, ş, ğ and
+          Arabic names. Cells starting with <code>=</code>, <code>+</code>,
+          <code>-</code>, <code>@</code> are neutralised against formula
+          injection, numbers (including negative reversals) are left alone, rows
+          end in CRLF.
+        </li>
+        <li>
+          <strong>Loud failure over a quietly cut file</strong>
+          <span class="tag inferred">inferred</span>: above 100,000 rows or 25
+          MiB the export fails instead of handing over a truncated file that
+          looks complete.
+        </li>
+        <li>
+          <strong>Failure reasons are sentences,</strong> not enum codes, in all
+          three languages <span class="tag inferred">inferred</span> (messages
+          file).
+        </li>
+        <li>
+          <strong>Safe by construction</strong>
+          <span class="tag inferred">inferred</span>: the request button is
+          disabled while sending and with no dataset ticked, Create Schedule is
+          disabled with no name, the file body is never in the list query, the
+          download is permission-checked and audited, and a render failure shows
+          a retry page instead of an empty list (<code>error.tsx</code>).
+        </li>
+        <li>
+          <strong>Pending exports refresh themselves</strong> every 5 seconds
+          without a reload <span class="tag inferred">inferred</span>.
+        </li>
+        <li>
+          <strong>No horizontal overflow at 375 px</strong>
+          <span class="tag verified">verified</span>.
+        </li>
+      </ul>
+
+      <h2>Method notes</h2>
+      <ul>
+        <li>
+          Read before touching the UI: repo <code>CLAUDE.md</code>,
+          <code>docs/features/data-export/</code> (edge-cases.csv with its 53
+          rows, <code>states.mmd</code>, <code>use-case.mmd</code>),
+          <code>docs/roadmap.md</code>, page and component code,
+          <code>server/data-export.ts</code>, the download route, the
+          data-export package and the worker's schedule intervals.
+        </li>
+        <li>
+          Signed in once per role in separate isolated browser contexts (Owner,
+          Finance, Front Desk, Manager, Housekeeping). A second Organization was
+          not checked (staging has one).
+        </li>
+        <li>
+          I pressed no submit, Download, Pause or Resume button. Dialogs: there
+          are none on this page. Console and network errors were not captured.
+        </li>
+        <li>
+          Keyboard: only the format picker was probed (DX-21). Tab order through
+          the tabs, checkboxes and Request button was not walked;
+          <span class="tag">unknown</span>.
+        </li>
+        <li>
+          The 375 px check used device emulation; the plain window resize
+          bottoms out at 500 px (screenshot 11).
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

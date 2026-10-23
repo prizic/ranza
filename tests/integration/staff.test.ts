@@ -410,6 +410,177 @@ describe("accepting an invitation", () => {
   });
 });
 
+/**
+ * The page behind a link has to tell a withdrawn invitation from an expired one
+ * from one already used (PEOPLE-01), which `accept` deliberately cannot. Each
+ * state is made the way it happens in life and read back through the module.
+ */
+describe("what state an invitation link is in", () => {
+  async function invitedPerson() {
+    const email = anAddress();
+    const invited = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email,
+        roleKey: "front_desk",
+        propertyIds: [PROPERTY],
+      },
+    );
+    return { email, invited, userId: await userIdOf(email) };
+  }
+
+  it("is pending for a link nobody has used, and says who it is for", async () => {
+    const { email, invited, userId } = await invitedPerson();
+    const link = await staff.invitationState(invited.token);
+    expect(link).toMatchObject({
+      state: "pending",
+      userId,
+      email,
+      organizationName: "Staff Integration A",
+      roleKey: "front_desk",
+      roleName: "Front desk",
+      hasLogin: false,
+    });
+  });
+
+  it("is accepted once it has been used, and accepting writes who did it", async () => {
+    const { invited, userId } = await invitedPerson();
+    await staff.accept(invited.token);
+    expect((await staff.invitationState(invited.token))?.state).toBe(
+      "accepted",
+    );
+    const [membership] = await owner.$queryRawUnsafe<{ id: string }[]>(
+      `select id from public.organization_memberships
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    const record = await latestRecord(
+      owner,
+      "staff.invitation_accepted",
+      membership!.id,
+    );
+    expect(record).toBeDefined();
+  });
+
+  it("is withdrawn when the person was revoked", async () => {
+    const { invited, userId } = await invitedPerson();
+    await staff.revoke({ userId: OWNER }, { organizationId: ORG, userId });
+    expect((await staff.invitationState(invited.token))?.state).toBe(
+      "withdrawn",
+    );
+  });
+
+  it("is expired once its week has gone, without being used to find out", async () => {
+    const { invited } = await invitedPerson();
+    await owner.$executeRawUnsafe(
+      `update public.staff_invitations set expires_at = now() - interval '1 hour'
+        where id = $1::uuid`,
+      invited.invitationId,
+    );
+    expect((await staff.invitationState(invited.token))?.state).toBe("expired");
+  });
+
+  it("names a revoked membership whose link was somehow still pending", async () => {
+    const { invited, userId } = await invitedPerson();
+    await owner.$executeRawUnsafe(
+      `update public.organization_memberships
+          set status = 'revoked', revoked_at = now()
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    expect((await staff.invitationState(invited.token))?.state).toBe(
+      "membership_revoked",
+    );
+  });
+
+  it("knows nothing of a token nobody was given", async () => {
+    await expect(staff.invitationState("not-a-real-token")).resolves.toBeNull();
+  });
+
+  it("stops the old link the moment a new one is made", async () => {
+    const { invited, userId } = await invitedPerson();
+    const renewed = await staff.reissueInvitation(
+      { userId: OWNER },
+      { organizationId: ORG, userId },
+    );
+    expect(renewed.token).not.toBe(invited.token);
+    expect((await staff.invitationState(invited.token))?.state).toBe(
+      "withdrawn",
+    );
+    expect((await staff.invitationState(renewed.token))?.state).toBe("pending");
+    await expect(staff.accept(invited.token)).rejects.toBeInstanceOf(
+      StaffRefusedError,
+    );
+    await expect(staff.accept(renewed.token)).resolves.toMatchObject({
+      userId,
+    });
+  });
+
+  it("makes no new link for somebody who already accepted", async () => {
+    const { invited, userId } = await invitedPerson();
+    await staff.accept(invited.token);
+    await expect(
+      staff.reissueInvitation(
+        { userId: OWNER },
+        { organizationId: ORG, userId },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+  });
+
+  it("makes no new link for somebody without staff authority", async () => {
+    const { userId } = await invitedPerson();
+    await expect(
+      staff.reissueInvitation(
+        { userId: DESK },
+        { organizationId: ORG, userId },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+  });
+
+  it("adds somebody back after the undo window, on the same membership", async () => {
+    const { userId, invited } = await invitedPerson();
+    await staff.revoke({ userId: OWNER }, { organizationId: ORG, userId });
+    await owner.$executeRawUnsafe(
+      `update public.organization_memberships
+          set revoked_at = now() - interval '3 days'
+        where organization_id = $1::uuid and user_id = $2::uuid`,
+      ORG,
+      userId,
+    );
+    await expect(
+      staff.undoRevoke({ userId: OWNER }, { organizationId: ORG, userId }),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    const back = await staff.readd(
+      { userId: OWNER },
+      { organizationId: ORG, userId },
+    );
+    expect(back.membershipId).toBe(invited.membershipId);
+    expect(await roleOf(userId)).toBe("front_desk/active");
+    expect((await staff.invitationState(back.token))?.state).toBe("pending");
+
+    // Their Properties ended with the revoke and are a fresh decision.
+    const [assignments] = await owner.$queryRawUnsafe<{ count: bigint }[]>(
+      `select count(*) from public.property_assignments
+        where organization_id = $1::uuid and user_id = $2::uuid
+          and status = 'active'`,
+      ORG,
+      userId,
+    );
+    expect(Number(assignments?.count)).toBe(0);
+  });
+
+  it("adds nobody back who was never revoked", async () => {
+    const { userId } = await invitedPerson();
+    await expect(
+      staff.readd({ userId: OWNER }, { organizationId: ORG, userId }),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+  });
+});
+
 describe("changing reach", () => {
   it("revokes the assignments and deletes nothing", async () => {
     const email = anAddress();

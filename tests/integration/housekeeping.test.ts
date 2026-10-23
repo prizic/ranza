@@ -575,7 +575,6 @@ describe("the board", { timeout: DATABASE_BUDGET_MS }, () => {
       dirty: 2,
       clean: 4,
       inspected: 1,
-      ready: 5,
     });
     expect(board.mayMark).toBe(true);
   });

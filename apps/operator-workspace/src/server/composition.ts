@@ -1,6 +1,7 @@
 import "server-only";
 import { createAccommodationModule } from "@ranza/accommodation";
 import { createAuthModule } from "@ranza/auth";
+import { createBrandingModule } from "@ranza/branding";
 import { createBusinessDayModule } from "@ranza/business-day";
 import { createCoreModule } from "@ranza/core";
 import { createDataExportModule } from "@ranza/data-export";
@@ -85,7 +86,7 @@ function compose() {
   const tenantDb = createPrismaClient(runtimeUrl("DATABASE_URL"));
   const authDb = createPrismaClient(runtimeUrl("AUTH_DATABASE_URL"));
 
-  const { auth, linkRanzaUser } = createAuthModule({
+  const { auth, linkRanzaUser, linkInvitedUser } = createAuthModule({
     db: authDb,
     secret: required("BETTER_AUTH_SECRET"),
     ...(process.env.BETTER_AUTH_URL
@@ -96,6 +97,7 @@ function compose() {
   return {
     auth,
     linkRanzaUser,
+    linkInvitedUser,
     core: createCoreModule({ db: tenantDb }),
     // The same RLS-subject client. This module writes, so the guard above stops
     // mattering only for reads: pointing DATABASE_URL at the migration role
@@ -119,6 +121,7 @@ function compose() {
     guestServices: createGuestServicesModule({ db: tenantDb }),
     integrations: createIntegrationsModule({ db: tenantDb }),
     hr: createHrModule({ db: tenantDb }),
+    branding: createBrandingModule({ db: tenantDb }),
     dataExport: createDataExportModule({ db: tenantDb }),
     db: tenantDb,
   };

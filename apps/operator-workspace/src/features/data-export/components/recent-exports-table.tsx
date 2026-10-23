@@ -1,8 +1,16 @@
 "use client";
 
-import { Download, FileJson, FileSpreadsheet, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Download,
+  Hourglass,
+  Loader,
+  RotateCcw,
+  XCircle,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { DataExportRecord } from "../types";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Badge,
   Button,
@@ -11,6 +19,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  EmptyState,
+  StatusBadge,
   Table,
   TableBody,
   TableCell,
@@ -18,214 +28,304 @@ import {
   TableHeader,
   TableRow,
 } from "@ranza/ui";
+import {
+  formatElapsed,
+  formatSize,
+  holdsPersonalData,
+  PENDING_SLOW_AFTER_MS,
+  PROCESSING_SLOW_AFTER_MS,
+} from "../helpers";
+import {
+  EXPORT_FILE_LIMIT_MEGABYTES,
+  EXPORT_RETENTION_DAYS,
+  EXPORT_ROW_LIMIT,
+  type DataExportRecord,
+  type ExportRange,
+} from "../types";
+import { useNow } from "../use-now";
 
-interface RecentExportsTableProps {
-  exports: DataExportRecord[];
-  locale: string;
+/** A day in a range, as the day it is: `YYYY-MM-DD` read at UTC so no zone moves it. */
+function dayLabel(day: string, locale: SupportedLocale): string {
+  return formatDate(new Date(`${day}T00:00:00Z`), locale, {
+    timeZone: "UTC",
+  });
 }
 
+/** The year an instant falls in on a Property's clock, as `YYYY`. */
+function yearOf(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { year: "numeric", timeZone }).format(
+    at,
+  );
+}
+
+/**
+ * The exports an Organization has asked for, newest first.
+ *
+ * Three columns at every width, so there is nothing to scroll sideways to
+ * reach the one thing a ready row is for (DX-20): when and by whom, what and
+ * how much, and how it ended with what can be done next.
+ */
 export function RecentExportsTable({
   exports,
   locale,
-}: RecentExportsTableProps) {
+  onRequestAgain,
+  onRequestNew,
+  organization,
+  propertyId,
+  timezone,
+  today,
+}: {
+  exports: readonly DataExportRecord[];
+  locale: SupportedLocale;
+  onRequestAgain: (item: DataExportRecord) => void;
+  onRequestNew: () => void;
+  organization: string;
+  propertyId: string;
+  timezone: string;
+  /** The Property's own day, `YYYY-MM-DD`: a time this year needs no year. */
+  today: string;
+}) {
   const t = useTranslations("dataExport");
+  const now = useNow(5_000);
 
-  const formatBytes = (bytes: number | null): string => {
-    if (!bytes) return "—";
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  };
-
-  const getDatasetLabel = (
-    res: DataExportRecord["resourceTypes"][number],
-  ): string => {
-    switch (res) {
-      case "residents_guests":
-        return t("datasets.residents_guests");
-      case "reservations_stays":
-        return t("datasets.reservations_stays");
-      case "rooms_beds":
-        return t("datasets.rooms_beds");
-      case "folios_payments":
-        return t("datasets.folios_payments");
-      case "audit_log":
-        return t("datasets.audit_log");
+  const rangeText = (range: ExportRange): string => {
+    if (range.from && range.to) {
+      return t("rangeBetween", {
+        from: dayLabel(range.from, locale),
+        to: dayLabel(range.to, locale),
+      });
     }
+    return range.from
+      ? t("rangeSince", { from: dayLabel(range.from, locale) })
+      : t("rangeUntil", { to: dayLabel(range.to ?? "", locale) });
   };
 
-  const getStatusBadge = (status: DataExportRecord["status"]) => {
-    switch (status) {
+  function status(item: DataExportRecord) {
+    switch (item.status) {
       case "ready":
         return (
-          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300">
-            {t("statuses.ready")}
-          </Badge>
+          <StatusBadge
+            icon={CheckCircle2}
+            label={t("statuses.ready")}
+            tone="success"
+          />
         );
       case "processing":
         return (
-          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 flex items-center gap-1">
-            <Loader2 className="size-3 animate-spin" />
-            {t("statuses.processing")}
-          </Badge>
+          <StatusBadge
+            icon={Loader}
+            label={t("statuses.processing")}
+            tone="info"
+          />
         );
       case "failed":
-        return <Badge variant="destructive">{t("statuses.failed")}</Badge>;
+        return (
+          <StatusBadge
+            icon={XCircle}
+            label={t("statuses.failed")}
+            tone="danger"
+          />
+        );
       case "expired":
         return (
-          <Badge variant="outline" className="text-muted-foreground">
-            {t("statuses.expired")}
-          </Badge>
+          <StatusBadge
+            icon={Hourglass}
+            label={t("statuses.expired")}
+            tone="neutral"
+          />
         );
       case "pending":
-      default:
         return (
-          <Badge
-            variant="outline"
-            className="text-amber-800 border-amber-300 bg-amber-50 dark:bg-amber-950 dark:text-amber-300"
-          >
-            {t("statuses.pending")}
-          </Badge>
+          <StatusBadge
+            icon={Clock}
+            label={t("statuses.pending")}
+            tone="neutral"
+          />
         );
     }
-  };
+  }
+
+  function detail(item: DataExportRecord) {
+    if (item.status === "pending" || item.status === "processing") {
+      if (now === null) return null;
+      const waited = now - new Date(item.requestedAt).getTime();
+      const slow =
+        waited >
+        (item.status === "pending"
+          ? PENDING_SLOW_AFTER_MS
+          : PROCESSING_SLOW_AFTER_MS);
+      return (
+        <>
+          <span className="text-xs text-muted-foreground">
+            {t(item.status === "pending" ? "waitingFor" : "preparingFor", {
+              duration: formatElapsed(waited, locale),
+            })}
+          </span>
+          {slow ? (
+            <span className="text-xs text-warning">{t("slowNote")}</span>
+          ) : null}
+        </>
+      );
+    }
+    if (item.status === "failed") {
+      return (
+        <span className="text-xs text-destructive">
+          {t(`failures.${item.error ?? "internal_error"}`, {
+            rows: new Intl.NumberFormat(locale).format(EXPORT_ROW_LIMIT),
+            megabytes: EXPORT_FILE_LIMIT_MEGABYTES,
+          })}
+        </span>
+      );
+    }
+    return null;
+  }
 
   return (
-    <Card className="border-border">
-      <CardHeader className="p-4 sm:p-6">
-        <CardTitle className="text-lg font-semibold text-foreground">
-          {t("recentExportsTitle")}
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">
+          {t("exportsTitle")}
         </CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          {t("recentExportsDescription")}
+        <CardDescription>
+          {t("exportsDescription", {
+            organization,
+            days: EXPORT_RETENTION_DAYS,
+          })}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6 sm:pt-0">
+      <CardContent className="px-0 sm:px-6">
         {exports.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            {t("noExports")}
-          </div>
+          <EmptyState
+            action={
+              <Button onClick={onRequestNew} type="button">
+                {t("noExportsAction")}
+              </Button>
+            }
+            description={t("noExportsDescription", {
+              days: EXPORT_RETENTION_DAYS,
+            })}
+            title={t("noExports", { organization })}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.requestedAt")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.requester")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.datasets")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.format")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.status")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("tableHeaders.size")}
-                  </TableHead>
-                  <TableHead className="text-end">
-                    {t("tableHeaders.actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {exports.map((item) => {
-                  const dateStr = new Date(item.requestedAt).toLocaleString(
-                    locale,
-                    {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    },
-                  );
-
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        {dateStr}
-                      </TableCell>
-                      <TableCell className="font-medium text-foreground">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-normal">
+                  {t("tableHeaders.requestedAt")}
+                </TableHead>
+                <TableHead className="whitespace-normal">
+                  {t("tableHeaders.datasets")}
+                </TableHead>
+                <TableHead className="whitespace-normal">
+                  {t("tableHeaders.status")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {exports.map((item) => {
+                const requested = new Date(item.requestedAt);
+                const canAskAgain =
+                  item.status === "failed" || item.status === "expired";
+                return (
+                  <TableRow key={item.id}>
+                    <TableCell className="align-top whitespace-normal">
+                      <time
+                        className="block text-sm tabular-nums sm:whitespace-nowrap"
+                        dateTime={requested.toISOString()}
+                      >
+                        {formatDate(requested, locale, {
+                          year:
+                            yearOf(requested, timezone) === today.slice(0, 4)
+                              ? undefined
+                              : "numeric",
+                          hour: "2-digit",
+                          hourCycle: "h23",
+                          minute: "2-digit",
+                          timeZone: timezone,
+                        })}
+                      </time>
+                      <span className="block text-xs break-words text-muted-foreground">
                         {item.requesterName}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {item.resourceTypes.map((res) => (
-                            <Badge
-                              key={res}
-                              variant="secondary"
-                              className="text-[11px] font-normal"
-                            >
-                              {getDatasetLabel(res)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5 font-mono text-xs uppercase text-foreground">
-                          {item.format === "json" ? (
-                            <FileJson className="size-3.5 text-amber-600" />
-                          ) : (
-                            <FileSpreadsheet className="size-3.5 text-emerald-600" />
-                          )}
-                          {item.format}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(item.status)}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
-                        {formatBytes(item.fileSizeBytes)}
-                      </TableCell>
-                      <TableCell className="text-end">
+                      </span>
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      <ul className="grid gap-1">
+                        {item.resourceTypes.map((dataset) => {
+                          const count = item.recordCounts[dataset];
+                          return (
+                            <li className="text-sm" key={dataset}>
+                              {t(`datasets.${dataset}`)}
+                              {count === undefined ? null : (
+                                <span className="block text-xs text-muted-foreground">
+                                  {t("recordCount", { count })}
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      {item.range ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {rangeText(item.range)}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                        <span className="uppercase">{item.format}</span>
+                        {item.fileSizeBytes
+                          ? ` · ${formatSize(item.fileSizeBytes, locale)}`
+                          : null}
+                      </p>
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      <div className="grid justify-items-start gap-1.5">
+                        {status(item)}
+                        {detail(item)}
                         {item.status === "ready" ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <Button
-                              asChild
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1.5 text-emerald-700 hover:text-emerald-800 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950"
-                            >
+                          <>
+                            <Button asChild size="sm" variant="outline">
                               <a
-                                href={`/api/data-export/${item.id}/download`}
-                                download={
-                                  item.fileName ||
-                                  `export-${item.id.slice(0, 8)}.${item.format}`
-                                }
+                                href={`/api/data-export/${item.id}/download?locale=${locale}&property=${propertyId}`}
                               >
-                                <Download className="size-3.5" />
-                                <span>{t("download")}</span>
+                                <Download aria-hidden="true" />
+                                {t("download")}
                               </a>
                             </Button>
-                            {item.expiresAt && (
-                              <span className="text-[11px] text-muted-foreground">
+                            {item.expiresAt ? (
+                              <span className="text-xs text-muted-foreground">
                                 {t("expiresOn", {
-                                  date: new Date(
-                                    item.expiresAt,
-                                  ).toLocaleDateString(locale, {
-                                    dateStyle: "medium",
-                                  }),
+                                  date: formatDate(
+                                    new Date(item.expiresAt),
+                                    locale,
+                                    { timeZone: timezone },
+                                  ),
                                 })}
                               </span>
-                            )}
-                          </div>
-                        ) : item.status === "failed" ? (
-                          <span className="block max-w-60 whitespace-normal text-xs text-destructive">
-                            {t(`failures.${item.error ?? "internal_error"}`)}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">
-                            {t(`statuses.${item.status}`)}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                            ) : null}
+                            {holdsPersonalData(item.resourceTypes) ? (
+                              <Badge variant="outline">
+                                {t("personalBadge")}
+                              </Badge>
+                            ) : null}
+                          </>
+                        ) : null}
+                        {canAskAgain ? (
+                          <Button
+                            onClick={() => onRequestAgain(item)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <RotateCcw aria-hidden="true" />
+                            {t("requestAgain")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

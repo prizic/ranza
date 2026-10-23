@@ -20,6 +20,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPrismaClient } from "../../packages/db/src";
 import { createCoreModule } from "../../packages/ranza/core/src";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
+import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
 import { createFoliosModule } from "../../packages/ranza/folios/src";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
 import {
@@ -66,6 +67,7 @@ const modules = {
   housekeeping: createHousekeepingModule({ db: prisma }),
   folios: createFoliosModule({ db: prisma }),
   maintenance: createMaintenanceModule({ db: prisma }),
+  businessDay: createBusinessDayModule({ db: prisma }),
 };
 
 const CAPABILITIES = {

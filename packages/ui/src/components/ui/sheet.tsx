@@ -7,6 +7,7 @@ import { Dialog as SheetPrimitive } from "radix-ui";
 import { Button } from "./button";
 import { XIcon } from "lucide-react";
 import { markOverlayClosed } from "../../lib/menu-guard";
+import { useOverlayLabels } from "../overlay-labels";
 
 function Sheet({
   onOpenChange,
@@ -74,6 +75,7 @@ function SheetContent({
   side?: "top" | "right" | "bottom" | "left" | "end";
   showCloseButton?: boolean;
 }) {
+  const { close } = useOverlayLabels();
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -95,7 +97,7 @@ function SheetContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{close}</span>
             </Button>
           </SheetPrimitive.Close>
         )}

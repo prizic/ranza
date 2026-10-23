@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   ChevronLeft,
@@ -8,11 +9,13 @@ import {
   ChevronsUpDown,
   TriangleAlert,
   Ban,
+  SlidersHorizontal,
 } from "lucide-react";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Checkbox,
+  cn,
   DateRangeField,
   Input,
   Label,
@@ -69,11 +72,24 @@ export function CalendarToolbar({
   calendar: RoomCalendar;
   lengths: number[];
   locale: SupportedLocale;
-  onChange: (change: Partial<RoomCalendarView>) => void;
+  /** `marked` is the day a jump to a date was asked for, to be shown in its column. */
+  onChange: (change: Partial<RoomCalendarView>, marked?: string) => void;
   view: RoomCalendarView;
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
+  // A phone has no room for six controls above the grid: they fold behind one
+  // button, which says how many are narrowing what is drawn.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const narrowing = [
+    view.floor !== null,
+    view.unitType !== null,
+    view.unitState !== null,
+    view.search !== "",
+    !view.showRequested,
+    !view.showDeparted,
+    view.overlapsOnly,
+  ].filter(Boolean).length;
   // Only what the Property has is offered, so no filter can empty the grid on
   // a kind of Unit that does not exist (RC-S3-14).
   const present = presentKinds(calendar.units);
@@ -99,6 +115,7 @@ export function CalendarToolbar({
               onChange({ from: shiftDay(calendar.from, -STEP_DAYS) })
             }
             size="icon-sm"
+            title={t("previous")}
             variant="outline"
           >
             <ChevronLeft aria-hidden="true" className="rtl:rotate-180" />
@@ -116,6 +133,7 @@ export function CalendarToolbar({
               onChange({ from: shiftDay(calendar.from, STEP_DAYS) })
             }
             size="icon-sm"
+            title={t("next")}
             variant="outline"
           >
             <ChevronRight aria-hidden="true" className="rtl:rotate-180" />
@@ -191,7 +209,25 @@ export function CalendarToolbar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <Button
+        aria-controls="room-calendar-filters"
+        aria-expanded={filtersOpen}
+        className="md:hidden"
+        onClick={() => setFiltersOpen((open) => !open)}
+        size="sm"
+        variant="outline"
+      >
+        <SlidersHorizontal aria-hidden="true" />
+        {narrowing > 0 ? t("filtersCount", { count: narrowing }) : t("filters")}
+      </Button>
+
+      <div
+        className={cn(
+          "flex-wrap items-center gap-x-4 gap-y-2 md:flex",
+          filtersOpen ? "flex" : "hidden",
+        )}
+        id="room-calendar-filters"
+      >
         <Select
           onValueChange={(value) =>
             onChange({ floor: value === ALL_FLOORS ? null : value })
@@ -272,24 +308,26 @@ export function CalendarToolbar({
           value={view.search}
         />
 
-        <label className="inline-flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={view.showRequested}
-            onCheckedChange={(checked) =>
-              onChange({ showRequested: checked === true })
-            }
-          />
-          {t("showRequested")}
-        </label>
-        <label className="inline-flex items-center gap-2 text-sm">
-          <Checkbox
-            checked={view.showDeparted}
-            onCheckedChange={(checked) =>
-              onChange({ showDeparted: checked === true })
-            }
-          />
-          {t("showDeparted")}
-        </label>
+        <div className="inline-flex items-center gap-4 whitespace-nowrap">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={view.showRequested}
+              onCheckedChange={(checked) =>
+                onChange({ showRequested: checked === true })
+              }
+            />
+            {t("showRequested")}
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={view.showDeparted}
+              onCheckedChange={(checked) =>
+                onChange({ showDeparted: checked === true })
+              }
+            />
+            {t("showDeparted")}
+          </label>
+        </div>
 
         {roomsWithBeds.length > 0 ? (
           <Button
@@ -336,7 +374,18 @@ export function CalendarToolbar({
         ) : null}
       </div>
 
-      <Legend />
+      <details className="group text-xs text-muted-foreground">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-sm py-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+          <ChevronRight
+            aria-hidden="true"
+            className="size-3.5 transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90"
+          />
+          {t("legend")}
+        </summary>
+        <div className="pt-1.5">
+          <Legend />
+        </div>
+      </details>
     </div>
   );
 }

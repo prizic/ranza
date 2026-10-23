@@ -61,14 +61,24 @@ export async function postCharge(
   ).toBeVisible();
 }
 
-/** Reverses the line with this description, saying why. */
+/** Reverses the line with this description: opens the confirmation, says why, confirms. */
 export async function reverseLine(
   page: Page,
   description: string,
   reason: string,
 ): Promise<void> {
   const row = page.getByRole("row").filter({ hasText: description }).first();
-  await row.getByLabel("Reason").fill(reason);
   await row.getByRole("button", { name: "Reverse" }).click();
-  await expect(row.getByText("reversed")).toBeVisible();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Reason").fill(reason);
+  await dialog.getByRole("button", { name: "Reverse" }).click();
+  // The correction is a line of its own that names the original, so the
+  // original is the row that is not the reversal.
+  await expect(
+    page
+      .getByRole("row")
+      .filter({ hasText: description })
+      .filter({ hasNotText: "Reversal of" })
+      .getByText("reversed"),
+  ).toBeVisible();
 }

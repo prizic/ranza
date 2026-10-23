@@ -3,6 +3,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { BusinessDayModule } from "./business-day/business-day.module";
 import { DataExportModule } from "./export/data-export.module";
 import { OutboxModule } from "./outbox/outbox.module";
+import { WebhookDeliveryModule } from "./webhooks/webhook-delivery.module";
 
 /** Scheduling, and the job modules. Nothing else belongs at this level. */
 @Module({
@@ -11,6 +12,7 @@ import { OutboxModule } from "./outbox/outbox.module";
     OutboxModule,
     BusinessDayModule,
     DataExportModule,
+    WebhookDeliveryModule,
   ],
 })
 export class WorkerModule {}

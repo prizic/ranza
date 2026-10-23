@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { StayBrand } from "@ranza/branding";
 import type { OwnStay } from "@ranza/stays";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -22,9 +23,10 @@ import { getComposition } from "./composition";
  * outside src/server/ may import @ranza/db or a Ranza domain module, which
  * .dependency-cruiser.cjs enforces and tests/boundaries proves.
  *
- * There is exactly one read below, and it is Stay-scoped. That is not a
- * convention to be extended casually: a Portal read that is not bounded by the
- * viewer's own Stay does not belong in this application at all.
+ * Every tenant read below is Stay-scoped: the Stays, and the brand of the
+ * Organization each is with. That is not a convention to be extended casually:
+ * a Portal read that is not bounded by the viewer's own Stay does not belong in
+ * this application at all.
  */
 
 export interface Viewer {
@@ -79,4 +81,27 @@ export const ownStays = cache(async (): Promise<readonly OwnStay[]> => {
   const viewer = await currentViewer();
   if (!viewer) return [];
   return getComposition().stays.listOwnStays(viewer.userId);
+});
+
+/**
+ * How each of the viewer's own current Stays is branded (ADR 0046), by Stay: a
+ * Resident reaches an Organization only through a Stay and is not told its
+ * identity (ADR 0009). An Organization that set nothing, or reset it, has a
+ * Stay with no colour and no logo, which is the default theme.
+ *
+ * A failure to read it is reported and answered with the default theme, not
+ * with an error page: a Guest who could not see their own Stay because the
+ * colour of the Organization could not be read would have lost what the Portal
+ * is for to something that is only decoration. The report is the console, as it
+ * is for the sign-in form, which is this application's only reporter so far.
+ */
+export const stayBrands = cache(async (): Promise<readonly StayBrand[]> => {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  try {
+    return await getComposition().branding.stayBrands(viewer.userId);
+  } catch (error: unknown) {
+    console.error("branding.read_failed", { userId: viewer.userId }, error);
+    return [];
+  }
 });

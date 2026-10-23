@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -18,7 +19,13 @@ const SUBMIT = "h-13 w-full rounded-md text-[15px] font-medium";
 const ERROR =
   "rounded-lg border border-danger/15 bg-danger-soft p-3 text-sm font-medium text-danger";
 
-type Failure = "mismatch" | "throttled" | "expired" | "unavailable";
+type Failure =
+  | "mismatch"
+  | "throttled"
+  | "expired"
+  | "unavailable"
+  /** Nothing was typed in a field that needs it: said in the page's language, not the browser's. */
+  | "missing";
 
 /**
  * Better Auth's codes for what was typed not matching — the only answers that
@@ -44,6 +51,7 @@ const EXPIRED = new Set([
 
 /** What is said when the answer was not a refusal, at either step. */
 const FAILURE = {
+  missing: "signInMissing",
   throttled: "signInThrottled",
   expired: "challengeExpired",
   unavailable: "signInUnavailable",
@@ -120,13 +128,28 @@ async function post(url: string, body: unknown): Promise<Response | null> {
  * and signs in here would otherwise meet a form that succeeds and hands back
  * no session.
  */
-export function SignInForm({ redirectTo }: { redirectTo: string }) {
+export function SignInForm({
+  redirectTo,
+  forgotHref,
+}: {
+  redirectTo: string;
+  forgotHref: string;
+}) {
   const t = useTranslations();
   const router = useRouter();
+  const emailField = useRef<HTMLInputElement>(null);
+  const codeField = useRef<HTMLInputElement>(null);
   const [challenging, setChallenging] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [pending, setPending] = useState(false);
   const [revealed, setRevealed] = useState(false);
+
+  // A refusal disables the button that had focus, which drops focus to the
+  // page; the field the person types in next is where it belongs (GP-08).
+  useEffect(() => {
+    if (failure === null) return;
+    (challenging ? codeField : emailField).current?.focus();
+  }, [failure, challenging]);
 
   function complete() {
     // Left pending through the redirect: the shell reads the session on the
@@ -138,6 +161,10 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    if (!String(form.get("email") ?? "").trim() || !form.get("password")) {
+      setFailure("missing");
+      return;
+    }
     setPending(true);
     setFailure(null);
     setRevealed(false);
@@ -170,6 +197,10 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   async function verify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
+    if (!code.trim()) {
+      setFailure("missing");
+      return;
+    }
     setPending(true);
     setFailure(null);
 
@@ -194,7 +225,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   if (challenging) {
     return (
-      <form className="grid gap-5" onSubmit={verify}>
+      <form className="grid gap-5" noValidate onSubmit={verify}>
         <p className="text-sm font-medium text-muted-foreground">
           {t("challengeSummary")}
         </p>
@@ -202,7 +233,9 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           <FormError className={ERROR}>
             {failure === "mismatch"
               ? t("challengeFailed")
-              : t(FAILURE[failure])}
+              : failure === "missing"
+                ? t("codeMissing")
+                : t(FAILURE[failure])}
           </FormError>
         ) : null}
         <div className="grid gap-2">
@@ -217,6 +250,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
             id="code"
             inputMode="text"
             name="code"
+            ref={codeField}
             required
           />
         </div>
@@ -228,7 +262,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form className="grid gap-5" onSubmit={signIn}>
+    <form className="grid gap-5" noValidate onSubmit={signIn}>
       {failure ? (
         <FormError className={ERROR}>
           {failure === "mismatch" ? t("signInFailed") : t(FAILURE[failure])}
@@ -244,6 +278,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           className={FIELD}
           id="email"
           name="email"
+          ref={emailField}
           required
           type="email"
         />
@@ -264,7 +299,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           />
           <Button
             aria-label={revealed ? t("hidePassword") : t("showPassword")}
-            className="absolute end-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute end-1 top-1/2 size-11 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             onClick={() => setRevealed((shown) => !shown)}
             size="icon"
             type="button"
@@ -277,6 +312,15 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
       <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
         {pending ? t("signingIn") : t("signIn")}
       </Button>
+      <div className="grid gap-2 text-center text-sm">
+        <Link
+          className="font-medium text-primary underline-offset-4 hover:underline"
+          href={forgotHref}
+        >
+          {t("forgotPassword")}
+        </Link>
+        <p className="text-muted-foreground">{t("signInHelp")}</p>
+      </div>
     </form>
   );
 }

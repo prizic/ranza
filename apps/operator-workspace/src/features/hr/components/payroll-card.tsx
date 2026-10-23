@@ -13,12 +13,15 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogNotice,
   EmptyState,
   Table,
   TableBody,
@@ -26,6 +29,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TickRow,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import {
   Check,
@@ -36,6 +41,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type {
+  EmployeeRecord,
   PayrollPeriodSummary,
   PayslipRecord,
 } from "../../../server/viewer";
@@ -49,9 +55,14 @@ interface PayrollCardProps {
    * Property to narrow to, so there is nothing of it to show them.
    */
   payroll: PayrollPeriodSummary | null;
+  /** Everybody on record, to name who a currency problem is about. */
+  employees: readonly EmployeeRecord[];
   canManage: boolean;
   locale: SupportedLocale;
   propertyId: string;
+  /** The Property's own calendar date, `YYYY-MM-DD`: the last month worth opening. */
+  today: string;
+  onShowEmployees: () => void;
 }
 
 /** The period `delta` months from `period` (`YYYY-MM`). */
@@ -64,15 +75,19 @@ function shiftPeriod(period: string, delta: number): string {
 
 export function PayrollCard({
   payroll,
+  employees,
   canManage,
   locale,
   propertyId,
+  today,
+  onShowEmployees,
 }: PayrollCardProps) {
   const t = useTranslations("hr.payroll");
   const outcomeText = useOutcomeText();
   const [isPending, startTransition] = useTransition();
   const [failure, setFailure] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [understood, setUnderstood] = useState(false);
   const [selectedPayslip, setSelectedPayslip] = useState<PayslipRecord | null>(
     null,
   );
@@ -100,11 +115,30 @@ export function PayrollCard({
       );
       setFailure(outcomeText(outcome));
       setConfirming(false);
+      setUnderstood(false);
     });
   };
 
   const periodHref = (period: string) =>
-    `/${locale}/hr?property=${propertyId}&period=${period}`;
+    `/${locale}/hr?property=${propertyId}&tab=payroll&period=${period}`;
+  const monthName = (period: string) =>
+    formatDate(new Date(`${period}-01T00:00:00Z`), locale, {
+      day: undefined,
+      month: "long",
+      timeZone: "UTC",
+    });
+  // Nothing is to be said about a month that has not begun, so the arrow stops
+  // at the one that is running (HR-15).
+  const lastMonth = today.slice(0, 7);
+  const next = shiftPeriod(payroll.period, 1);
+  const byCurrency = new Map<string, string[]>();
+  for (const employee of employees) {
+    if (employee.status !== "active") continue;
+    byCurrency.set(employee.currency, [
+      ...(byCurrency.get(employee.currency) ?? []),
+      employee.fullName,
+    ]);
+  }
 
   const canApprove =
     payroll.status === "draft" && canManage && payroll.blocker === null;
@@ -124,18 +158,33 @@ export function PayrollCard({
                   <ChevronLeft className="size-4 rtl:rotate-180" />
                 </Link>
               </Button>
-              <CardTitle className="text-step-1 font-semibold text-foreground">
-                {payroll.period}
+              <CardTitle
+                className="text-step-1 font-semibold text-foreground"
+                data-period={payroll.period}
+              >
+                {monthName(payroll.period)}
               </CardTitle>
-              <Button asChild size="icon" variant="ghost" className="size-7">
-                <Link
+              {next > lastMonth ? (
+                <Button
                   aria-label={t("nextPeriod")}
-                  href={periodHref(shiftPeriod(payroll.period, 1))}
-                  prefetch={false}
+                  className="size-7"
+                  disabled
+                  size="icon"
+                  variant="ghost"
                 >
                   <ChevronRight className="size-4 rtl:rotate-180" />
-                </Link>
-              </Button>
+                </Button>
+              ) : (
+                <Button asChild size="icon" variant="ghost" className="size-7">
+                  <Link
+                    aria-label={t("nextPeriod")}
+                    href={periodHref(next)}
+                    prefetch={false}
+                  >
+                    <ChevronRight className="size-4 rtl:rotate-180" />
+                  </Link>
+                </Button>
+              )}
             </div>
             {currency && (
               <p className="text-step--1 text-muted-foreground mt-0.5">
@@ -170,7 +219,11 @@ export function PayrollCard({
                 <span>{isPending ? t("approving") : t("approve")}</span>
               </Button>
             ) : (
-              <Badge variant="secondary">{t("draft")}</Badge>
+              <Badge variant="secondary">
+                {payroll.blocker
+                  ? t(`blockedBadge.${payroll.blocker}`)
+                  : t("notApproved")}
+              </Badge>
             )}
           </div>
         </CardHeader>
@@ -199,11 +252,47 @@ export function PayrollCard({
           )}
 
           {payroll.blocker ? (
-            <div className="p-4">
+            <div className="space-y-3 p-4">
               <EmptyState
-                title={payroll.period}
+                title={monthName(payroll.period)}
                 description={t(`blocked.${payroll.blocker}`)}
               />
+              {payroll.blocker === "mixed_currency" ? (
+                <div
+                  className="rounded-md border border-border p-3 text-step--1"
+                  data-testid="currency-split"
+                >
+                  <ul className="space-y-1">
+                    {[...byCurrency.entries()].map(([code, names]) => (
+                      <li key={code}>
+                        <span className="font-mono font-medium">{code}</span>
+                        {": "}
+                        {names.join(", ")}
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="mt-3"
+                    onClick={onShowEmployees}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t("goToEmployees")}
+                  </Button>
+                </div>
+              ) : payroll.blocker === "no_employees" ? (
+                <div className="flex justify-center">
+                  <Button
+                    onClick={onShowEmployees}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    {t("goToEmployees")}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -216,6 +305,7 @@ export function PayrollCard({
                       {t("socialSecurity")}
                     </TableHead>
                     <TableHead className="text-end">{t("incomeTax")}</TableHead>
+                    <TableHead className="text-end">{t("stampDuty")}</TableHead>
                     <TableHead className="text-end font-semibold">
                       {t("net")}
                     </TableHead>
@@ -268,6 +358,10 @@ export function PayrollCard({
                           {money(p.taxDeductionMinor)}
                         </TableCell>
 
+                        <TableCell className="text-end font-mono text-step--1 text-muted-foreground">
+                          {money(p.stampDutyMinor)}
+                        </TableCell>
+
                         <TableCell className="text-end font-mono text-step--1 font-bold text-foreground">
                           {money(p.netPayMinor)}
                         </TableCell>
@@ -302,14 +396,18 @@ export function PayrollCard({
       <Dialog
         open={confirming}
         onOpenChange={(isOpen) => {
-          if (!isPending) setConfirming(isOpen);
+          if (isPending) return;
+          setConfirming(isOpen);
+          if (!isOpen) setUnderstood(false);
         }}
       >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {t("confirmTitle", { period: payroll.period })}
-            </DialogTitle>
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/payslip.svg"
+            eyebrow={t("confirmTitle", { period: monthName(payroll.period) })}
+            heading={monthName(payroll.period)}
+          />
+          <DialogBody simple>
             <DialogDescription>
               {t("confirmBody", {
                 count: payroll.payslips.length,
@@ -318,27 +416,38 @@ export function PayrollCard({
                 total: money(payroll.totalNetMinor),
               })}
             </DialogDescription>
-          </DialogHeader>
-          <p className="text-step--1 text-muted-foreground">
-            {t("confirmLocked")}
-          </p>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
+            <DialogNotice icon={TriangleAlert}>
+              {t("confirmPlaceholders")}
+            </DialogNotice>
+            <p className="m-0 text-sm text-muted-foreground">
+              {t("confirmLocked")}
+            </p>
+            <TickRow
+              checked={understood}
+              id="payroll-understood"
+              name="understood"
+              onCheckedChange={setUnderstood}
+              required
+            >
+              {t("confirmUnderstood")}
+            </TickRow>
+          </DialogBody>
+          <DialogActions hint={understood ? null : t("confirmHintMissing")}>
+            <CancelButton
               disabled={isPending}
               onClick={() => setConfirming(false)}
+              type="button"
             >
               {t("cancel")}
-            </Button>
-            <Button
-              type="button"
-              disabled={isPending}
+            </CancelButton>
+            <ArrowButton
+              disabled={isPending || !understood}
               onClick={handleApprovePayroll}
+              type="button"
             >
               {isPending ? t("approving") : t("confirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 

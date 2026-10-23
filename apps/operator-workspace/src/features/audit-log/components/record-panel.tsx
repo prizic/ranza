@@ -6,6 +6,7 @@ import type { AuditEntry, AuditNames } from "@ranza/core";
 import { Fact, FactList, Separator } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { readAs } from "../actions";
+import { historyHref, subjectHref, type SubjectReach } from "../links";
 import { useAuditWords, whenLabel } from "../words";
 import { ContextFacts } from "./context-facts";
 
@@ -20,22 +21,31 @@ import { ContextFacts } from "./context-facts";
  */
 export function RecordPanel({
   entry,
-  folioHref,
   locale,
   names,
+  propertyId,
+  reach,
   viewerId,
 }: {
   entry: AuditEntry;
-  /** Route prefix a Folio subject links to with `&folio=` — the one subject
-      that already has a screen of its own. */
-  folioHref: string;
   locale: SupportedLocale;
   names: AuditNames;
+  /** The Property the log is opened from, which every link keeps. */
+  propertyId: string;
+  /** Which of the screens a subject opens in the viewer may open. */
+  reach: SubjectReach;
   viewerId: string;
 }) {
   const t = useTranslations();
   const words = useAuditWords(names, viewerId);
   const subject = words.name(entry.subjectId);
+  const opens = subjectHref(
+    locale,
+    propertyId,
+    entry.subjectType,
+    entry.subjectId,
+    reach,
+  );
 
   return (
     <section className="mt-6">
@@ -43,12 +53,12 @@ export function RecordPanel({
         <Fact label={t("what")}>{words.action(entry)}</Fact>
         <Fact label={t("subject")}>
           {words.subjectType(entry.subjectType)}{" "}
-          {entry.subjectType === "folio" ? (
+          {opens ? (
             // Not prefetched: one row is one request, and all it would fetch is
             // the loading boundary — the row's own data is read on the click.
             <Link
               className="hover:underline"
-              href={`${folioHref}&folio=${entry.subjectId}`}
+              href={opens}
               prefetch={false}
               title={entry.subjectId}
             >
@@ -57,6 +67,15 @@ export function RecordPanel({
           ) : (
             <span title={entry.subjectId}>{subject}</span>
           )}
+          <span className="block text-step--1">
+            <Link
+              className="text-muted-foreground hover:text-foreground hover:underline"
+              href={historyHref(locale, propertyId, entry.subjectId)}
+              prefetch={false}
+            >
+              {t("auditHistoryLink")}
+            </Link>
+          </span>
         </Fact>
         <Fact label={t("auditWhere")}>{words.where(entry)}</Fact>
         <Fact label={t("who")}>

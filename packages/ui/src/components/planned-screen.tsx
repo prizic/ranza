@@ -50,7 +50,7 @@ export function PlannedScreen({
       </p>
       <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-5 text-step--1 text-muted-foreground">
         <a
-          className="font-medium text-primary underline-offset-4 hover:underline"
+          className="font-medium text-primary-text underline-offset-4 hover:underline"
           href={handoverHref}
         >
           {handoverLabel}

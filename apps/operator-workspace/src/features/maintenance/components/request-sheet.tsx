@@ -1,16 +1,22 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarClock, RotateCcw, Wrench, X } from "lucide-react";
+import { RotateCcw, UserRound, Wrench, X } from "lucide-react";
 import type {
   BoardState,
   MaintenanceRequestCard,
   ReportOptions,
+  ReturnAs,
 } from "@ranza/maintenance";
 import { isolate, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
+  DialogBody,
+  DialogFacts,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   Field,
   Input,
   Select,
@@ -18,14 +24,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Separator,
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  StatusBadge,
   Textarea,
+  fieldClassName,
+  sheetFrameClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   assignRequest,
@@ -36,15 +40,9 @@ import {
   takeRoomOutOfOrder,
   type MaintenanceOutcome,
 } from "../../../server/maintenance";
+import { staffName } from "../../../lib/staff-name";
 import { ImpactNotice } from "./impact-notice";
-import {
-  formatDay,
-  formatInstant,
-  OutOfOrderBadge,
-  PriorityBadge,
-  Section,
-  STATE_ICON,
-} from "./look";
+import { formatDay, formatInstant, STATE_ICON } from "./look";
 import { OutcomeMessage } from "./outcome-message";
 import { RequestMoney } from "./request-money";
 import { useCommand } from "./use-command";
@@ -83,6 +81,8 @@ export function RequestSheet({
   limits,
   onOpenChange,
   propertyId,
+  viewerId,
+  whenDone,
 }: {
   request: MaintenanceRequestCard | null;
   locale: SupportedLocale;
@@ -96,10 +96,14 @@ export function RequestSheet({
   /** The Property the board is for, which links out of the sheet name. */
   propertyId: string;
   onOpenChange: (open: boolean) => void;
+  viewerId: string;
+  /** What moving a request to Done does to its room, per the setting. */
+  whenDone: { returnOnDone: boolean; returnAs: ReturnAs } | null;
 }) {
   const t = useTranslations("maintenance");
   const states = useTranslations("maintenance.states");
   const priorities = useTranslations("maintenance.priorities");
+  const returnAs = useTranslations("maintenance.returnAs");
 
   const byName: Record<Command, ReturnType<typeof useCommand>> = {
     move: useCommand(moveRequest, locale),
@@ -147,152 +151,177 @@ export function RequestSheet({
     .filter((part) => part !== null)
     .join(" · ");
   const base = { requestId: request.requestId };
+  // Done is one click among the others, so the click says what it does to a
+  // room it holds before it is made (MAINT-03).
+  const doneHint =
+    !holding || whenDone === null || !open || room === null
+      ? null
+      : !whenDone.returnOnDone
+        ? t("doneHoldsRoom", { room })
+        : mayTakeOutOfOrder
+          ? t("doneReturnsRoom", { room, state: returnAs(whenDone.returnAs) })
+          : t("doneKeepsRoomOut", { room });
+
+  const facts = [
+    states(request.status),
+    priorities(request.priority),
+    request.kind === "service" ? t("service") : null,
+    holding ? t("outOfOrder") : null,
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
 
   return (
     <Sheet onOpenChange={onOpenChange} open>
       <SheetContent
-        className="w-full gap-0 overflow-y-auto sm:max-w-lg"
+        aria-describedby={undefined}
+        className={sheetFrameClassName}
         side="end"
       >
-        <SheetHeader className="gap-3 border-b">
-          <SheetDescription>
-            {t("reference", { number: request.number })}
-          </SheetDescription>
-          <SheetTitle className="text-step-1">{request.title}</SheetTitle>
-          <div className="flex flex-wrap gap-2">
-            <StatusBadge
-              icon={STATE_ICON[request.status]}
-              label={states(request.status)}
-              tone={request.status === "done" ? "success" : "neutral"}
+        <DialogMasthead
+          art="/illustrations/dialogs/wrench.svg"
+          eyebrow={t("reference", { number: request.number })}
+          facts={facts}
+          heading={request.title}
+        />
+
+        <DialogBody>
+          <DialogSection>
+            <DialogFacts
+              rows={[
+                [t("where"), where || "—"],
+                [
+                  t("details"),
+                  <span className="whitespace-pre-wrap" key="details">
+                    {request.details ?? t("noDetails")}
+                  </span>,
+                ],
+                [
+                  t("reportedOn", {
+                    when: formatInstant(request.reportedAt, locale, timeZone),
+                  }),
+                  t("reportedBy", {
+                    who: isolate(
+                      staffName(request.reporter.email, t("formerStaff")),
+                    ),
+                  }),
+                ],
+                ...(request.cancelReason
+                  ? ([[t("cancelReason"), request.cancelReason]] as const)
+                  : []),
+                ...(request.hold
+                  ? ([
+                      [
+                        t("outOfOrder"),
+                        `${t("outOfOrderSince", {
+                          when: formatInstant(
+                            request.hold.since,
+                            locale,
+                            timeZone,
+                          ),
+                        })}${
+                          request.hold.expectedBackOn
+                            ? ` · ${
+                                request.hold.overdue
+                                  ? t("overdueSince", {
+                                      date: formatDay(
+                                        request.hold.expectedBackOn,
+                                        locale,
+                                      ),
+                                    })
+                                  : t("backOn", {
+                                      date: formatDay(
+                                        request.hold.expectedBackOn,
+                                        locale,
+                                      ),
+                                    })
+                              }`
+                            : ""
+                        }`,
+                      ],
+                    ] as const)
+                  : []),
+              ]}
             />
-            <PriorityBadge priority={request.priority} />
-            {request.kind === "service" ? (
-              <StatusBadge
-                icon={CalendarClock}
-                label={t("service")}
-                tone="info"
-              />
+            {request.status === "done" && holding ? (
+              <DialogNotice>{t("heldAfterDone")}</DialogNotice>
             ) : null}
-            {holding ? <OutOfOrderBadge /> : null}
-          </div>
-        </SheetHeader>
-
-        <div className="grid gap-5 p-4">
-          <dl className="grid gap-3 text-step--1">
-            <Fact label={t("where")}>{where || "—"}</Fact>
-            <Fact label={t("details")}>
-              <span className="whitespace-pre-wrap">
-                {request.details ?? t("noDetails")}
-              </span>
-            </Fact>
-            <Fact
-              label={t("reportedOn", {
-                when: formatInstant(request.reportedAt, locale, timeZone),
-              })}
+          </DialogSection>
+          <DialogSection labelFor="sheet-assignee" title={t("assignee")}>
+            <Select
+              disabled={!mayManage || pending || request.status === "cancelled"}
+              onValueChange={(value) =>
+                run("assign", {
+                  ...base,
+                  assigneeId: value === "none" ? "" : value,
+                })
+              }
+              value={request.assignee?.userId ?? "none"}
             >
-              {t("reportedBy", {
-                who: isolate(request.reporter.email ?? t("formerStaff")),
-              })}
-            </Fact>
-            {request.cancelReason ? (
-              <Fact label={t("cancelReason")}>{request.cancelReason}</Fact>
-            ) : null}
-            {request.hold ? (
-              <Fact label={t("outOfOrder")}>
-                {t("outOfOrderSince", {
-                  when: formatInstant(request.hold.since, locale, timeZone),
-                })}
-                {request.hold.expectedBackOn
-                  ? ` · ${
-                      request.hold.overdue
-                        ? t("overdueSince", {
-                            date: formatDay(
-                              request.hold.expectedBackOn,
-                              locale,
-                            ),
-                          })
-                        : t("backOn", {
-                            date: formatDay(
-                              request.hold.expectedBackOn,
-                              locale,
-                            ),
-                          })
-                    }`
-                  : ""}
-              </Fact>
-            ) : null}
-          </dl>
-
-          {request.status === "done" && holding ? (
-            <p className="rounded-lg border border-warning/30 bg-warning-soft px-3 py-2 text-step--1 text-warning">
-              {t("heldAfterDone")}
-            </p>
-          ) : null}
-
-          <Separator />
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field htmlFor="sheet-assignee" label={t("assignee")}>
-              <Select
-                disabled={
-                  !mayManage || pending || request.status === "cancelled"
-                }
-                onValueChange={(value) =>
-                  run("assign", {
-                    ...base,
-                    assigneeId: value === "none" ? "" : value,
-                  })
-                }
-                value={request.assignee?.userId ?? "none"}
+              <SelectTrigger className="w-full" id="sheet-assignee">
+                <SelectValue>
+                  {request.assignee
+                    ? request.assignee.reachesProperty
+                      ? isolate(
+                          staffName(request.assignee.email, t("formerStaff")),
+                        )
+                      : t("noLongerHere", {
+                          name: isolate(
+                            staffName(request.assignee.email, t("formerStaff")),
+                          ),
+                        })
+                    : t("notAssigned")}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t("notAssigned")}</SelectItem>
+                {assignees.map((person) => (
+                  <SelectItem key={person.userId} value={person.userId}>
+                    {staffName(person.email, t("formerStaff"))}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {mayManage &&
+            request.status !== "cancelled" &&
+            request.assignee?.userId !== viewerId &&
+            assignees.some((person) => person.userId === viewerId) ? (
+              <Button
+                className="justify-self-start"
+                disabled={pending}
+                onClick={() => run("assign", { ...base, assigneeId: viewerId })}
+                size="sm"
+                variant="ghost"
               >
-                <SelectTrigger id="sheet-assignee">
-                  <SelectValue>
-                    {request.assignee
-                      ? request.assignee.reachesProperty
-                        ? isolate(request.assignee.email ?? t("formerStaff"))
-                        : t("noLongerHere", {
-                            name: isolate(
-                              request.assignee.email ?? t("formerStaff"),
-                            ),
-                          })
-                      : t("notAssigned")}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t("notAssigned")}</SelectItem>
-                  {assignees.map((person) => (
-                    <SelectItem key={person.userId} value={person.userId}>
-                      {person.email ?? t("formerStaff")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+                <UserRound aria-hidden="true" className="size-4" />
+                {t("assignToMe")}
+              </Button>
+            ) : null}
+          </DialogSection>
 
-            <Field htmlFor="sheet-priority" label={t("priority")}>
-              <Select
-                disabled={!mayManage || pending || !open}
-                onValueChange={(value) =>
-                  run("prioritise", { ...base, priority: value })
-                }
-                value={request.priority}
-              >
-                <SelectTrigger id="sheet-priority">
-                  <SelectValue>{priorities(request.priority)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITIES.map((value) => (
-                    <SelectItem key={value} value={value}>
-                      {priorities(value)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
+          <DialogSection labelFor="sheet-priority" title={t("priority")}>
+            <Select
+              disabled={!mayManage || pending || !open}
+              onValueChange={(value) =>
+                run("prioritise", { ...base, priority: value })
+              }
+              value={request.priority}
+            >
+              <SelectTrigger className="w-full" id="sheet-priority">
+                <SelectValue>{priorities(request.priority)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {priorities(value)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </DialogSection>
 
           {mayManage ? (
-            <Section title={t("state")}>
+            <DialogSection hint={doneHint} title={t("state")}>
               <div className="flex flex-wrap gap-2">
                 {request.status === "cancelled" ? (
                   <Button
@@ -332,18 +361,19 @@ export function RequestSheet({
                   )
                 )}
               </div>
-            </Section>
+            </DialogSection>
           ) : null}
 
           {mayTakeOutOfOrder && request.unit !== null && (holding || open) ? (
-            <Section title={t("outOfOrder")}>
+            <DialogSection title={t("outOfOrder")}>
               {holding ? (
                 <div className="grid gap-3">
-                  <p className="text-step--1 text-muted-foreground">
+                  <p className="m-0 text-step--1 text-muted-foreground">
                     {t("returnHint")}
                   </p>
                   <Field htmlFor="sheet-note" label={t("note")}>
                     <Input
+                      className={fieldClassName}
                       id="sheet-note"
                       maxLength={limits.note}
                       onChange={(event) => setNote(event.target.value)}
@@ -363,11 +393,12 @@ export function RequestSheet({
                 </div>
               ) : takingOut ? (
                 <div className="grid gap-3">
-                  <p className="text-step--1 text-muted-foreground">
+                  <p className="m-0 text-step--1 text-muted-foreground">
                     {t("takeOutHint")}
                   </p>
                   <Field htmlFor="sheet-expected" label={t("expectedBack")}>
                     <Input
+                      className={fieldClassName}
                       id="sheet-expected"
                       min={today}
                       onChange={(event) =>
@@ -421,7 +452,7 @@ export function RequestSheet({
                   {t("takeOutOfOrder")}
                 </Button>
               )}
-            </Section>
+            </DialogSection>
           ) : null}
 
           <RequestMoney
@@ -433,14 +464,15 @@ export function RequestSheet({
           />
 
           {mayManage && open ? (
-            <Section title={t("cancelRequest")}>
+            <DialogSection title={t("cancelRequest")}>
               {cancelling ? (
                 <div className="grid gap-3">
-                  <p className="text-step--1 text-muted-foreground">
+                  <p className="m-0 text-step--1 text-muted-foreground">
                     {t("cancelHint")}
                   </p>
                   <Field htmlFor="sheet-reason" label={t("reason")}>
                     <Textarea
+                      className={textareaClassName}
                       id="sheet-reason"
                       maxLength={limits.cancelReason}
                       minLength={3}
@@ -487,29 +519,22 @@ export function RequestSheet({
                     {t("cancelRequest")}
                   </Button>
                   {holding && !mayTakeOutOfOrder ? (
-                    <p className="text-step--1 text-muted-foreground">
+                    <p className="m-0 text-step--1 text-muted-foreground">
                       {t("needsReturnPermission")}
                     </p>
                   ) : null}
                 </div>
               )}
-            </Section>
+            </DialogSection>
           ) : null}
 
-          <OutcomeMessage
-            outcome={latest.status === "impact" ? { status: "idle" } : latest}
-          />
-        </div>
+          <div aria-live="polite" className="py-5 empty:hidden">
+            <OutcomeMessage
+              outcome={latest.status === "impact" ? { status: "idle" } : latest}
+            />
+          </div>
+        </DialogBody>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="grid gap-0.5">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="m-0">{children}</dd>
-    </div>
   );
 }

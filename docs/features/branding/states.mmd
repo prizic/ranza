@@ -1,0 +1,31 @@
+%% Anything not drawn here is forbidden, for every role, the owner included:
+%% there is no DELETE grant on either table, a brand row is never removed, and the
+%% logo is replaced or emptied in place. An Organization with no row at all is the
+%% default theme, the same as a row with nothing in it.
+stateDiagram-v2
+  direction LR
+
+  state "organization_brands.primary_color" as ColorMachine {
+    state "unset" as unset
+    state "set" as set
+
+    [*] --> unset : the Organization has never branded, or has a row with no colour
+    unset --> set : saveBrand with a colour that is #rrggbb and readable
+    set --> set : saveBrand with another colour
+    set --> unset : saveBrand with the colour cleared, or resetBrand
+  }
+
+  state "organization_brand_logos.content" as LogoMachine {
+    state "none" as none
+    state "present" as present
+
+    [*] --> none : no row, or a row whose bytes are gone
+    none --> present : saveBrand with PNG, JPEG or WebP within the limits
+    present --> present : saveBrand with another logo
+    present --> none : saveBrand with the logo removed, or resetBrand
+  }
+
+  note right of set
+    Read as the Portal's --primary, with a foreground derived by contrast.
+    An Organization is branded when either machine is past its first state.
+  end note

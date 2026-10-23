@@ -171,9 +171,20 @@ export class UnitNameTakenError extends Error {
   }
 }
 
-/** A shape the caller can correct: a count, a capacity, a reason's length. */
+/** The input an add can name when it is refused for its shape. */
+export type UnitConfigurationField =
+  "building" | "floor" | "firstNumber" | "count" | "capacity" | "letByTheBed";
+
+/**
+ * A shape the caller can correct: a count, a capacity, a reason's length.
+ * `field` says which input an add refused, so a screen can point at it in its
+ * own words rather than show this module's sentence.
+ */
 export class UnitConfigurationError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    public readonly field?: UnitConfigurationField,
+  ) {
     super(message);
     this.name = "UnitConfigurationError";
   }

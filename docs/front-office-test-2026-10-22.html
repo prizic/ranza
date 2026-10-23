@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Front office test, 22 Oct 2026</title>
+    <style>
+      :root {
+        --ink: #16201b;
+        --muted: #5d6b63;
+        --line: #e3e0d6;
+        --bg: #faf8f2;
+        --card: #fff;
+        --accent: #0f5c45;
+        --warn: #a4491a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.55 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      .eyebrow {
+        font:
+          600 12px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font-size: 40px;
+        line-height: 1.1;
+        margin: 12px 0 16px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 22px;
+        margin: 48px 0 12px;
+        padding-top: 24px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 17px;
+        margin: 0 0 6px;
+      }
+      p {
+        margin: 0 0 12px;
+      }
+      .verdict {
+        font-size: 19px;
+        border-inline-start: 4px solid var(--accent);
+        padding-inline-start: 16px;
+        margin: 24px 0;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .item {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px 18px;
+        margin: 0 0 12px;
+      }
+      .item .where {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      .item .fix {
+        margin: 8px 0 0;
+      }
+      .item .fix b,
+      .tag {
+        font:
+          600 11px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 7px;
+        border-radius: 4px;
+        margin-inline-end: 8px;
+        background: #eee9da;
+        color: var(--ink);
+        vertical-align: middle;
+      }
+      .tag.high {
+        background: #f6dccb;
+        color: var(--warn);
+      }
+      .tag.seen {
+        background: #d9ece4;
+        color: var(--accent);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 15px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        text-align: start;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        font:
+          600 12px/1 ui-monospace,
+          Menlo,
+          monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      ul {
+        margin: 0 0 12px;
+        padding-inline-start: 20px;
+      }
+      li {
+        margin: 2px 0;
+      }
+      code {
+        font:
+          13px ui-monospace,
+          Menlo,
+          monospace;
+        background: #eee9da;
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
+      @media (max-width: 600px) {
+        h1 {
+          font-size: 30px;
+        }
+        main {
+          padding: 32px 16px 64px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Ranza · hosted staging · 22 Oct 2026</div>
+      <h1>Front office test: three agents, one shift each</h1>
+
+      <p class="verdict">
+        The day-to-day flows work, but the front desk cannot trust three things:
+        what the system says is free tonight, what Close the Day says is left
+        open, and which guest a booking really belongs to. Fix those before
+        polishing anything else.
+      </p>
+
+      <p class="meta">
+        Three Sonnet 5.5 agents role-played Front Desk staff on the demo
+        Organization (Demo Otel İstanbul), each with its own browser context: A
+        arrivals and walk-ins, B reservations and rates, C in-house stays,
+        folios and check-out. Every finding below was observed by an agent in
+        the browser. I did not re-run any of it, and no code was changed. Things
+        they created are tagged QA-A, QA-B and QA-C on staging, and the repo is
+        unchanged apart from this file.
+      </p>
+
+      <h2>Reported by more than one agent</h2>
+      <table>
+        <tr>
+          <th>Finding</th>
+          <th>Seen by</th>
+        </tr>
+        <tr>
+          <td>
+            Booking with an already-used email silently reuses the old guest and
+            drops the new name and phone
+          </td>
+          <td>A, B</td>
+        </tr>
+        <tr>
+          <td>
+            No guest screen: cannot edit a name, add details, search guests, see
+            history
+          </td>
+          <td>A, B</td>
+        </tr>
+        <tr>
+          <td>
+            Room counts disagree between Today, Rooms, calendar and Housekeeping
+          </td>
+          <td>A, B, C</td>
+        </tr>
+        <tr>
+          <td>
+            Tables hide Unit, Price, Status, balance behind a horizontal scroll
+            at 820px
+          </td>
+          <td>A, B, C</td>
+        </tr>
+        <tr>
+          <td>
+            "Something went wrong" page or unstyled page after what looks like a
+            mid-session deploy
+          </td>
+          <td>A, B, C</td>
+        </tr>
+        <tr>
+          <td>No success message after create, cancel, payment or check-out</td>
+          <td>A, B, C</td>
+        </tr>
+        <tr>
+          <td>
+            Stale seeded data: "mahnoor" Confirmed since Oct 11, every seeded
+            booking "No price"
+          </td>
+          <td>A, B</td>
+        </tr>
+        <tr>
+          <td>
+            Rooms 101, 102, 201 have no floor and sort to the bottom of the
+            calendar
+          </td>
+          <td>A, B</td>
+        </tr>
+        <tr>
+          <td>
+            Wording: "Unit", "Resident", "Folio" where a desk says Room, Guest,
+            Bill
+          </td>
+          <td>A, B</td>
+        </tr>
+      </table>
+
+      <h2>Ranked: fix first</h2>
+
+      <div class="item">
+        <h3>
+          <span class="tag high">Blocker</span>1. Guests are not a thing the
+          desk can manage
+        </h3>
+        <div class="where">New reservation, Reservations, Arrivals</div>
+        <p>
+          There is no Guests page (<code>/en/guests</code> is a 404). A repeated
+          email attaches the booking to the old guest and silently discards what
+          was typed. The helper text hints at it, the result never confirms it.
+          A name typo cannot be fixed anywhere. Check-in captures no ID,
+          nationality or guest count, and a booking has no note, special-request
+          or guest-count field. The only note field is on Change booking and
+          nobody found where it shows afterwards.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> A Guests page (search, edit, history). On save,
+          "Existing guest X matched by email, update the phone?". Add notes,
+          special requests and adult/child counts to the booking, and a
+          skippable ID step at check-in that flags "ID missing". This may be
+          deliberate sequencing in the roadmap; I have not checked.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag high">High</span>2. Close the Day says "nothing left
+          open" when plenty is
+        </h3>
+        <div class="where">
+          /close-day (agent C, stopped at the confirmation step)
+        </div>
+        <p>
+          It works on the oldest of 11 unclosed days (Oct 11), not tonight.
+          "Departures still in house" reads "Done, nothing left open" while
+          Departures lists 12 overdue guests owing roughly TRY 47,000. "Room
+          nights" says "No nights to charge" beside 4 unpriced bookings.
+          Reopening a closed day is "not available yet".
+        </p>
+        <p class="fix">
+          <b>Suggest</b> Lead with tonight's open balances, overdue departures
+          and unchecked arrivals, and explain the 11-day backlog before offering
+          to close one day.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag high">High</span>3. "What is free tonight" has no
+          single answer
+        </h3>
+        <div class="where">
+          Today, Rooms, Room calendar, Housekeeping, unit picker
+        </div>
+        <p>
+          Today says 42 can be sold tonight and 8 are ready to sell (7 of 41 on
+          another read). The calendar's Free row says 17, and its Available
+          filter still shows all 42. Dirty rooms are 4 on Today and 15 on
+          Housekeeping (C infers the second counts occupied rooms). The unit
+          picker let A book room 101 for tonight, which was still occupied until
+          checkout, then Arrivals refused the check-in. The picker shows no
+          clean state.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> One definition per number, labelled. A "free tonight,
+          clean first" view. In the picker say "occupied until checkout" and
+          show readiness.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag high">High</span>4. Money dialogs fail silently, and
+          a mistake cannot be undone at the desk
+        </h3>
+        <div class="where">Folio, Record payment (agent C)</div>
+        <p>
+          0 and -50 record nothing and show no message; the payment method
+          resets and a request still goes out. 99,999,999,999.99 is accepted
+          with no cap. Front Desk sees no add-charge or reverse control, though
+          the page says "a correction never removes a line". C infers a
+          permission block but did not confirm it.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> An inline error under the amount, keep the chosen
+          method, a sanity cap or confirmation. Show the correction control with
+          "ask a manager", or allow reversal with a reason.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag">Painful</span>5. Today does not drive the shift
+        </h3>
+        <div class="where">Today (agent A)</div>
+        <p>
+          "Do these in order" holds only check-outs (13 overdue). Arrivals
+          appear below as "No expected time" with no Check in button, and guests
+          already checked in stay in the list.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> Put arrivals with a Check in button in the ordered list
+          and grey out the done ones.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag">Painful</span>6. Tablet width (820px) hides the
+          numbers that matter
+        </h3>
+        <div class="where">
+          Arrivals, Reservations, Departures, New reservation dialog
+        </div>
+        <p>
+          Readiness, balance, overdue days, Unit, Price and Status sit
+          off-screen behind a sticky action column, with no scroll hint. The
+          Departures balance is invisible when you press Check out. Status pills
+          are also clipped at 1200 to 1280px, in English and Arabic.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> Stack balance and status under the guest name on narrow
+          screens.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag">Painful</span>7. Cancel and no-show are one-way and
+          free
+        </h3>
+        <div class="where">Reservations (agent B)</div>
+        <p>
+          No reinstate: a mis-click means a new booking with a new reference.
+          No-show says "nothing is charged", with no way to bill a first night.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> Manager-approved reinstate; a no-show fee setting or at
+          least a clear statement that none exists.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag">Painful</span>8. Change booking hides the price
+          effect
+        </h3>
+        <div class="where">Change booking (agents A, B)</div>
+        <p>
+          Extending showed only the nightly rate; the total went from 5,600 to
+          11,200 afterwards without being stated. Room to Suite showed "2,800 →
+          5,600 a night" and no total. Shortening showed nothing. There is no
+          "check in early" action; A moved the dates and added a night to get
+          around it.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> Show old total, new total and the difference before
+          saving.
+        </p>
+      </div>
+
+      <div class="item">
+        <h3>
+          <span class="tag">Painful</span>9. A deploy mid-shift breaks open tabs
+          with an unhelpful page
+        </h3>
+        <div class="where">All three agents</div>
+        <p>
+          One saw <code>Server Action … not found</code> and an error page that
+          promises a reference and shows none, and the room change did not save.
+          Others saw 404s on static files and an unstyled page, and 502s. All
+          three point to a redeploy during the run, which I did not trigger and
+          have not confirmed.
+        </p>
+        <p class="fix">
+          <b>Suggest</b> "The app was updated, reload", keep typed input, always
+          show the reference the page promises.
+        </p>
+      </div>
+
+      <h2>Smaller items</h2>
+      <ul>
+        <li>
+          Maintenance "Report a problem" says nobody is notified. Out-of-order
+          202 still showed "Needs cleaning" on Departures, and Move Guest hid it
+          with "No options match".
+        </li>
+        <li>
+          After checking out with a balance owing, the reason typed is not on
+          the folio, the folio never says the guest left, and Record payment
+          prefilled the previous amount, not the balance.
+        </li>
+        <li>
+          Front Desk can mark a dirty vacant room inspected without a clean
+          step.
+        </li>
+        <li>
+          Closing dialogs is inconsistent: New reservation asks "Discard?",
+          Change booking drops edits silently, Escape in the date picker closes
+          the whole dialog, and the discard banner stayed after Escape.
+        </li>
+        <li>
+          "Arriving today" includes guests 1 to 3 days late. Reservations
+          default sort puts an old Confirmed booking above in-house guests.
+        </li>
+        <li>
+          A very long name gives "Check the Guest's name, email address and
+          telephone number", with no field marked and no limit stated (78
+          characters worked, about 170 failed).
+        </li>
+        <li>
+          Native English browser tooltips for empty required fields, in Arabic
+          too. Arabic default "Payment" line untranslated; sidebar name
+          truncates at the wrong end.
+        </li>
+        <li>
+          "Go to a date" uses dd.mm.yyyy, the rest of the app uses "Oct 22,
+          2026". Opening a booking panel does not change the URL, so Back leaves
+          the page. <code>?q=</code> does not search.
+        </li>
+        <li>
+          Calendar gives no visible way to create a booking. Date picker
+          keyboard navigation did not work under automation (unconfirmed for a
+          real keyboard).
+        </li>
+        <li>
+          A guest with no contact details shows the literal "Guest stay". A
+          refused booking shows the same refusal twice.
+        </li>
+      </ul>
+
+      <h2>What worked</h2>
+      <ul>
+        <li>
+          Search is strong: typos, phones in any format, lowercase reference
+          codes, hyphenated tags.
+        </li>
+        <li>
+          Double-clicking Create, Check in, Record payment, Move Guest and
+          Confirm check-out made one record each. Refreshing an open payment
+          dialog left no stray payment.
+        </li>
+        <li>
+          Dirty-room warning at check-in, undo check-in, "Free for these nights"
+          labels in the unit pickers, plain-words refusal of an overlapping
+          booking.
+        </li>
+        <li>
+          Check-out dialog states balance and irreversibility; an owing
+          check-out needs a reason; the room goes dirty and reaches Housekeeping
+          at once; a zero-balance folio closes itself.
+        </li>
+        <li>
+          Live pricing in the booking dialog; month-end and 61-night stays
+          priced and saved.
+        </li>
+        <li>
+          Turkish (ş ğ İ) and Arabic text stored, shown and searched correctly;
+          Arabic RTL mirrors properly on the screens used.
+        </li>
+      </ul>
+
+      <h2>Not tested, and why</h2>
+      <ul>
+        <li>
+          Add-charge, reverse or refund, and late check-out: no control or no
+          check-out time exists for Front Desk.
+        </li>
+        <li>
+          Early departure and Close the Day to completion: both are permanent,
+          so deliberately left.
+        </li>
+        <li>
+          Two arrivals wanting one room, "Check in anyway" on a dirty room, a
+          forced Change-booking conflict, 2 to 3 room group booking,
+          drag-to-create on the calendar.
+        </li>
+        <li>
+          Guest edit and history, duplicate detection, undo: no guest screen
+          exists.
+        </li>
+        <li>
+          Other roles (Manager, Finance, Housekeeping): not in this round, so
+          whether Manager can reverse a payment is unknown.
+        </li>
+        <li>
+          Screenshots: the browser tool refused to write into the scratchpad, so
+          none were saved.
+        </li>
+      </ul>
+
+      <p class="meta">
+        Run cost: 3 Sonnet agents, about 970K subagent tokens in total.
+      </p>
+    </main>
+  </body>
+</html>

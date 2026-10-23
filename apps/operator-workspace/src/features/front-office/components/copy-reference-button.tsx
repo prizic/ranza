@@ -32,8 +32,10 @@ export function CopyReferenceButton({ reference }: { reference: string }) {
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Non-blocking clipboard fallback
+    } catch (error) {
+      // Copying is a convenience: the reference is still on screen. Recorded
+      // so a browser that refuses is known rather than silent.
+      console.error("copy_reference.failed", error);
     }
   }
 
@@ -46,6 +48,9 @@ export function CopyReferenceButton({ reference }: { reference: string }) {
             className="size-6 shrink-0 opacity-60 transition-opacity hover:opacity-100 hover:text-foreground text-muted-foreground"
             onClick={handleCopy}
             size="icon"
+            // Out of the tab order: it is a mouse convenience, and every row
+            // that had it put three stops between a keyboard and the action.
+            tabIndex={-1}
             type="button"
             variant="ghost"
           >

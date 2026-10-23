@@ -57,6 +57,7 @@ function openedFromRooms() {
         onDone={vi.fn()}
         onOpenChange={vi.fn()}
         open
+        openRequests={[]}
         options={{
           units: [
             { unitId: ROOM, name: "101", roomName: null, status: "available" },

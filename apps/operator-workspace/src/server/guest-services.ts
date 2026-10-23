@@ -10,12 +10,31 @@ import type {
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
 
+/**
+ * What a command on a service request did. The outcome carries no English: the
+ * component chooses the sentence from `status`, in the reader's language, and
+ * every reason the module can tell apart has a status of its own (RANZ-54).
+ */
 export interface ServiceRequestOutcome {
-  status: "idle" | "done" | "invalid" | "refused";
+  status:
+    | "idle"
+    | "done"
+    | "invalid"
+    /** The viewer is not signed in, or the database said no for a reason it does not give. */
+    | "refused"
+    /** The write changed nothing: the request left the viewer's reach, or their permission did. */
+    | "unavailable"
+    | "resolvedCannotCancel"
+    | "cancelledReopensToNew";
   number?: number;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The database's own limits on a reason: three to two hundred characters. */
+const REASON = { min: 3, max: 200 } as const;
+const TITLE = { min: 3, max: 200 } as const;
+const TEXT_MAX = 2000;
 
 function revalidateRequests(locale: string, propertyId: string): void {
   revalidatePath(`/${locale}/guest-experience`);
@@ -23,7 +42,38 @@ function revalidateRequests(locale: string, propertyId: string): void {
 }
 
 /**
- * Server action to log a new service request.
+ * What a refused command becomes. A failure this does not recognise is a
+ * defect, not an outcome to show as a refusal, so it is rethrown for the
+ * framework to report.
+ */
+function outcomeOf(error: unknown): ServiceRequestOutcome {
+  if (error instanceof Error) {
+    if (error.name === "ServiceRequestRefusedError") {
+      return { status: "refused" };
+    }
+    if (error.name === "ServiceRequestUnavailableError") {
+      return { status: "unavailable" };
+    }
+    if (error.name === "ServiceRequestStateError") {
+      return {
+        status: (error as Error & { reason: ServiceRequestOutcome["status"] })
+          .reason,
+      };
+    }
+  }
+  throw error;
+}
+
+function validLength(
+  value: string,
+  { min, max }: { min: number; max: number },
+) {
+  return value.length >= min && value.length <= max;
+}
+
+/**
+ * Server action to log a new service request. The Guest in the room is read by
+ * the module from its Stay, never from the form (GX-07).
  */
 export async function createServiceRequest(
   locale: string,
@@ -38,28 +88,18 @@ export async function createServiceRequest(
   const viewer = await currentViewer();
   if (!viewer) return { status: "refused" };
 
-  const title = (formData.get("title") as string)?.trim();
-  const details = (formData.get("details") as string)?.trim() || null;
+  const title = String(formData.get("title") ?? "").trim();
+  const details = String(formData.get("details") ?? "").trim() || null;
   const category =
     (formData.get("category") as ServiceRequestCategory) || "other";
   const priority =
     (formData.get("priority") as ServiceRequestPriority) || "normal";
   const unitId =
-    (formData.get("accommodationUnitId") as string)?.trim() || null;
-  const guestId = (formData.get("guestId") as string)?.trim() || null;
+    String(formData.get("accommodationUnitId") ?? "").trim() || null;
 
-  if (!title || title.length < 3 || title.length > 200) {
-    return { status: "invalid" };
-  }
-  if (details && details.length > 2000) {
-    return { status: "invalid" };
-  }
-  if (unitId && !UUID.test(unitId)) {
-    return { status: "invalid" };
-  }
-  if (guestId && !UUID.test(guestId)) {
-    return { status: "invalid" };
-  }
+  if (!validLength(title, TITLE)) return { status: "invalid" };
+  if (details && details.length > TEXT_MAX) return { status: "invalid" };
+  if (unitId && !UUID.test(unitId)) return { status: "invalid" };
 
   try {
     const created = await getComposition().guestServices.createRequest(
@@ -71,20 +111,20 @@ export async function createServiceRequest(
         category,
         priority,
         accommodationUnitId: unitId,
-        guestId,
       },
     );
 
     revalidateRequests(locale, propertyId);
     return { status: "done", number: created.number };
-  } catch (error) {
-    console.error("Failed to create service request:", error);
-    return { status: "refused" };
+  } catch (error: unknown) {
+    return outcomeOf(error);
   }
 }
 
 /**
- * Server action to update a request's status, resolution notes, or cancel reason.
+ * Server action to move a request along. Reopening a cancelled request goes
+ * to `new` and clears its reason, which the database insists on as a pair; a
+ * resolved one reopens to `in_progress` and keeps its notes.
  */
 export async function updateServiceRequestStatus(
   locale: string,
@@ -100,6 +140,10 @@ export async function updateServiceRequestStatus(
   ) {
     return { status: "invalid" };
   }
+  if (status === "cancelled" && !validLength(notes?.trim() ?? "", REASON)) {
+    return { status: "invalid" };
+  }
+  if (notes && notes.length > TEXT_MAX) return { status: "invalid" };
 
   const viewer = await currentViewer();
   if (!viewer) return { status: "refused" };
@@ -110,23 +154,22 @@ export async function updateServiceRequestStatus(
       requestId,
       {
         status,
-        ...(status === "cancelled"
-          ? { cancelReason: notes ?? "Cancelled" }
-          : {}),
+        ...(status === "cancelled" ? { cancelReason: notes?.trim() } : {}),
+        ...(status === "new" ? { cancelReason: null } : {}),
         ...(status === "resolved" ? { resolutionNotes: notes ?? null } : {}),
       },
     );
 
     revalidateRequests(locale, propertyId);
     return { status: "done" };
-  } catch (error) {
-    console.error("Failed to update service request status:", error);
-    return { status: "refused" };
+  } catch (error: unknown) {
+    revalidateRequests(locale, propertyId);
+    return outcomeOf(error);
   }
 }
 
 /**
- * Server action to assign a request to a staff member.
+ * Server action to assign a request to a staff member, or to nobody.
  */
 export async function assignServiceRequest(
   locale: string,
@@ -150,15 +193,13 @@ export async function assignServiceRequest(
     await getComposition().guestServices.updateRequest(
       viewer.userId,
       requestId,
-      {
-        assignedToUserId,
-      },
+      { assignedToUserId },
     );
 
     revalidateRequests(locale, propertyId);
     return { status: "done" };
-  } catch (error) {
-    console.error("Failed to assign service request:", error);
-    return { status: "refused" };
+  } catch (error: unknown) {
+    revalidateRequests(locale, propertyId);
+    return outcomeOf(error);
   }
 }

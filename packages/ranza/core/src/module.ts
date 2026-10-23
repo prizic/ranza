@@ -10,6 +10,8 @@ import {
   dayRange,
   MIN_SEARCH_LENGTH,
   namesFor,
+  isUuid,
+  relatedSubjectIds,
   searchIds,
   type AuditNames,
   type AuditScope,
@@ -22,6 +24,8 @@ import {
   type BillingNotice,
   type CapabilityProperties,
   type CapabilityRef,
+  type Denial,
+  type DenialQuestion,
   type EntitledProperty,
   type WorkingDay,
 } from "./contracts";
@@ -45,6 +49,8 @@ const SHIPPED_ROLE_SCOPE = "00000000-0000-0000-0000-000000000000";
 const AUDIT_PAGE_SIZE = 50;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * A `YYYY-MM-DD` that names a real day Postgres accepts, or undefined — never
@@ -193,10 +199,17 @@ export function createCoreModule(deps: CoreDeps) {
    * for a destination no package selection may remove — the audit log, which
    * is a baseline right (blueprint 3.6, ADR 0031). It is what puts that
    * destination in the rail and what its Property switcher offers.
+   *
+   * A destination that is an Organization's to configure rather than a
+   * baseline right names `capability`, and a Property is listed only where
+   * gates 1 to 3 hold for it as well (blueprint 3.5): the same ones the write
+   * policies ask, so the rail and the policy agree about who is shown the
+   * screen.
    */
   async function listPermittedProperties(
     userId: string,
     permission: string,
+    capability?: CapabilityRef,
   ): Promise<EntitledProperty[]> {
     return withOrganizationContext(deps.db, { userId }, (tx) =>
       tx.$queryRawUnsafe<EntitledProperty[]>(
@@ -210,10 +223,99 @@ export function createCoreModule(deps: CoreDeps) {
              on organization.id = property.organization_id
           where property.id in (select app.accessible_property_ids())
             and app.has_organization_permission(property.organization_id, $1)
+            and ($2::text is null
+                 or app.can_use_capability(property.id, $2, $3))
           order by organization.name, property.name`,
         permission,
+        capability?.moduleKey ?? null,
+        capability?.capabilityKey ?? null,
       ),
     );
+  }
+
+  /**
+   * Why a destination is closed to the viewer, from the first gate that stops
+   * them (`Denial`). Asked only after a page has found nothing to show, so the
+   * ordinary request pays nothing for it.
+   *
+   * The gates are read one at a time here, where `app.can_use_capability()`
+   * answers them together, because the answer is what the person is told:
+   * "not in your Subscription" and "not enabled at this Property" are different
+   * remedies. The tables are the ones the policies already let a member read —
+   * their own Organization's Subscription and Entitlements, and the capabilities
+   * of the Properties they reach — so nothing is widened to say it.
+   *
+   * With a Property named, only that one is weighed. With none, the answer is
+   * the furthest any Property the viewer reaches got.
+   */
+  async function explainDenial(
+    userId: string,
+    question: DenialQuestion,
+  ): Promise<Denial> {
+    const permissions =
+      typeof question.permission === "string"
+        ? [question.permission]
+        : [...(question.permission ?? [])];
+    const requested = question.propertyId?.trim();
+    if (requested && !UUID.test(requested)) return { reason: "not_reachable" };
+
+    const [row] = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRawUnsafe<
+        {
+          reached: number;
+          subscribed: boolean;
+          enabled: boolean;
+          permitted: boolean;
+        }[]
+      >(
+        `select count(*)::int                               as "reached",
+                coalesce(bool_or(subscribed), false)        as "subscribed",
+                coalesce(bool_or(subscribed and enabled), false)
+                                                            as "enabled",
+                coalesce(bool_or(subscribed and enabled and permitted), false)
+                                                            as "permitted"
+           from (
+             select
+               ($2::text is null or (
+                 exists (select 1 from public.subscriptions as subscription
+                          where subscription.organization_id = property.organization_id
+                            and subscription.status in ('trialing', 'active'))
+                 and exists (select 1 from public.entitlements as entitlement
+                              where entitlement.organization_id = property.organization_id
+                                and entitlement.module_key = $2
+                                and entitlement.status = 'active')
+               )) as subscribed,
+               ($3::text is null or exists (
+                 select 1 from public.property_capabilities as capability
+                  where capability.property_id = property.id
+                    and capability.capability_key = $3
+                    and capability.enabled
+               )) as enabled,
+               (cardinality($4::text[]) = 0 or exists (
+                 select 1 from unnest($4::text[]) as held
+                  where app.has_organization_permission(property.organization_id, held)
+               )) as permitted
+               from public.properties as property
+              where property.id in (select app.accessible_property_ids())
+                and ($1::uuid is null or property.id = $1::uuid)
+           ) as weighed`,
+        requested || null,
+        question.capability?.moduleKey ?? null,
+        question.capability?.capabilityKey ?? null,
+        permissions,
+      ),
+    );
+
+    if (!row || row.reached === 0) {
+      return { reason: requested ? "not_reachable" : "no_property" };
+    }
+    if (!row.subscribed) return { reason: "not_subscribed" };
+    if (!row.enabled) return { reason: "not_enabled" };
+    if (!row.permitted && permissions[0] !== undefined) {
+      // Named by the first, which is the one that opens the screen to look.
+      return { reason: "no_permission", permission: permissions[0] };
+    }
+    return { reason: "open" };
   }
 
   /**
@@ -328,6 +430,8 @@ export function createCoreModule(deps: CoreDeps) {
       entries: [],
       total: 0,
       nextCursor: null,
+      searchCapped: false,
+      subjectSpan: null,
       labels: {},
       locations: {},
       roles: {},
@@ -335,6 +439,10 @@ export function createCoreModule(deps: CoreDeps) {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const scope = await auditScope(tx, propertyId);
       if (!scope) return empty;
+      // The history of something that is not an id is the history of nothing.
+      if (filters.subjectId !== undefined && !isUuid(filters.subjectId)) {
+        return empty;
+      }
 
       const range = await dayRange(
         tx,
@@ -347,6 +455,14 @@ export function createCoreModule(deps: CoreDeps) {
       const found = searching
         ? await searchIds(tx, scope.organizationId, text)
         : undefined;
+      const history =
+        filters.subjectId === undefined
+          ? undefined
+          : await relatedSubjectIds(
+              tx,
+              scope.organizationId,
+              filters.subjectId,
+            );
 
       const page = await recentWithin(tx, scope.organizationId, {
         limit: AUDIT_PAGE_SIZE,
@@ -355,8 +471,14 @@ export function createCoreModule(deps: CoreDeps) {
         from: range.from,
         to: range.to,
         cursor: filters.cursor,
+        ...(history ? { onlySubjectIds: history } : {}),
         ...(searching && found
-          ? { text, actorIds: found.actorIds, subjectIds: found.subjectIds }
+          ? {
+              text,
+              actorIds: found.actorIds,
+              subjectIds: found.subjectIds,
+              textActions: filters.textActions,
+            }
           : {}),
       });
       const names = await namesFor(tx, scope.organizationId, page.records);
@@ -365,6 +487,8 @@ export function createCoreModule(deps: CoreDeps) {
         entries: page.records.map((record) => located(record, names, scope)),
         total: page.total,
         nextCursor: page.nextCursor,
+        searchCapped: found?.capped ?? false,
+        subjectSpan: history ? history.length : null,
       };
     });
   }
@@ -396,6 +520,7 @@ export function createCoreModule(deps: CoreDeps) {
     listEntitledProperties,
     listEntitledPropertiesByCapability,
     listPermittedProperties,
+    explainDenial,
     billingNotices,
     workingDay,
     auditLog,

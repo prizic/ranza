@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Finance (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #17211c;
+        --muted: #5b6761;
+        --line: #d9ddd9;
+        --bg: #fbfaf7;
+        --accent: #14574b;
+        --warn: #8a5a00;
+        --bad: #9b2c2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 -apple-system,
+          "Segoe UI",
+          Helvetica,
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 15px;
+        margin: 18px 0 6px;
+      }
+      p,
+      li {
+        max-width: 78ch;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        margin: 8px 0;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 6px 8px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f0eee8;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .sev {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .sev.err {
+        color: var(--bad);
+      }
+      .sev.slow {
+        color: var(--warn);
+      }
+      .sev.pol {
+        color: var(--muted);
+      }
+      .tag {
+        font-size: 11px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        padding: 0 4px;
+        white-space: nowrap;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        display: block;
+        margin: 6px 0 2px;
+      }
+      figure {
+        margin: 12px 0;
+        max-width: 640px;
+      }
+      figcaption {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      code {
+        background: #eeece6;
+        padding: 0 3px;
+        border-radius: 2px;
+        font-size: 12.5px;
+      }
+      .verdict li {
+        margin: 4px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Finance</h1>
+      <p class="meta">
+        Route <code>/en/finance</code> and its folio view (<code>?folio=</code>)
+        &middot; staging, Property "Demo Otel İstanbul" &middot; 2026-10-11
+        &middot; persona: the accountant / finance clerk who reconciles each day
+        &middot; roles seen: Finance (primary), Front Desk, Housekeeping, Owner
+        &middot; AUDIT-ONLY: nothing was posted, reversed or closed.
+      </p>
+
+      <p class="meta">
+        <strong>Data state found:</strong> exactly one folio at the Property
+        (guest "ahmed", unit 102, open, 0 lines, balance TRY 0.00, in house,
+        overdue since Oct 1). No closed folio, no folio with a line, no payment,
+        no reversal. That limits what I could see: how lines, reversals,
+        payments and a closed folio read is <em>inferred from code</em>, not
+        seen. Every claim below is labelled <em>verified</em> (I saw it),
+        <em>inferred</em> (I read it in code or docs) or <em>unknown</em>.
+      </p>
+
+      <h2>1. Verdict</h2>
+      <ul class="verdict">
+        <li>
+          <strong>Could this persona use it unaided?</strong> For looking up one
+          folio and reading a balance, yes. For daily reconciliation, no: there
+          is no way to list who owes money, no search beyond the guest's name,
+          no link from a folio to its reservation, and nothing to hand a guest.
+          A clerk would be working from Today and Departures and using Finance
+          only to post.
+        </li>
+        <li>
+          <strong>Biggest risk:</strong> a folio that reads "TRY 0.00" is
+          indistinguishable from a stay whose nights were never charged. Here, a
+          guest has been 10 days overdue with 0 lines, while Analytics says 0 of
+          31 days are closed and every day is "Not yet charged" (FIN-09). A
+          clerk will read that as "owes nothing".
+        </li>
+        <li>
+          <strong>Second risk:</strong> posting a payment or reversal is a
+          one-press submit with defaults that favour mistakes (method pre-set to
+          "Credit card", amount not prefilled, no confirm, FIN-05/06). I did not
+          press them; this is read from the code.
+        </li>
+        <li>
+          <strong>Access:</strong> Housekeeping is not denied Finance. They get
+          the folio list, balances and every folio's lines, read-only (FIN-08,
+          verified). The design docs call this undecided (FO-S7-02), but Today's
+          own doc says balances are hidden without
+          <code>finance.manage_folio</code>.
+        </li>
+        <li>
+          <strong>Counts:</strong> 14 findings: 0 block work, 5 cause errors, 5
+          slow me down, 4 polish. Numbers agree across Finance, Today and
+          Departures, but only trivially (everything is zero).
+        </li>
+      </ul>
+
+      <h2>2. Findings</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>Expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Basis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>FIN-01</td>
+              <td class="sev slow">slows me down</td>
+              <td>/en/finance list; Finance; 1 folio</td>
+              <td>
+                Search box says "Search Guest" and only matches the guest name
+                (<code>searchColumns={["guestName"]}</code>). Room number is
+                shown but not searchable, the reservation reference and dates
+                are not on the screen at all. Departures, by contrast, searches
+                "Guest / Room and bed / Reservation".
+              </td>
+              <td>
+                Find a folio from what the guest or the desk actually says: a
+                name, a room, a reservation code, or a date.
+              </td>
+              <td>
+                Add reservation reference and unit to
+                <code>searchColumns</code> and show the reference in the row, as
+                Departures does. Date range filter is a later step.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-list-finance.png">01</a>,
+                <a href="03-departures-as-finance.png">03</a>; reproduced Y
+              </td>
+              <td>
+                <em>verified</em> (placeholder, columns); code read for
+                <code>searchColumns</code>
+              </td>
+            </tr>
+
+            <tr>
+              <td>FIN-02</td>
+              <td class="sev slow">slows me down</td>
+              <td>/en/finance list; Finance</td>
+              <td>
+                There is no view of "who owes money". The list has search and
+                column sorting only. The "open folios" filter exists
+                (<code>?show=open</code>) but is reachable only from a Today
+                card; it means <em>status open</em>, not
+                <em>balance above zero</em>. Default order is open first, then
+                unit name, not balance or recency. The list query has no limit,
+                so closed folios stay in the same list forever and all are
+                loaded into one client table (read from <code>module.ts</code>:
+                no <code>limit</code>).
+              </td>
+              <td>
+                One click to "folios with a balance", largest first, and a way
+                to hide closed ones.
+              </td>
+              <td>
+                Tabs on the list: With a balance / Open / Closed, sorted by
+                balance; paginate on the server.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="01-list-finance.png">01</a>,
+                <a href="12-list-show-open.png">12</a>; reproduced Y
+              </td>
+              <td>
+                UI <em>verified</em>; volume behaviour <em>inferred</em> (only 1
+                folio on staging)
+              </td>
+            </tr>
+
+            <tr>
+              <td>FIN-03</td>
+              <td class="sev slow">slows me down</td>
+              <td>list and folio view; Finance</td>
+              <td>
+                A folio is identified only by guest name and unit. No
+                reservation reference, no stay dates, no check-out date, no
+                charges / payments totals; only a "Lines" count, which means
+                nothing to a clerk. Departures shows the same guest as
+                <code>R96J74P</code>, overdue since Oct 1; Finance shows
+                neither. No link from the folio to the reservation or Departures
+                row.
+              </td>
+              <td>
+                Explain a bill to a guest: whose stay, which nights, how much
+                charged, how much paid, how much left.
+              </td>
+              <td>
+                Add reference + stay dates to the list row and folio header;
+                show Charged / Paid / Balance; replace "Lines" with last
+                activity; link to the reservation.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-folio-detail.png">02</a>,
+                <a href="03-departures-as-finance.png">03</a>; reproduced Y
+              </td>
+              <td><em>verified</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-04</td>
+              <td class="sev err">causes errors</td>
+              <td>folio view, Add a charge; Finance; open folio</td>
+              <td>
+                I typed a valid description and the amount
+                <code>1,250.00</code> and pressed Post (the code returns
+                "invalid" before any write, and the folio still showed no lines
+                afterwards). The message was "An amount must be a positive
+                number with no more decimal places than the currency allows."
+                and <strong>both fields were emptied</strong>, so the clerk
+                retypes everything. Thousands separators are not accepted by
+                design (<code>toMinorUnits</code> allows digits plus one
+                separator). In Turkish, <code>1.250,00</code> is the normal way
+                to write 1,250 lira and is rejected the same way. I did not test
+                Turkish.
+              </td>
+              <td>
+                Keep what was typed, point at the amount, and say what is wrong
+                ("remove the thousands separator" or, better, accept it).
+              </td>
+              <td>
+                Keep field values after an "invalid" outcome (return them from
+                the action state); accept locale grouping separators or say so
+                in the message.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="13-charge-invalid-amount.png">13</a>; reproduced Y
+                (once; the second run was not repeated to avoid more submits)
+              </td>
+              <td>
+                EN behaviour <em>verified</em>; TR behaviour
+                <em>inferred</em> from <code>lib/amount.ts</code>
+              </td>
+            </tr>
+
+            <tr>
+              <td>FIN-05</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                folio view: Post charge, Post payment, Reverse, Close folio;
+                Finance / Owner; open folio
+              </td>
+              <td>
+                Each is a plain form submit: no confirmation, no summary
+                ("Record TRY 450.00 cash on ahmed, room 102?"), no undo. Reverse
+                takes a reason inline and fires on Enter or click. Close folio
+                does not state the balance it will close on, though closing is
+                not settling (FO-S5-01). I did not press any of them.
+              </td>
+              <td>
+                A money action names its consequence before the click, at least
+                for payment, reversal and close-with-balance.
+              </td>
+              <td>
+                Confirm dialog on Post payment, Reverse and Close (when balance
+                is not zero), stating guest, amount, method and that the
+                original line stays.
+              </td>
+              <td>M</td>
+              <td>
+                code only (<code>folio-panel.tsx</code> <code>ChargeForm</code>,
+                <code>PaymentForm</code>, <code>ReverseAction</code>,
+                <code>CloseAction</code>); not reproduced by design
+              </td>
+              <td><em>inferred</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-06</td>
+              <td class="sev err">causes errors</td>
+              <td>folio view, Record payment; Finance, Front Desk, Owner</td>
+              <td>
+                Payment method is pre-selected to "Credit card"
+                (<code>defaultValue="card"</code>), so a clerk who skips the
+                field records cash as card. The amount is not prefilled with the
+                balance, although <code>folio-payments</code> row FP-S1-15
+                (approved) says it is, and FP-S1-14 describes a "dialog/drawer"
+                where the UI has two inline forms. The code has no overpayment
+                check (only "greater than zero"), so TRY 5,000 can be recorded
+                on a TRY 450 folio. There is no payment reference or receipt
+                number field. Description is required free text.
+              </td>
+              <td>
+                The payment form starts from the common case (balance due) with
+                no hidden default for method, and refuses or confirms an amount
+                above the balance.
+              </td>
+              <td>
+                Prefill amount; make method a required choice; warn on amount
+                above balance; add an optional reference.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-folio-detail.png">02</a> (method preset), code for
+                the rest
+              </td>
+              <td>
+                method default and missing prefill <em>verified</em> in UI/code;
+                overpayment <em>inferred</em> (no check found in
+                <code>server/finance.ts</code>; the module/DB may still refuse,
+                I did not read it)
+              </td>
+            </tr>
+
+            <tr>
+              <td>FIN-07</td>
+              <td class="sev slow">slows me down</td>
+              <td>folio view with lines; reversal wording</td>
+              <td>
+                Reversal presentation could not be seen (no lines on staging).
+                From code: the original line is struck through with the word
+                "reversed", and the reversal is a second, negative line. For
+                ordinary charges the reversal's description is the typed reason,
+                with no "Reversal of ..." label and no link back to the
+                original. The idea that history is never deleted is said only on
+                a <em>closed</em> folio ("Its lines stay exactly as they are").
+                A clerk reversing a charge on an open folio is not told the
+                original stays.
+              </td>
+              <td>
+                Reading a bill with a reversed charge, a guest can tell what was
+                charged, what was taken off and why.
+              </td>
+              <td>
+                Label reversal lines ("Reversal: &lt;reason&gt;") next to the
+                line they cancel; one sentence under the lines table about
+                corrections.
+              </td>
+              <td>S</td>
+              <td>
+                code (<code>folio-panel.tsx</code>, <code>roomNightLine</code>,
+                <code>folioClosedNote</code>); not seen
+              </td>
+              <td><em>inferred</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-08</td>
+              <td class="sev err">causes errors (access)</td>
+              <td>/en/finance and ?folio=; Housekeeping, Front Desk</td>
+              <td>
+                Housekeeping is not denied. Finance is in their rail; they see
+                the folio list with the Balance column and open a folio with
+                every line, read-only (no forms). Front Desk sees the folio, a
+                Record payment form, and no Add a charge form. No explanation is
+                given to either. The folio docs list this as undecided
+                (FO-S7-02), but the Today docs say no balance goes to anybody
+                without <code>finance.manage_folio</code>.
+              </td>
+              <td>
+                Either a decision that housekeeping may read money (stated), or
+                a denial that says "needs finance access".
+              </td>
+              <td>
+                Owner decision on FO-S7-02; then gate the list by the same
+                permission Today uses, or document the read access.
+              </td>
+              <td>S to decide; S to apply</td>
+              <td>
+                <a href="07-finance-as-housekeeping.png">07</a>,
+                <a href="06-folio-as-frontdesk.png">06</a>; reproduced Y (one
+                folio only)
+              </td>
+              <td><em>verified</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-09</td>
+              <td class="sev err">causes errors</td>
+              <td>folio view / list; Finance; in-house, overdue guest</td>
+              <td>
+                Folio "ahmed" shows 0 lines and TRY 0.00 while the Departures
+                row says "Overdue since Oct 1, 2026", and Analytics says "0 of
+                31 days closed" with days 1-11 "Open day, Not yet charged". The
+                folio note says "their remaining nights are charged to it", but
+                nothing on Finance says that room nights post when each business
+                day is closed, that none has been, or that the stay may have no
+                rate. Reservations shows "No price" on booking RJY1FR2
+                (Confirmed, suite 201, Oct 11-12); Finance has no equivalent for
+                an unpriced stay. I could not tell whether ahmed's own stay is
+                priced.
+              </td>
+              <td>
+                A zero balance that is zero because nothing has been charged yet
+                looks different from one that is settled, and says why.
+              </td>
+              <td>
+                On an open folio with no room-night lines, show "No nights
+                charged yet: charged when the day is closed" with the last
+                closed day; flag unpriced stays on the list.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-folio-detail.png">02</a>,
+                <a href="03-departures-as-finance.png">03</a>,
+                <a href="05-reservations-as-finance.png">05</a>; reproduced Y
+              </td>
+              <td>
+                pieces <em>verified</em>; cause (day close)
+                <em>inferred</em> from Analytics text and ADR 0038 wording;
+                ahmed's rate <em>unknown</em>
+              </td>
+            </tr>
+
+            <tr>
+              <td>FIN-10</td>
+              <td class="sev pol">polish</td>
+              <td>every sortable column header; all roles</td>
+              <td>
+                The sort buttons are announced as "Guest, Next" and "Balance,
+                Next" and the sort menu text is "Next" / "Previous" / "Clear
+                filter": <code>useSortLabels</code> maps
+                <code>sortAscending</code> to <code>table.next</code> and
+                <code>sortDescending</code> to <code>table.previous</code>.
+                Shared kit, so it affects every list.
+              </td>
+              <td>"Sort ascending / descending / clear sort".</td>
+              <td>
+                Add proper
+                <code>table.sortAscending/Descending/clearSort</code> strings in
+                three languages.
+              </td>
+              <td>S</td>
+              <td>
+                accessibility snapshot (<code>button "Guest — Next"</code>);
+                <code>lib/table-labels.ts</code>
+              </td>
+              <td><em>verified</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-11</td>
+              <td class="sev slow">slows me down</td>
+              <td>/en/finance list at 375 px; Finance</td>
+              <td>
+                The Balance column, the number the page exists for, is cut off
+                at the right edge ("TR..."). The table is wider than the screen
+                (400 px in 375) and there is no cue to scroll. The folio view at
+                375 px stacks cleanly with no overflow.
+              </td>
+              <td>
+                On a phone, guest and balance are visible without scrolling.
+              </td>
+              <td>
+                Collapse to a two-line row on narrow screens (guest + unit,
+                balance + status).
+              </td>
+              <td>M</td>
+              <td>
+                <a href="11-list-375.png">11</a>,
+                <a href="10-folio-375.png">10</a>; reproduced Y
+              </td>
+              <td><em>verified</em> (375 px emulation). 768 px not tested.</td>
+            </tr>
+
+            <tr>
+              <td>FIN-12</td>
+              <td class="sev pol">polish</td>
+              <td>folio view in /tr and /ar</td>
+              <td>
+                Money reads <code>₺0,00</code> in Turkish but
+                <code>TRY 0.00</code> in English and <code>‏0.00 TRY</code> in
+                Arabic, and the form label says "(TRY)" in all three. Turkish
+                "Record payment" is "Ödeme al" (take payment), which suggests
+                the system collects the money; the English means recording it.
+                "Post" is "İşle" in Turkish (to process) and "قيد" in Arabic.
+                Arabic layout mirrors correctly.
+              </td>
+              <td>
+                One money format per locale and wording that does not imply
+                processing a card.
+              </td>
+              <td>
+                Settle on symbol vs code per locale; reword TR to "Ödeme
+                kaydet".
+              </td>
+              <td>S</td>
+              <td>
+                <a href="08-folio-tr.png">08</a>,
+                <a href="09b-folio-ar-viewport.png">09b</a>; reproduced Y
+              </td>
+              <td><em>verified</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-13</td>
+              <td class="sev pol">polish</td>
+              <td>folio view; all roles</td>
+              <td>
+                The page heading stays "Finance" and the breadcrumb stays
+                "Workspace > Finance" when a folio is open, so nothing in the
+                heading says whose folio this is (only the Guest fact further
+                down). The "Folio lines" table caption sits below the table. The
+                Back button does go to the Finance list (verified, ADR 0035
+                met).
+              </td>
+              <td>Heading or breadcrumb names the guest and unit.</td>
+              <td>
+                Breadcrumb "Finance > ahmed, 102"; move the caption above or
+                drop it.
+              </td>
+              <td>S</td>
+              <td><a href="02-folio-detail.png">02</a>; reproduced Y</td>
+              <td><em>verified</em></td>
+            </tr>
+
+            <tr>
+              <td>FIN-14</td>
+              <td class="sev pol">polish</td>
+              <td>folio view with lines (not seen)</td>
+              <td>
+                "Posted" times are formatted in a client component with no
+                <code>timeZone</code> option, so they show in the browser's time
+                zone, not the Property's (Europe/Istanbul). Room-night dates are
+                the only ones pinned to UTC. A clerk travelling or a server
+                render in UTC could show a charge on the wrong business day. A
+                line's business date is a deferred row (FO-DEF-08).
+              </td>
+              <td>Times and days in the Property's time zone.</td>
+              <td>Pass the Property time zone to <code>formatDate</code>.</td>
+              <td>S</td>
+              <td>code only</td>
+              <td><em>inferred</em>; not reproducible on staging (no lines)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. Jobs</h2>
+      <p class="meta">
+        Pass/fail test written before the attempt. Seconds are approximate
+        wall-clock for the page loads and typing, not stopwatch figures. Clicks
+        count from landing on /en/finance.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job</th>
+              <th>Pass test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>Find a guest's folio (frequent task)</td>
+              <td>
+                From the list, reach the folio in 2 clicks by name, and also by
+                room or reservation code.
+              </td>
+              <td>
+                <strong>Partial.</strong> By name: pass (list link, 1 click; the
+                search box also works). By reservation code:
+                <strong>fail</strong>, the code is not on the page or searchable
+                (FIN-01). By room: visible but not searchable.
+              </td>
+              <td>~15</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>Read a folio and explain every line to a guest</td>
+              <td>
+                Each line has a plain description, a date, an amount; a reversal
+                visibly points at what it cancels.
+              </td>
+              <td>
+                <strong>Not testable.</strong> The only folio has 0 lines.
+                Header and empty state read clearly. Line and reversal wording
+                judged from code only (FIN-07, FIN-14).
+              </td>
+              <td>~20</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>Chase open balances (bulk task)</td>
+              <td>
+                See every folio with money owed, largest first, in one view.
+              </td>
+              <td>
+                <strong>Fail.</strong> Only column sort and the Today deep link;
+                no "with a balance" view (FIN-02). Today's "Largest open
+                balances" panel is the nearest thing and says "No open
+                balances".
+              </td>
+              <td>~30</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>Reconcile: same numbers on Finance, Today, Departures</td>
+              <td>
+                Balance of the folio, count of open folios and "balance on
+                departures" agree across the three pages.
+              </td>
+              <td>
+                <strong>Pass, trivially.</strong> All show TRY 0.00 and 1 open
+                folio. Agreement with real amounts is <em>unknown</em>: no
+                nonzero data exists.
+              </td>
+              <td>~60</td>
+              <td>4 page loads</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>Record a payment (most frequent write)</td>
+              <td>
+                Amount prefilled or confirmed; method deliberate; result visible
+                in the lines and balance.
+              </td>
+              <td>
+                <strong>Stopped before submit, not persisted.</strong> Form
+                inspected. Method preset to card, amount empty, one-press
+                (FIN-05, FIN-06), judged from code.
+              </td>
+              <td>~20</td>
+              <td>0 submits</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>Recover from a typing error</td>
+              <td>Error says what is wrong and keeps what I typed.</td>
+              <td>
+                <strong>Fail.</strong> Generic message, both fields cleared
+                (FIN-04). Verified once; nothing posted.
+              </td>
+              <td>~15</td>
+              <td>1 (invalid submit)</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>Correct a wrong charge (reverse)</td>
+              <td>
+                Reason required, consequence named before the click, original
+                kept and shown.
+              </td>
+              <td>
+                <strong>Stopped before submit; not testable</strong> (no lines).
+                From code: reason required (minimum 3 characters,
+                <code>minLength</code>), reversal exact and once only, closed
+                folios offer nothing. No confirm (FIN-05).
+              </td>
+              <td>n/a</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>Guest at the desk disputes the bill, I am under pressure</td>
+              <td>
+                Hand the guest a printable or downloadable statement within 3
+                clicks.
+              </td>
+              <td>
+                <strong>Fail.</strong> No print, PDF, email or export on the
+                page (see Not built). Data export is a separate screen; a folios
+                dataset exists for <code>finance.manage_folio</code>, and I did
+                not create an export (it persists).
+              </td>
+              <td>~20</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J9</td>
+              <td>Housekeeping tries Finance (expect denied)</td>
+              <td>Denied with an explanation.</td>
+              <td>
+                <strong>Fail the expectation.</strong> Not denied: list,
+                balances and folio lines are readable (FIN-08).
+              </td>
+              <td>~30 (incl. sign-in)</td>
+              <td>2</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="meta">
+        First-time setup (a Property that does not bill) was not testable; the
+        empty states for "finance not enabled" and "no folios yet" exist in all
+        three languages (<code>noFinanceTitle</code>,
+        <code>noFoliosDescription</code>) and were read, not seen. Keyboard-only
+        use and 768 px were not tested (<em>unknown</em>); folio rows are real
+        links (<code>&lt;a&gt;</code>), which is a good sign for tabbing.
+      </p>
+
+      <h2>4. Top changes</h2>
+      <ol>
+        <li>
+          <strong
+            >I can see which stays owe money, largest first, in one
+            click.</strong
+          >
+          A "With a balance" view on the list (FIN-02). Replaces opening each
+          folio.
+        </li>
+        <li>
+          <strong>I can tell a settled zero from "nothing charged yet".</strong>
+          Say on the folio when no nights have been charged and why (FIN-09).
+          Prevents the worst misreading on the page.
+        </li>
+        <li>
+          <strong>I find a guest by room number or reservation code.</strong>
+          Same search as Departures (FIN-01), with the code in the row (FIN-03).
+        </li>
+        <li>
+          <strong
+            >A typo does not wipe my entry, and tells me what to fix.</strong
+          >
+          Keep field values; accept or explain separators (FIN-04). Hit on every
+          failed amount, in Turkish daily.
+        </li>
+        <li>
+          <strong
+            >A payment or reversal asks "are you sure?" with the facts.</strong
+          >
+          Confirm with guest, amount, method (FIN-05); method not preset, amount
+          prefilled (FIN-06).
+        </li>
+        <li>
+          <strong>I can explain a bill.</strong> Charged / Paid / Balance, stay
+          dates and labelled reversals on the folio (FIN-03, FIN-07).
+        </li>
+        <li>
+          <strong>Only people meant to see money see it.</strong> Decide
+          FO-S7-02, then align Finance with Today (FIN-08).
+        </li>
+        <li><strong>The balance is visible on a phone.</strong> (FIN-11)</li>
+      </ol>
+
+      <h2>5. Inconsistencies</h2>
+      <ul>
+        <li>
+          <strong>Search:</strong> Finance searches the guest name only;
+          Departures searches Guest / Room and bed / Reservation, Reservations
+          searches Guest / Unit / Reservation (verified in the placeholders).
+        </li>
+        <li>
+          <strong>Money visibility:</strong> Today's doc says no balance goes to
+          anybody without <code>finance.manage_folio</code>; the Finance list
+          and folio show balances to Housekeeping (verified, FIN-08).
+        </li>
+        <li>
+          <strong>Docs vs UI:</strong> <code>folio-payments</code> FP-S1-14/15
+          (approved) describe a Record payment dialog on a "drawer" with the
+          amount prefilled to the balance; the screen has two inline forms and
+          no prefill (verified in the UI and <code>folio-panel.tsx</code>).
+          <code>folios</code> FO-DEF-07 still says nothing posts room nights,
+          while the screen has a room-night line type and Analytics talks about
+          charging at day close; I did not check which is current.
+        </li>
+        <li>
+          <strong>In house vs not:</strong> Reservations shows "In house 0"
+          while Today shows "In house 1 / 3" and Departures lists ahmed as
+          overdue (verified). The Reservations list starts "from today onwards",
+          so an overdue in-house stay drops out of it.
+        </li>
+        <li>
+          <strong>Today for Finance:</strong> the Finance user's Today says
+          "Nothing needs attention" while the same page for the Owner lists
+          "Overdue departure 102 ahmed" (verified). It may be role-gated by
+          design, but a finance clerk is told everything is fine about a 10-day
+          overdue stay with no charges. Also "Largest open balances: No open
+          balances" next to a link "Open the open Folio" reads oddly.
+        </li>
+        <li>
+          <strong>Money format:</strong> symbol in Turkish, code in English and
+          Arabic; field labels always "(TRY)" (FIN-12).
+        </li>
+      </ul>
+
+      <h2>6. Not built / needs backend work</h2>
+      <p>
+        Kept separate from defects. Each is recorded as deferred in the docs, so
+        I did not count them as UX failures.
+      </p>
+      <ul>
+        <li>Refunds, taxes, discounts, deposits, credits: FO-DEF-03.</li>
+        <li>
+          Partial correction / adjustment (only a full reversal exists):
+          FO-DEF-04; FO-S4-02.
+        </li>
+        <li>Split folios and company billing: FO-DEF-05, FP-DEF-02.</li>
+        <li>Reopening a closed folio, closure rules: FO-DEF-06.</li>
+        <li>
+          Invoices, e-Fatura / e-archive, fiscal numbering, and so any
+          guest-facing statement: FO-DEF-09. (A print layout is also absent; I
+          found no print styles in the app source, <em>inferred</em>.)
+        </li>
+        <li>
+          External payment gateways or terminals: FO-DEF-02, FP-DEF-01.
+          Recording is not moving money, so no "pending" or "failed" payment
+          state exists.
+        </li>
+        <li>A line's business date: FO-DEF-08 (relevant to FIN-14).</li>
+        <li>
+          Ledger screen, trial balance, statements, accounting periods and
+          close: ACC-NB-01/02/03, ACC-S2-11. The ledger is posted by a worker,
+          readable with <code>finance.view_ledger</code>, and has no screen.
+        </li>
+        <li>Resident's own balance in the Portal: FO-DEF-11.</li>
+        <li>
+          Date-range search and export from the Finance screen: not in any row;
+          the Data export screen is the only export path (separate, I did not
+          run it).
+        </li>
+      </ul>
+
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          Folio is a bookmarkable URL (<code>?folio=</code>) and the Back button
+          returns to the Finance list, keeping the Property (verified, ADR
+          0035).
+        </li>
+        <li>
+          Permission-aware forms: Front Desk gets Record payment but no Add a
+          charge; Housekeeping gets no forms at all; Owner and Finance see both
+          (verified on all four roles). Owner and Finance are identical here.
+        </li>
+        <li>
+          An open folio of an in-house guest explains why there is no Close
+          button instead of showing a disabled one (verified); a closed folio
+          says its lines stay as they are (code).
+        </li>
+        <li>
+          An invalid amount is refused before anything is written; the folio
+          stayed empty after my probe (verified). A failed write is recorded
+          server side and shown as a calm message (code).
+        </li>
+        <li>
+          Money and layout: Turkish and Arabic render with mirrored layout and
+          Intl formatting; no horizontal overflow in the folio view at 375 px
+          (verified).
+        </li>
+        <li>
+          The count and balance agree across Finance, Today and Departures
+          (verified at zero). No console errors on the folio view (the list's
+          console was not checked).
+        </li>
+        <li>
+          Submit buttons disable while pending, so no double submit (code).
+        </li>
+      </ul>
+
+      <h2>Screenshots</h2>
+      <figure>
+        <img src="01-list-finance.png" alt="Finance list" />
+        <figcaption>
+          01 Finance list, Finance role, 1 folio. Search says "Search Guest".
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="02-folio-detail.png" alt="Folio detail" />
+        <figcaption>
+          02 Folio detail, Finance role: zero lines, payment method preset to
+          Credit card.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="03-departures-as-finance.png" alt="Departures" />
+        <figcaption>
+          03 Departures: same guest, reference R96J74P, overdue since Oct 1, TRY
+          0.00.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="04-today-as-finance.png" alt="Today" />
+        <figcaption>
+          04 Today as Finance: TRY 0.00, 1 open folio, "Nothing needs
+          attention".
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="05-reservations-as-finance.png" alt="Reservations" />
+        <figcaption>05 Reservations: booking with "No price".</figcaption>
+      </figure>
+      <figure>
+        <img src="06-folio-as-frontdesk.png" alt="Front Desk folio" />
+        <figcaption>
+          06 Folio as Front Desk: payment form, no charge form.
+        </figcaption>
+      </figure>
+      <figure>
+        <img
+          src="07-finance-as-housekeeping.png"
+          alt="Housekeeping finance list"
+        />
+        <figcaption>
+          07 Finance as Housekeeping: list and balance readable.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="08-folio-tr.png" alt="Turkish folio" />
+        <figcaption>
+          08 Folio in Turkish: "₺0,00", "Ödeme al", "İşle".
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="09b-folio-ar-viewport.png" alt="Arabic folio" />
+        <figcaption>09b Folio in Arabic, RTL mirrored.</figcaption>
+      </figure>
+      <figure>
+        <img src="10-folio-375.png" alt="Folio at 375px" />
+        <figcaption>
+          10 Folio at 375 px (the floating bottom bar is a full-page capture
+          artifact).
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="11-list-375.png" alt="List at 375px" />
+        <figcaption>11 List at 375 px: Balance column cut off.</figcaption>
+      </figure>
+      <figure>
+        <img src="12-list-show-open.png" alt="Open filter" />
+        <figcaption>
+          12 <code>?show=open</code> filter notice, only reachable from Today.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="13-charge-invalid-amount.png" alt="Invalid amount" />
+        <figcaption>
+          13 After posting <code>1,250.00</code>: generic message, both fields
+          emptied, no line posted.
+        </figcaption>
+      </figure>
+    </main>
+  </body>
+</html>

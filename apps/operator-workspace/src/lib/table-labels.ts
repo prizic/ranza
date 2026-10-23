@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnHeaderLabels, DataTableLabels } from "@ranza/ui";
 
@@ -48,6 +49,7 @@ export function useTableLabels(): DataTableLabels {
     // business, but `Intl.ListFormat` reads as prose ("a, b and c") where this
     // is a column enumeration in a placeholder.
     searchBy: (columns) => t("searchBy", { columns: columns.join(" / ") }),
+    selectAllInFilter: (n) => t("selectAllInFilter", { n }),
     selectAllRows: t("selectAllRows"),
     selectedCount: (n) => t("selectedCount", { n }),
     selectRow: t("selectRow"),
@@ -56,7 +58,9 @@ export function useTableLabels(): DataTableLabels {
 }
 
 /**
- * A sortable column header's three strings.
+ * A sortable column header's three strings: what a click will do next. They
+ * were the pager's "Next" and "Previous", which a screen reader read out as
+ * "Guest, Next" (FIN-10).
  *
  * Here rather than in each feature folder because it was byte-identical in
  * two of them, and a column header does not belong to Front Office any more
@@ -64,9 +68,13 @@ export function useTableLabels(): DataTableLabels {
  */
 export function useSortLabels(): ColumnHeaderLabels {
   const t = useTranslations("table");
-  return {
-    clearSort: t("clearFilter"),
-    sortAscending: t("next"),
-    sortDescending: t("previous"),
-  };
+  // The same object while the locale holds: column hooks memoize on it.
+  return useMemo(
+    () => ({
+      clearSort: t("clearSort"),
+      sortAscending: t("sortAscending"),
+      sortDescending: t("sortDescending"),
+    }),
+    [t],
+  );
 }

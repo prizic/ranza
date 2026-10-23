@@ -76,8 +76,12 @@
 --   s19 the manageable check removed from the leave insert policy
 --        HR-S1-23: a suspended Subscription, a revoked Entitlement, a Property
 --        with HR off, the catalogue; HR-S1-39: nor new leave
+--   s20 hr_employees_organization_login_key dropped
+--        HR-S1-51: the index is unique over the Organization and the login /
+--        a second record for the same login is refused by the index; and
+--        HR-S1-03: hr.view reads the directory, which counts the duplicate
 begin;
-select plan(123);
+select plan(126);
 
 -- ---------------------------------------------------------------------------
 -- Fixtures
@@ -240,6 +244,31 @@ select throws_matching(
             'Cross', 'Tenant', 'Kitchen', 'Cook', 100)$$,
   'row-level security',
   'HR-S1-04: and none is written into it'
+);
+
+-- A login is one record in an Organization (HR-S1-51). Mert is linked to
+-- 94444444 above; a second record for the same login is refused by the index,
+-- and says so by its name, so a refusal by some other rule cannot pass for it.
+select results_eq(
+  $$select indexdef from pg_indexes
+     where schemaname = 'public' and indexname = 'hr_employees_organization_login_key'$$,
+  $$values ('CREATE UNIQUE INDEX hr_employees_organization_login_key ON public.hr_employees USING btree (organization_id, user_id) WHERE (user_id IS NOT NULL)')$$,
+  'HR-S1-51: the index is unique over the Organization and the login, for the records that have one'
+);
+
+select throws_matching(
+  $$insert into public.hr_employees
+      (organization_id, property_id, user_id, first_name, last_name, department, position, gross_pay_minor)
+    values ('9a111111-1111-4111-8111-111111111111', '9b333333-3333-4333-8333-333333333333',
+            '94444444-4444-4444-8444-444444444444', 'Mert', 'Twice', 'Kitchen', 'Cook', 100)$$,
+  'hr_employees_organization_login_key',
+  'HR-S1-51: a second record for the same login in the same Organization is refused by the index'
+);
+
+select ok(
+  (select count(*) from public.hr_employees
+    where organization_id = '9a111111-1111-4111-8111-111111111111' and user_id is null) > 1,
+  'HR-S1-51: records without a login are not held to one, which is the normal case'
 );
 
 -- ---------------------------------------------------------------------------
@@ -555,7 +584,8 @@ select is(
     'hr_payslips.net_pay_minor:bigint',
     'hr_payslips.social_security_deduction_minor:bigint',
     'hr_payslips.stamp_duty_minor:bigint',
-    'hr_payslips.tax_deduction_minor:bigint'
+    'hr_payslips.tax_deduction_minor:bigint',
+    'hr_wage_changes.gross_pay_minor:bigint'
   ],
   'HR-S1-32: every amount is a bigint count of minor units'
 );

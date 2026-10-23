@@ -30,7 +30,8 @@ function show(url: string) {
       <WorkspaceRail
         brand={<span>R</span>}
         defaultProperty="k"
-        entitled={["today", "housekeeping"]}
+        reachable={["today", "housekeeping"]}
+        segmentsByProperty={{}}
         labels={{
           collapse: "Collapse",
           expand: "Expand",

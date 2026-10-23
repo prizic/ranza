@@ -33,6 +33,8 @@ export type SectionId = keyof typeof ICONS;
 export interface Section {
   id: SectionId;
   label: string;
+  /** What is left to do in the section, said beside its name: "2 unpriced". */
+  note?: string;
 }
 
 /**
@@ -101,13 +103,16 @@ export function SectionNav({
   return (
     <nav
       aria-label={label}
-      className="min-w-0 lg:sticky lg:top-24 lg:self-start"
+      // Stays under the page bar while the cards scroll by: on a phone the
+      // page is nearly five thousand pixels of cards and the only other way to
+      // the Maintenance section is scrolling to it (CONFIG-08).
+      className="sticky top-20 z-10 -mx-4 min-w-0 bg-background/95 px-4 py-2 backdrop-blur lg:top-24 lg:mx-0 lg:self-start lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
     >
       <p className="mb-3 hidden text-xs font-medium tracking-wider text-muted-foreground uppercase lg:block">
         {label}
       </p>
       <ul className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:flex-col lg:gap-0.5 lg:overflow-visible lg:px-0">
-        {sections.map(({ id, label: name }) => {
+        {sections.map(({ id, label: name, note }) => {
           const current = id === active;
           const Icon = ICONS[id];
           return (
@@ -132,6 +137,12 @@ export function SectionNav({
                     any column a settings page should give its list. */}
                 <span className="min-w-0 flex-1 text-start leading-snug">
                   {name}
+                  {note ? (
+                    <>
+                      {" "}
+                      <span className="text-warning">· {note}</span>
+                    </>
+                  ) : null}
                 </span>
               </a>
             </li>

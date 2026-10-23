@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
@@ -10,7 +11,7 @@ import type {
   BookedNight,
   Section,
 } from "../../../server/today-derive";
-import { percent, shortDay } from "../format";
+import { dayNumber, percent, shortDay } from "../format";
 import { todayHref } from "../links";
 import { SectionUnavailable } from "./section-unavailable";
 
@@ -85,6 +86,7 @@ function Line({
     return <p className="text-sm text-muted-foreground">{t("noUnits")}</p>;
   }
 
+  const [active, setActive] = useState<number | null>(null);
   const step =
     nights.length > 1 ? (WIDTH - 2 * INSET) / (nights.length - 1) : 0;
   const points = nights.map((night, index) => ({
@@ -94,13 +96,68 @@ function Line({
   const share = (night: BookedNight) =>
     percent(night.booked, night.inUse, locale) ?? "—";
 
+  const night = active === null ? null : (nights[active] ?? null);
+  const at = (clientX: number, box: DOMRect) =>
+    Math.min(
+      nights.length - 1,
+      Math.max(
+        0,
+        Math.round(((clientX - box.left) / box.width) * (nights.length - 1)),
+      ),
+    );
+
   return (
     <>
       <Link
         className="group block rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         href={href}
+        onBlur={() => setActive(null)}
+        onFocus={() => setActive((current) => current ?? 0)}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          const forward =
+            (event.key === "ArrowRight") !== (document.dir === "rtl");
+          setActive((current) =>
+            Math.min(
+              nights.length - 1,
+              Math.max(0, (current ?? 0) + (forward ? 1 : -1)),
+            ),
+          );
+        }}
+        onPointerLeave={() => setActive(null)}
+        onPointerMove={(event) =>
+          setActive(
+            at(
+              document.dir === "rtl"
+                ? 2 * event.currentTarget.getBoundingClientRect().left +
+                    event.currentTarget.getBoundingClientRect().width -
+                    event.clientX
+                : event.clientX,
+              event.currentTarget.getBoundingClientRect(),
+            ),
+          )
+        }
         prefetch={false}
       >
+        <span
+          aria-hidden="true"
+          className="mb-1 block min-h-5 text-xs text-muted-foreground tabular-nums"
+        >
+          {night ? (
+            <>
+              <b className="font-semibold text-foreground">
+                {shortDay(night.day, locale)}
+              </b>
+              {" · "}
+              {t("bookedOf", {
+                count: formatNumber(night.booked, locale),
+                of: formatNumber(night.inUse, locale),
+              })}
+              {" · "}
+              {share(night)}
+            </>
+          ) : null}
+        </span>
         <svg
           aria-hidden="true"
           className="h-20 w-full overflow-visible text-primary"
@@ -115,6 +172,17 @@ function Line({
             y1={HEIGHT / 2}
             y2={HEIGHT / 2}
           />
+          {active === null ? null : (
+            <line
+              className="stroke-primary/40"
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+              x1={INSET + active * step}
+              x2={INSET + active * step}
+              y1={0}
+              y2={HEIGHT}
+            />
+          )}
           <polyline
             className="fill-none stroke-current"
             points={points.map((p) => `${p.x},${p.y}`).join(" ")}
@@ -124,6 +192,23 @@ function Line({
             vectorEffect="non-scaling-stroke"
           />
         </svg>
+        <span
+          aria-hidden="true"
+          className="mt-1 flex justify-between text-[10px] text-muted-foreground tabular-nums"
+        >
+          {nights.map((tick) => (
+            <span
+              className={cn(
+                "w-0 text-center",
+                tick.day === nights[active ?? -1]?.day &&
+                  "font-semibold text-foreground",
+              )}
+              key={tick.day}
+            >
+              <bdi>{dayNumber(tick.day, locale)}</bdi>
+            </span>
+          ))}
+        </span>
         <span className="mt-2 flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
           <span>
             {shortDay(first.day, locale)}{" "}

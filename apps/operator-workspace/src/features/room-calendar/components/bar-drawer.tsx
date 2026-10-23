@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -12,15 +12,17 @@ import {
 } from "@ranza/i18n";
 import {
   Button,
-  cn,
-  Fact,
-  FactList,
+  DialogActions,
+  DialogBody,
+  DialogFacts,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  FormError,
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
   StatusBadge,
+  sheetFrameClassName,
   type StatusTone,
 } from "@ranza/ui";
 import type { RoomCalendar, RoomCalendarBar } from "../../../server/viewer";
@@ -29,6 +31,7 @@ import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog
 import { daysBetween, type PlacedEntry } from "../layout";
 import type { MoveRequest } from "../move";
 import { BAR_ICON, barLook, type BarLook } from "./bar-style";
+import { useHoldText } from "./hold-text";
 import { MoveDialogs } from "./move-dialogs";
 
 const TONE: Record<BarLook, StatusTone> = {
@@ -62,25 +65,6 @@ function onward(
     return "arrivals";
   }
   return "reservations";
-}
-
-function Notice({
-  children,
-  tone,
-}: {
-  children: string;
-  tone: "danger" | "warning" | "info";
-}) {
-  const classes = {
-    danger: "border-danger/40 bg-danger-soft text-danger",
-    warning: "border-warning/40 bg-warning-soft text-warning",
-    info: "border-info/40 bg-info-soft text-info",
-  } as const;
-  return (
-    <p className={cn("rounded-lg border px-3 py-2 text-sm", classes[tone])}>
-      {children}
-    </p>
-  );
 }
 
 /**
@@ -126,7 +110,8 @@ export function BarDrawer({
   return (
     <Sheet onOpenChange={(next) => (next ? undefined : onClose())} open={open}>
       <SheetContent
-        className="gap-0 overflow-y-auto"
+        aria-describedby={undefined}
+        className={sheetFrameClassName}
         onCloseAutoFocus={(event) => {
           // Opened from a bar rather than a trigger, so Radix has nothing to
           // return focus to. The bar is found again by its key, because a
@@ -145,10 +130,11 @@ export function BarDrawer({
         side={side}
       >
         {entry === null ? (
-          <SheetHeader>
-            <SheetTitle>{t("goneTitle")}</SheetTitle>
-            <SheetDescription>{t("goneNote")}</SheetDescription>
-          </SheetHeader>
+          <DialogMasthead
+            eyebrow={t("goneTitle")}
+            heading={t("goneNote")}
+            large
+          />
         ) : (
           <DrawerBody
             calendar={calendar}
@@ -187,6 +173,7 @@ function DrawerBody({
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
+  const holdText = useHoldText(locale);
   const { bar, unit, room } = entry;
   const [changingDeparture, setChangingDeparture] = useState(false);
   const [moving, setMoving] = useState(false);
@@ -194,6 +181,14 @@ function DrawerBody({
   // does, opening the same dialog with pickers on the nights and the Unit
   // (RC-S3-12).
   const [movingBooking, setMovingBooking] = useState<MoveRequest | null>(null);
+  // The buttons that open a dialog, so focus goes back to the one pressed when
+  // the dialog closes: the drawer stays open under it, and with no trigger to
+  // return to the browser would leave focus on the page's body.
+  const departureButton = useRef<HTMLButtonElement>(null);
+  const moveGuestButton = useRef<HTMLButtonElement>(null);
+  const moveBookingButton = useRef<HTMLButtonElement>(null);
+  const giveFocusBack = (button: { current: HTMLButtonElement | null }) =>
+    requestAnimationFrame(() => button.current?.focus());
   const departureChangeable =
     mayAmend &&
     bar.kind === "stay" &&
@@ -206,108 +201,164 @@ function DrawerBody({
   // own first night is the arrival, and its nights are counted from it.
   const arrivedOn = bar.kind === "stay" ? bar.arrivedOn : bar.startsOn;
   const moved = bar.kind === "stay" && bar.arrivedOn !== bar.startsOn;
+  const inHouse = bar.kind === "stay" && bar.status === "in_house";
+  // An overdue Guest is still in the room: their nights run through tonight,
+  // which is as far as the bar is drawn, not to the date they were due.
   const nights =
-    bar.endsOn === null ? null : daysBetween(arrivedOn, bar.endsOn);
+    bar.overdue && bar.heldUntil
+      ? daysBetween(arrivedOn, bar.heldUntil)
+      : bar.endsOn === null
+        ? null
+        : daysBetween(arrivedOn, bar.endsOn);
+  const daysLate =
+    bar.overdue && bar.endsOn ? daysBetween(bar.endsOn, today) : 0;
+  const hold =
+    unit.status === "out_of_service"
+      ? (calendar.holds?.[unit.unitId] ??
+        (room ? calendar.holds?.[room.unitId] : undefined))
+      : undefined;
+  const readiness =
+    bar.kind === "reservation" && bar.holds && bar.startsOn <= today
+      ? calendar.readiness?.[(room ?? unit).unitId]
+      : undefined;
+
+  const facts: (readonly [string, ReactNode])[] = [
+    [
+      bar.kind === "stay" ? t("arrived") : t("arrives"),
+      date(arrivedOn, locale),
+    ],
+  ];
+  if (moved) facts.push([t("inRoomSince"), date(bar.startsOn, locale)]);
+  facts.push([
+    bar.overdue
+      ? t("wasDue")
+      : bar.kind === "stay" && bar.status === "departed"
+        ? t("left")
+        : t("leaves"),
+    bar.endsOn ? date(bar.endsOn, locale) : t("noEndDate"),
+  ]);
+  if (bar.overdue)
+    facts.push([t("overdue"), t("daysLate", { days: daysLate })]);
+  if (
+    bar.kind === "stay" &&
+    bar.bookedStartsOn &&
+    (bar.bookedStartsOn !== bar.arrivedOn || bar.bookedEndsOn !== bar.endsOn)
+  ) {
+    facts.push([
+      t("booked"),
+      `${date(bar.bookedStartsOn, locale)} – ${
+        bar.bookedEndsOn ? date(bar.bookedEndsOn, locale) : t("noEndDate")
+      }`,
+    ]);
+  }
+  if (nights !== null) {
+    facts.push([
+      t(bar.overdue ? "nightsSoFar" : "nightsLabel"),
+      t("nights", { count: nights }),
+    ]);
+  }
+  if (bar.reference) {
+    facts.push([
+      t("reservationCode"),
+      <bdi className="font-mono" key="reference">
+        {bar.reference}
+      </bdi>,
+    ]);
+  }
+  if (readiness) {
+    facts.push([t("roomStatus"), t(`roomReadiness.${readiness}`)]);
+  }
+  if (bar.stayType === "resident") facts.push([t("stayType"), t("resident")]);
+  if (bar.kind === "stay" && bar.balance) {
+    facts.push([
+      t(inHouse ? "balanceAsOfCharge" : "balance"),
+      <span key="balance">
+        {formatMoney(bar.balance.balanceMinor, bar.balance.currency, locale)}
+        {inHouse ? (
+          <span className="block text-xs font-normal text-muted-foreground">
+            {t("laterNightsPost")}
+          </span>
+        ) : null}
+        {bar.balance.closed ? (
+          <span className="block text-xs font-normal text-muted-foreground">
+            {t("folioClosed")}
+          </span>
+        ) : null}
+      </span>,
+    ]);
+  }
+
+  const secondaryButton = "h-13 rounded-full px-6 text-base font-medium";
 
   return (
     <>
-      <SheetHeader className="pe-12">
-        <SheetTitle>{bar.guestName ?? t("noGuestRecorded")}</SheetTitle>
-        <SheetDescription>{place}</SheetDescription>
-      </SheetHeader>
-      <div className="space-y-4 px-4 pb-6">
-        <StatusBadge icon={BAR_ICON[look]} label={t(look)} tone={TONE[look]} />
+      <DialogMasthead
+        art="/illustrations/dialogs/change-booking.svg"
+        eyebrow={common("reservationDetails")}
+        facts={place}
+        heading={bar.guestName ?? t("noGuestRecorded")}
+      />
+      <DialogBody>
+        <DialogSection>
+          <div>
+            <StatusBadge
+              icon={BAR_ICON[look]}
+              label={t(look)}
+              tone={TONE[look]}
+            />
+          </div>
+          {changed ? <DialogNotice>{t("changedNote")}</DialogNotice> : null}
+          {bar.overlaps ? <FormError>{t("overlapNote")}</FormError> : null}
+          {bar.clashesWith === "booking" ? (
+            <FormError>{t("clashNote")}</FormError>
+          ) : null}
+          {bar.clashesWith === "stay" ? (
+            <FormError>{t("clashStayNote")}</FormError>
+          ) : null}
+          {bar.bookedWhileBlocked ? (
+            <DialogNotice>
+              {t("blockedNote", {
+                reason: [
+                  unit.statusReason ??
+                    t(unit.status === "blocked" ? "blocked" : "outOfService"),
+                  hold ? holdText(hold).full : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
+              })}
+            </DialogNotice>
+          ) : null}
+          {bar.overdue && bar.endsOn ? (
+            <DialogNotice>
+              {t("overdueNote", {
+                date: date(bar.endsOn, locale),
+                days: daysLate,
+              })}
+            </DialogNotice>
+          ) : null}
+        </DialogSection>
 
-        {changed ? <Notice tone="info">{t("changedNote")}</Notice> : null}
-        {bar.overlaps ? (
-          <Notice tone="danger">{t("overlapNote")}</Notice>
-        ) : null}
-        {bar.clashesWith === "booking" ? (
-          <Notice tone="danger">{t("clashNote")}</Notice>
-        ) : null}
-        {bar.clashesWith === "stay" ? (
-          <Notice tone="danger">{t("clashStayNote")}</Notice>
-        ) : null}
-        {bar.bookedWhileBlocked ? (
-          <Notice tone="warning">
-            {t("blockedNote", {
-              reason:
-                unit.statusReason ??
-                t(unit.status === "blocked" ? "blocked" : "outOfService"),
-            })}
-          </Notice>
-        ) : null}
-        {bar.overdue && bar.endsOn ? (
-          <Notice tone="warning">
-            {t("overdueNote", { date: date(bar.endsOn, locale) })}
-          </Notice>
-        ) : null}
+        <DialogSection>
+          <DialogFacts rows={facts} />
+        </DialogSection>
+      </DialogBody>
 
-        <FactList className="grid-cols-2 gap-5 pt-2">
-          <Fact label={bar.kind === "stay" ? t("arrived") : t("arrives")}>
-            {date(arrivedOn, locale)}
-          </Fact>
-          {moved ? (
-            <Fact label={t("inRoomSince")}>{date(bar.startsOn, locale)}</Fact>
-          ) : null}
-          <Fact
-            label={
-              bar.kind === "stay" && bar.status === "departed"
-                ? t("left")
-                : t("leaves")
-            }
-          >
-            {bar.endsOn ? date(bar.endsOn, locale) : t("noEndDate")}
-          </Fact>
-          {bar.kind === "stay" &&
-          bar.bookedStartsOn &&
-          (bar.bookedStartsOn !== bar.arrivedOn ||
-            bar.bookedEndsOn !== bar.endsOn) ? (
-            <Fact label={t("booked")}>
-              {`${date(bar.bookedStartsOn, locale)} – ${
-                bar.bookedEndsOn
-                  ? date(bar.bookedEndsOn, locale)
-                  : t("noEndDate")
-              }`}
-            </Fact>
-          ) : null}
-          {nights !== null ? (
-            <Fact label={t("nightsLabel")}>
-              {t("nights", { count: nights })}
-            </Fact>
-          ) : null}
-          <Fact label={t("stayType")}>
-            {bar.stayType === "resident" ? t("resident") : t("guest")}
-          </Fact>
-          {bar.kind === "stay" && bar.balance ? (
-            <Fact label={t("balance")}>
-              {formatMoney(
-                bar.balance.balanceMinor,
-                bar.balance.currency,
-                locale,
-              )}
-              {bar.balance.closed ? (
-                <span className="block text-xs text-muted-foreground">
-                  {t("folioClosed")}
-                </span>
-              ) : null}
-            </Fact>
-          ) : null}
-        </FactList>
-
+      <DialogActions>
         {departureChangeable && bar.kind === "stay" ? (
           <>
             <Button
-              className="w-full"
+              className={secondaryButton}
               onClick={() => setChangingDeparture(true)}
+              ref={departureButton}
               type="button"
               variant="outline"
             >
               {common("changeDeparture")}
             </Button>
             <Button
-              className="w-full"
+              className={secondaryButton}
               onClick={() => setMoving(true)}
+              ref={moveGuestButton}
               type="button"
               variant="outline"
             >
@@ -317,7 +368,10 @@ function DrawerBody({
               <MoveGuestDialog
                 locale={locale}
                 onDone={onChanged}
-                onOpenChange={setMoving}
+                onOpenChange={(open) => {
+                  setMoving(open);
+                  if (!open) giveFocusBack(moveGuestButton);
+                }}
                 open
                 stay={{
                   stayId: bar.stayId,
@@ -330,7 +384,10 @@ function DrawerBody({
               <ChangeDepartureDialog
                 locale={locale}
                 onDone={onChanged}
-                onOpenChange={setChangingDeparture}
+                onOpenChange={(open) => {
+                  setChangingDeparture(open);
+                  if (!open) giveFocusBack(departureButton);
+                }}
                 open
                 stay={{
                   stayId: bar.stayId,
@@ -347,7 +404,7 @@ function DrawerBody({
 
         {mayAmend && bar.kind === "reservation" ? (
           <Button
-            className="w-full"
+            className={secondaryButton}
             onClick={() =>
               setMovingBooking({
                 kind: "booking",
@@ -359,6 +416,7 @@ function DrawerBody({
                 },
               })
             }
+            ref={moveBookingButton}
             type="button"
             variant="outline"
           >
@@ -372,12 +430,16 @@ function DrawerBody({
             onClose={() => {
               setMovingBooking(null);
               onChanged();
+              giveFocusBack(moveBookingButton);
             }}
             request={movingBooking}
           />
         ) : null}
 
-        <Button asChild className="w-full">
+        <Button
+          asChild
+          className="h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90"
+        >
           {/* Not prefetched: one bar is one link, read on the click. */}
           <Link
             href={`${localizeHref(locale, target)}?property=${propertyId}`}
@@ -386,7 +448,7 @@ function DrawerBody({
             {t(`open.${target}`)}
           </Link>
         </Button>
-      </div>
+      </DialogActions>
     </>
   );
 }

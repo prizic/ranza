@@ -27,7 +27,8 @@ const LOCALES: readonly [LocaleOption, ...LocaleOption[]] = [
     than no switcher. */
 type LinkSource =
   | {
-      /** `/{locale}/sign-in`: a string, so a server component can pass it. */
+      /** `/{locale}/sign-in`: a string, so a server component can pass it. Every
+      `{locale}` in it is replaced. */
       hrefPattern: string;
       getHref?: never;
     }
@@ -102,12 +103,12 @@ export function LanguageSwitcher({
           const isActive = option.code === currentLocale;
           const href = getHref
             ? getHref(option.code)
-            : hrefPattern.replace("{locale}", option.code);
+            : hrefPattern.replaceAll("{locale}", option.code);
 
           return (
             <DropdownMenuItem
               asChild
-              className="relative cursor-pointer gap-2 ps-8"
+              className="relative cursor-pointer gap-2 ps-8 pointer-coarse:min-h-11"
               key={option.code}
             >
               <a

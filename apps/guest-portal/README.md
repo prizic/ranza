@@ -12,9 +12,12 @@ arrival and departure. Blueprint 4.3 lists more (service requests,
 announcements, meal choices, attendance declarations, Folio balances) and none
 of them are built, so none of them appear.
 
-Everything comes from a single read,
-[`ownStays`](src/server/viewer.ts), which is the only tenant query this
-application makes.
+Everything comes from two reads in [`src/server/viewer.ts`](src/server/viewer.ts),
+both bounded by the viewer's own Stay: `ownStays`, and `stayBrands`, the colour
+and logo of the Organization each Stay is with
+([ADR 0046](../../docs/adr/0046-an-organization-brands-the-portal-with-one-colour-and-one-logo.md)).
+The logo is served by `app/api/brand/[stayId]/logo`, which is keyed by Stay too:
+a Resident is not told which Organization they are with.
 
 ## The boundary that defines this application
 
@@ -48,8 +51,11 @@ src/
   server/composition.ts   the one place that reads the environment (ADR 0006)
   server/startup.ts       the refusal instrumentation.ts runs, and the exit
   server/viewer.ts        session -> Ranza user -> request context (ADR 0007)
+  server/brand.ts         the logo route's answer, from the Resident's own policies
+  lib/brand-style.ts      an Organization's colour as the two theme tokens it sets
   app/[locale]/           every route is locale-prefixed
     (portal)/stay/        the Stay
+  app/api/brand/          the logo of a Stay's Organization, versioned by its hash
     sign-in/              outside (portal): the shell above it requires a viewer
   messages.ts             tr, en and ar — no fallback locale
   i18n/request.ts         what next-intl reads per request (ADR 0023)

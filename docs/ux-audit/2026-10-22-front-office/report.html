@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Front Office UX audit, 2026-10-22</title>
+    <style>
+      :root {
+        --ink: #17201c;
+        --muted: #5b6761;
+        --line: #d9dfdb;
+        --bg: #fbfaf7;
+        --accent: #14544a;
+        --warn: #8a5a00;
+        --bad: #a32020;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.55 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 80px;
+      }
+      h1 {
+        font-size: 28px;
+        margin: 0 0 4px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 44px 0 10px;
+        padding-top: 18px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 16px;
+        margin: 22px 0 6px;
+      }
+      p,
+      li {
+        max-width: 78ch;
+      }
+      .meta {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      .verdict {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--accent);
+        padding: 14px 18px;
+      }
+      .verdict ol {
+        margin: 0;
+        padding-left: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border: 1px solid var(--line);
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        background: #f1f3f0;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      td.id {
+        font-family: ui-monospace, Menlo, monospace;
+        white-space: nowrap;
+      }
+      .sev {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .sev.err {
+        color: var(--bad);
+      }
+      .sev.slow {
+        color: var(--warn);
+      }
+      .sev.pol {
+        color: var(--muted);
+      }
+      .pass {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .fail {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .part {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .tag {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      img {
+        max-width: 100%;
+        border: 1px solid var(--line);
+        display: block;
+        margin: 8px 0 4px;
+      }
+      figure {
+        margin: 14px 0;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      code {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 13px;
+        background: #eef1ee;
+        padding: 1px 4px;
+      }
+      .note {
+        background: #fff8e6;
+        border: 1px solid #ecd9a3;
+        padding: 10px 14px;
+        margin: 14px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Front Office: lived-experience UX audit</h1>
+      <p class="meta">
+        Thursday 22 October 2026, about 14:00 Istanbul. Hosted staging
+        (<code>ranza.46-225-168-54.nip.io</code>, build abc47da, the build that
+        carries the 2026-10-11 audit fixes). Persona: a Front Desk agent at Demo
+        Otel İstanbul (42 rooms), signed in as the Front Desk test account.
+        Mode: audit only, nothing was persisted.
+      </p>
+
+      <div class="note">
+        <strong>How far this audit goes.</strong> Every read, search, filter,
+        dialog and form was exercised on the real app. Every
+        <em>valid submit</em> (check in, check out, payment, booking, close a
+        day) was stopped at the confirm step, because a check-in or a closed day
+        cannot be undone on shared staging. What happens after those buttons is
+        judged from the code and the feature docs and marked <em>inferred</em>.
+        Findings that depend on the demo data (13 overdue stays, 11 unclosed
+        days, every booking "No price") are marked <em>data-dependent</em>.
+        Items I saw once are marked "seen once"; the rest were seen on two or
+        more loads. I could not check the Today layouts other than Timeline,
+        because choosing one saves a preference.
+      </div>
+
+      <h2>1. Verdict</h2>
+      <div class="verdict">
+        <ol>
+          <li>
+            <strong
+              >A trained desk agent can run an ordinary shift unaided</strong
+            >: find a guest, check in, extend, move, check out, see the room
+            board. Everything loads in about a second, search forgives typos and
+            phone formats, and Arabic mirrors correctly. Nothing found blocks
+            work outright.
+          </li>
+          <li>
+            <strong>The biggest risk is money at check-out.</strong> The dialog
+            says the guest owes TRY 5,470, but taking payment means opening the
+            Folio in another tab. The cursor starts in the "why the balance
+            stays open" box, so the easiest path is to check out unpaid with a
+            typed reason. After paying in the other tab, the open dialog
+            probably refuses the confirm because the bill changed (inferred,
+            CO-S1-12).
+          </li>
+          <li>
+            <strong
+              >The second risk is the answer to "what can I sell right
+              now?"</strong
+            >
+            There are five different figures across Today, Rooms, the calendar
+            and Housekeeping, and none of the room pickers shows which free
+            rooms are actually clean.
+          </li>
+          <li>
+            <strong>The third is bookings that never arrived.</strong> They sit
+            on no work list until Close the day raises them days later, one day
+            at a time.
+          </li>
+          <li>
+            For daily friction: the guest row on Arrivals and Departures cannot
+            be opened, the Front Office rail group starts collapsed, there is no
+            search outside Reservations, and on a tablet or phone the room and
+            readiness columns scroll out of sight before the agent presses Check
+            in.
+          </li>
+        </ol>
+      </div>
+
+      <figure>
+        <img src="01-today.png" alt="Today for the front desk" />
+        <figcaption>
+          Today, 1440 px, Front Desk. The same 13 overdue check-outs appear
+          twice (cards, then "Do these in order"). The arrival due in 2.5 hours
+          is item 14.
+        </figcaption>
+      </figure>
+
+      <h2>2. Findings</h2>
+      <p>
+        Severity: <span class="sev err">causes errors</span> ·
+        <span class="sev slow">slows me down</span> ·
+        <span class="sev pol">polish</span>. None is "blocks work". Effort: S
+        under a day, M a few days, L a week or more. Evidence numbers are
+        screenshots in this folder.
+      </p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where / role / data</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence / basis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="id">FO-01</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                Departures or Today → Check out. Front Desk. Anna Kowalska, 101,
+                owes TRY 5,470.
+              </td>
+              <td>
+                The review dialog says "TRY 5,470.00 is owed. Collect payment on
+                the Folio first, or leave it open with a reason." Payment is a
+                link to the Folio in a new tab. Focus starts in the reason box.
+                Payment there is amount, method, note, with no "pay the full
+                balance" shortcut. Roughly 9 clicks across two tabs to pay and
+                check out, against 3 clicks and a typed sentence to leave it
+                open.
+              </td>
+              <td>
+                Take the money in the dialog, with the amount pre-filled to the
+                balance, then confirm. Leaving it open should be the exception.
+              </td>
+              <td>
+                Embed the existing Record payment form in the check-out dialog,
+                pre-fill the balance, focus it first, and put "leave open with a
+                reason" behind a secondary action. Reload the folio version
+                after a payment so the confirm is not refused.
+              </td>
+              <td>M</td>
+              <td>
+                04, 14. Verified to the confirm step. The post-payment refusal
+                is <em>inferred</em> from CO-S1-12 and CO-S1-16.
+              </td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-02</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                Arrivals vs Room calendar vs Close the day. Front Desk.
+                <em>data-dependent</em>.
+              </td>
+              <td>
+                The calendar shows six "Confirmed" bookings whose arrival date
+                passed and who never checked in (305 Beatriz Alves, 306
+                Charlotte Brown, 307 Elif Şahin, 309 Ingrid Larsen, 401 Olga
+                Ivanova, 201 "mahnoor", Oct 11). Arrivals shows 3 results and
+                none of them. The only place they surface is Close the day, as
+                "Arrivals not checked in", one day at a time. Elif's drawer says
+                Confirmed, Arrives Oct 19, with no lateness cue.
+              </td>
+              <td>
+                A guest who has not arrived and whose date has passed is the
+                desk's job today: check in, mark no-show, or cancel. Arrivals
+                should list them.
+              </td>
+              <td>
+                Add a "Still to resolve" group to Arrivals (past-dated Confirmed
+                bookings) with the three actions in the row menu, and a count on
+                Today's attention card.
+              </td>
+              <td>M</td>
+              <td>
+                09, 12, 02. Verified by comparing the three screens (calendar
+                aria labels, Arrivals list, Close the day).
+              </td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-03</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                Today, Rooms & beds, Room calendar, Housekeeping. Front Desk,
+                about 14:00.
+              </td>
+              <td>
+                Five answers to "how many rooms can I sell tonight": Today tile
+                "8 / 42 rooms ready to sell"; Today Rooms card "42 can be sold
+                tonight"; Today tile "12 expected tonight, of 42"; Rooms "12
+                free tonight"; calendar "Free 17" under Thu 22; Housekeeping
+                "Ready to let 8".
+              </td>
+              <td>
+                One number for "sell now" (vacant and clean) and one clearly
+                labelled number for "free after today's departures", the same on
+                every screen.
+              </td>
+              <td>
+                Name two figures only, give both a defined label and tooltip,
+                and derive them from one function. Remove the sentence "42 can
+                be sold tonight", which reads as false next to "8 ready".
+              </td>
+              <td>M</td>
+              <td>01, 10, 09, 11. Verified (numbers read from each screen).</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-04</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                New booking → Unit picker, stay dates tonight to tomorrow.
+              </td>
+              <td>
+                The picker lists all 42 units in room-number order. Taken units
+                are greyed with "Someone is staying then" but stay mixed in.
+                There is no cleanliness, no "leaving today", no floor. The first
+                selectable unit, 101, is occupied right now and will be dirty
+                when its guest leaves. A walk-in agent scans 42 entries for the
+                8 ready rooms.
+              </td>
+              <td>
+                Available rooms first, the clean ones at the top, each marked
+                ready, dirty or leaving today. A toggle to hide unavailable
+                ones.
+              </td>
+              <td>
+                Sort by availability then readiness, show readiness chips, add
+                an "available only" filter. The search box already exists.
+              </td>
+              <td>M</td>
+              <td>08. Verified.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-05</td>
+              <td class="sev slow">slows me down</td>
+              <td>Rooms & beds, bed map.</td>
+              <td>
+                The board shows who is in each room but not whether it is clean.
+                The page itself says "Which are clean or dirty? See
+                Housekeeping". Overdue guests (Derya Polat, 4 days) look
+                identical to guests due to stay; the calendar marks them amber.
+              </td>
+              <td>
+                The room board is the desk's picture of the house: occupancy,
+                readiness and overdue in one tile.
+              </td>
+              <td>
+                Add a readiness dot to each tile and the overdue treatment the
+                calendar already has.
+              </td>
+              <td>S–M</td>
+              <td>10. Verified.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-06</td>
+              <td class="sev err">causes errors</td>
+              <td>
+                Today vs Arrivals, same reservation RBWFWFT (Amelia Taylor, room
+                304, dirty).
+              </td>
+              <td>
+                Today: "Arrives 16:30, in 2h 31m. Room: Dirty." Arrivals: "3
+                days late, Expected 16:30". Her booking began Oct 19. Today also
+                ranks her 14th, behind 13 overdue check-outs, although she is
+                the only item with a clock and a blocked room.
+              </td>
+              <td>
+                One statement of lateness. A person due in 2 hours into a dirty
+                room should out-rank a 3-day-old overdue departure.
+              </td>
+              <td>
+                Use one lateness function on both screens. Rank "arrival within
+                3 hours and room not ready" above overdue check-outs, or group
+                the list by type.
+              </td>
+              <td>S</td>
+              <td>
+                01, 02. Verified, <em>data-dependent</em> (an arrival that is
+                days late is a staging artefact, but the two screens would still
+                disagree about it).
+              </td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-07</td>
+              <td class="sev slow">slows me down</td>
+              <td>Arrivals and Departures rows.</td>
+              <td>
+                Clicking a guest name does nothing (verified on both).
+                Reservations opens a detail sheet from the same click. From
+                Arrivals the row menu has no "open reservation" item. Balance,
+                notes and guest count cannot be seen before pressing Check in.
+              </td>
+              <td>The same click opens the same detail everywhere.</td>
+              <td>
+                Make the row open the existing reservation sheet. Show the
+                balance on Arrivals.
+              </td>
+              <td>M</td>
+              <td>02, 03, 06.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-08</td>
+              <td class="sev slow">slows me down</td>
+              <td>Reservations → detail sheet (checked-in guest).</td>
+              <td>
+                The sheet has dates, unit, contact, "Open folio" and "Price: No
+                price". No balance, no amount paid, no guest count, no notes or
+                history, and no Check out button for a checked-in guest. A
+                floating "…" button is unlabelled.
+              </td>
+              <td>
+                The sheet should answer "does this guest owe anything, and what
+                can I do now?"
+              </td>
+              <td>
+                Add balance and paid, the state-appropriate primary action, and
+                the guest's open requests.
+              </td>
+              <td>M</td>
+              <td>06.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-09</td>
+              <td class="sev slow">slows me down</td>
+              <td>Close the day, 11 days waiting. <em>data-dependent</em>.</td>
+              <td>
+                One button: "Close only Sunday, October 11, 2026". The dialog
+                needs a reason per day, so 11 closes and 11 reasons. "What holds
+                each day" says "1 item open" for six days without saying what;
+                only the oldest day is itemised. The word "only" implies an
+                alternative that does not exist. The dialog does name its
+                consequence ("Reopening a closed day is not available yet").
+              </td>
+              <td>
+                A catch-up after a weekend or an outage should be one action
+                with one reason, and each day's blocker should be visible.
+              </td>
+              <td>
+                Add "Close all days through Oct 21" with one shared reason,
+                itemise each day's item, drop "only".
+              </td>
+              <td>M</td>
+              <td>
+                12. Verified; the 11-close count is <em>inferred</em> from the
+                single-day dialog. I did not submit.
+              </td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-10</td>
+              <td class="sev slow">slows me down</td>
+              <td>Departures.</td>
+              <td>
+                Two filter systems stacked: a toggle (top right) "Due and
+                overdue / Everybody in house", then chips "Due and overdue /
+                Owing / Overdue and owing". "Due and overdue" appears twice. In
+                Arabic the two are translated differently (المستحقة والمتأخرة vs
+                المستحقون والمتأخرون).
+              </td>
+              <td>One row of filters with distinct labels.</td>
+              <td>
+                Rename the toggle "Today's list / Whole house" or merge it into
+                the chips.
+              </td>
+              <td>S</td>
+              <td>03, 17.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-11</td>
+              <td class="sev pol">polish</td>
+              <td>Across Front Office and Guest Experience.</td>
+              <td>
+                "New booking" (Today, Arrivals) vs "New reservation"
+                (Reservations) vs "Bookings at…". "Room" in tables vs "Unit" in
+                the check-out dialog, the new-booking form and the picker.
+                "Guest stay" printed under every guest on Departures and in the
+                sheet. Guest Experience uses Title Case ("New Request", "Open
+                Requests", "Start Working") where every other screen uses
+                sentence case.
+              </td>
+              <td>One word per concept, one case convention.</td>
+              <td>
+                Pick "booking" or "reservation" and "room" or "unit" for the
+                desk; hide "Guest stay" unless the stay is not a guest stay.
+              </td>
+              <td>S</td>
+              <td>03, 04, 05, 07, 13.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-12</td>
+              <td class="sev pol">polish</td>
+              <td>Check-out dialog and Folio page.</td>
+              <td>
+                The dialog says "This booking was taken without a price, so its
+                nights are not charged" directly above "TRY 5,470.00 is owed",
+                which makes the money look wrong. The Folio says "Add a price to
+                the booking from the Reservations screen", but I found no price
+                editor there: the price comes from a hidden quoted rate
+                (<code>quotedRateMinor</code>), so the instruction points at
+                nothing (<em>inferred</em> from code).
+              </td>
+              <td>
+                A clear line: "Nights are not charged because no rate is set for
+                this room type; the TRY 5,470 is three extras."
+              </td>
+              <td>
+                Reword both messages, and link to the rate setup rather than to
+                Reservations.
+              </td>
+              <td>S</td>
+              <td>04, 14. <em>data-dependent</em> (no rates on staging).</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-13</td>
+              <td class="sev slow">slows me down</td>
+              <td>Room calendar, free cell.</td>
+              <td>
+                Clicking an empty cell does nothing. A booking bar opens a
+                drawer with Move… and "Open in Reservations" only; check-in from
+                the drawer is deferred (RC-DEF-04). Starting a booking for a
+                visible gap is a habit from other PMSs.
+              </td>
+              <td>
+                Click a free cell to start a booking with the room and date
+                filled in.
+              </td>
+              <td>
+                Open the New booking dialog prefilled from the cell. Not
+                documented as built or deferred, so it needs a row.
+              </td>
+              <td>M</td>
+              <td>09. Verified (click on room 403, tonight).</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-14</td>
+              <td class="sev slow">slows me down</td>
+              <td>Rail and header, any screen except Front Office.</td>
+              <td>
+                The Front Office group starts collapsed on Today, so Arrivals,
+                Departures and Reservations cost an extra click on every visit.
+                The header has no search, so "a guest is at the desk and I do
+                not know the booking" means group, Reservations, search box.
+              </td>
+              <td>
+                The three busiest screens one click away; a find-a-guest box
+                everywhere.
+              </td>
+              <td>
+                Keep the group expanded for desk roles; add a header search that
+                opens Reservations with the query.
+              </td>
+              <td>S–M</td>
+              <td>01, 02. Verified by snapshot.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-15</td>
+              <td class="sev slow">slows me down</td>
+              <td>Arrivals at 768 px and 375 px.</td>
+              <td>
+                At 768 the Readiness column scrolls behind the sticky Action
+                column, so "Dirty" is invisible before pressing Check in. At 375
+                a row shows only the name and Check in: room, lateness and
+                readiness are off screen. The bottom navigation overlaps the
+                pagination and footer link, and its last item is clipped
+                ("Mai…"). Search placeholder is cut mid-word at both widths.
+              </td>
+              <td>
+                The facts that decide a check-in (room, readiness, late) stay on
+                screen on a tablet.
+              </td>
+              <td>
+                Collapse to a stacked row below ~900 px with room and readiness
+                under the name; add bottom padding for the nav.
+              </td>
+              <td>M</td>
+              <td>15, 16. Verified.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-16</td>
+              <td class="sev pol">polish</td>
+              <td>Reservations, Arrivals.</td>
+              <td>
+                The default tab is "All", sorted oldest first from Oct 11, 10
+                per page, so the useful tabs (Arriving today 3, In house 27) are
+                one click away. The search query is not in the URL (lost on
+                refresh, cannot be shared). "Search all reservations" on
+                Arrivals does not carry the text just typed.
+              </td>
+              <td>Open on what the desk needs today; keep the query.</td>
+              <td>
+                Default to "Arriving today" or remember the last tab; put
+                <code>q=</code> in the URL and pass it on.
+              </td>
+              <td>S</td>
+              <td>05, 02.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-17</td>
+              <td class="sev pol">polish</td>
+              <td>Today.</td>
+              <td>
+                The same 13 overdue guests appear in "Due out today" cards and
+                again in "Do these in order", about 30 buttons for 13 people,
+                and the page is roughly 5,800 px tall at 500 px wide. Rooms card
+                says "42 can be sold tonight" (see FO-03). Rail label "Guest
+                Experience" truncates when active.
+              </td>
+              <td>One list.</td>
+              <td>
+                Let the timeline carry the cards and the ordered list carry the
+                actions, or fold repeated rows into a count with one "Check out
+                all overdue" review.
+              </td>
+              <td>M</td>
+              <td>01. Verified.</td>
+            </tr>
+
+            <tr>
+              <td class="id">FO-18</td>
+              <td class="sev err">causes errors</td>
+              <td>Check-out with a balance, policy. Inferred.</td>
+              <td>
+                A typed sentence is enough to check a guest out with any balance
+                open; there is no amount threshold or second approver. The
+                reason is recorded, so this is auditable, not silent.
+              </td>
+              <td>A hotel normally limits what a desk agent can waive.</td>
+              <td>
+                Not a UX fix; an owner decision. I would add a configurable
+                threshold above which a manager must approve. Flagging because
+                it compounds FO-01.
+              </td>
+              <td>M</td>
+              <td>
+                04 and <code>check-out-dialog.tsx</code>. <em>inferred</em>; the
+                CO rows call this resolved, so it may be intended.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. Jobs attempted</h2>
+      <p>
+        Pass/fail tests were written before each attempt. Times are what I
+        measured on a fresh load; clicks are counted from the signed-in landing
+        page. "Stopped" means I reached the confirm step and did not submit.
+      </p>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Pass test (written first)</th>
+              <th>Result</th>
+              <th>Time / clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1 Start of shift: what needs doing?</td>
+              <td>
+                Within 30 s, name arrivals, departures, rooms ready and anything
+                late.
+              </td>
+              <td class="pass">Pass, with FO-17</td>
+              <td>
+                Under 2 s load, 0 clicks. The 13 overdue stays crowd out
+                everything else.
+              </td>
+            </tr>
+            <tr>
+              <td>J2 Check in an arrival (Kenji Sato, 310, ready)</td>
+              <td>Two clicks or fewer; room and readiness visible first.</td>
+              <td class="part">Stopped. One click from Arrivals or Today</td>
+              <td>
+                1 click. A dirty room (Amelia, 304) asks first ("Check in
+                anyway"), by the code. Readiness is hidden on tablets (FO-15).
+              </td>
+            </tr>
+            <tr>
+              <td>J3 Check out a guest who owes money (Anna Kowalska)</td>
+              <td>Pay and check out without leaving the dialog.</td>
+              <td class="fail">Fail (FO-01). Stopped</td>
+              <td>
+                About 9 clicks and 2 tabs to pay; 3 clicks plus a typed reason
+                to leave it open.
+              </td>
+            </tr>
+            <tr>
+              <td>J4 Walk-in: book tonight and check in</td>
+              <td>
+                Offered only rooms I can use; one pass from booking to check-in.
+              </td>
+              <td class="part">Partial (FO-04). Stopped</td>
+              <td>
+                6 inputs; 42-row picker with no readiness; check-in is a
+                separate step on Arrivals.
+              </td>
+            </tr>
+            <tr>
+              <td>J5 Find a guest from a half-remembered detail</td>
+              <td>
+                Name without diacritics, phone with spaces and +90, lowercase
+                reference, room number.
+              </td>
+              <td class="pass">Pass</td>
+              <td>
+                All 8 queries (name without diacritics, with diacritics, three
+                phone formats, lowercase reference, room number, two words)
+                returned one result within the 1.8 s I allowed; I confirmed the
+                count, not each row's identity. No search outside Reservations
+                (FO-14).
+              </td>
+            </tr>
+            <tr>
+              <td>J6 Guest wants another night / another room</td>
+              <td>
+                From a Departures row in three clicks or fewer, with a warning
+                if unpriced.
+              </td>
+              <td class="pass">Pass. Stopped</td>
+              <td>
+                Row menu → Change departure or Move Guest (3 clicks). The dialog
+                warns that extra nights will not be charged.
+              </td>
+            </tr>
+            <tr>
+              <td>J7 What can I sell right now, and which rooms?</td>
+              <td>
+                One screen gives a count and the names of clean vacant rooms.
+              </td>
+              <td class="fail">Fail (FO-03, FO-04, FO-05)</td>
+              <td>
+                Visited 4 screens; none lists clean vacant rooms together.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                J8 Under pressure: guest says the room is dirty or the AC is
+                broken
+              </td>
+              <td>Report it in three clicks from where I am.</td>
+              <td class="part">Partial. Not submitted</td>
+              <td>
+                Housekeeping rows carry "Report a problem"; Arrivals offers
+                "Open in Housekeeping". No equivalent from Departures or the
+                room board.
+              </td>
+            </tr>
+            <tr>
+              <td>J9 End of day with a backlog</td>
+              <td>Clear 11 days in under five minutes.</td>
+              <td class="fail">Fail (FO-02, FO-09). Stopped</td>
+              <td>One day per dialog with a reason each (inferred).</td>
+            </tr>
+            <tr>
+              <td>
+                J10 Handle "late check-out at 14:00" (request #3, room 210)
+              </td>
+              <td>See the request from the departure it affects.</td>
+              <td class="fail">Fail (not built)</td>
+              <td>
+                Visible only in Guest Experience; Departures and Today show
+                nothing for Marco Bianchi.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Screens checked</h3>
+      <figure>
+        <img src="02-arrivals.png" alt="Arrivals" />
+        <figcaption>
+          Arrivals, 1440 px. A dirty room still shows Check in; the warning
+          comes after the press.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="03-departures.png" alt="Departures" />
+        <figcaption>
+          Departures. Two filter rows, "Due and overdue" twice (FO-10).
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="04-checkout-dialog.png" alt="Check-out dialog" />
+        <figcaption>
+          Check-out review (FO-01, FO-12). The cursor sits in the reason box.
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="08-unit-picker.png" alt="Unit picker" />
+        <figcaption>New booking → Unit picker (FO-04).</figcaption>
+      </figure>
+      <figure>
+        <img src="09-room-calendar.png" alt="Room calendar" />
+        <figcaption>
+          Room calendar. Overdue stays are marked amber; free cells are inert
+          (FO-13).
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="10-rooms.png" alt="Rooms and beds" />
+        <figcaption>Rooms & beds (FO-03, FO-05).</figcaption>
+      </figure>
+      <figure>
+        <img src="12-close-day.png" alt="Close the day" />
+        <figcaption>Close the day with 11 days waiting (FO-09).</figcaption>
+      </figure>
+      <figure>
+        <img src="15-arrivals-768.png" alt="Arrivals at 768 px" />
+        <figcaption>
+          Arrivals at 768 px: Readiness is cut off (FO-15).
+        </figcaption>
+      </figure>
+      <figure>
+        <img src="16-arrivals-375.png" alt="Arrivals at 375 px" />
+        <figcaption>
+          Arrivals at 375 px: only name and Check in are visible (FO-15).
+        </figcaption>
+      </figure>
+
+      <h2>4. Top 10 changes, ranked by time saved × how often</h2>
+      <ol>
+        <li>
+          <strong
+            >I can take the money and check the guest out in one dialog.</strong
+          >
+          (FO-01) Every departure, 20+ a day.
+        </li>
+        <li>
+          <strong
+            >One number tells me what I can sell now, and the room lists show
+            which free rooms are clean.</strong
+          >
+          (FO-03, FO-04, FO-05) Every walk-in and every phone enquiry.
+        </li>
+        <li>
+          <strong
+            >Guests who never arrived show up on Arrivals with check in, no-show
+            and cancel next to them.</strong
+          >
+          (FO-02) Stops inventory and revenue drifting for days.
+        </li>
+        <li>
+          <strong
+            >I can open any guest from Arrivals or Departures and see their
+            balance and open requests.</strong
+          >
+          (FO-07, FO-08) Every check-in and check-out.
+        </li>
+        <li>
+          <strong
+            >Today and Arrivals agree on who is late, and an arrival blocked by
+            a dirty room outranks old overdue departures.</strong
+          >
+          (FO-06)
+        </li>
+        <li>
+          <strong
+            >On a tablet or phone I still see room, readiness and lateness
+            before I press Check in.</strong
+          >
+          (FO-15)
+        </li>
+        <li>
+          <strong
+            >I can close a backlog of days once, with one reason, and see what
+            holds each day.</strong
+          >
+          (FO-09)
+        </li>
+        <li>
+          <strong
+            >Arrivals, Departures and Reservations are one click away, and I can
+            search for a guest from anywhere.</strong
+          >
+          (FO-14)
+        </li>
+        <li>
+          <strong
+            >I can start a booking by clicking a free room on the
+            calendar.</strong
+          >
+          (FO-13)
+        </li>
+        <li>
+          <strong>The same word means the same thing everywhere</strong>
+          (booking/reservation, room/unit, sentence case). (FO-10, FO-11)
+        </li>
+      </ol>
+
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <strong>Lateness:</strong> Today says "in 2h 31m", Arrivals says "3
+          days late" for the same booking (FO-06).
+        </li>
+        <li>
+          <strong>Availability figures:</strong> Today, Rooms, calendar and
+          Housekeeping disagree (FO-03). Housekeeping's "Dirty 14" counts
+          occupied rooms; Today's "4 dirty" counts vacant ones. The scopes are
+          not labelled.
+        </li>
+        <li>
+          <strong>Overdue treatment:</strong> the calendar marks overdue guests
+          amber; the Rooms board does not (FO-05).
+        </li>
+        <li>
+          <strong>Opening a guest:</strong> Reservations and the calendar open a
+          detail view; Arrivals and Departures do nothing on click (FO-07).
+        </li>
+        <li>
+          <strong>Readiness:</strong> Arrivals and Today show it per arrival;
+          the Rooms board and the Unit picker do not (FO-04, FO-05).
+        </li>
+        <li>
+          <strong>Action wording:</strong> "Check out" (rows) vs "Confirm
+          check-out" (dialog) vs "Keep in house" vs "Close"; Guest Experience
+          uses "Start Working / Resolve / Cancel request" in Title Case. "Cancel
+          request" sits at the same weight as "Resolve" in the row, one click
+          from a destructive action.
+        </li>
+        <li>
+          <strong>Back button:</strong> present on all front-office pages as ADR
+          0035 requires. The Folio opened from the check-out dialog has a back
+          arrow but no route back to the check-out it came from.
+        </li>
+      </ul>
+
+      <h2>6. Not built or needs backend work (not UX defects)</h2>
+      <ul>
+        <li>
+          <strong
+            >Identity capture and the police arrival and departure notification
+            (KBS):</strong
+          >
+          deferred (<code>CI-DEF-05</code>, <code>CO-S1-33</code>, "required
+          before launch"). Check-in today is one button with no ID, signature,
+          deposit or key step. This is the largest functional gap for a Turkish
+          front desk.
+        </li>
+        <li>
+          <strong
+            >Deposits, taxes, discounts, credits, refunds, split folios and
+            company billing:</strong
+          >
+          deferred (<code>FO-DEF-03</code>, <code>FO-DEF-05</code>,
+          <code>FP-DEF-02</code>). A payment is a record only: "no card is
+          charged".
+        </li>
+        <li>
+          <strong>Adding a charge as Front Desk:</strong> the Add charge form
+          exists but is hidden for this role with no explanation on the page.
+          That follows the role rules, but a guest disputing a minibar line
+          cannot be helped at the desk. Pending the owner decision RANZ-56.
+        </li>
+        <li>
+          <strong>Guest requests on Today and Departures:</strong> proposed, not
+          built (<code>TD-S6-01</code>). Request #3 "Late check-out at 14:00" is
+          invisible where it matters.
+        </li>
+        <li>
+          <strong>Check in from the calendar drawer:</strong>
+          <code>RC-DEF-04</code>. <strong>Saved views:</strong>
+          <code>RC-DEF-02</code>. <strong>Reopening a closed day:</strong> the
+          dialog says it is not available yet.
+        </li>
+        <li>
+          <strong
+            >Booking from a free calendar cell (FO-13) and a one-step "walk-in
+            and check in":</strong
+          >
+          in neither the built nor the deferred rows; they need a design row
+          first.
+        </li>
+        <li>
+          <strong>Rates on staging:</strong> every booking says "No price"
+          because no rate is set for the unit types. This is configuration, but
+          it makes the money screens look broken to anyone auditing with this
+          data.
+        </li>
+      </ul>
+
+      <h2>7. What works well and must not regress</h2>
+      <ul>
+        <li>
+          Speed: Today, Arrivals, Departures and Reservations all had content in
+          about 0.8–1.5 s. The browser console was clean on the one screen I
+          checked (Departures); I did not check the others.
+        </li>
+        <li>
+          Search forgives diacritics, phone formats, case and multi-word
+          queries, across guest, room, reference, phone and date.
+        </li>
+        <li>
+          The check-in guard asks before putting a guest into a dirty room
+          ("Check in anyway", by the code) and re-reads readiness on the server.
+        </li>
+        <li>
+          The check-out dialog names its consequence before the click, including
+          that the room is marked dirty, that the folio stays open with the
+          amount, and that the reason is recorded. Close the day says that
+          reopening is not available yet.
+        </li>
+        <li>
+          The calendar's accessibility is unusually good: every bar is a button
+          with a full spoken label (state, dates, "still in the room tonight")
+          and a stated alternative to dragging ("use Move… in its details").
+        </li>
+        <li>
+          Unit picker greys taken rooms and says why ("Someone is staying then",
+          "Booked for these nights"); the stay-date picker disables past dates.
+        </li>
+        <li>
+          Row-level actions on Departures cover the real jobs (Open folio, Show
+          on the room map, Change departure, Move Guest).
+        </li>
+        <li>
+          Arabic is fully translated and mirrors correctly, including the rail
+          and table order. Skip-to-content link exists; tab stops to the first
+          Check in are 28 in the whole page, 9 after the skip link.
+        </li>
+        <li>
+          Housekeeping orders rooms by what the desk needs first (arrival today,
+          leaving today) and carries "Report a problem" on every row.
+        </li>
+      </ul>
+
+      <h2>8. What I did not test</h2>
+      <ul>
+        <li>
+          Any submit that persists (see the note at the top). The after-submit
+          behaviour of check-in, check-out, payment, new booking, change booking
+          and close day is read from code, not observed.
+        </li>
+        <li>
+          Empty and very large data: the property has 42 rooms and 40
+          reservations, so "empty" and "thousands" are inferred from the
+          empty-state components and the page size of 10 and 50, not observed.
+        </li>
+        <li>
+          Turkish locale, dark mode, other roles (Manager, Finance,
+          Housekeeping), and the four other Today layouts (House map, Next up,
+          Night desk, Overview).
+        </li>
+        <li>
+          Keyboard: I counted tab stops and read the focus order; I did not
+          drive a full check-in by keyboard.
+        </li>
+      </ul>
+    </main>
+  </body>
+</html>

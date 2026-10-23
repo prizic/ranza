@@ -1,6 +1,11 @@
 import { randomUUID } from "node:crypto";
 
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  type APIRequestContext,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 import { psql } from "./local-database";
 
@@ -366,4 +371,71 @@ export async function signIn(page: Page, email = EMAIL): Promise<void> {
   // Today writes the Property it opens on into its URL (OA-S3-01); a viewer
   // with Today nowhere stays on a bare one.
   await expect(page).toHaveURL(/\/en\/today(\?property=[0-9a-f-]+)?$/);
+}
+
+/** A Guest of this run's own, checked in through the Arrivals screen. */
+export async function aGuestInHouse(
+  page: Page,
+  propertyId: string,
+): Promise<void> {
+  const guestName = anArrivalToday(propertyId);
+  await page.goto(`/en/arrivals?property=${propertyId}`);
+  await page.getByRole("searchbox").fill(guestName);
+  const row = page.getByRole("row").filter({ hasText: guestName });
+  await row.getByRole("button", { name: "Check in" }).click();
+  await expect(row.getByText("Checked in")).toBeVisible();
+}
+
+/**
+ * Chooses a Unit in a dialog's list of rows. Only the first few are drawn, so
+ * it is searched for by name first, as the desk would; `state` narrows the row
+ * by what it says about the nights (Free, Booked).
+ */
+export async function pickUnit(
+  dialog: Locator,
+  unitName: string,
+  state = "",
+): Promise<void> {
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(unitName);
+  await dialog
+    .getByRole("radio", { name: new RegExp(`${unitName}.*${state}`) })
+    .check();
+}
+
+/** An ISO date `days` from the Property's own today, which is not the machine's. */
+export function propertyDay(propertyId: string, days: number): string {
+  return psql(
+    `select to_char(app.property_today(id) + ${days}, 'YYYY-MM-DD')
+     from public.properties where id = '${propertyId}'`,
+  );
+}
+
+/**
+ * Presses a day in the open date-range calendar, turning months forward until
+ * it is shown. Found by its `data-day`, the ISO date, so the test does not
+ * depend on how English spells a weekday.
+ */
+export async function pickDay(page: Page, iso: string): Promise<void> {
+  const day = page.locator(`td:not([data-outside]) [data-day="${iso}"]`);
+  for (let turns = 0; turns < 12 && !(await day.isVisible()); turns++) {
+    await page.getByRole("button", { name: /next month/i }).click();
+  }
+  await day.click();
+}
+
+/** Opens the date-range calendar from a dialog's Arrival half, once. */
+export async function openTheCalendar(
+  page: Page,
+  dialog: Locator,
+): Promise<void> {
+  await expect(async () => {
+    if (!(await page.getByRole("grid").first().isVisible())) {
+      await dialog.getByRole("button", { name: /^Arrival/ }).click();
+    }
+    await expect(page.getByRole("grid").first()).toBeVisible({
+      timeout: 1_000,
+    });
+  }).toPass();
 }

@@ -143,6 +143,20 @@ export interface ScopeQuery {
   text?: string | undefined;
   actorIds?: readonly string[] | undefined;
   subjectIds?: readonly string[] | undefined;
+  /**
+   * Action names the host found the search text to be a word for: a record of
+   * any of them matches the text as one about a person the text names does.
+   * This module cannot know what an action is called on a screen, so, like
+   * `actorIds`, it is the host that resolves the text and hands the result
+   * over.
+   */
+  textActions?: readonly string[] | undefined;
+  /**
+   * Only records about these subjects. Unlike `subjectIds`, which is one of
+   * the ways a text can match, this narrows: a record about anything else is
+   * out whatever the text says.
+   */
+  onlySubjectIds?: readonly string[] | undefined;
   /** Continue after this record, from a previous page's `nextCursor`. */
   cursor?: string | undefined;
 }
@@ -217,7 +231,9 @@ const SCOPE_PREDICATE = `
     )
     or actor_id   = any (coalesce($7::uuid[], '{}'))
     or subject_id = any (coalesce($8::uuid[], '{}'))
-  )`;
+    or action     = any (coalesce($10::text[], '{}'))
+  )
+  and ($9::uuid[] is null or subject_id = any ($9::uuid[]))`;
 
 /**
  * Search text as it may be sent: trimmed, and without NUL, which Postgres
@@ -242,6 +258,8 @@ function scopeValues(organizationId: string, query: ScopeQuery): unknown[] {
     text ?? null,
     query.actorIds ? [...query.actorIds] : null,
     query.subjectIds ? [...query.subjectIds] : null,
+    query.onlySubjectIds ? [...query.onlySubjectIds] : null,
+    query.textActions ? [...query.textActions] : null,
   ];
 }
 
@@ -278,12 +296,12 @@ export async function listForScope(
        from audit.records
       where ${SCOPE_PREDICATE}
         and (
-          $9::bigint is null
+          $11::bigint is null
           or (occurred_at, id) <
-             ('epoch'::timestamptz + $9::bigint * interval '1 microsecond', $10::uuid)
+             ('epoch'::timestamptz + $11::bigint * interval '1 microsecond', $12::uuid)
         )
       order by occurred_at desc, id desc
-      limit $11`,
+      limit $13`,
     ...values,
     cursor?.micros ?? null,
     cursor?.id ?? null,

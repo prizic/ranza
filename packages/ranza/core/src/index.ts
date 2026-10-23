@@ -20,6 +20,8 @@ export type {
   BillingNotice,
   BusinessDatePreview,
   CapabilityProperties,
+  Denial,
+  DenialQuestion,
   ConfigurationField,
   OrganizationNameInput,
   PropertySettings,
@@ -30,4 +32,4 @@ export type {
   WorkingDay,
 } from "./contracts";
 export type { AuditLocation, AuditNames } from "./audit-log";
-export { MIN_SEARCH_LENGTH } from "./audit-log";
+export { MIN_SEARCH_LENGTH, SEARCH_MATCH_LIMIT } from "./audit-log";

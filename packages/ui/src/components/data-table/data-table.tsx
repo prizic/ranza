@@ -36,10 +36,11 @@ import {
 } from "../ui/table";
 import { DataTableFacetedChips } from "./faceted-chips";
 import { DataTableFacetedFilter, type FacetOption } from "./faceted-filter";
+import { ScrollCue } from "./scroll-cue";
 import { DataTablePagination, type PaginationLabels } from "./pagination";
 import { DataTableViewOptions } from "./view-options";
 import { overlayJustClosed } from "../../lib/menu-guard";
-import { fieldMatches } from "../../lib/search";
+import { rowMatches } from "../../lib/search";
 import { cn } from "../../lib/utils";
 
 /**
@@ -52,7 +53,35 @@ const ROW_CARD = cn(
   "[&>td:first-child]:rounded-s-[2rem] [&>td:first-child]:border-s [&>td:first-child]:ps-5 md:[&>td:first-child]:ps-6",
   "[&>td:last-child]:rounded-e-[2rem] [&>td:last-child]:border-e [&>td:last-child]:pe-4 md:[&>td:last-child]:pe-6",
   "[&:hover>td]:border-black/10 [&:hover>td]:bg-secondary/40 data-[state=selected]:[&>td]:bg-secondary",
+  // A pinned cell sits over the cells scrolling beneath it, so its hover fill
+  // is the translucent one already laid over the card, not left translucent.
+  "[&:hover>td[data-pinned]]:bg-[color-mix(in_oklab,var(--color-secondary)_40%,var(--color-card))]",
 );
+
+/**
+ * Column `meta` a screen may set beside its `title`: `pinEnd` keeps the column
+ * at the logical end of the row while the rest scroll sideways.
+ *
+ * A row's menu is the one control every row has, and a table wider than its
+ * container — a 1280 px laptop, or any phone — scrolls it out of reach with
+ * the cells it sits beside. `end-0` is logical, so the pinned column stays at
+ * the right in English and Turkish and at the left in Arabic.
+ */
+const PINNED_END = cn(
+  "sticky end-0 z-10",
+  // The cue that more of the row lies under it, drawn on the cell itself
+  // because the cell is what the rest of the row slides beneath.
+  "group-data-[cue-end=true]/scroll:shadow-[-10px_0_8px_-8px_rgb(0_0_0/0.18)] rtl:group-data-[cue-end=true]/scroll:shadow-[10px_0_8px_-8px_rgb(0_0_0/0.18)]",
+);
+
+function pinsToEnd(column: { columnDef: { meta?: unknown } }): boolean {
+  return (
+    (column.columnDef.meta as { pinEnd?: boolean } | undefined)?.pinEnd === true
+  );
+}
+
+/** A finger needs 44 px: the tick's invisible hit area grows to it on touch. */
+const TOUCH_TICK = "pointer-coarse:after:-inset-3.5";
 
 export interface Facet {
   columnId: string;
@@ -78,6 +107,8 @@ export interface DataTableLabels extends PaginationLabels {
   selectRow: string;
   selectedCount: (n: number) => string;
   clearSelection: string;
+  /** "Select all 42 in this filter" — the rows beyond the page the ticks cover. */
+  selectAllInFilter: (n: number) => string;
   noMatches: string;
   noRows: string;
   facet: { clear: string; noResults: string; selected: (n: number) => string };
@@ -104,6 +135,7 @@ export function DataTable<TData, TValue>({
   initialHidden = {},
   labels,
   onRowClick,
+  pageSize = 10,
   rowClassName,
   rowsInDatabase,
   searchColumns,
@@ -143,6 +175,12 @@ export function DataTable<TData, TValue>({
   labels: DataTableLabels;
   /** Makes rows openable. Clicks on a control inside a cell are left alone. */
   onRowClick?: (row: TData) => void;
+  /**
+   * Rows per page on first render, one of the sizes the footer offers (10, 20,
+   * 30, 50). A list worked down in one sitting, such as a day's arrivals, opens
+   * on a page long enough to hold the day rather than on ten.
+   */
+  pageSize?: number;
   /**
    * Extra classes for one row, for a screen that needs to point at it — the
    * booking the desk has just made or changed. Opt-in: no row is marked
@@ -192,6 +230,7 @@ export function DataTable<TData, TValue>({
         header: ({ table }) => (
           <Checkbox
             aria-label={labels.selectAllRows}
+            className={TOUCH_TICK}
             // Indeterminate when the page is partly ticked, so "select all"
             // never claims more than it did.
             checked={
@@ -206,6 +245,7 @@ export function DataTable<TData, TValue>({
         cell: ({ row }) => (
           <Checkbox
             aria-label={labels.selectRow}
+            className={TOUCH_TICK}
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
           />
@@ -232,13 +272,14 @@ export function DataTable<TData, TValue>({
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     // Ignores the column it is handed and tests every searchable column, so one
-    // box covers the Guest's name and the Reservation reference at once.
+    // box covers the Guest's name and the Reservation reference at once, and
+    // each word typed may be found in a different one.
     globalFilterFn: (row, _columnId, value: string) =>
-      (searchColumns ?? []).some((key) =>
-        fieldMatches(
+      rowMatches(
+        (searchColumns ?? []).map((key) =>
           String((row.original as Record<string, unknown>)[key] ?? ""),
-          value,
         ),
+        value,
       ),
     getCoreRowModel: getCoreRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
@@ -246,11 +287,18 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
+    initialState: { pagination: { pageSize } },
   });
 
+  const hasPinnedEnd = table
+    .getVisibleLeafColumns()
+    .some((column) => pinsToEnd(column));
   const isFiltered = table.getState().columnFilters.length > 0 || search !== "";
   const selectedRows = table.getSelectedRowModel().rows.map((r) => r.original);
+  const filteredRows = table.getFilteredRowModel().rows;
+  // Ticks reach only the page on screen, so a longer filter offers the rest.
+  const moreInFilter =
+    filteredRows.length > table.getFilteredSelectedRowModel().rows.length;
 
   return (
     <div className="space-y-3">
@@ -319,11 +367,27 @@ export function DataTable<TData, TValue>({
 
       {bulkActions && selectedRows.length > 0 ? (
         // Above the table rather than floating over it: staff are reading rows
-        // while deciding, and a bar that covers them is a bar in the way.
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5">
+        // while deciding, and a bar that covers them is a bar in the way. It
+        // stays at the top of the screen while the rows scroll under it, so a
+        // long page never takes the buttons out of reach (HK-08).
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5 shadow-sm">
           <span className="text-sm font-medium tabular-nums">
             {labels.selectedCount(selectedRows.length)}
           </span>
+          {moreInFilter ? (
+            <Button
+              className="pointer-coarse:min-h-11"
+              onClick={() =>
+                setRowSelection(
+                  Object.fromEntries(filteredRows.map((row) => [row.id, true])),
+                )
+              }
+              size="sm"
+              variant="link"
+            >
+              {labels.selectAllInFilter(filteredRows.length)}
+            </Button>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {bulkActions(selectedRows, () => setRowSelection({}))}
           </div>
@@ -341,7 +405,7 @@ export function DataTable<TData, TValue>({
       {/* Each row is its own white card, as in the Leaders lists. Separate
           borders rather than a wrapper, so the table stays a table to a screen
           reader and a row still means a row. */}
-      <div>
+      <ScrollCue pinnedEnd={hasPinnedEnd}>
         <Table className="-mt-2 border-separate border-spacing-y-2">
           <caption className="sr-only">{caption}</caption>
           <TableHeader className="[&_tr]:border-0">
@@ -410,7 +474,13 @@ export function DataTable<TData, TValue>({
                   })}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      className={
+                        pinsToEnd(cell.column) ? PINNED_END : undefined
+                      }
+                      data-pinned={pinsToEnd(cell.column) ? "end" : undefined}
+                      key={cell.id}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext(),
@@ -437,7 +507,7 @@ export function DataTable<TData, TValue>({
             )}
           </TableBody>
         </Table>
-      </div>
+      </ScrollCue>
 
       <DataTablePagination
         labels={labels}

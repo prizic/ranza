@@ -13,11 +13,14 @@ import { SCREENS } from "./screens";
  * Components" error.
  *
  * Which entries a viewer sees is still the server's decision: it sends the
- * capability keys the Organization is entitled to, as strings, and the tree is
- * filtered by those. Hiding is never the boundary — the server and the database
- * deny an unentitled route either way (blueprint 3.5) — but navigation lists
- * only what was bought (blueprint 4.6), and locked upsells belong in a separate
- * Explore area rather than greyed out here.
+ * route segments the viewer can open somewhere they reach, as strings, and the
+ * tree is filtered by those — and, once a Property is chosen, by the ones open
+ * at that Property. Each destination's gate is the one its page asks
+ * (`lib/screens.ts`), so a link the rail offers is a page that opens. Hiding is
+ * never the boundary — the server and the database deny an unentitled route
+ * either way (blueprint 3.5) — but navigation lists only what was bought
+ * (blueprint 4.6), and locked upsells belong in a separate Explore area rather
+ * than greyed out here.
  *
  * Labels are the short form. A tile is 56px and a long label spills out of it;
  * the full name lives in the page bar, where there is room.
@@ -27,6 +30,23 @@ import { SCREENS } from "./screens";
  * rather than on a union, so a segment with no word for it still falls back to
  * the segment itself. `t.has` is what asks without raising.
  */
+
+/**
+ * The Property the URL names when the viewer can switch to it, and otherwise
+ * `defaultProperty`. A `?property=` that names nothing the viewer reaches — a
+ * stale bookmark, a Property they were unassigned from — is not carried to the
+ * next page: the page that denied it says so, and every link away from it
+ * should lead somewhere that opens (PORTFOLIO-03).
+ */
+function usePropertyInUse(
+  defaultProperty: string | undefined,
+  known: readonly string[] | undefined,
+): string | undefined {
+  const requested = useSearchParams().get("property");
+  // Nothing known is nothing to check against, not "no Property is real".
+  const unknown = known && known.length > 0 && !known.includes(requested ?? "");
+  return requested && !unknown ? requested : defaultProperty;
+}
 
 /**
  * Carries the Property being worked in onto a link to another page.
@@ -45,24 +65,38 @@ import { SCREENS } from "./screens";
  */
 export function useWithProperty(
   defaultProperty: string | undefined,
+  known?: readonly string[],
 ): (href: string) => string {
-  const property = useSearchParams().get("property") || defaultProperty;
+  const property = usePropertyInUse(defaultProperty, known);
   return (href) =>
     property ? `${href}?property=${encodeURIComponent(property)}` : href;
 }
 
 export function useWorkspaceNav(
   locale: SupportedLocale,
-  entitled: readonly string[],
+  reachable: readonly string[],
   defaultProperty: string | undefined,
+  segmentsByProperty: Readonly<Record<string, readonly string[]>> = {},
 ): NavEntry[] {
   const t = useTranslations("navigation");
-  const withProperty = useWithProperty(defaultProperty);
+  const known = Object.keys(segmentsByProperty);
+  const property = usePropertyInUse(defaultProperty, known);
+  const withProperty = useWithProperty(defaultProperty, known);
   const label = (segment: string) => (t.has(segment) ? t(segment) : segment);
+
+  // At a Property the viewer can switch to, only what is open there: a rail
+  // that offers a page the Property has switched off sends the person to a
+  // refusal. All Properties is the Organization's and is open from anywhere.
+  const openHere = property ? segmentsByProperty[property] : undefined;
+  const open = (segment: string) =>
+    openHere && segment !== "portfolio"
+      ? openHere.includes(segment)
+      : reachable.includes(segment);
+
   return SCREENS.filter((screen) =>
     screen.children
-      ? screen.children.some((child) => entitled.includes(child.capability))
-      : entitled.includes(screen.capability),
+      ? screen.children.some((child) => open(child.segment))
+      : open(screen.segment),
   ).map((screen) =>
     screen.children
       ? {
@@ -70,7 +104,7 @@ export function useWorkspaceNav(
           label: label(screen.segment),
           section: screen.section,
           children: screen.children
-            .filter((child) => entitled.includes(child.capability))
+            .filter((child) => open(child.segment))
             .map((child) => ({
               href: withProperty(localizeHref(locale, child.segment)),
               icon: child.icon,

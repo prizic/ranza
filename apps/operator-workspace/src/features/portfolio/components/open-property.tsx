@@ -27,7 +27,11 @@ export function OpenProperty({
   variant?: "default" | "outline";
 }) {
   return (
-    <Button asChild variant={variant}>
+    <Button
+      asChild
+      className="h-auto max-w-full py-2 text-start whitespace-normal"
+      variant={variant}
+    >
       <a
         href={`${localizeHref(locale, "today")}?property=${encodeURIComponent(propertyId)}`}
         onClick={() => rememberProperty(propertyId)}

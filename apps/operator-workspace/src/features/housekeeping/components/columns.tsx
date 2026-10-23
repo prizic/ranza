@@ -1,16 +1,26 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Ban, Users } from "lucide-react";
+import {
+  Ban,
+  LogIn,
+  LogOut,
+  Sparkles,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import type { HousekeepingRoom, HousekeepingStatus } from "@ranza/housekeeping";
 import {
   DataTableColumnHeader,
   DataTableRowActions,
   StatusBadge,
+  type StatusTone,
 } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
+import type { RoomDay } from "../../../server/housekeeping-day";
 import { HousekeepingStatusBadge, STATUS_LOOK } from "./status";
 
 const MARKS: readonly HousekeepingStatus[] = ["clean", "inspected", "dirty"];
@@ -21,14 +31,58 @@ const MARK_LABEL = {
   dirty: "markDirty",
 } as const satisfies Record<HousekeepingStatus, string>;
 
+/** How each thing the day asks of a room reads, and where it ranks. */
+const DAY_LOOK: Record<
+  RoomDay,
+  { icon: LucideIcon; tone: StatusTone; label: string; rank: number }
+> = {
+  arrival: {
+    icon: LogIn,
+    tone: "danger",
+    label: "priorityArrival",
+    rank: 0,
+  },
+  inspect_for_arrival: {
+    icon: Sparkles,
+    tone: "warning",
+    label: "priorityInspect",
+    rank: 1,
+  },
+  leaving: {
+    icon: LogOut,
+    tone: "info",
+    label: "priorityLeaving",
+    rank: 2,
+  },
+  arriving: {
+    icon: LogIn,
+    tone: "neutral",
+    label: "priorityArrival",
+    rank: 3,
+  },
+};
+
+const NO_DAY_RANK = 4;
+
+/** The floor as a filter value, so a room with none can be picked too. */
+export const NO_FLOOR = "none";
+
+export const floorValue = (floor: number | null) =>
+  floor === null ? NO_FLOOR : String(floor);
+
 /**
  * When the status last changed, in the Property's own time zone: a desk in
  * Istanbul reading a board from a laptop set to London must see 14:05, not
- * 12:05.
+ * 12:05. The year is shown once it is not this one, so an old mark does not
+ * read as a recent one.
  */
 function changedAt(iso: string, locale: SupportedLocale, timeZone: string) {
-  return formatDate(new Date(iso), locale, {
-    year: undefined,
+  const changed = new Date(iso);
+  return formatDate(changed, locale, {
+    year:
+      changed.getUTCFullYear() === new Date().getUTCFullYear()
+        ? undefined
+        : "numeric",
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
@@ -36,17 +90,36 @@ function changedAt(iso: string, locale: SupportedLocale, timeZone: string) {
   });
 }
 
+function DayBadge({ day }: { day: RoomDay | undefined }) {
+  const t = useTranslations("housekeeping");
+  if (!day) return null;
+  const look = DAY_LOOK[day];
+  return (
+    <StatusBadge
+      icon={look.icon}
+      label={t(look.label as "priorityArrival")}
+      tone={look.tone}
+    />
+  );
+}
+
 export function useHousekeepingColumns({
   locale,
   timeZone,
+  days,
   mayMark,
   pending,
+  reportHref,
   onMark,
 }: {
   locale: SupportedLocale;
   timeZone: string;
+  /** What the day asks of each room, by Unit id (HK-04). */
+  days: Readonly<Record<string, RoomDay>>;
   mayMark: boolean;
   pending: boolean;
+  /** Where to report a problem in a room, up to its id; null if not allowed. */
+  reportHref: string | null;
   onMark: (unitIds: string[], status: HousekeepingStatus) => void;
 }): ColumnDef<HousekeepingRoom>[] {
   const t = useTranslations("housekeeping");
@@ -71,6 +144,21 @@ export function useHousekeepingColumns({
               {t("beds", { count: row.original.bedCount })}
             </span>
           ) : null}
+          {reportHref ? (
+            <Link
+              className="mt-1 block text-step--1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              href={`${reportHref}${row.original.unitId}`}
+              prefetch={false}
+            >
+              {t("reportProblem")}
+            </Link>
+          ) : null}
+          {/* On a phone the status column is a swipe away, and the status is
+              what this screen is for: it is said under the room as well. */}
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 md:hidden">
+            <HousekeepingStatusBadge status={row.original.status} />
+            <DayBadge day={days[row.original.unitId]} />
+          </div>
         </div>
       ),
     },
@@ -97,6 +185,36 @@ export function useHousekeepingColumns({
           <span className="text-muted-foreground">—</span>
         );
       },
+    },
+    {
+      id: "floor",
+      accessorFn: (room) => floorValue(room.floor),
+      meta: { title: t("floorFilter") },
+      enableHiding: false,
+      enableSorting: false,
+      filterFn: (row, id, value: string[]) =>
+        value.length === 0 || value.includes(row.getValue<string>(id)),
+    },
+    {
+      id: "today",
+      accessorFn: (room) => {
+        const day = days[room.unitId];
+        return day ? DAY_LOOK[day].rank : NO_DAY_RANK;
+      },
+      meta: { title: t("todayColumn") },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          labels={sort}
+          title={t("todayColumn")}
+        />
+      ),
+      cell: ({ row }) =>
+        days[row.original.unitId] ? (
+          <DayBadge day={days[row.original.unitId]} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       accessorKey: "status",
@@ -158,7 +276,7 @@ export function useHousekeepingColumns({
       ),
       cell: ({ row }) =>
         row.original.changedAt === null ? (
-          <span className="text-muted-foreground">{t("notRecorded")}</span>
+          <span className="text-muted-foreground">{t("neverMarked")}</span>
         ) : (
           <span className="tabular-nums">
             {changedAt(row.original.changedAt, locale, timeZone)}
@@ -173,6 +291,7 @@ export function useHousekeepingColumns({
     ...columns,
     {
       id: "actions",
+      meta: { pinEnd: true },
       enableHiding: false,
       enableSorting: false,
       header: () => <span className="sr-only">{t("actions")}</span>,

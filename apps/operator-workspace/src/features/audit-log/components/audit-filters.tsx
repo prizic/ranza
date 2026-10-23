@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Search } from "lucide-react";
+import { ListFilter, Search } from "lucide-react";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
   Button,
@@ -12,10 +13,12 @@ import {
   Input,
 } from "@ranza/ui";
 import { usePickerLabels } from "../../../lib/picker-labels";
-import { ANY, KNOWN_ACTIONS } from "../actions";
+import { ANY, areaOf, KNOWN_ACTIONS } from "../actions";
 
 export interface AuditFilterValues {
   action?: string | undefined;
+  /** The one thing the log is narrowed to the history of. */
+  subject?: string | undefined;
   at?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;
@@ -46,6 +49,7 @@ export function AuditFilters({
   actionHref,
   properties,
   propertyId,
+  searchProblem,
   today,
   values,
 }: {
@@ -53,6 +57,8 @@ export function AuditFilters({
   actionHref: string;
   properties: readonly { id: string; name: string }[];
   propertyId: string;
+  /** Said under the search field when what was typed cannot be searched. */
+  searchProblem?: string | undefined;
   /** The opened Property's day, `YYYY-MM-DD`: the clock the server reads
       `from` and `to` in, so the presets must count from it too. */
   today: string;
@@ -72,102 +78,145 @@ export function AuditFilters({
       to: today,
     },
   ];
-  const filtered = Boolean(
-    values.action || values.at || values.from || values.to || values.q,
-  );
+  const applied = [
+    values.action,
+    values.at,
+    values.from || values.to,
+    values.q,
+  ].filter(Boolean).length;
+  const filtered = applied > 0;
+  // On a phone the five filters were a screen of their own above the first
+  // record (AUDIT-06): folded behind one button, which says how many are on.
+  const [open, setOpen] = useState(Boolean(searchProblem));
 
   return (
-    <form
-      action={actionHref}
-      aria-label={t("auditFilters")}
-      className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,2.4fr)_minmax(0,1.8fr)_auto] lg:items-end"
-      method="get"
-    >
-      <input name="property" type="hidden" value={propertyId} />
+    <>
+      <Button
+        aria-controls="audit-filters"
+        aria-expanded={open}
+        className="mt-4 sm:hidden"
+        onClick={() => setOpen((shown) => !shown)}
+        type="button"
+        variant="outline"
+      >
+        <ListFilter aria-hidden="true" />
+        {t("auditFiltersToggle", { count: applied })}
+      </Button>
+      <form
+        action={actionHref}
+        aria-label={t("auditFilters")}
+        className={`mt-4 gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,2.4fr)_minmax(0,1.8fr)_auto] lg:items-end ${open ? "grid" : "hidden"}`}
+        id="audit-filters"
+        method="get"
+      >
+        <input name="property" type="hidden" value={propertyId} />
+        {values.subject ? (
+          <input name="subject" type="hidden" value={values.subject} />
+        ) : null}
 
-      <Field htmlFor="audit-action" label={t("auditActionFilter")}>
-        <Combobox
-          defaultValue={values.action ?? ANY}
-          id="audit-action"
-          labels={actionLabels}
-          name="action"
-          options={[
-            { value: ANY, label: t("auditAnyAction") },
-            ...KNOWN_ACTIONS.map((action) => ({
-              value: action,
-              label: t(`auditAction.${action}`),
-            })),
-          ]}
-        />
-      </Field>
+        <Field htmlFor="audit-action" label={t("auditActionFilter")}>
+          <Combobox
+            defaultValue={values.action ?? ANY}
+            id="audit-action"
+            labels={actionLabels}
+            name="action"
+            options={[
+              { value: ANY, label: t("auditAnyAction") },
+              ...KNOWN_ACTIONS.map((action) => ({
+                value: action,
+                label: t(`auditAction.${action}`),
+                // Fifty-odd choices in one list are found by the word for
+                // what happened; under a heading they are found by the thing
+                // it happened to (AUDIT-04).
+                group: t(`auditArea.${areaOf(action)}`),
+              })),
+            ]}
+          />
+        </Field>
 
-      <Field htmlFor="audit-at" label={t("auditProperty")}>
-        <Combobox
-          defaultValue={values.at ?? ANY}
-          id="audit-at"
-          labels={propertyLabels}
-          name="at"
-          options={[
-            { value: ANY, label: t("auditEveryProperty") },
-            ...properties.map((property) => ({
-              value: property.id,
-              label: property.name,
-            })),
-          ]}
-        />
-      </Field>
+        <Field htmlFor="audit-at" label={t("auditProperty")}>
+          <Combobox
+            defaultValue={values.at ?? ANY}
+            id="audit-at"
+            labels={propertyLabels}
+            name="at"
+            options={[
+              { value: ANY, label: t("auditEveryProperty") },
+              ...properties.map((property) => ({
+                value: property.id,
+                label: property.name,
+              })),
+            ]}
+          />
+        </Field>
 
-      <Field htmlFor="audit-period" label={t("auditPeriod")}>
-        <DateRangeField
-          defaultValue={{ from: values.from, to: values.to }}
-          id="audit-period"
-          labels={{
-            from: t("auditFrom"),
-            to: t("auditTo"),
-            emptyFrom: t("auditFromEmpty"),
-            emptyTo: t("auditToEmpty"),
-            pickFrom: t("auditPickFrom"),
-            pickTo: t("auditPickTo"),
-            clear: t("dateRangeClear"),
-            done: t("dateRangeDone"),
-            // Both ends are included: a filter from the 3rd to the 5th reads
-            // three days of the log.
-            span: (days) => t("auditSpanDays", { count: days + 1 }),
-          }}
-          locale={locale}
-          names={{ from: "from", to: "to" }}
-          presets={presets}
-          today={today}
-        />
-      </Field>
+        <Field htmlFor="audit-period" label={t("auditPeriod")}>
+          <DateRangeField
+            defaultValue={{ from: values.from, to: values.to }}
+            id="audit-period"
+            labels={{
+              from: t("auditFrom"),
+              to: t("auditTo"),
+              emptyFrom: t("auditFromEmpty"),
+              emptyTo: t("auditToEmpty"),
+              pickFrom: t("auditPickFrom"),
+              pickTo: t("auditPickTo"),
+              clear: t("dateRangeClear"),
+              done: t("dateRangeDone"),
+              // Both ends are included: a filter from the 3rd to the 5th reads
+              // three days of the log.
+              span: (days) => t("auditSpanDays", { count: days + 1 }),
+            }}
+            locale={locale}
+            names={{ from: "from", to: "to" }}
+            presets={presets}
+            today={today}
+          />
+        </Field>
 
-      <Field htmlFor="audit-q" label={t("auditSearch")}>
-        <Input
-          defaultValue={values.q}
-          id="audit-q"
-          maxLength={100}
-          name="q"
-          placeholder={t("auditSearchHint")}
-          type="search"
-        />
-      </Field>
+        <Field htmlFor="audit-q" label={t("auditSearch")}>
+          <div className="grid gap-1">
+            <Input
+              aria-describedby={searchProblem ? "audit-q-problem" : undefined}
+              aria-invalid={searchProblem ? true : undefined}
+              defaultValue={values.q}
+              id="audit-q"
+              maxLength={100}
+              name="q"
+              placeholder={t("auditSearchHint")}
+              type="search"
+            />
+            {searchProblem ? (
+              // In the field it is about, not between it and a list that still
+              // looks like its answer (AUDIT-07).
+              <p
+                className="text-step--1 text-destructive"
+                id="audit-q-problem"
+                role="status"
+              >
+                {searchProblem}
+              </p>
+            ) : null}
+          </div>
+        </Field>
 
-      <div className="flex items-center gap-2">
-        <Button type="submit">
-          <Search aria-hidden="true" />
-          {t("auditApply")}
-        </Button>
-        {filtered ? (
-          <Button asChild variant="ghost">
-            {/* A full load, like the form it resets: the fields take their
+        <div className="flex items-center gap-2">
+          <Button type="submit">
+            <Search aria-hidden="true" />
+            {t("auditApply")}
+          </Button>
+          {filtered ? (
+            <Button asChild variant="ghost">
+              {/* A full load, like the form it resets: the fields take their
                 values only when they first render, so a client navigation
                 would leave them showing filters the table no longer applies. */}
-            <a href={`${actionHref}?property=${propertyId}`}>
-              {t("auditClearFilters")}
-            </a>
-          </Button>
-        ) : null}
-      </div>
-    </form>
+              <a href={`${actionHref}?property=${propertyId}`}>
+                {t("auditClearFilters")}
+              </a>
+            </Button>
+          ) : null}
+        </div>
+      </form>
+    </>
   );
 }

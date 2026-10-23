@@ -70,7 +70,7 @@ export function OrganizationStrip({
       <h2 className="text-base font-semibold" id="today-properties">
         {t("stripTitle")}
       </h2>
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {properties.map((property) => {
           const entry = data?.find((e) => e.propertyId === property.propertyId);
           const current = property.propertyId === scope.propertyId;

@@ -35,9 +35,12 @@ export { DataTablePagination } from "./components/data-table/pagination";
 export type { PaginationLabels } from "./components/data-table/pagination";
 export { DataTableRowActions } from "./components/data-table/row-actions";
 export type { RowAction } from "./components/data-table/row-actions";
+export { ScrollCue } from "./components/data-table/scroll-cue";
 export { DataTableViewOptions } from "./components/data-table/view-options";
 export { markOverlayClosed, overlayJustClosed } from "./lib/menu-guard";
-export { fieldMatches, toAsciiDigits } from "./lib/search";
+export { useUnsavedChangesGuard } from "./lib/use-unsaved-changes-guard";
+export { brandVariables, defaultBrandVariables } from "./lib/brand-variables";
+export { fieldMatches, rowMatches, toAsciiDigits } from "./lib/search";
 export { Combobox, MultiCombobox } from "./components/combobox";
 export type {
   ComboboxLabels,
@@ -51,10 +54,35 @@ export type {
   DateRangeLabels,
   DateRangePreset,
 } from "./components/date-range-field";
+export {
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
+  DialogActions,
+  DialogBody,
+  DialogFacts,
+  DialogFigure,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
+  DialogSettled,
+  DialogTag,
+  SuggestionRow,
+  TickRow,
+  dialogFrameClassName,
+  sheetFrameClassName,
+  fieldClassName,
+  OptionList,
+  StayRuler,
+  textareaClassName,
+} from "./components/dialog-frame";
+export type { DialogTagProps, OptionListItem } from "./components/dialog-frame";
 export { StatusBadge } from "./components/status-badge";
 export type { StatusBadgeProps, StatusTone } from "./components/status-badge";
 export { BrandMark } from "./components/brand-mark";
 export { DirectionProvider } from "./components/direction-provider";
+export { OverlayLabelsProvider } from "./components/overlay-labels";
+export type { OverlayLabels } from "./components/overlay-labels";
 export { EmptyState } from "./components/empty-state";
 export { PlannedScreen } from "./components/planned-screen";
 export type { EmptyStateProps } from "./components/empty-state";

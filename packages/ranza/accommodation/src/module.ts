@@ -22,6 +22,7 @@ import {
   type UnitsAdded,
   type UnitState,
 } from "./contracts";
+import { bedLetters, roomNumbers } from "./numbering";
 import type { AccommodationDeps } from "./ports";
 
 /**
@@ -136,25 +137,6 @@ function entryOf(row: UnitRow, beds: readonly UnitEntry[]): UnitEntry {
     state: row.hasChildren ? null : stateOf(row),
     beds,
   };
-}
-
-/** The letters beds are named by: A for the first, Z for the twenty-sixth. */
-function bedLetters(count: number): string[] {
-  return Array.from({ length: count }, (_, index) =>
-    String.fromCharCode("A".charCodeAt(0) + index),
-  );
-}
-
-/**
- * Room numbers counted on from the first, keeping its width: `001` and three
- * give `001`, `002`, `003`, because a Property that zero-pads its rooms means
- * to.
- */
-function roomNumbers(first: string, count: number): string[] {
-  const start = Number(first);
-  return Array.from({ length: count }, (_, index) =>
-    String(start + index).padStart(first.length, "0"),
-  );
 }
 
 export function createAccommodationModule(deps: AccommodationDeps) {
@@ -320,6 +302,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
     if (building !== null && building.length > BUILDING_NAME.max) {
       throw new UnitConfigurationError(
         "a building name is at most sixty characters",
+        "building",
       );
     }
     if (
@@ -328,34 +311,46 @@ export function createAccommodationModule(deps: AccommodationDeps) {
         input.floor < FLOOR.min ||
         input.floor > FLOOR.max)
     ) {
-      throw new UnitConfigurationError("that is not a floor");
+      throw new UnitConfigurationError("that is not a floor", "floor");
     }
     if (
       !new RegExp(`^\\d{${ROOM_NUMBER.min},${ROOM_NUMBER.max}}$`).test(
         input.firstNumber,
       )
     ) {
-      throw new UnitConfigurationError("a room number is one to eight digits");
+      throw new UnitConfigurationError(
+        "a room number is one to eight digits",
+        "firstNumber",
+      );
     }
     if (
       !Number.isInteger(input.count) ||
       input.count < UNIT_BATCH.min ||
       input.count > UNIT_BATCH.max
     ) {
-      throw new UnitConfigurationError("one to sixty rooms in one go");
+      throw new UnitConfigurationError("one to sixty rooms in one go", "count");
     }
     if (
       !Number.isInteger(input.capacity) ||
       input.capacity < UNIT_CAPACITY.min ||
       input.capacity > UNIT_CAPACITY.max
     ) {
-      throw new UnitConfigurationError("a Unit sleeps one to sixty-four");
+      throw new UnitConfigurationError(
+        "a Unit sleeps one to sixty-four",
+        "capacity",
+      );
     }
     if (input.letByTheBed && input.unitType !== "room") {
-      throw new UnitConfigurationError("only a room is let by the bed");
+      throw new UnitConfigurationError(
+        "only a room is let by the bed",
+        "letByTheBed",
+      );
     }
     if (input.letByTheBed && input.capacity > BEDS_PER_ROOM.max) {
-      throw new UnitConfigurationError("a room holds at most twenty-six beds");
+      throw new UnitConfigurationError(
+        "a room holds at most twenty-six beds",
+        "capacity",
+      );
     }
 
     const names = roomNumbers(input.firstNumber, input.count);

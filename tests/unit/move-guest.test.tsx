@@ -123,18 +123,12 @@ const submitted = (name: string) => {
   return form ? new FormData(form).get(name) : null;
 };
 
-async function chooseUnit(description: RegExp) {
-  fireEvent.click(
-    await screen.findByRole("combobox", { name: messages.en.unit }),
-  );
-  fireEvent.click(await screen.findByText(description));
+async function chooseUnit(name: RegExp) {
+  fireEvent.click(await screen.findByRole("radio", { name }));
 }
 
 async function chooseReason(label: string) {
-  fireEvent.click(
-    screen.getByRole("combobox", { name: messages.en.moveGuestReason }),
-  );
-  fireEvent.click(await screen.findByRole("option", { name: label }));
+  fireEvent.click(await screen.findByRole("radio", { name: label }));
 }
 
 describe("the Move Guest dialog", () => {
@@ -148,7 +142,7 @@ describe("the Move Guest dialog", () => {
     ).toBeInTheDocument();
     expect(save()).toBeDisabled();
 
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     expect(save()).toBeDisabled();
     await chooseReason(messages.en.moveReason.fault);
     await waitFor(() => expect(save()).toBeEnabled());
@@ -159,7 +153,7 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_moved_only_into_a_ready_room", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Not ready/);
+    await chooseUnit(/Room.*Not ready/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.moveGuestNotReady),
@@ -170,7 +164,7 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_not_moved_into_an_occupied_room", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Somebody is staying/);
+    await chooseUnit(/Room.*Occupied/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.changeBookingBlockedOccupied),
@@ -181,13 +175,13 @@ describe("the Move Guest dialog", () => {
   it("a_move_needs_a_reason: another reason is said in the note", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.other);
     expect(
       await screen.findByText(messages.en.moveGuestNoteRequired),
     ).toBeInTheDocument();
     expect(save()).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(messages.en.changeBookingNote), {
+    fireEvent.change(screen.getByLabelText(messages.en.dialogNoteTitle), {
       target: { value: "Family moved together" },
     });
     await waitFor(() => expect(save()).toBeEnabled());
@@ -197,9 +191,9 @@ describe("the Move Guest dialog", () => {
     answering(preview(), preview());
     moveGuest.mockResolvedValueOnce("notReady");
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.other);
-    fireEvent.change(screen.getByLabelText(messages.en.changeBookingNote), {
+    fireEvent.change(screen.getByLabelText(messages.en.dialogNoteTitle), {
       target: { value: "Family moved together" },
     });
     await waitFor(() => expect(save()).toBeEnabled());
@@ -215,7 +209,7 @@ describe("the Move Guest dialog", () => {
     answering(preview(), preview({ version: 2 }));
     moveGuest.mockResolvedValueOnce("changed");
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.fault);
     await waitFor(() => expect(save()).toBeEnabled());
     fireEvent.click(save());
@@ -225,5 +219,42 @@ describe("the Move Guest dialog", () => {
     await waitFor(() => expect(submitted("version")).toBe("2"));
     expect(submitted("unit") ?? "").toBe("");
     await waitFor(() => expect(save()).toBeDisabled());
+  });
+
+  it("a_proposed_room_is_never_shown_as_an_id_while_the_rooms_load", async () => {
+    // A read that has not answered: the field is for the proposed room, which
+    // it names when it was given a name and leaves empty when it was not.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+    const proposed = "e2672279-687b-4589-b193-2825f44a24a8";
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MoveGuestDialog
+          locale="en"
+          move={{ unitId: proposed, conflictsFor: () => [] }}
+          onOpenChange={() => {}}
+          open
+          stay={STAY}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("radio", { name: /Room/ })).toBeNull();
+    expect(document.body).not.toHaveTextContent(proposed);
+    cleanup();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MoveGuestDialog
+          locale="en"
+          move={{ unitId: proposed, unitLabel: "201", conflictsFor: () => [] }}
+          onOpenChange={() => {}}
+          open
+          stay={STAY}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("radio", { name: /201/ })).toBeInTheDocument();
   });
 });

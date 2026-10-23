@@ -93,9 +93,17 @@ export function ActivityCard({
                 </Avatar>
                 <span className="min-w-0">
                   <span className="block font-medium">
-                    <bdi>{who(row)}</bdi> · {what(row)}
+                    {what(row)}
+                    {row.subject ? (
+                      <>
+                        {" · "}
+                        <bdi>{row.subject}</bdi>
+                      </>
+                    ) : null}
                   </span>
                   <span className="block text-xs text-muted-foreground tabular-nums">
+                    <bdi>{who(row)}</bdi>
+                    {" · "}
                     <time dateTime={row.at}>
                       {whenLabel(new Date(row.at), locale, row.timeZone)}
                     </time>

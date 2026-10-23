@@ -1,19 +1,39 @@
-%% Lifecycle transitions for Integrations and Failed Operations
+%% Lifecycles for a webhook endpoint, a delivery and the failure an operator is shown (ADR 0045)
+%% The retry schedule is 1 minute, 5 minutes, 30 minutes, 2 hours and 12 hours: six attempts in all (INT-S1-34, INT-S1-35).
 stateDiagram-v2
 
-  state "Integration Status" as IS {
-    [*] --> NotConnected : configure
-    NotConnected --> Connected : connect
-    Connected --> Error : operation_failed
-    Error --> Connected : retry_succeeded
-    Connected --> NotConnected : disconnect
-    Error --> NotConnected : disconnect
+  state "Webhook endpoint" as EP {
+    [*] --> Active : register
+    Active --> Removed : remove
+    Removed --> [*]
   }
 
-  state "Failed Operation" as FO {
-    [*] --> Failed : outbox_dispatch_failed
-    Failed --> Retrying : retry_operation
-    Retrying --> Succeeded : external_call_ok
-    Retrying --> Failed : external_call_error
-    Succeeded --> [*] : clear_resolved
+  state "Delivery" as DV {
+    [*] --> Pending : queued from an event whose row it matches, or a test
+    [*] --> Failed : the event did not match its row (source_mismatch), nothing sent
+    Pending --> Delivered : 2xx
+    Pending --> Retrying : 408, 429, 5xx, timeout or no connection, with attempts left
+    Pending --> Failed : any other answer, or the last attempt failed
+    Retrying --> Delivered : 2xx
+    Retrying --> Retrying : failed again, with attempts left
+    Retrying --> Failed : failed again with none left, or a permanent answer
+    Failed --> Retrying : Retry, due now
+    Retrying --> Cancelled : Stop retrying, or the endpoint is removed
+    Pending --> Cancelled : the endpoint is removed
+    Delivered --> [*]
+    Cancelled --> [*]
+  }
+
+  state "Failed operation" as FO {
+    [*] --> FoRetrying : first attempt failed, attempts left
+    [*] --> FoFailed : first attempt failed for good
+    FoRetrying --> FoFailed : schedule spent, or a permanent answer
+    FoFailed --> FoRetrying : Retry
+    FoRetrying --> FoResolved : a delivery arrives
+    FoFailed --> FoResolved : a delivery arrives after Retry
+    FoFailed --> FoResolved : Mark resolved, with who and why
+    [*] --> FoFailed : the event did not match its row, no attempt made, Retry refused
+    FoRetrying --> FoCancelled : Stop retrying, with who and why
+    FoRetrying --> FoCancelled : the endpoint is removed
+    FoFailed --> FoCancelled : the endpoint is removed
   }

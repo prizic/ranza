@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Arrivals (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #16211d;
+        --muted: #5b6862;
+        --line: #d9dfdb;
+        --bg: #fbfaf7;
+        --accent: #14513f;
+        --warn: #8a5a00;
+        --bad: #9b2c2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 36px 0 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      p,
+      li {
+        max-width: 80ch;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        background: #fff;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 8px 9px;
+        border: 1px solid var(--line);
+      }
+      th {
+        background: #f1efe8;
+        font-weight: 600;
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .sev-blocks {
+        color: var(--bad);
+        font-weight: 700;
+      }
+      .sev-errors {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .sev-slows {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .sev-polish {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      img {
+        max-width: 100%;
+        border: 1px solid var(--line);
+        display: block;
+        margin-top: 6px;
+      }
+      figure {
+        margin: 0 0 6px;
+      }
+      figcaption {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .shots {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+      }
+      code {
+        background: #eeece4;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 12.5px;
+      }
+      .tag {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Arrivals</h1>
+      <div class="meta">
+        Route <code>/en/arrivals</code> and the actions on its rows. Hosted
+        staging, Prizic Demo / Demo Otel İstanbul, 2026-10-11, code at
+        <code>main</code> 4b15c30. Persona: front-desk agent at 14:00 with a
+        queue at the desk. Roles checked: Front Desk (primary), Housekeeping,
+        Finance. Locales checked: en, tr, ar. Mode: audit only. Nothing was
+        submitted; no check-in, no-show, cancel or amend was sent. <br /><strong
+          >Data state found:</strong
+        >
+        exactly one arrival today (one booking, Suite 201, "Not ready", no
+        expected time, no Folio). So "many rows", "late", "early" and "ready
+        room" states were not on screen and are labelled <em>inferred</em> from
+        the code and feature docs. Labels: <em>verified</em> = I saw it in the
+        running app; <em>inferred</em> = read in code or docs;
+        <em>unknown</em> = could not find out.
+      </div>
+
+      <h2>1. Verdict</h2>
+      <ul>
+        <li>
+          <strong
+            >Unaided, on a desktop monitor: yes, with one row. On the tablet a
+            desk actually uses: no.</strong
+          >
+          At 1024 px and 768 px the Check in button sits outside the screen
+          inside a sideways-scrolling table (<em>verified</em>, ARR-01).
+        </li>
+        <li>
+          <strong>Biggest risk:</strong> the list is sorted by room name, not by
+          who is arriving next, and the expected time cannot be sorted (<em
+            >inferred</em
+          >
+          from the query and column definitions, ARR-02). With 30+ arrivals a
+          day the desk cannot see "next" or "overdue" at a glance.
+        </li>
+        <li>
+          The check-in itself is well built: one tap for a ready room, a plain
+          question for a room that is not ready, safe against two desks pressing
+          at once (<em>inferred</em>, edge-case rows CI-S1-11, CI-S1-19,
+          CI-S3-14). I did not press it, by the audit rules.
+        </li>
+        <li>
+          Around the edges the page is a dead end: an early guest, a walk-in or
+          a guest not on today's list gets "Nothing matches these filters." and
+          no next step (ARR-05, ARR-06).
+        </li>
+        <li>
+          Total: 16 findings, 1 blocks work, 0 causes errors, 8 slow me down, 7
+          polish. Turkish and Arabic render correctly and mirror
+          (<em>verified</em>); the back button is present.
+        </li>
+      </ul>
+
+      <h2>2. Findings</h2>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence / reproduced</th>
+              <th>Basis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ARR-01</td>
+              <td class="sev-blocks">blocks work</td>
+              <td>
+                <code>/en/arrivals</code>, Front Desk, 1 row. Widths 375, 768,
+                1024.
+              </td>
+              <td>
+                The sidebar stays open from 768 px up and takes about 40% of the
+                width. The table scrolls sideways inside its own box (scroller
+                923 px wide in a 464 px box at 768). The Check in button
+                measured at x=1050 to 1134 on a 1024 px and on a 768 px screen,
+                i.e. off screen. Readiness and Balance are cut too. At 375 px
+                the row shows Guest, Reservation and half of Room; there is no
+                hint that more is to the right. At 1180 px it fits (Check in
+                right edge 1166 px, measured in the Turkish page).
+              </td>
+              <td>
+                The one button I press 30 times a day visible at every width a
+                desk tablet uses (iPad landscape is 1024).
+              </td>
+              <td>
+                Collapse the sidebar by default below about 1280 px, and/or pin
+                the action column to the right edge, and/or show each row as a
+                card below 1024 px (guest, room, readiness, button).
+              </td>
+              <td>M</td>
+              <td>
+                06-tablet-768.png, 07-mobile-375.png, 10-tablet-1024.png.
+                Reproduced Y (3 widths, 2 locales).
+              </td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-02</td>
+              <td class="sev-slows">slows me down</td>
+              <td>
+                <code>/en/arrivals</code>, Front Desk, many rows (not seen).
+              </td>
+              <td>
+                No default sort is set in the table (<code>useState([])</code>),
+                so rows come in the query's order: room name, then Unit, then
+                guest (<code>listArrivals</code> in the reservations module).
+                The expected time is printed inside the Reservation column,
+                whose sort key is the reference code, so the time cannot be
+                sorted. Checked-in rows are mixed in with the ones still to
+                come. Late arrivals (shown by "N days late") are not grouped.
+              </td>
+              <td>
+                The next arrival first, overdue ones highlighted at the top,
+                checked-in ones last or folded away. The Departures screen
+                already puts "who has already left" under "who is still to go".
+              </td>
+              <td>
+                Default order: overdue, then by expected time (none last), then
+                by room. Make Expected its own sortable column. Group or fold
+                "Checked in".
+              </td>
+              <td>S to M</td>
+              <td>
+                01-arrivals-desktop.png shows only one row, so the order itself
+                was not seen. Reproduced N.
+              </td>
+              <td>
+                inferred (code); the unsortable time is also visible in the
+                column headers
+              </td>
+            </tr>
+
+            <tr>
+              <td>ARR-03</td>
+              <td class="sev-polish">polish</td>
+              <td>Front Desk, any row with no expected time.</td>
+              <td>
+                The row says "Expected —" (a dash). "No expected time" exists
+                only for screen readers. A dash after "Expected" reads as "not
+                loaded". Turkish shows "Beklenen —".
+              </td>
+              <td>"No time given" in muted text, or nothing.</td>
+              <td>Show the words, or hide the line when there is no time.</td>
+              <td>S</td>
+              <td>01-arrivals-desktop.png. Reproduced Y.</td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-04</td>
+              <td class="sev-slows">slows me down</td>
+              <td>
+                Front Desk, a "Not ready" room (the only data state present).
+              </td>
+              <td>
+                The badge says only "Not ready". The cause (dirty, or waiting
+                for inspection) is known to the system but not shown; the
+                warning text that appears after pressing Check in says "it
+                hasn't been cleaned, or it's waiting for inspection", an
+                either/or. The row menu offers only "Show on the room map": no
+                link to Housekeeping, no way to see who is cleaning it or when
+                it will be done. To learn anything more I must press Check in,
+                get the question, then press "Check in anyway": two presses and
+                a server round trip. I did not press it (audit rule); the flow
+                is read from <code>check-in-action.tsx</code> and the module,
+                where the "not ready" answer rolls back the Stay.
+              </td>
+              <td>
+                The badge names the cause. The question names the room and
+                offers a way to ask Housekeeping or open its status, beside
+                "Check in anyway".
+              </td>
+              <td>
+                Put the cause in the badge ("Dirty", "Awaiting inspection"). In
+                the question use the room name and the cause. Add "Open in
+                Housekeeping" to the row menu.
+              </td>
+              <td>M</td>
+              <td>
+                01-arrivals-desktop.png, 02-row-menu.png. Badge and menu
+                reproduced Y; the question is stopped before submit, not
+                persisted.
+              </td>
+              <td>verified (badge, menu); inferred (question)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-05</td>
+              <td class="sev-slows">slows me down</td>
+              <td>
+                Front Desk. A guest who arrives a day early, or one booked for
+                tomorrow.
+              </td>
+              <td>
+                The list holds only today's bookings and late ones. Searching
+                for an early guest gives "Nothing matches these filters." with
+                no pointer to Reservations. The desk must leave, find the
+                booking in Reservations, use Change booking to start today, then
+                come back. Docs: <code>CI-S1-21</code> is still
+                <em>open</em> (recommends a muted "arriving next business day"
+                group with a "Change to start today" action);
+                <code>CI-DEF-01</code> is deferred and its text is out of date,
+                because Change booking now exists.
+              </td>
+              <td>
+                Search that falls back to "also look at upcoming bookings", or a
+                muted group below today's list.
+              </td>
+              <td>
+                When search finds nothing, add a link "Search all reservations
+                for this" carrying the text. Then build CI-S1-21.
+              </td>
+              <td>S (link), M (group)</td>
+              <td>
+                05-search-no-match.png. The empty search reproduced Y; the
+                early-guest path is inferred.
+              </td>
+              <td>verified (dead-end message); inferred (the route)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-06</td>
+              <td class="sev-slows">slows me down</td>
+              <td>Front Desk. A walk-in with no booking.</td>
+              <td>
+                Arrivals has no "New booking" action. A walk-in is booked in
+                Reservations and then checked in, as <code>CI-S1-08</code> says;
+                from this page there is no hint of that route.
+              </td>
+              <td>
+                A "Walk-in" button on the page header that opens the booking
+                form for today and returns to this list.
+              </td>
+              <td>
+                Add the entry point. The booking form already exists in
+                Reservations (<code>new-reservation-dialog.tsx</code>).
+              </td>
+              <td>M</td>
+              <td>01-arrivals-desktop.png (no such control). Reproduced Y.</td>
+              <td>verified (absence); inferred (the rest)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-07</td>
+              <td class="sev-slows">slows me down</td>
+              <td>Front Desk, keyboard only, a queue.</td>
+              <td>
+                From the "Skip to content" link, Check in on the first row is 9
+                Tab presses away (search, Columns, 5 sort headers, Copy
+                reference, Check in); every further row adds 3 stops (copy,
+                check in, menu). After a successful check-in the Check in button
+                is replaced by Undo, and focus is only restored for the undo
+                path (<code>check-in-focus.ts</code>), so focus falls back to
+                the page. The user then re-tabs from the top for every guest.
+                The check-in button's accessible name is just "Check in" on
+                every row (only the menu button carries the guest's name).
+              </td>
+              <td>
+                After a check-in focus moves to the next row's Check in; each
+                button names its guest ("Check in mahnoor") and the Copy button
+                is not in the way.
+              </td>
+              <td>
+                Claim focus after "done" for the next actionable row; add an
+                accessible name with the guest; take Copy reference out of the
+                tab order (or put it after the action).
+              </td>
+              <td>S to M</td>
+              <td>
+                Tab count verified from the page's focusable elements; focus
+                loss inferred from code. Reproduced Y (count), N (focus loss).
+              </td>
+              <td>verified (count, names); inferred (focus loss)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-08</td>
+              <td class="sev-polish">polish</td>
+              <td>Every page, Front Desk.</td>
+              <td>
+                The browser tab is titled "Ranza" on Arrivals and on every other
+                screen. A desk that keeps Arrivals and Departures open in two
+                windows (the page's own code comment describes this) cannot tell
+                the tabs apart.
+              </td>
+              <td>"Arrivals · Demo Otel İstanbul" in the tab.</td>
+              <td>Set the page metadata title per route.</td>
+              <td>S</td>
+              <td>Seen in the browser's page list for my tab. Reproduced Y.</td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-09</td>
+              <td class="sev-slows">slows me down</td>
+              <td>Front Desk, a shift-long open tab.</td>
+              <td>
+                The list polls every 30 s and pauses when the tab is hidden, but
+                nothing on screen says how fresh it is. A refused poll leaves
+                the last good rows and their Check in buttons on screen (the
+                docs record this as <code>CI-DIFF-01</code>, "current behaviour
+                differs"). A signed-out desk keeps showing guests' names and a
+                button that will be refused.
+              </td>
+              <td>
+                "Updated 14:02" next to the title and a visible "can't refresh"
+                warning with a Refresh button.
+              </td>
+              <td>
+                Show last-updated time; on a 401 or failure show a banner and
+                disable Check in.
+              </td>
+              <td>S to M</td>
+              <td>
+                No such indicator in any screenshot (01). Reproduced N for the
+                failure case.
+              </td>
+              <td>verified (no indicator); inferred (poll behaviour)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-10</td>
+              <td class="sev-slows">slows me down</td>
+              <td>Front Desk, a check-in that fails.</td>
+              <td>
+                Several different causes (stale row, permission, closed day,
+                lost connection, an unexpected error) all end as "That
+                Reservation cannot be checked in." No next step. The
+                unexpected-error case is logged by the server to the console
+                only (<code>console.error</code>), not to Observatory.
+                Double-press is safe: the button is disabled while the request
+                runs and the database lock gives one Stay and one refusal
+                (<code>CI-S1-11</code>).
+              </td>
+              <td>Tell the desk whether to retry, reload or ask a manager.</td>
+              <td>
+                Split "refused" into "reload the list" (stale) and "ask a
+                manager" (permission), and send unexpected failures to the
+                shared error reporter.
+              </td>
+              <td>M</td>
+              <td>Not triggered (would require a submit). Reproduced N.</td>
+              <td>inferred</td>
+            </tr>
+
+            <tr>
+              <td>ARR-11</td>
+              <td class="sev-polish">polish</td>
+              <td>Row menu dialogs, Front Desk.</td>
+              <td>
+                The column says "Room and bed" and the Turkish and Arabic use
+                room words, but the dialogs say "Unit" ("Unit 201", "another
+                Unit", "Suite has no price"). One page, two words for the same
+                thing. The Change booking dialog also says "Keep as it was"
+                while the no-show dialog says "Keep the booking".
+              </td>
+              <td>One term (Room) and one wording for the cancel button.</td>
+              <td>
+                Replace "Unit" in dialogs shown to desk staff; align the cancel
+                labels.
+              </td>
+              <td>S</td>
+              <td>
+                03-change-booking.png, 04-no-show-dialog.png. Reproduced Y.
+              </td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-12</td>
+              <td class="sev-polish">polish</td>
+              <td>Front Desk, any not-yet-checked-in row.</td>
+              <td>
+                The Balance column shows "No Folio" for every arrival, because
+                the Folio is opened at check-in. It uses a column of width for a
+                constant, and "Folio" is back-office language. The second line
+                of the Guest cell reads "Guest, until Oct 12, 2026": the word
+                "Guest" is the stay type and adds nothing; the number of nights
+                and the room type's price are not shown.
+              </td>
+              <td>
+                Nights ("1 night"), and the balance column hidden until it has a
+                value.
+              </td>
+              <td>
+                Show "1 night, until Oct 12". Hide the Balance column while no
+                row has a Folio, or show "Due at check-in" once deposits exist.
+              </td>
+              <td>S</td>
+              <td>01-arrivals-desktop.png. Reproduced Y.</td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-13</td>
+              <td class="sev-polish">polish</td>
+              <td>Front Desk, 1024 and 1440 px.</td>
+              <td>
+                The search placeholder is cut off: "Search Guest / Room and bed
+                / Reserva".
+              </td>
+              <td>A placeholder that fits.</td>
+              <td>"Search guest, room or reference".</td>
+              <td>S</td>
+              <td>
+                01-arrivals-desktop.png, 10-tablet-1024.png. Reproduced Y.
+              </td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-14</td>
+              <td class="sev-polish">polish</td>
+              <td>Housekeeping and Finance.</td>
+              <td>
+                Both see the full list read-only. Housekeeping's row menu has
+                one item ("Show on the room map"); there is no link to mark the
+                room clean, which is the one thing the role comes for. Finance
+                sees no actions and a "No Folio" balance, with no note that the
+                role cannot check in (the action cell is simply empty). This
+                matches <code>FD-S5-03</code> and <code>FD-S7-05</code>: the
+                controls are hidden by design.
+              </td>
+              <td>
+                For Housekeeping: a link to the room in Housekeeping. For
+                read-only roles: a muted "View only".
+              </td>
+              <td>
+                Add the Housekeeping link; show a "View only" hint in the action
+                cell.
+              </td>
+              <td>S</td>
+              <td>09-housekeeping-role.png. Reproduced Y.</td>
+              <td>verified</td>
+            </tr>
+
+            <tr>
+              <td>ARR-15</td>
+              <td class="sev-slows">slows me down</td>
+              <td>Front Desk, a busy day (more than 10 arrivals).</td>
+              <td>
+                The table shows 10 rows per page. Sort, search and page size are
+                held in component state, so they reset on a reload and on every
+                visit. On a 40-arrival day that is four pages, in room order.
+              </td>
+              <td>
+                All of today's arrivals on one scrollable page, or a remembered
+                page size.
+              </td>
+              <td>
+                Default the page size to 50 for this screen, or remember it.
+              </td>
+              <td>S</td>
+              <td>
+                Page-size selector shows 10 (01). Behaviour on 40 rows not seen.
+              </td>
+              <td>verified (default 10); inferred (reset)</td>
+            </tr>
+
+            <tr>
+              <td>ARR-16</td>
+              <td class="sev-polish">polish</td>
+              <td>Front Desk.</td>
+              <td>
+                "Mark as no-show" is two clicks from the list and cannot be
+                taken back (the dialog says so, which is good). It is offered
+                from the first minute of the arrival day, with no hint of the
+                expected time having passed, and sits directly under "Change
+                booking" in the same menu.
+              </td>
+              <td>
+                A warning when the expected time has not passed, or no-show
+                offered after the expected time or a cut-off.
+              </td>
+              <td>
+                Show the expected-time status in the dialog. Rule
+                <code>FD-S4-04</code> allows it on the day, so this is a policy
+                choice, not a bug.
+              </td>
+              <td>S</td>
+              <td>
+                02-row-menu.png, 04-no-show-dialog.png. Stopped before submit,
+                not persisted.
+              </td>
+              <td>verified (dialog); inferred (timing)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. Jobs</h2>
+      <p>
+        Times are rough hand timings from the browser session, not a stopwatch.
+        Clicks count taps from the Arrivals page.
+      </p>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job</th>
+              <th>Pass test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>
+                First look: a new agent reads the list and knows who is next and
+                which rooms are ready
+              </td>
+              <td>
+                Within 10 s, without help, names the next guest, their room and
+                its readiness.
+              </td>
+              <td>
+                Pass with one row. With many rows, <strong>fail</strong>: the
+                order is by room (inferred, ARR-02).
+              </td>
+              <td>~5</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>Check in a guest in a ready room (the most frequent task)</td>
+              <td>
+                One tap on the row, row reads "Checked in", no extra
+                confirmation.
+              </td>
+              <td>
+                <strong>Stopped before submit, not persisted.</strong> No ready
+                room existed. Inferred from code: one tap, no dialog; the button
+                is disabled while sending.
+              </td>
+              <td>n/a</td>
+              <td>1 (inferred)</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>Check in a guest whose room is not ready</td>
+              <td>
+                The reason is named and a next action is offered; at most two
+                taps.
+              </td>
+              <td>
+                <strong>Partial.</strong> Reason not named on the badge, no
+                Housekeeping link (ARR-04). Question read from code;
+                <strong>stopped before submit</strong>.
+              </td>
+              <td>n/a</td>
+              <td>2 (inferred)</td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>
+                Find a guest in the queue by partial name, reference or room
+              </td>
+              <td>
+                Typing three letters leaves the right row; case does not matter.
+              </td>
+              <td>
+                <strong>Pass.</strong> "MAH" (upper case), "rjy1" and "201" each
+                gave 1 result; "zzz" gave "Nothing matches these filters." with
+                a Clear filters button.
+              </td>
+              <td>~8 each</td>
+              <td>1 (focus) + typing</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>A guest arrives a day early, or is not on the list</td>
+              <td>
+                I can start their check-in in at most three actions without
+                leaving the page.
+              </td>
+              <td>
+                <strong>Fail</strong> (ARR-05): dead-end message; route goes
+                through Reservations and Change booking (inferred).
+              </td>
+              <td>n/a</td>
+              <td>6 or more (inferred)</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>A walk-in</td>
+              <td>A booking can be started from this page and returns here.</td>
+              <td>
+                <strong>Fail</strong> from this page (ARR-06): no entry point.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>Use the page on the desk tablet (1024 px and 768 px)</td>
+              <td>
+                Guest, room, readiness and Check in all visible without sideways
+                scrolling.
+              </td>
+              <td>
+                <strong>Fail</strong> at 768 and 1024 (ARR-01); passes at 1180
+                (Turkish page).
+              </td>
+              <td>~10</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>Recover from a failed or doubled check-in under pressure</td>
+              <td>
+                A second press does not make a second Stay; the message says
+                what to do.
+              </td>
+              <td>
+                <strong>Partial, inferred.</strong> Double press is safe
+                (disabled while pending; row lock, CI-S1-11). The message is
+                generic (ARR-10). Not triggered.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J9</td>
+              <td>
+                Keyboard only, from page load to the first Check in, then the
+                next guest
+              </td>
+              <td>
+                At most 5 Tab presses, and focus lands on the next row after a
+                check-in.
+              </td>
+              <td>
+                <strong>Fail</strong> (ARR-07): 9 Tab presses after the skip
+                link; focus loss after check-in inferred.
+              </td>
+              <td>~10</td>
+              <td>9 Tab presses</td>
+            </tr>
+            <tr>
+              <td>J10</td>
+              <td>Other roles: Housekeeping and Finance open the page</td>
+              <td>
+                They see the list but cannot check in, and nothing misleading is
+                shown.
+              </td>
+              <td>
+                <strong>Pass</strong> with notes (ARR-14). No Check in button;
+                Housekeeping's menu has only the room map.
+              </td>
+              <td>~15 (incl. sign-in)</td>
+              <td>2 each</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>4. Top changes, by time saved times frequency</h2>
+      <ol>
+        <li>
+          <strong
+            >I can press Check in on the desk tablet without scrolling
+            sideways.</strong
+          >
+          (ARR-01)
+        </li>
+        <li>
+          <strong
+            >I see who arrives next, and who is overdue, at the top of the
+            list.</strong
+          >
+          Sort by expected time with overdue first, fold the checked-in rows.
+          (ARR-02, ARR-03)
+        </li>
+        <li>
+          <strong
+            >After I check one guest in, my keyboard is already on the next
+            guest's button, and each button says whose it is.</strong
+          >
+          (ARR-07)
+        </li>
+        <li>
+          <strong
+            >I know why a room is not ready and whom to ask, and I can confirm
+            in one step.</strong
+          >
+          (ARR-04)
+        </li>
+        <li>
+          <strong
+            >A guest who is early, or has no booking, can be handled from this
+            screen.</strong
+          >
+          Link from the empty search to Reservations, then the upcoming group
+          and a Walk-in button. (ARR-05, ARR-06)
+        </li>
+        <li>
+          <strong
+            >I can tell whether the list is current, and I am stopped when it is
+            not.</strong
+          >
+          (ARR-09)
+        </li>
+        <li>
+          <strong>I see a whole shift's arrivals without paging.</strong>
+          (ARR-15)
+        </li>
+        <li>
+          <strong>When a check-in is refused I am told what to do next.</strong>
+          (ARR-10)
+        </li>
+        <li>
+          <strong
+            >I can tell my browser tabs apart, and the screen uses one word for
+            a room.</strong
+          >
+          (ARR-08, ARR-11)
+        </li>
+      </ol>
+
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <strong>Departures</strong> separates "who has already left" from "who
+          is still to go"
+          (<code>docs/handover/operator-workspace-screens.md</code>, Today row);
+          Arrivals mixes checked-in and pending rows in one room-ordered list
+          (<em>inferred</em>).
+        </li>
+        <li>
+          <strong>Today</strong> offers check-in from a row of its own; the two
+          screens use the same command, but only Arrivals carries the readiness
+          question's layout fix (CI-S3-14). Whether Today asks the same
+          not-ready question: <em>unknown</em>, I did not open it.
+        </li>
+        <li>
+          <strong>Terminology:</strong> "Room and bed" in the column, "Unit" in
+          the dialogs and "Rooms & beds" in the navigation (ARR-11).
+        </li>
+        <li>
+          <strong>Back button:</strong> present at the leading edge of the bar
+          and goes to Today (<em>verified</em>); it satisfies ADR 0035.
+        </li>
+        <li>
+          <strong>Small screens:</strong> at 375 px the navigation becomes a
+          bottom bar and a tab strip, but the table does not become cards; it
+          just clips (ARR-01).
+        </li>
+      </ul>
+
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <strong>Balance due or deposit before arrival.</strong> The Folio is
+          opened by check-in (CI-S1-01) and deposits are deferred on purpose
+          (roadmap, RG-DEF-04). The persona's "balance due" cannot be shown
+          until check-in.
+        </li>
+        <li>
+          <strong>An unassigned-room arrival.</strong> This state does not
+          exist: a Reservation always has a Unit (<code
+            >accommodation_unit_id</code
+          >
+          is required on Reservation in <code>prisma/schema.prisma</code>, and
+          the arrivals query joins it as an inner join). There is nothing to
+          design for it today.
+        </li>
+        <li>
+          <strong>Listing tomorrow's bookings before the cutoff</strong>
+          (CI-S1-21, open) and
+          <strong>a one-press walk-in as a Stay of its own</strong> (CI-NB-01,
+          open).
+        </li>
+        <li>
+          <strong>Identity documents and legal registration at arrival</strong>
+          (CI-DEF-05, deferred).
+          <strong>Anything acting on the arrival event</strong>, such as a
+          welcome message (CI-DEF-06, deferred).
+        </li>
+        <li>
+          <strong>Automatic no-show</strong>: no source says it exists; no-show
+          is a manual command (FD-S4-04).
+        </li>
+        <li>
+          <strong>Moving the expected arrival time from the list row</strong>
+          exists only through Change booking (FD-S6-*, proposed rows, not yet
+          approved by the owner).
+        </li>
+      </ul>
+
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          The row carries what the desk needs in one line: guest, reference with
+          a copy button, room and type, readiness badge, button
+          (<em>verified</em>, 01).
+        </li>
+        <li>
+          The check-in is one tap with undo on the same row, with a reason
+          (<em>inferred</em>: <code>check-in-action.tsx</code>, ADR 0022). The
+          not-ready question sits where the button was and its two buttons are
+          stacked to fit (CI-S3-14).
+        </li>
+        <li>
+          A blocked reason replaces the button when check-in would be refused
+          (occupied, blocked, out of service, not confirmed), so nobody presses
+          a button that is certain to fail (<em>inferred</em>,
+          <code>columns.tsx</code>, FD-S5-01).
+        </li>
+        <li>
+          Search is live, case-insensitive, covers guest, reference and room,
+          and offers Clear filters (<em>verified</em>).
+        </li>
+        <li>
+          Dialogs say what will happen: the no-show dialog states "The nights
+          are freed, and this cannot be taken back", and the Change booking
+          dialog says "there is nothing to change" and keeps Save off until
+          something differs (<em>verified</em>, 03, 04).
+        </li>
+        <li>
+          Roles are respected: Housekeeping and Finance get no Check in, and
+          Housekeeping's menu is reduced to the room map (<em>verified</em>,
+          09).
+        </li>
+        <li>
+          Turkish and Arabic are complete on this page; Arabic mirrors the
+          layout and the sort and menu controls (<em>verified</em>, 08).
+        </li>
+        <li>
+          Skip-to-content link and a back button are present
+          (<em>verified</em>).
+        </li>
+        <li>
+          The list is prefetched on the server and polled every 30 s, so the
+          desk does not see a spinner (<em>inferred</em>, ADR 0019).
+        </li>
+      </ul>
+
+      <h2>Evidence</h2>
+      <div class="shots">
+        <figure>
+          <img
+            src="01-arrivals-desktop.png"
+            alt="Arrivals at 1440 wide, one row"
+          />
+          <figcaption>01 Arrivals, Front Desk, 1440 px</figcaption>
+        </figure>
+        <figure>
+          <img src="02-row-menu.png" alt="Row actions menu" />
+          <figcaption>
+            02 Row menu: room map, change, no-show, cancel
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="03-change-booking.png" alt="Change booking dialog" />
+          <figcaption>03 Change booking dialog (not saved)</figcaption>
+        </figure>
+        <figure>
+          <img src="04-no-show-dialog.png" alt="No-show confirm" />
+          <figcaption>04 No-show confirm (not submitted)</figcaption>
+        </figure>
+        <figure>
+          <img src="05-search-no-match.png" alt="Search with no match" />
+          <figcaption>05 Search with no match</figcaption>
+        </figure>
+        <figure>
+          <img src="06-tablet-768.png" alt="768 wide: Check in is off screen" />
+          <figcaption>06 768 px: Check in off screen</figcaption>
+        </figure>
+        <figure>
+          <img src="07-mobile-375.png" alt="375 wide" />
+          <figcaption>07 375 px: row clipped</figcaption>
+        </figure>
+        <figure>
+          <img src="08-arabic.png" alt="Arabic layout" />
+          <figcaption>08 Arabic, mirrored</figcaption>
+        </figure>
+        <figure>
+          <img src="09-housekeeping-role.png" alt="Housekeeping view" />
+          <figcaption>09 Housekeeping: no Check in</figcaption>
+        </figure>
+        <figure>
+          <img src="10-tablet-1024.png" alt="1024 wide: Check in off screen" />
+          <figcaption>10 1024 px: Check in off screen</figcaption>
+        </figure>
+      </div>
+    </main>
+  </body>
+</html>

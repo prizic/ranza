@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  73,
-  'the definer sweep looked at 73 functions; change this number deliberately');
+  87,
+  'the definer sweep looked at 87 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  22,
-  'twenty-two of them write, which is what makes the assertion above a test');
+  29,
+  'twenty-nine of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a seventy-fourth definer is a red test
+-- Part B: the inventory itself, so an eighty-eighth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -578,8 +578,29 @@ select is(
 -- The decision sheet (20260916009500-009720) brought none. Its closed-day
 -- triggers, app.reservations_keep_closed_days() among them, are invokers, and
 -- the three access migrations replaced two definers and changed a grant.
--- Integrations (20260916010000) brought two writers: record_integration_failure()
--- and resolve_failed_operation(), both checking their caller.
+-- Integrations (20260916010000) brought two writers, record_integration_failure()
+-- and resolve_failed_operation(), both checking their caller. 20260916011200
+-- replaced both: the first is gone, the second takes a reason, and nine more
+-- came with the webhook (ADR 0045), all of them writers. Four of the writers are the worker's
+-- and name worker_organization_id() first: enqueue_webhook_deliveries() (from an
+-- event, never from its payload), webhook_delivery_secret(),
+-- record_webhook_attempt() and claim_webhook_delivery(), which leases one due
+-- delivery in its Organization. A fifth, due_webhook_deliveries(), only lists
+-- which are due across Organizations, as the export lists do, and writes
+-- nothing. Five are Staff
+-- Members' commands and ask blueprint 3.5's gates themselves because a definer
+-- bypasses the policies: create_webhook_endpoint(), remove_webhook_endpoint()
+-- and send_webhook_test() with reach to the whole Organization, and
+-- retry_failed_operation() and cancel_failed_operation() with reach to the
+-- failure's Property. resolve_failed_operation() asks the same.
+-- The review of the webhook added two readers to 20260916011200, and neither
+-- writes. app.webhook_event_source() reads the reservation, stay or folio line an
+-- outbox event names, whatever the worker's absent policies would show, because
+-- what is sent is built from that row and not from the event's payload; only
+-- app.enqueue_webhook_deliveries() calls it. app.webhook_endpoint_urls() hands
+-- back each endpoint's address in full to someone who manages endpoints and cut
+-- at the query string to anyone else, the column itself having no grant, and asks
+-- the same gates as the read policy before it answers.
 -- Data export (20260916010100) brought two lists for the worker,
 -- export_schedules_due() and pending_data_exports(), neither of which writes.
 -- Its second half (20260916010710) brought thirteen, and the worker is how every
@@ -613,6 +634,19 @@ select is(
 -- change_expected_arrival() is the only way a booking's expected time changes
 -- after it is taken, checked like amend_reservation() with the gates and
 -- front_desk.amend before it reads anything.
+-- An invitation link (20260916011900) brought one, and it writes nothing:
+-- staff_invitation_state() tells the page behind a link what state it is in,
+-- for somebody who cannot sign in yet, from the digest of a token alone.
+-- A dated wage (20260916011910) brought one, and it writes nothing:
+-- hr_payroll_approved_through() tells the trigger that refuses a wage in an
+-- approved month which month that is, for a manager who cannot read the runs;
+-- it answers null to anybody who may not manage HR in the Organization.
+-- A brand (20260916011100) brought one, and it writes nothing:
+-- resident_organization_ids() is the Resident's counterpart of
+-- accessible_organization_ids() (ADR 0009, ADR 0046): the Organizations the
+-- acting user has a current Stay with. A definer, as resident_stay_property_ids()
+-- is, so that each policy asking owns the answer and does not lean on the Stays
+-- read policy beneath it.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -643,7 +677,13 @@ select set_eq(
         'post_room_nights', 'post_room_nights_for_departure',
         'amend_reservation', 'reservation_is_priced_for_its_new_kind',
         'change_departure', 'move_stay', 'mark_unit_dirty_after_move',
-        'record_integration_failure', 'resolve_failed_operation',
+        'resolve_failed_operation', 'enqueue_webhook_deliveries',
+        'claim_webhook_delivery', 'due_webhook_deliveries',
+        'webhook_delivery_secret',
+        'record_webhook_attempt', 'create_webhook_endpoint',
+        'remove_webhook_endpoint', 'send_webhook_test',
+        'retry_failed_operation', 'cancel_failed_operation',
+        'webhook_event_source', 'webhook_endpoint_urls',
         'export_schedules_due', 'pending_data_exports',
         'stalled_data_exports', 'expired_data_exports', 'claim_data_export',
         'export_guests', 'export_reservations', 'export_units',
@@ -651,8 +691,10 @@ select set_eq(
         'fail_data_export', 'expire_data_export', 'run_export_schedule',
         'read_data_export_file',
         'post_folio_line_to_ledger', 'change_expected_arrival',
-        'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today'],
-  'and they are exactly the seventy-three the design gives a reason for');
+        'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
+        'resident_organization_ids', 'staff_invitation_state',
+        'hr_payroll_approved_through'],
+  'and they are exactly the eighty-seven the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

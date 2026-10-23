@@ -106,7 +106,13 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   housekeepingInspection: () => inspectionFor(),
   maintenanceSettings: () => maintenanceFor(),
   priceList: () => pricesFor(),
-  timezoneNames: async () => ["Europe/Istanbul", "Pacific/Kiritimati", "UTC"],
+  timezoneNames: async () => [
+    "Europe/Istanbul",
+    "Pacific/Kiritimati",
+    "America/Kentucky/Louisville",
+    "Asia/Yekaterinburg",
+    "UTC",
+  ],
 }));
 vi.mock("../../apps/operator-workspace/src/server/configuration", () => ({
   saveProperty,
@@ -247,7 +253,7 @@ describe("who may change what", () => {
     // Told who can, once per card, rather than handed controls that fail.
     expect(
       screen.getAllByText(
-        "You can see these settings. An Owner or Manager can change them.",
+        "You can see these settings. To change them, your role needs “Change Property and Organization settings”.",
       ),
     ).toHaveLength(3);
   });
@@ -281,9 +287,7 @@ describe("what the page holds", () => {
   it("the_inspection_setting_is_the_housekeeping_one", async () => {
     await show(MANAGER, { inspection: INSPECTION });
     expect(
-      within(card("housekeeping")).getByRole("heading", {
-        name: "Check rooms after cleaning",
-      }),
+      within(card("housekeeping")).getByText("Check rooms after cleaning"),
     ).toBeVisible();
     expect(screen.getByRole("link", { name: "Housekeeping" })).toHaveAttribute(
       "href",
@@ -442,7 +446,7 @@ describe("saving", () => {
       target: { value: "Deniz Otel Moda" },
     });
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
     const clockSave = within(card("time")).getByRole("button", {
       name: "Save changes",
     });
@@ -481,7 +485,7 @@ describe("saving", () => {
       target: { value: "Deniz Otel Moda" },
     });
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
     await act(async () => {
       fireEvent.click(
         within(card("property")).getByRole("button", { name: "Save changes" }),
@@ -557,7 +561,7 @@ describe("saving", () => {
     });
     await show(MANAGER);
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
     // The picker hands focus back to its trigger as it closes; a person then
     // moves on to Save, and so does the test, rather than in the same tick.
     await waitFor(() =>
@@ -592,7 +596,7 @@ describe("saving", () => {
     });
     await show(MANAGER);
     const cutoff = screen.getByRole("combobox", {
-      name: "Business day ends at",
+      name: "Today rolls over at",
     });
     fireEvent.click(cutoff);
     fireEvent.click(await screen.findByRole("option", { name: "11:45" }));
@@ -662,7 +666,7 @@ describe("saving", () => {
     expect(time.queryByText("After saving")).toBeNull();
 
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
 
     await waitFor(() =>
       expect(
@@ -685,7 +689,7 @@ describe("saving", () => {
     });
     await show(MANAGER);
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
     const time = within(card("time"));
     await waitFor(() => expect(time.getByText("After saving")).toBeVisible());
     expect(time.queryByText(/Today moves/)).toBeNull();
@@ -699,7 +703,7 @@ describe("saving", () => {
     });
     await show(MANAGER);
     fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
-    fireEvent.click(await screen.findByText(/Kiritimati · Pacific/));
+    fireEvent.click(await screen.findByText(/Kiritimati, Kiribati/));
     await waitFor(() =>
       expect(
         within(card("time")).getByText(
@@ -775,6 +779,14 @@ describe("nightly rates", () => {
     expect(rates.getByText("12 Units")).toBeVisible();
     expect(rates.getByText("1 Unit")).toBeVisible();
     expect(rates.getByText("None at this Property yet")).toBeVisible();
+    // A kind it has none of says a price now is not wasted and not yet in use
+    // (CONFIG-12), and the kind it has Units of and no price for is warned
+    // about on the card and by a count beside the section (CONFIG-01).
+    expect(
+      rates.getByText(
+        "None here yet. A price set now applies from the first one you add.",
+      ),
+    ).toBeVisible();
     // Unpriced says what that means for a booking (RT-S1-13) — where the
     // Property has Units of that kind, and not for a kind it has none of.
     expect(rates.getByLabelText("Price per night for Bed")).toHaveValue("");
@@ -783,7 +795,12 @@ describe("nightly rates", () => {
         "Bookings of this kind are taken without a price, and their nights are not charged.",
       ),
     ).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "Nightly rates" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Nightly rates · 1 unpriced" }),
+    ).toBeVisible();
+    expect(card("rates").querySelector("[data-slot=card]")).toHaveClass(
+      "border-warning/40",
+    );
   });
 
   it("a_stale_price_says_it_prices_nothing_until_saved_again", async () => {
@@ -805,7 +822,7 @@ describe("nightly rates", () => {
     expect(rates.getByText(/1,500\.00/)).toBeVisible();
     expect(
       rates.getByText(
-        "Prices are changed by whoever may set rates. You can see them here.",
+        "You can see these settings. To change them, your role needs “Set nightly rates”.",
       ),
     ).toBeVisible();
   });
@@ -870,5 +887,92 @@ describe("nightly rates", () => {
     const title = messages[as].rates.title;
     expect(within(card("rates")).getByText(title)).toBeVisible();
     expect(within(card("rates")).getAllByRole("textbox")).toHaveLength(4);
+  });
+});
+
+describe("finding a time zone, and what it is called (RANZ-73)", () => {
+  async function openTimezones() {
+    fireEvent.click(screen.getByRole("combobox", { name: "Time zone" }));
+    return screen.findByPlaceholderText("Search time zones");
+  }
+
+  it("CF-S3-15: the country a person is in finds its zone, and the letters of its name scattered through others do not", async () => {
+    await show(MANAGER);
+    const search = await openTimezones();
+    fireEvent.change(search, { target: { value: "Turkey" } });
+    expect(await screen.findByText("Istanbul, Türkiye")).toBeVisible();
+    expect(screen.queryByText(/Louisville/)).toBeNull();
+    expect(screen.queryByText(/Yekaterinburg/)).toBeNull();
+    // Whichever way the country is spelled, and by its own name for itself.
+    fireEvent.change(search, { target: { value: "türkiye" } });
+    expect(await screen.findByText("Istanbul, Türkiye")).toBeVisible();
+    fireEvent.change(search, { target: { value: "europe/ist" } });
+    expect(await screen.findByText("Istanbul, Türkiye")).toBeVisible();
+  });
+
+  it("CF-S3-15: says there is none when nothing matches, rather than the nearest letters", async () => {
+    await show(MANAGER);
+    fireEvent.change(await openTimezones(), {
+      target: { value: "Turkeyy" },
+    });
+    expect(await screen.findByText("No time zone matches.")).toBeVisible();
+  });
+
+  for (const [as, expected] of [
+    ["en", "Istanbul, Türkiye"],
+    ["tr", "Istanbul, Türkiye"],
+    ["ar", "Istanbul, تركيا"],
+  ] as const) {
+    it(`CF-S3-16: names the zone with its country in the reader's language, in ${as}`, async () => {
+      await show(MANAGER, { as });
+      expect(
+        screen.getByRole("combobox", {
+          name: messages[as].configuration.timezone,
+        }),
+      ).toHaveTextContent(expected);
+    });
+  }
+});
+
+describe("what the page says before it is too late (RANZ-73)", () => {
+  it("CF-S3-17: says where the currency is chosen that it is chosen for good, and not only after the lock", async () => {
+    await show(MANAGER);
+    expect(
+      screen.getByText(/Choose it before you trade\. Once a folio is opened/),
+    ).toBeVisible();
+    cleanup();
+    await show({ ...MANAGER, currencyFixed: true });
+    expect(screen.queryByText(/Choose it before you trade/)).toBeNull();
+    expect(
+      screen.getByText(/a different currency needs a Property of its own/),
+    ).toBeVisible();
+  });
+
+  it("CF-S3-18: says what moves with the day's end, in the words the screens use", async () => {
+    await show(MANAGER);
+    expect(
+      screen.getByText(
+        /arrivals, departures, closing the day and the nightly room charge all follow it/,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("combobox", { name: "Today rolls over at" }),
+    ).toBeVisible();
+  });
+
+  it("CF-S3-19: keeps the list of what is switched on closed until it is wanted", async () => {
+    await show(MANAGER);
+    const details = card("modules").querySelector("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+    expect(
+      within(card("modules")).getByText(/\d+ screens? in use/),
+    ).toBeVisible();
+  });
+
+  it("CF-S3-20: stays under the page bar while the cards scroll, so a section is one press away", async () => {
+    await show(MANAGER);
+    const nav = screen.getByRole("navigation", { name: "On this page" });
+    expect(nav).toHaveClass("sticky", "top-20");
   });
 });

@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Departures (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #16211d;
+        --muted: #5b6862;
+        --line: #d9dfdb;
+        --bg: #fbfaf6;
+        --card: #fff;
+        --warn: #8a5a00;
+        --bad: #a3221b;
+        --ok: #1d6a4a;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 40px 0 12px;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 6px;
+      }
+      p.meta {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--card);
+        font-size: 13.5px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f1f3f0;
+        font-weight: 600;
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .sev {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .blocks {
+        color: var(--bad);
+      }
+      .errors {
+        color: var(--bad);
+      }
+      .slows {
+        color: var(--warn);
+      }
+      .polish {
+        color: var(--muted);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 1px 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #f1f3f0;
+        white-space: nowrap;
+      }
+      .verdict {
+        background: var(--card);
+        border: 1px solid var(--line);
+        padding: 14px 18px;
+      }
+      .verdict li {
+        margin: 4px 0;
+      }
+      figure {
+        margin: 12px 0;
+        background: var(--card);
+        border: 1px solid var(--line);
+        padding: 8px;
+      }
+      figure img {
+        max-width: 100%;
+        height: auto;
+        display: block;
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 6px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 12px;
+      }
+      ol li,
+      ul li {
+        margin: 6px 0;
+      }
+      code {
+        background: #eef1ee;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Departures: UX audit</h1>
+      <p class="meta">
+        Route <code>/en/departures</code> and the check-out and change-departure
+        dialogs it opens. Audit only: nothing was submitted, nothing persisted.
+        Hosted staging, <code>main</code> 4b15c30, 2026-10-11. Roles: Front Desk
+        (primary), Finance, Housekeeping. Locales: en, tr, ar. Widths: 1200,
+        768, 375.
+      </p>
+
+      <p>
+        <b>Data state found:</b> one in-house Stay (guest "ahmed", room 102,
+        Reservation R96J74P), planned departure Oct 1 so ten days overdue, Folio
+        balance TRY 0.00, booking taken without a price. Nobody left today. So I
+        saw one overdue, settled, unpriced row and nothing else: no row owing
+        money, none due today, none leaving early, never more than one row.
+        Everything about balances, early departure, bulk handling and volume is
+        therefore <em>inferred</em> from code and docs, and labelled so.
+      </p>
+
+      <h2>1. Verdict</h2>
+      <div class="verdict">
+        <ul>
+          <li>
+            <b>Could the persona use it unaided?</b> On a desktop wider than
+            about 1280 px, yes, for a settled guest: the list is plain, the
+            overdue badge is clear, and check-out is two clicks with a review
+            that names the guest, room and bill. Keyboard use is safe (focus
+            lands on "Keep in house", not on the destructive button).
+          </li>
+          <li>
+            <b>Biggest risk:</b> the primary action is off-screen on anything
+            narrower than a wide laptop. At 768 px and 375 px the Check out
+            button sits 270 to 400 px to the right of the visible area inside a
+            horizontally scrolling table with no visible cue (DEP-01, verified
+            by measurement).
+          </li>
+          <li>
+            <b>Second risk (inferred):</b> the row's Balance column ignores the
+            room nights that check-out itself will charge, so a row reading TRY
+            0.00 can open a dialog that demands a typed reason for an open
+            balance (DEP-04).
+          </li>
+          <li>
+            <b>Misleading state (verified):</b> the "owing" filter, reached from
+            Today, shows "No departures today / Nobody is due to leave" while an
+            overdue guest is in the building (DEP-03).
+          </li>
+          <li>
+            <b>Honest limit:</b> the 11:00 rush with 15 departures could not be
+            reproduced on this data. Bulk handling is assessed from code; it is
+            single-row only.
+          </li>
+        </ul>
+      </div>
+
+      <h2>2. Findings</h2>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>DEP-01</td>
+              <td class="sev blocks">blocks work</td>
+              <td>
+                <code>/en/departures</code>, Front Desk, 1 row, at 768 and 375
+                px
+              </td>
+              <td>
+                The table is a horizontal scroller (938 px wide inside 464 px at
+                768; 926 px inside 343 px at 375). Leaves, Balance and the Check
+                out button are out of sight. Check out measured at x=1035 to
+                1149 in a 768 px viewport, and x=775 to 889 in a 375 px one. The
+                overdue badge, the balance and the action are all hidden, and
+                the only cue is a row cut off at the edge. At 768 px the sidebar
+                stays open and takes about 40% of the width, and the breadcrumb
+                is cut to "W( &gt; F.. &gt;" with the current page missing.
+              </td>
+              <td>
+                The status and the action for a row visible without scrolling,
+                on a tablet at the desk and on a phone.
+              </td>
+              <td>
+                Below about 1100 px render each departure as a stacked card
+                (name, room, leaves badge, balance, Check out). Collapse the
+                sidebar by default at tablet width. Failing that, pin the Action
+                column (sticky end) so it is never off-screen.
+              </td>
+              <td>M</td>
+              <td>
+                12-width-768.png, 13-width-375.png; reproduced Y (measured
+                twice)
+              </td>
+              <td>verified</td>
+            </tr>
+            <tr>
+              <td>DEP-02</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                <code>/en/departures</code>, Front Desk (holds check-out), at
+                1200 px
+              </td>
+              <td>
+                Table content is 938 px in a 896 px scroller. The "..." menu
+                button ends at x=1185 while the scroller ends at 1168, so it is
+                cut to two dots (and the page scrolls sideways to reach it).
+                Finance, who has no Check out button, fits. The menu holds
+                Change departure, Move Guest, Open folio and the room map, so it
+                is the way to the amend-booking link.
+              </td>
+              <td>
+                A 1200 px laptop (a common desk screen) shows the whole row
+                including the menu.
+              </td>
+              <td>
+                Reduce column padding or let the Leaves badge wrap so the row
+                fits 896 px; same sticky Action column as DEP-01.
+              </td>
+              <td>S</td>
+              <td>
+                14-width-1200-clipped-menu.png (first desktop shot 01 shows the
+                same clip); reproduced Y
+              </td>
+              <td>verified</td>
+            </tr>
+            <tr>
+              <td>DEP-03</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>/tr/departures?show=owing</code> (the link a figure on
+                Today builds), Front Desk, 1 overdue guest owing nothing
+              </td>
+              <td>
+                The banner says "0 misafir bakiyeyle ayrılıyor" (0 guests
+                leaving with a balance), and the table below shows the empty
+                state "Bugün çıkış yok / Bu tesiste bugün ayrılması beklenen bir
+                konaklama bulunmuyor" (No departures today / nobody is due to
+                leave). That is false: there is one overdue guest. Only the
+                filter is empty, not the day. The English page uses the same
+                strings ("No departures today").
+              </td>
+              <td>
+                "Nobody with a balance is leaving" plus a "Show all" action, and
+                no claim about the day.
+              </td>
+              <td>
+                When a filter is active and has no rows, use a filter-specific
+                empty state ("Nobody leaving today owes anything. N others are
+                leaving."), and keep the Show all link in it.
+              </td>
+              <td>S</td>
+              <td>11-turkish-owing-filter.png; reproduced Y</td>
+              <td>verified</td>
+            </tr>
+            <tr>
+              <td>DEP-04</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                Departures row vs check-out dialog, any guest with uncharged
+                nights
+              </td>
+              <td>
+                The row's Balance column renders <code>balanceMinor</code> only.
+                The dialog computes
+                <code>due = balanceMinor + pendingMinor</code> and adds a
+                "Charged at check-out" line and "Balance after check-out" (ADR
+                0038). So a row can read TRY 0.00 (and not red) while the dialog
+                shows an amount owing and demands a typed reason before it will
+                confirm. The "owing" filter is typed on
+                <code>balanceMinor</code> and <code>overdue</code> only
+                (<code>inDepartureFilter</code>), so it has the same blind spot;
+                I did not check how Today computes its own owing figure. On
+                staging the booking is unpriced, so I could not see the
+                mismatch.
+              </td>
+              <td>
+                The list shows the same number the dialog is going to ask about,
+                so the rush agent is not surprised at the confirm step.
+              </td>
+              <td>
+                Show balance plus pending on the row, with a small "includes N
+                nights charged at check-out" note, and use the same figure in
+                the owing filter.
+              </td>
+              <td>S</td>
+              <td>
+                No screenshot possible. Code: <code>columns.tsx</code> Balance
+                cell, <code>check-out-dialog.tsx</code> <code>due</code>.
+              </td>
+              <td>inferred</td>
+            </tr>
+            <tr>
+              <td>DEP-05</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                Check-out dialog and Change departure dialog, overdue guest
+              </td>
+              <td>
+                The row says "Overdue since Oct 1, 2026" (a date, not "10
+                days"). The check-out dialog shows only "Planned departure Oct
+                1, 2026" and does not say the guest is overdue, nor that the
+                departure will be recorded as today (CO-S1-02). Change departure
+                never mentions overdue; its date picker greys out all past
+                dates, so an overdue guest who is staying can only be moved to
+                tomorrow or later, and the dialog does not explain what the
+                nights since Oct 1 will cost (unknown).
+              </td>
+              <td>
+                "10 days overdue" on the row; the dialog says "Overdue: leaving
+                today instead of Oct 1" so the agent knows what gets recorded.
+              </td>
+              <td>
+                Badge text "10 days overdue (since Oct 1)". One line in the
+                dialog for the overdue case. Ask the billing owner what an
+                overdue extension charges and say it.
+              </td>
+              <td>S</td>
+              <td>
+                01-due-desktop.png, 03-checkout-dialog.png,
+                05-change-departure.png, 06-change-departure-picker.png;
+                reproduced Y
+              </td>
+              <td>verified (dialog text); charge behaviour unknown</td>
+            </tr>
+            <tr>
+              <td>DEP-06</td>
+              <td class="sev slows">slows me down</td>
+              <td>Check-out dialog and what follows, Front Desk</td>
+              <td>
+                The dialog says "the room can be let again". Per the roadmap a
+                check-out marks the room dirty (migration
+                <code>a_check_out_makes_the_room_dirty</code>) and the room is
+                not ready to let until housekeeping cleans it. Arrivals shows a
+                "Not ready" readiness badge and warns before check-in;
+                Departures neither tells the agent the room is now dirty nor
+                tells housekeeping anything visible on the page. After
+                confirming there is no message either: the row just leaves and
+                the guest appears in "Left today", which lists name,
+                reservation, room and time only, below the table (code; I did
+                not press confirm).
+              </td>
+              <td>
+                "Room 102 will be marked dirty and housekeeping will see it"
+                before the click, and a confirmation after it.
+              </td>
+              <td>
+                Add that sentence to the dialog summary. After success show a
+                toast with the guest, room and "Room 102 is dirty". Add a
+                room-status chip to Left today rows.
+              </td>
+              <td>S</td>
+              <td>
+                03-checkout-dialog.png, 07-arrivals-compare.png (Readiness
+                column); success path inferred from code
+              </td>
+              <td>verified (dialog wording), inferred (post-submit)</td>
+            </tr>
+            <tr>
+              <td>DEP-07</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                Check-out dialog with a balance (not reproducible on staging)
+              </td>
+              <td>
+                Per the code, when anything is owing the dialog forces a typed
+                reason (3 to 2000 characters) and offers only "Open the Folio"
+                (a normal link, same tab). Settling means leaving the dialog,
+                paying on the Folio, coming back and re-opening it; dismissing
+                the dialog also clears what was typed. The hint reads "The Folio
+                stays open with X on it, and your reason is recorded. A payment
+                is recorded on the Folio." The easy path is to type a reason and
+                leave the Folio open, not to settle.
+              </td>
+              <td>
+                The settle-then-check-out path is the fast one: pay from the
+                dialog, or return to the same dialog afterwards.
+              </td>
+              <td>
+                Link to the Folio with a return to Departures. Add a "Record
+                payment" step in the dialog (needs the Folio payment component).
+                Consider a distinct, plainer first line: "Guest owes X. Collect
+                payment first, or leave it open with a reason."
+              </td>
+              <td>M</td>
+              <td>
+                Code only: <code>check-out-dialog.tsx</code>,
+                <code>messages.ts</code> checkOutBalanceHint
+              </td>
+              <td>inferred</td>
+            </tr>
+            <tr>
+              <td>DEP-08</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                <code>/en/departures</code>, Front Desk, the 15-departure rush
+                (not reproducible)
+              </td>
+              <td>
+                (a) The page itself has no filter for owing or overdue: those
+                narrowings exist only as <code>?show=</code> links built from
+                Today, and the filter strip only appears when one is applied.
+                (b) Sort is by column header; the default order is planned
+                departure only. (c) Page size is 10 (verified), so 15 departures
+                span two pages. (d) Every check-out is its own dialog: open,
+                review, confirm, repeated per row; no multi-select. (e) The list
+                polls every 30 s, so a colleague's check-out removes your row
+                (the code comment says so); I could not watch it happen.
+              </td>
+              <td>
+                Two chips at the top, "Owing" and "Overdue", and a page size big
+                enough that a rush fits on one screen.
+              </td>
+              <td>
+                Add "Owing" and "Overdue" chips that set <code>?show=</code>;
+                default page size 25; keep the dialog per row for now and let
+                Enter on the focused Confirm repeat quickly.
+              </td>
+              <td>M</td>
+              <td>
+                01-due-desktop.png (Per page 10), 15-search-no-match.png (search
+                works); polling and bulk inferred
+              </td>
+              <td>verified (a, c); inferred (b, d, e)</td>
+            </tr>
+            <tr>
+              <td>DEP-09</td>
+              <td class="sev polish">polish</td>
+              <td><code>/en/departures</code>, Finance and Housekeeping</td>
+              <td>
+                Both see the list (name, reservation, room, leaves, balance) but
+                no Check out button and no explanation: the action column is
+                just a "..." menu with Open folio and Show on the room map.
+                Change departure and Move Guest are also absent. Housekeeping
+                also sees each guest's balance; I could not tell whether that is
+                intended (unknown), FD-S7-05 says readers see the rows.
+              </td>
+              <td>
+                A short note ("You can view departures; check-out needs the
+                front desk role") or a disabled button with a reason.
+              </td>
+              <td>
+                Disabled Check out with a tooltip naming the permission, or a
+                one-line note above the table.
+              </td>
+              <td>S</td>
+              <td>
+                08-finance-role.png, 09-housekeeping-role.png; reproduced Y
+              </td>
+              <td>verified</td>
+            </tr>
+            <tr>
+              <td>DEP-10</td>
+              <td class="sev polish">polish</td>
+              <td>Search box (en and tr at 1200 px, 768 px)</td>
+              <td>
+                The placeholder is cut off: "Search Guest / Room and bed /
+                Reserva" (en), "Misafir / Oda ve yatak / Rezervasyon ara"
+                clipped (tr), "Search Guest / Room and b" at 768. The sidebar's
+                "Rooms &amp; beds" is also cut in Turkish ("Odalar ve yata...").
+                Search itself works and its no-match state ("Nothing matches
+                these filters" with Clear filters) is good.
+              </td>
+              <td>
+                A placeholder that fits, e.g. "Search guest, room or
+                reservation".
+              </td>
+              <td>
+                Shorter string in all three locales, or let the field grow.
+              </td>
+              <td>S</td>
+              <td>
+                01-due-desktop.png, 11-turkish-owing-filter.png,
+                12-width-768.png, 15-search-no-match.png
+              </td>
+              <td>verified</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="meta">
+        Counts: 1 blocks work, 2 causes errors, 5 slows me down, 2 polish. Not
+        reproduced a second time: none of the verified items failed to
+        reproduce; the inferred ones could not be reproduced at all because the
+        data state does not allow it.
+      </p>
+
+      <h2>3. Jobs</h2>
+      <p class="meta">
+        Seconds are agent wall-clock for the interaction, not human time; clicks
+        are counted. Jobs that would change data stopped at the confirm step
+        ("stopped before submit, not persisted").
+      </p>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job</th>
+              <th>Pass test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>See who is leaving, who owes, who is overdue (Front Desk)</td>
+              <td>
+                Overdue and balance for every row visible without scrolling or
+                clicking.
+              </td>
+              <td>
+                <b>Pass at 1200+ px</b> (badge + balance visible);
+                <b>fail at 768 and 375 px</b> (DEP-01). Balance only shows
+                balance, not nights to be charged (DEP-04, inferred).
+              </td>
+              <td>~5</td>
+              <td>0</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>Check out a settled guest</td>
+              <td>
+                Two clicks or fewer to the confirm step; the review states
+                guest, room, bill, and what the click does.
+              </td>
+              <td>
+                Reached the confirm step in 2 clicks (Check out, then Confirm
+                check-out, not pressed). Keyboard: Enter on Check out opens it
+                with focus on "Keep in house" (safe). Review names guest, room,
+                planned date, balance. Does not say the room goes dirty
+                (DEP-06). <b>Stopped before submit, not persisted.</b>
+              </td>
+              <td>~12</td>
+              <td>2 (3 keys by keyboard)</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>Check out a guest who owes money</td>
+              <td>
+                Dialog states the balance, offers a way to settle, and explains
+                what leaving it open does.
+              </td>
+              <td>
+                No owing row on staging. Judged from code: reason field
+                required, Folio stays open, no payment in the dialog (DEP-07).
+                <b>Not run; inferred.</b>
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>Check out an overdue guest</td>
+              <td>
+                Row says how late; dialog says what date is recorded and what is
+                charged.
+              </td>
+              <td>
+                Row names the date (not the days). Dialog is silent on lateness
+                and the recorded date (DEP-05).
+                <b>Partial pass; stopped before submit.</b>
+              </td>
+              <td>~12</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>Change departure (amend booking) from the row menu</td>
+              <td>
+                Menu entry reachable in 2 clicks; the dialog says what changes;
+                Save is blocked until something changes.
+              </td>
+              <td>
+                Pass: open the "..." menu, then Change departure; Save departure
+                stays disabled with "That is already the departure." Note dialog
+                and picker (past dates greyed). The menu button is half cut off
+                at 1200 px (DEP-02). <b>Stopped before save.</b>
+              </td>
+              <td>~15</td>
+              <td>2 (+1 for the picker)</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>Handle 15 departures in the rush</td>
+              <td>
+                All 15 on one screen, owing ones first, each settled and checked
+                out in at most 3 clicks, without losing place.
+              </td>
+              <td>
+                Not reproducible (1 row). From code: page size 10 so two pages,
+                2 to 3 clicks per row, no multi-select, no on-page owing filter
+                (DEP-08). <b>Not run; inferred.</b>
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>Find one guest and narrow to owing</td>
+              <td>
+                Search by name, room or reference works; an owing filter reaches
+                a correct, non-misleading result.
+              </td>
+              <td>
+                Search: pass, with a clear no-match state and "Clear filters".
+                Owing filter (via <code>?show=owing</code>): <b>fail</b>, shows
+                "No departures today" with an overdue guest present (DEP-03).
+              </td>
+              <td>~8</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>
+                Read it as Finance and as Housekeeping; switch to Turkish and
+                Arabic
+              </td>
+              <td>
+                Right rows, no actions beyond the role, nothing silently
+                missing, locale renders and mirrors.
+              </td>
+              <td>
+                Roles: list is shown, no Check out and no explanation (DEP-09).
+                Arabic: page and check-out dialog are RTL, fully translated and
+                mirrored, with the safe "Keep" button focused; the only English
+                left is the dialog close button's label "Close" (polish,
+                verified in the dialog text, 16-arabic-checkout-dialog.png).
+                Turkish: renders, strings fit apart from DEP-10. Every inner
+                page has the Back button (ADR 0035).
+              </td>
+              <td>~40</td>
+              <td>~6</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>4. Top changes, ranked by time saved x frequency</h2>
+      <ol>
+        <li>
+          <b
+            >I can check a guest out from a tablet or phone without scrolling
+            sideways.</b
+          >
+          Cards or a pinned action column below about 1100 px; fix the 1200 px
+          clip (DEP-01, DEP-02).
+        </li>
+        <li>
+          <b>I can trust the balance on the row.</b> It includes the nights
+          check-out will charge, so the dialog never surprises me (DEP-04).
+        </li>
+        <li>
+          <b
+            >I can see who owes and who is overdue in one tap, and the empty
+            state tells the truth.</b
+          >
+          "Owing" and "Overdue" chips on the page; filter-specific empty states
+          (DEP-03, DEP-08).
+        </li>
+        <li>
+          <b
+            >I can settle a balance and finish the check-out without losing my
+            place.</b
+          >
+          Payment or a return path from the dialog (DEP-07).
+        </li>
+        <li>
+          <b>I know the room is dirty and housekeeping can see it.</b> One
+          sentence before, a toast after (DEP-06).
+        </li>
+        <li>
+          <b>I can see how late someone is.</b> "10 days overdue" and the
+          recorded date in the dialog (DEP-05).
+        </li>
+        <li>
+          <b>I can fit the rush on one page.</b> Default page size 25 (DEP-08).
+        </li>
+        <li>
+          <b>I know why I cannot check out (Finance, Housekeeping).</b> A reason
+          where the button would be (DEP-09).
+        </li>
+      </ol>
+
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <b>Arrivals vs Departures, readiness:</b> Arrivals has a Readiness
+          column ("Not ready") and warns before check-in. Departures has no
+          room-status column and the dialog says nothing about the room going
+          dirty (<code>07-arrivals-compare.png</code>). Arrivals does it better.
+        </li>
+        <li>
+          <b>Arrivals vs Departures, time:</b> Arrivals carries "Expected time"
+          and a "time has passed" signal (FD-S6-19). Departures has no time at
+          all, only "Today" or a date. For an 11:00 checkout the agent cannot
+          see who is past 11:00 (see section 6).
+        </li>
+        <li>
+          <b
+            >Dialog wording is consistent between check-in and check-out in
+            structure</b
+          >
+          (Keep / Confirm), but check-in explains consequences (not ready,
+          anyway) and check-out does not (DEP-06).
+        </li>
+      </ul>
+
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <b>Late-checkout time and "past 11:00" signalling:</b> no
+          check-out-time setting appears in the repo docs or the departures code
+          (grep for check-out time and late checkout found only the Today
+          dashboard docs and the mockup). Not a defect on this page; it needs a
+          Property setting first. <em>inferred</em>
+        </li>
+        <li>
+          <b>Reverse check-out:</b> the CO-S3 rows are still
+          <code>open</code> in
+          <code>docs/features/check-out/edge-cases.csv</code> and no UI offers
+          it; the dialog's "cannot be taken back" is true of the screen.
+          Mistaken check-outs at the rush have no undo here.
+          <em>verified in docs</em>
+        </li>
+        <li>
+          <b>Bulk check-out:</b> no edge-case row or screen covers it.
+          <em>inferred</em>
+        </li>
+        <li>
+          <b
+            >Bill and Turkish invoicing, KBS departure notification,
+            early-departure money:</b
+          >
+          deferred (CO-S1-31, 32, 33). <em>verified in docs</em>
+        </li>
+        <li>
+          <b>Room-status on departures and Left today:</b> not in the check-out
+          docs; would need a read of housekeeping status in the departures
+          query.
+        </li>
+      </ul>
+
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          The overdue badge is clear and warm-coloured, and the unpriced booking
+          is named in the dialog ("taken without a price, so its nights are not
+          charged"). <em>verified</em>
+        </li>
+        <li>
+          The check-out review: one dialog, guest, room, planned departure,
+          balance, "Open the Folio", and a plain pair of buttons "Keep in house"
+          / "Confirm check-out" (the safe wording; the safe button is first).
+          <em>verified</em>
+        </li>
+        <li>
+          Keyboard use: Enter opens the dialog, focus lands on "Keep in house",
+          Escape returns focus to the Check out button. <em>verified</em>
+        </li>
+        <li>
+          Change departure: Save stays disabled until something changes, with
+          "That is already the departure." <em>verified</em>
+        </li>
+        <li>
+          Search across guest, room and reference, a clear no-match state with
+          Clear filters. <em>verified</em>
+        </li>
+        <li>
+          Back button and breadcrumb on the inner page (ADR 0035); Arabic
+          mirrors correctly; Turkish is complete. <em>verified</em>
+        </li>
+        <li>
+          A stale-bill guard: the dialog carries the Folio line count and
+          refuses with "Something was posted to the bill while you were looking"
+          if it changed. <em>inferred from code</em>
+        </li>
+        <li>
+          The list polls every 30 s so a colleague's check-out drops your row.
+          <em>inferred from code</em>
+        </li>
+      </ul>
+
+      <h2>Evidence</h2>
+      <div class="grid">
+        <figure>
+          <img src="01-due-desktop.png" alt="Due and overdue list at 1200 px" />
+          <figcaption>
+            01 Due and overdue, Front Desk, 1200 px. The row menu is cut to two
+            dots.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="02-in-house.png" alt="Everybody in house view" />
+          <figcaption>02 Everybody in house (same single row).</figcaption>
+        </figure>
+        <figure>
+          <img src="03-checkout-dialog.png" alt="Check-out dialog" />
+          <figcaption>03 Check-out dialog (not submitted).</figcaption>
+        </figure>
+        <figure>
+          <img src="04-row-menu.png" alt="Row menu" />
+          <figcaption>
+            04 Row menu: Open folio, Show on the room map, Change departure,
+            Move Guest.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="05-change-departure.png" alt="Change departure dialog" />
+          <figcaption>05 Change departure dialog, Save disabled.</figcaption>
+        </figure>
+        <figure>
+          <img src="06-change-departure-picker.png" alt="Date picker" />
+          <figcaption>
+            06 Date picker: past dates greyed, today ringed.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="07-arrivals-compare.png" alt="Arrivals page" />
+          <figcaption>
+            07 Arrivals for comparison (Readiness, expected time).
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="08-finance-role.png" alt="Finance view" />
+          <figcaption>
+            08 Finance: no Check out button, no explanation.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="09-housekeeping-role.png" alt="Housekeeping view" />
+          <figcaption>
+            09 Housekeeping: same read-only list including balance.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="10-arabic.png" alt="Arabic RTL" />
+          <figcaption>10 Arabic, RTL.</figcaption>
+        </figure>
+        <figure>
+          <img
+            src="16-arabic-checkout-dialog.png"
+            alt="Arabic check-out dialog"
+          />
+          <figcaption>
+            16 Arabic check-out dialog (not submitted), mirrored.
+          </figcaption>
+        </figure>
+        <figure>
+          <img
+            src="11-turkish-owing-filter.png"
+            alt="Turkish owing filter empty state"
+          />
+          <figcaption>
+            11 Turkish, owing filter: "0 guests with a balance" over "No
+            departures today" (DEP-03).
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="12-width-768.png" alt="768 px" />
+          <figcaption>
+            12 768 px: Leaves cut off, Check out off-screen, breadcrumb
+            truncated.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="13-width-375.png" alt="375 px" />
+          <figcaption>13 375 px: Check out off-screen.</figcaption>
+        </figure>
+        <figure>
+          <img src="14-width-1200-clipped-menu.png" alt="1200 px" />
+          <figcaption>
+            14 1200 px, measured clip of the row menu (DEP-02).
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="15-search-no-match.png" alt="Search no match" />
+          <figcaption>15 Search with no match.</figcaption>
+        </figure>
+      </div>
+    </main>
+  </body>
+</html>

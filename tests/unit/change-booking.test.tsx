@@ -229,9 +229,8 @@ describe("the Change booking dialog", () => {
     // 104 is listed as taken, with the booking in the way; choosing it names
     // that booking and the dialog will not save.
     fireEvent.click(
-      await screen.findByRole("combobox", { name: messages.en.unit }),
+      await screen.findByRole("radio", { name: /Room.*Booked · RXYZ789/ }),
     );
-    fireEvent.click(await screen.findByText("Room · Booked · RXYZ789"));
     expect(
       await screen.findByText(/Booking RXYZ789 holds some of those nights/),
     ).toBeInTheDocument();
@@ -289,10 +288,7 @@ describe("the Change booking dialog", () => {
     changeBooking.mockResolvedValueOnce("changed");
     open();
 
-    fireEvent.click(
-      await screen.findByRole("combobox", { name: messages.en.unit }),
-    );
-    fireEvent.click(await screen.findByText("102"));
+    fireEvent.click(await screen.findByRole("radio", { name: /102/ }));
     fireEvent.click(save());
     await waitFor(() => expect(changeBooking).toHaveBeenCalledTimes(1));
 
@@ -310,9 +306,7 @@ describe("the Change booking dialog", () => {
     expect(
       document.querySelector<HTMLInputElement>('input[name="endsOn"]')?.value,
     ).toBe("2026-10-09");
-    expect(
-      screen.getByRole("combobox", { name: messages.en.unit }),
-    ).toHaveTextContent("101");
+    expect(screen.getByRole("radio", { name: /101/ })).toBeChecked();
     // Once the refused save has settled, nothing is left to save.
     await waitFor(() => expect(save()).toBeDisabled());
   });
@@ -321,10 +315,7 @@ describe("the Change booking dialog", () => {
     const fetch = answering({ kind: "preview", preview: preview() });
     changeBooking.mockResolvedValueOnce("unavailable");
     open();
-    fireEvent.click(
-      await screen.findByRole("combobox", { name: messages.en.unit }),
-    );
-    fireEvent.click(await screen.findByText("102"));
+    fireEvent.click(await screen.findByRole("radio", { name: /102/ }));
     fireEvent.click(save());
     expect(
       await screen.findByText(messages.en.bookingUnavailable),
@@ -347,10 +338,7 @@ describe("the Change booking dialog", () => {
     changeBooking.mockResolvedValueOnce("unavailable");
     open();
 
-    fireEvent.click(
-      await screen.findByRole("combobox", { name: messages.en.unit }),
-    );
-    fireEvent.click(await screen.findByText("102"));
+    fireEvent.click(await screen.findByRole("radio", { name: /102/ }));
     fireEvent.click(save());
 
     expect(
@@ -364,9 +352,7 @@ describe("the Change booking dialog", () => {
     expect(
       document.querySelector<HTMLInputElement>('input[name="version"]')?.value,
     ).toBe("3");
-    expect(
-      screen.getByRole("combobox", { name: messages.en.unit }),
-    ).toHaveTextContent("101");
+    expect(screen.getByRole("radio", { name: /101/ })).toBeChecked();
     await waitFor(() => expect(save()).toBeDisabled());
   });
 
@@ -421,10 +407,7 @@ describe("the Change booking dialog", () => {
       await screen.findByText(messages.en.changeBookingChanged),
     ).toBeInTheDocument();
 
-    fireEvent.click(
-      await screen.findByRole("combobox", { name: messages.en.unit }),
-    );
-    fireEvent.click(await screen.findByText("102"));
+    fireEvent.click(await screen.findByRole("radio", { name: /102/ }));
     await waitFor(() => expect(save()).toBeEnabled());
     fireEvent.click(save());
     expect(
@@ -450,10 +433,37 @@ describe("the Change booking dialog", () => {
     ).toBeInTheDocument();
   });
 
+  it("a_missing_rate_is_a_data_gap_and_not_a_consequence_of_nothing_changing", async () => {
+    const unpriced = (own: boolean) =>
+      preview({
+        nightlyRateMinor: own ? null : 150000,
+        rateCurrency: own ? null : "TRY",
+        options: preview().options.map((option) => ({
+          ...option,
+          nightlyRateMinor: null,
+          rateCurrency: null,
+        })),
+      });
+
+    // Already unpriced and nothing changing: no sentence about losing a price,
+    // and none beside "nothing to change" (ROOMCAL-06).
+    answering({ kind: "preview", preview: unpriced(true) });
+    open();
+    await screen.findByText(messages.en.changeBookingNothing);
+    expect(screen.queryByText(/will be unpriced/)).toBeNull();
+    expect(screen.queryByText(/already unpriced/)).toBeNull();
+    cleanup();
+
+    // A booking that has a price and would lose it is told so.
+    answering({ kind: "preview", preview: unpriced(false) });
+    open();
+    expect(await screen.findByText(/will be unpriced/)).toBeInTheDocument();
+  });
+
   it("stops a note at the length the revision will accept", async () => {
     answering({ kind: "preview", preview: preview() });
     open();
-    const note = await screen.findByLabelText(messages.en.changeBookingNote);
+    const note = await screen.findByLabelText(messages.en.dialogNoteTitle);
     expect(note).toHaveAttribute("maxlength", String(CHANGE_NOTE.max));
     expect(note).toHaveAttribute("minlength", String(CHANGE_NOTE.min));
     fireEvent.change(note, { target: { value: "The Guest asked" } });

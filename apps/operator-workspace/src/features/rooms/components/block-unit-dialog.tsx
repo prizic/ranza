@@ -1,24 +1,28 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Wrench } from "lucide-react";
 import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Field,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   FormError,
   Input,
   StatusBadge,
   buttonVariants,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import {
   blockUnit,
@@ -26,17 +30,23 @@ import {
   type BlockOutcome,
 } from "../../../server/accommodation";
 import type { UnitEntry, UnitHold } from "../../../server/viewer";
+import { submitWithoutReset } from "../../../lib/submit-without-reset";
 
 /**
- * One Unit, from Rooms: block or unblock it, report a problem about it
- * (MT-S1-24), or — out of order — see the request that holds it. Blocking is
- * not offered then: a Unit is blocked from available only (MT-S2-08).
+ * One Unit, from Rooms. Something wrong with it is a problem to report, which
+ * tells maintenance and can hold the room out of order in the same step
+ * (MT-S1-24); a block only keeps it from being sold and tells nobody
+ * (RANZ-66). So reporting comes first when the viewer may, and blocking says
+ * what it is. Out of order, the request that holds it is shown instead:
+ * blocking is not offered then, a Unit is blocked from available only
+ * (MT-S2-08).
  */
 export function BlockUnitDialog({
   locale,
   open,
   onOpenChange,
   unit,
+  roomName,
   hold,
   maintenanceHref,
   reportHref,
@@ -45,6 +55,8 @@ export function BlockUnitDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   unit: UnitEntry | null;
+  /** The room a bed belongs to; null when the Unit is a whole room. */
+  roomName: string | null;
   /** The request holding this Unit out of order, or its room. */
   hold: UnitHold | null;
   maintenanceHref: string;
@@ -63,8 +75,13 @@ export function BlockUnitDialog({
     FormData
   >(unblockUnit, { status: "idle" });
 
+  // Kept by the dialog and not by the form: React empties an uncontrolled
+  // field after every answer, and a refused block must not lose its reason.
+  const [reason, setReason] = useState("");
+
   useEffect(() => {
     if (blockOutcome.status === "done" || unblockOutcome.status === "done") {
+      setReason("");
       onOpenChange(false);
     }
   }, [blockOutcome.status, unblockOutcome.status, onOpenChange]);
@@ -74,9 +91,51 @@ export function BlockUnitDialog({
   const isBlocked = unit.status === "blocked";
   const isOutOfOrder = unit.state?.kind === "out_of_service";
   const state = unit.state;
-  const report = reportHref ? (
+  const bed = roomName !== null;
+  const refusal = (
+    outcome: BlockOutcome,
+    refused: "blockRefused" | "unblockRefused",
+  ) =>
+    outcome.status === "occupied"
+      ? t("blockOccupied")
+      : outcome.status === "invalid"
+        ? t("blockInvalid")
+        : t(refused);
+  const tonight = (() => {
+    const day = (iso: string) =>
+      isSupportedLocale(locale)
+        ? formatDate(new Date(`${iso}T12:00:00Z`), locale, { timeZone: "UTC" })
+        : iso;
+    switch (state?.kind) {
+      case "in_house":
+        return t("unitStateInHouse", { guest: state.guestName });
+      case "reserved":
+        return t("unitStateReserved", { date: day(state.arrivesOn) });
+      case "free":
+        return t("unitStateFree");
+      default:
+        return null;
+    }
+  })();
+  const blockLabel = bed ? t("blockBed") : t("blockRoom");
+  const unblockLabel = bed ? t("unblockBed") : t("unblockRoom");
+
+  const heading = bed
+    ? t("maintenance.bedInRoom", { bed: unit.name, room: roomName })
+    : unit.name;
+  const facts = [
+    unit.building,
+    unit.floor !== null ? t("floorNumber", { floor: unit.floor }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const reasonGiven = reason.trim().length >= 3;
+  const reportLink = reportHref ? (
     <Link
-      className={buttonVariants({ variant: "outline", size: "sm" })}
+      className={buttonVariants({
+        className: "justify-self-start rounded-full",
+        variant: "outline",
+      })}
       href={reportHref}
       prefetch={false}
     >
@@ -87,138 +146,169 @@ export function BlockUnitDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {unit.name} &mdash;{" "}
-            {isOutOfOrder
-              ? t("maintenance.outOfOrder")
-              : isBlocked
-                ? t("unblockBed")
-                : t("blockBed")}
-          </DialogTitle>
-          <DialogDescription>
-            {unit.building ? `${unit.building} • ` : ""}
-            {unit.floor !== null ? t("floorNumber", { floor: unit.floor }) : ""}
-          </DialogDescription>
-        </DialogHeader>
-
+      <DialogContent className={dialogFrameClassName("small")}>
         {isOutOfOrder ? (
-          <div className="space-y-4">
-            <div className="grid gap-2 rounded-md border bg-muted/40 p-3 text-sm">
-              <StatusBadge
-                icon={Wrench}
-                label={t("maintenance.outOfOrder")}
-                tone="danger"
-              />
-              <p className="text-muted-foreground">
-                {hold
-                  ? t("maintenance.reference", { number: hold.number })
-                  : null}
-                {hold?.expectedBackOn && isSupportedLocale(locale)
-                  ? ` · ${t("maintenance.backOn", {
-                      // A calendar day, read at noon UTC so no reader's own
-                      // timezone moves it.
-                      date: formatDate(
-                        new Date(`${hold.expectedBackOn}T12:00:00Z`),
-                        locale,
-                        { timeZone: "UTC" },
-                      ),
-                    })}`
-                  : null}
-              </p>
-            </div>
-            <DialogFooter className="pt-2">
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {t("maintenance.close")}
-                </Button>
-              </DialogClose>
-              <Link className={buttonVariants()} href={maintenanceHref}>
-                {t("navigation.maintenance")}
-              </Link>
-            </DialogFooter>
-          </div>
-        ) : isBlocked ? (
-          <form action={unblockAct} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="unitId" value={unit.unitId} />
-
-            {unblockOutcome.status !== "idle" &&
-              unblockOutcome.status !== "done" && (
-                <FormError>
-                  {unblockOutcome.message ?? t("chargeRefused")}
-                </FormError>
-              )}
-
-            <div className="rounded-md border p-3 text-sm bg-muted/40">
-              <span className="font-medium text-foreground">
-                {t("blockReason")}:
-              </span>{" "}
-              <span className="text-muted-foreground">
-                {state?.kind === "blocked" ? state.reason : ""}
-              </span>
-            </div>
-
-            {report}
-            <DialogFooter className="pt-2">
-              <DialogClose asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={unblockPending}
-                >
-                  {t("discardBooking")}
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={unblockPending}>
-                {unblockPending ? t("unblockingBed") : t("unblockBed")}
-              </Button>
-            </DialogFooter>
-          </form>
-        ) : (
-          <form action={blockAct} className="space-y-4">
-            <input type="hidden" name="locale" value={locale} />
-            <input type="hidden" name="unitId" value={unit.unitId} />
-
-            {blockOutcome.status !== "idle" &&
-              blockOutcome.status !== "done" && (
-                <FormError>
-                  {blockOutcome.message ?? t("chargeRefused")}
-                </FormError>
-              )}
-
-            <Field htmlFor="reason" label={t("blockReason")}>
-              <div>
-                <Input
-                  id="reason"
-                  name="reason"
-                  required
-                  minLength={3}
-                  maxLength={200}
-                  placeholder={t("blockReasonPlaceholder")}
+          <>
+            <DialogMasthead
+              art="/illustrations/dialogs/wrench.svg"
+              eyebrow={t("maintenance.outOfOrder")}
+              facts={facts}
+              heading={heading}
+            />
+            <DialogBody simple>
+              <DialogDescription className="sr-only">
+                {t("maintenance.outOfOrder")}
+              </DialogDescription>
+              <div className="grid gap-2 text-sm">
+                <StatusBadge
+                  icon={Wrench}
+                  label={t("maintenance.outOfOrder")}
+                  tone="danger"
                 />
-                <p className="text-xs text-muted-foreground pt-1">
-                  {t("blockReasonHint")}
+                <p className="m-0 text-muted-foreground">
+                  {hold
+                    ? t("maintenance.reference", { number: hold.number })
+                    : null}
+                  {hold?.expectedBackOn && isSupportedLocale(locale)
+                    ? ` · ${t("maintenance.backOn", {
+                        // A calendar day, read at noon UTC so no reader's own
+                        // timezone moves it.
+                        date: formatDate(
+                          new Date(`${hold.expectedBackOn}T12:00:00Z`),
+                          locale,
+                          { timeZone: "UTC" },
+                        ),
+                      })}`
+                    : null}
                 </p>
               </div>
-            </Field>
-
-            {report}
-            <DialogFooter className="pt-2">
+            </DialogBody>
+            <DialogActions>
               <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={blockPending}>
-                  {t("discardBooking")}
-                </Button>
+                <CancelButton type="button">
+                  {t("maintenance.close")}
+                </CancelButton>
               </DialogClose>
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={blockPending}
+              <Link
+                className={buttonVariants({
+                  className:
+                    "h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90",
+                })}
+                href={maintenanceHref}
               >
-                {blockPending ? t("blockingBed") : t("blockBed")}
-              </Button>
-            </DialogFooter>
+                {t("navigation.maintenance")}
+              </Link>
+            </DialogActions>
+          </>
+        ) : isBlocked ? (
+          <form action={unblockAct} className="grid">
+            <DialogMasthead
+              art="/illustrations/dialogs/unlock-room.svg"
+              eyebrow={unblockLabel}
+              facts={facts}
+              heading={heading}
+            />
+            <DialogBody simple>
+              <DialogDescription className="sr-only">
+                {unblockLabel}
+              </DialogDescription>
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="unitId" value={unit.unitId} />
+
+              <DialogSection title={t("blockReason")}>
+                <p className="m-0 text-sm">
+                  {state?.kind === "blocked" ? state.reason : ""}
+                </p>
+              </DialogSection>
+              {reportLink}
+
+              {unblockOutcome.status !== "idle" &&
+                unblockOutcome.status !== "done" && (
+                  <div aria-live="polite">
+                    <FormError>
+                      {refusal(unblockOutcome, "unblockRefused")}
+                    </FormError>
+                  </div>
+                )}
+            </DialogBody>
+            <DialogActions>
+              <DialogClose asChild>
+                <CancelButton disabled={unblockPending} type="button">
+                  {t("maintenance.close")}
+                </CancelButton>
+              </DialogClose>
+              <ArrowButton disabled={unblockPending} type="submit">
+                {unblockPending ? t("unblockingBed") : unblockLabel}
+              </ArrowButton>
+            </DialogActions>
+          </form>
+        ) : (
+          <form className="grid" onSubmit={submitWithoutReset(blockAct)}>
+            <DialogMasthead
+              art="/illustrations/dialogs/lock-room.svg"
+              eyebrow={blockLabel}
+              facts={facts}
+              heading={heading}
+            />
+            <DialogBody simple>
+              <DialogDescription className="sr-only">
+                {blockLabel}
+              </DialogDescription>
+              <input type="hidden" name="locale" value={locale} />
+              <input type="hidden" name="unitId" value={unit.unitId} />
+
+              {tonight ? <DialogNotice>{tonight}</DialogNotice> : null}
+              {reportHref ? (
+                <div className="grid gap-3 text-sm">
+                  <p className="m-0 text-muted-foreground">
+                    {t("reportInsteadOfBlock")}
+                  </p>
+                  {reportLink}
+                </div>
+              ) : null}
+
+              <DialogSection
+                hint={`${t("blockReasonHint")} ${t("blockNotifiesNobody")}`}
+                labelFor="reason"
+                tag={{ label: t("dialogTagRequired"), required: true }}
+                title={t("blockReason")}
+              >
+                <Input
+                  aria-describedby="reason-hint"
+                  className={fieldClassName}
+                  id="reason"
+                  maxLength={200}
+                  minLength={3}
+                  name="reason"
+                  onChange={(event) => setReason(event.target.value)}
+                  placeholder={t("blockReasonPlaceholder")}
+                  required
+                  value={reason}
+                />
+              </DialogSection>
+
+              {blockOutcome.status !== "idle" &&
+                blockOutcome.status !== "done" && (
+                  <div aria-live="polite">
+                    <FormError>
+                      {refusal(blockOutcome, "blockRefused")}
+                    </FormError>
+                  </div>
+                )}
+            </DialogBody>
+            <DialogActions hint={reasonGiven ? null : t("dialogHintReason")}>
+              <DialogClose asChild>
+                <CancelButton disabled={blockPending} type="button">
+                  {t("maintenance.close")}
+                </CancelButton>
+              </DialogClose>
+              <ArrowButton
+                disabled={blockPending || !reasonGiven}
+                type="submit"
+              >
+                {blockPending ? t("blockingBed") : blockLabel}
+              </ArrowButton>
+            </DialogActions>
           </form>
         )}
       </DialogContent>

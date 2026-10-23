@@ -353,7 +353,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
   /**
    * What the report form offers: every Unit at the Property, with its status
    * so the form can say why one cannot be taken out of order, and everybody
-   * who reaches the Property, for the assignee picker (MT-S1-18).
+   * who reaches the Property and may manage requests, for the assignee picker (MT-S1-18).
    */
   async function reportOptions(
     userId: string,
@@ -384,8 +384,14 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
             on membership.organization_id = property.organization_id
           join public.users as account
             on account.id = membership.user_id
+          join public.staff_roles as role
+            on role.scope_id = membership.role_scope_id
+           and role.key = membership.role
          where property.id = ${propertyId}::uuid
            and membership.status = 'active'
+           and role.status = 'active'
+           -- Only somebody who can move a request can usefully be given one.
+           and 'maintenance.manage' = any (role.permissions)
            and (membership.access_scope = 'organization_wide'
                 or exists (
                   select 1

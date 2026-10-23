@@ -49,6 +49,7 @@ packages/
     business-day/         closing a Property's business day (the night audit)
     rates/                what a night costs, per unit type
     guest-services/       service requests, priorities and guest request queue
+    branding/             an Organization's colour and logo, drawn by the Portal
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure
@@ -107,7 +108,10 @@ pnpm test:browser     # the Operator Workspace in a browser, against the local d
 
 `pnpm test:browser` starts the workspace itself and refuses any database that is
 not on this machine — it signs in, checks a Guest in, and leaves history that
-cannot be removed.
+cannot be removed. With no arguments it runs the suite in four consecutive parts,
+each against a fresh development server, because `next dev` holds on to about
+11 MB of heap per test and restarts itself past 80% of its limit
+(`scripts/test-browser.mjs`); with a spec or a `-g` it is one ordinary run.
 
 ## Signing in locally
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
@@ -13,7 +14,9 @@ import {
   permittedProperties,
   requireViewer,
   reservations,
+  screenProperties,
 } from "../../../../server/viewer";
+import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /** Adding, blocking and splitting rooms (accommodation_units' write policies). */
@@ -21,6 +24,17 @@ const MANAGES_ROOMS = "accommodation.configure";
 
 /** Taking a booking (reservations_insert_front_desk). */
 const TAKES_BOOKINGS = "front_desk.book";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: `${t("navigation.reservations")} · ${t("productName")}` };
+}
 
 /**
  * Reservations: what is booked at this Property from today onwards, and the one
@@ -41,7 +55,12 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; change?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    change?: string;
+    new?: string;
+    open?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -86,6 +105,10 @@ export default async function ReservationsPage({
       ? `${localizeHref(locale, "rooms")}?property=${property.propertyId}`
       : null;
 
+  const mayReadHistory = (await screenProperties(gateOf("audit-log"))).some(
+    (permitted) => permitted.propertyId === property.propertyId,
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -104,6 +127,7 @@ export default async function ReservationsPage({
           <NewReservationDialog
             locale={locale}
             propertyId={property.propertyId}
+            startOpen={search.new === "1"}
             today={today}
             units={units}
           />
@@ -112,6 +136,8 @@ export default async function ReservationsPage({
       <ReservationsTable
         changing={search.change ?? null}
         locale={locale}
+        mayReadHistory={mayReadHistory}
+        opening={search.open ?? null}
         propertyId={property.propertyId}
         reservations={await reservations(property.propertyId)}
         today={today}

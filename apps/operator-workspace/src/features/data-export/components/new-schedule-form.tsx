@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, Loader2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useState, type FormEvent } from "react";
+import { CalendarPlus, Loader2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Button,
   Card,
@@ -11,243 +12,228 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-  Checkbox,
+  Field,
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@ranza/ui";
+import { createExportScheduleAction } from "../../../server/data-export";
+import { firstRunAt, holdsPersonalData, inCatalogueOrder } from "../helpers";
 import {
-  EXPORT_RESOURCE_TYPES,
+  EXPORT_RETENTION_DAYS,
+  type ExportAbilities,
   type ExportFormat,
   type ExportResourceType,
   type ScheduleFrequency,
 } from "../types";
-import { createExportScheduleAction } from "../../../server/data-export";
+import { DatasetPicker } from "./dataset-picker";
+import { FormatPicker } from "./format-picker";
+import { useNow } from "../use-now";
 
-interface NewScheduleFormProps {
-  locale: string;
-  propertyId: string;
-  onSuccess?: () => void;
-}
+const FREQUENCIES: readonly ScheduleFrequency[] = [
+  "daily",
+  "weekly",
+  "monthly",
+];
 
 export function NewScheduleForm({
-  locale,
+  abilities,
+  onCancel,
+  onCreated,
   propertyId,
-  onSuccess,
-}: NewScheduleFormProps) {
+  timezone,
+}: {
+  abilities: ExportAbilities;
+  onCancel: () => void;
+  onCreated: () => void;
+  propertyId: string;
+  timezone: string;
+}) {
   const t = useTranslations("dataExport");
+  const permissions = useTranslations("staff.permissions");
+  const locale = useLocale() as SupportedLocale;
+  const now = useNow(30_000);
   const [name, setName] = useState("");
-  const [selectedResources, setSelectedResources] = useState<
-    ExportResourceType[]
-  >(["residents_guests", "folios_payments"]);
+  const [resources, setResources] = useState<ExportResourceType[]>([]);
   const [format, setFormat] = useState<ExportFormat>("csv");
   const [frequency, setFrequency] = useState<ScheduleFrequency>("weekly");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
 
-  const toggleResource = (res: ExportResourceType) => {
-    setSelectedResources((prev) =>
-      prev.includes(res) ? prev.filter((r) => r !== res) : [...prev, res],
-    );
-  };
+  const chosen = inCatalogueOrder(resources);
+  const canSubmit =
+    abilities.mayCreate && name.trim() !== "" && chosen.length > 0;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim() || selectedResources.length === 0) return;
-
-    setIsSubmitting(true);
-    setFeedback(null);
-
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setProblem(null);
     try {
-      const res = await createExportScheduleAction(locale, propertyId, {
+      const result = await createExportScheduleAction(locale, propertyId, {
         name,
-        resourceTypes: selectedResources,
+        resourceTypes: chosen,
         format,
         frequency,
       });
-
-      if (res.status === "done") {
-        setFeedback({ type: "success", message: t("scheduleSuccess") });
-        setName("");
-        if (onSuccess) {
-          setTimeout(onSuccess, 1000);
-        }
-      } else {
-        setFeedback({
-          type: "error",
-          message:
-            res.status === "refused"
-              ? t("scheduleRefused")
-              : t("scheduleFailed"),
-        });
+      switch (result.status) {
+        case "done":
+          onCreated();
+          return;
+        case "refused":
+          setProblem(
+            !abilities.mayCreate || result.datasets.length === 0
+              ? t("cannotRequest", {
+                  permission: permissions("createDataExports"),
+                })
+              : t("refusedDatasets", {
+                  datasets: result.datasets
+                    .map((dataset) => t(`datasets.${dataset}`))
+                    .join(", "),
+                }),
+          );
+          return;
+        case "invalid":
+          setProblem(t(`invalid.${result.problem}`));
+          return;
+        default:
+          setProblem(t("scheduleFailed"));
       }
-    } catch {
-      setFeedback({ type: "error", message: t("scheduleFailed") });
+    } catch (error) {
+      console.error("data_export.schedule_create_threw", error);
+      setProblem(t("scheduleFailed"));
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
-  };
+  }
 
   return (
-    <Card className="border-border max-w-2xl">
-      <form onSubmit={handleSubmit}>
-        <CardHeader className="p-4 sm:p-6">
-          <CardTitle className="text-lg font-semibold text-foreground">
+    <Card className="max-w-3xl">
+      <form onSubmit={submit}>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">
             {t("scheduleTitle")}
           </CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">
-            {t("scheduleDescription")}
-          </CardDescription>
+          <CardDescription>{t("scheduleDescription")}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 p-4 sm:p-6 sm:pt-0">
-          {/* Schedule Name */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="schedule-name"
-              className="text-sm font-medium text-foreground"
+        <CardContent className="grid gap-6">
+          {abilities.mayCreate ? null : (
+            <p
+              className="rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
+              role="note"
             >
-              {t("scheduleName")}
-            </Label>
-            <Input
-              id="schedule-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("scheduleNamePlaceholder")}
-              required
-              className="max-w-md"
-            />
-          </div>
-
-          {/* Frequency & Format */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">
-                {t("frequencyTitle")}
-              </Label>
-              <Select
-                value={frequency}
-                onValueChange={(val) => setFrequency(val as ScheduleFrequency)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">
-                    {t("frequencies.daily")}
-                  </SelectItem>
-                  <SelectItem value="weekly">
-                    {t("frequencies.weekly")}
-                  </SelectItem>
-                  <SelectItem value="monthly">
-                    {t("frequencies.monthly")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-foreground">
-                {t("formatTitle")}
-              </Label>
-              <Select
-                value={format}
-                onValueChange={(val) => setFormat(val as ExportFormat)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="csv">{t("formats.csv.title")}</SelectItem>
-                  <SelectItem value="json">
-                    {t("formats.json.title")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Datasets Selection */}
-          <div className="space-y-3 pt-2">
-            <div>
-              <h3 className="text-sm font-medium text-foreground">
-                {t("datasetsTitle")}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                {t("datasetsDescription")}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {EXPORT_RESOURCE_TYPES.map((res) => {
-                const isChecked = selectedResources.includes(res);
-                return (
-                  <label
-                    key={res}
-                    className={`flex items-start gap-3 p-3.5 rounded-lg border cursor-pointer transition-colors ${
-                      isChecked
-                        ? "border-emerald-600 bg-emerald-50/50 dark:border-emerald-500 dark:bg-emerald-950/30"
-                        : "border-border hover:bg-muted/50"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={isChecked}
-                      onCheckedChange={() => toggleResource(res)}
-                      className="mt-0.5"
-                    />
-                    <div className="space-y-1">
-                      <span className="text-sm font-medium leading-none block text-foreground">
-                        {t(`datasets.${res}` as Parameters<typeof t>[0])}
-                      </span>
-                      <p className="text-xs text-muted-foreground leading-normal">
-                        {t(
-                          `datasetDescriptions.${res}` as Parameters<
-                            typeof t
-                          >[0],
-                        )}
-                      </p>
-                    </div>
-                  </label>
-                );
+              {t("cannotRequest", {
+                permission: permissions("createDataExports"),
               })}
-            </div>
+            </p>
+          )}
+
+          <Field htmlFor="schedule-name" label={t("scheduleName")}>
+            <Input
+              className="max-w-md"
+              id="schedule-name"
+              maxLength={200}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t("scheduleNamePlaceholder")}
+              value={name}
+            />
+          </Field>
+
+          <div className="grid gap-2">
+            <Field htmlFor="schedule-frequency" label={t("frequencyTitle")}>
+              <Select
+                onValueChange={(value) =>
+                  setFrequency(value as ScheduleFrequency)
+                }
+                value={frequency}
+              >
+                <SelectTrigger
+                  className="w-full max-w-xs"
+                  id="schedule-frequency"
+                >
+                  <SelectValue>{t(`frequencies.${frequency}`)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCIES.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {t(`frequencies.${option}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            {now === null ? null : (
+              <p className="text-xs text-muted-foreground">
+                {t("firstRun", {
+                  when: formatDate(
+                    firstRunAt(frequency, new Date(now)),
+                    locale,
+                    {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      hourCycle: "h23",
+                      minute: "2-digit",
+                      timeZone: timezone,
+                    },
+                  ),
+                  every: t(`frequencyEvery.${frequency}`),
+                })}
+              </p>
+            )}
           </div>
 
-          {feedback && (
-            <div
-              className={`p-3 rounded-md text-sm ${
-                feedback.type === "success"
-                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800"
-                  : "bg-destructive/15 text-destructive border border-destructive/30"
-              }`}
-            >
-              {feedback.message}
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="p-4 sm:p-6 sm:pt-0 flex justify-end">
-          <Button
-            type="submit"
-            disabled={
-              isSubmitting || !name.trim() || selectedResources.length === 0
-            }
-            className="gap-2 bg-emerald-700 hover:bg-emerald-800 text-white dark:bg-emerald-600 dark:hover:bg-emerald-700"
+          <DatasetPicker
+            abilities={abilities}
+            idPrefix="schedule-dataset"
+            onChange={setResources}
+            value={resources}
+          />
+
+          <FormatPicker
+            idPrefix="schedule"
+            onChange={setFormat}
+            value={format}
+          />
+
+          <div
+            className="grid gap-1 rounded-lg border bg-muted/40 p-3 text-sm"
+            role="note"
           >
-            {isSubmitting ? (
+            {holdsPersonalData(chosen) ? (
+              <p className="font-medium">{t("personalData")}</p>
+            ) : null}
+            <p className="text-muted-foreground">
+              {t("scheduleKeeps", { days: EXPORT_RETENTION_DAYS })}
+            </p>
+            <p className="text-muted-foreground">{t("scheduleNoRange")}</p>
+          </div>
+
+          {problem ? (
+            <p
+              className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+              role="alert"
+            >
+              {problem}
+            </p>
+          ) : null}
+        </CardContent>
+        <CardFooter className="flex flex-wrap justify-end gap-2">
+          <Button onClick={onCancel} type="button" variant="ghost">
+            {t("cancel")}
+          </Button>
+          <Button disabled={submitting || !canSubmit} type="submit">
+            {submitting ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
-                <span>{t("creatingSchedule")}</span>
+                <Loader2 aria-hidden="true" className="animate-spin" />
+                {t("creatingSchedule")}
               </>
             ) : (
               <>
-                <Calendar className="size-4" />
-                <span>{t("createScheduleButton")}</span>
+                <CalendarPlus aria-hidden="true" />
+                {t("createScheduleButton")}
               </>
             )}
           </Button>

@@ -1,0 +1,958 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Audit log (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #16211d;
+        --mute: #5b6862;
+        --line: #d9dfdb;
+        --bg: #fbfaf6;
+        --accent: #0f4c3a;
+        --warn: #8a5a00;
+        --bad: #9b2c2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 20px 80px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 40px 0 10px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      }
+      p.meta {
+        color: var(--mute);
+        margin: 0 0 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        background: #fff;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 7px 9px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f1f4f2;
+        font-weight: 600;
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .tag {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 10px;
+        font-size: 12px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+      }
+      .sev-errors {
+        color: var(--bad);
+        border-color: var(--bad);
+      }
+      .sev-slows {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+      .sev-polish {
+        color: var(--mute);
+      }
+      .v {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      .i {
+        color: var(--mute);
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        margin: 6px 0 2px;
+      }
+      figure {
+        margin: 14px 0;
+      }
+      figcaption {
+        color: var(--mute);
+        font-size: 13px;
+      }
+      code {
+        background: #eef1ee;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 12.5px;
+      }
+      ul {
+        margin: 6px 0 6px 18px;
+        padding: 0;
+      }
+      .figs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 14px;
+      }
+      .pass {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .fail {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .part {
+        color: var(--warn);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Audit log</h1>
+      <p class="meta">
+        Route <code>/en/audit-log</code> (also <code>?record=</code>, filters) ·
+        persona: the owner investigating "who changed this rate / who cancelled
+        that booking / why does this balance differ?" under pressure · roles:
+        Owner (primary), Manager, Front Desk, Finance · staging, 2026-10-11 ·
+        audit-only mode, nothing submitted or changed. Every claim is labelled
+        <span class="tag v">verified</span> (I saw it),
+        <span class="tag i">inferred</span> (read in code or docs) or unknown.
+      </p>
+
+      <h2>1. Verdict</h2>
+      <ul>
+        <li>
+          <b>Can the owner use it unaided?</b> Mostly yes for "who touched this
+          room or guest": search by room number, guest or colleague, the action
+          and day filters, and a record that opens by link all worked first time
+          (verified, 15 records).
+        </li>
+        <li>
+          <b>Biggest risk:</b> the page answers "what happened" but not "what
+          did it change" or "where is the thing it changed". The list never
+          shows before/after values, and the event's subject (reservation, stay,
+          room) is not a link, so the owner has to open each record and then go
+          hunt for the booking by hand. Folio is the only subject that links,
+          and nothing links back from a Folio to its history.
+        </li>
+        <li>
+          <b>Second risk:</b> search does not match the action words ("rate"
+          finds nothing), and a search that matches more than 200 Guests or
+          rooms is capped without saying so (inferred; staging is too small to
+          see it).
+        </li>
+        <li>
+          <b>Not provable on this data:</b> staging holds 15 records in total
+          and none of them is a cancellation, a Folio line, a rate change or a
+          closed day, so how those rows read is judged from code and tests
+          (inferred), not seen.
+        </li>
+        <li>
+          <b>Good base:</b> plain-language action names in three languages,
+          actors as addresses with "You" for the viewer, Property-local times,
+          correct refusal for a role without the permission, working back
+          button.
+        </li>
+      </ul>
+
+      <h2>2. Findings</h2>
+      <p class="meta">
+        Data state: Organization "Prizic Demo", one Property, 15 records dated
+        2026-09-25 to 2026-10-11. Counts: blocks work 0, causes errors 1, slows
+        me down 7, polish 5. No personal data from log rows is copied here; rows
+        are described by shape.
+      </p>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>Expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>AUDIT-01</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>
+                <code>?record=</code> · Owner · a "Departure changed" record
+              </td>
+              <td>
+                The details table shows raw field names (<code>changeId</code>,
+                <code>toEndsOn</code>, <code>fromEndsOn</code>) and the word
+                "None" for "no departure before". A "Role changed" record on the
+                same screen reads "From Finance / To Housekeeping". A
+                reservation record shows "Amount: None". A "Details" caption is
+                also rendered as visible text under the table.
+              </td>
+              <td>
+                Every action reads like the role change: "Departure: none, then
+                1 Oct 2026". No internal field names.
+              </td>
+              <td>
+                Add the stay and reservation change keys to the context
+                vocabulary in <code>context-facts.tsx</code>; render a missing
+                value as "not set"; hide the table caption. The code
+                deliberately prints unknown keys as themselves (<code
+                  >words.ts</code
+                >
+                comment), so this will recur for each new writer unless a test
+                fails on an unlabelled key.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="02-record-departure-changed.png">02</a>,
+                <a href="03-record-role-changed.png">03</a> · reproduced Y ·
+                <span class="tag v">verified</span>
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-02</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>List and record · Owner</td>
+              <td>
+                An event names its subject ("Reservation · guest · room", "Stay
+                · guest · room") as plain text. Only a Folio subject is a link
+                (to Finance). I cannot jump from "Departure changed" to the
+                booking, the stay or the room.
+              </td>
+              <td>
+                The subject is a link to its page (reservation, stay, room,
+                staff member) wherever such a page exists.
+              </td>
+              <td>
+                Link reservation, stay and unit subjects the way the Folio is
+                linked in <code>record-panel.tsx</code>; keep the Property in
+                the URL.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-record-departure-changed.png">02</a> · reproduced Y
+                · <span class="tag v">verified</span> (record screen),
+                <span class="tag i">inferred</span> (code: only
+                <code>subjectType === "folio"</code> links)
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-03</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>Finance / reservation screens → Audit log · Owner</td>
+              <td>
+                "Why does this balance differ?" starts on a Folio, but I found
+                no link from a Folio or reservation to its own history; the log
+                links to the Folio, not the other way. Searching the Guest's
+                name in the log is the only route.
+              </td>
+              <td>
+                A "History" link on a Folio or reservation that opens the log
+                narrowed to it.
+              </td>
+              <td>
+                Support <code>?subject=</code> in the log filters and add the
+                link where the owner already looks. Today's activity card does
+                link into the log (code), so the pattern exists.
+              </td>
+              <td>M</td>
+              <td>
+                grep of <code>features/finance</code> and
+                <code>features/reservations</code> found no
+                <code>audit-log</code> reference ·
+                <span class="tag i">inferred</span>
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-04</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>List · Owner · search</td>
+              <td>
+                Typing "rate" into Search returns "Nothing matches these
+                filters. Widen the dates, choose another action, or clear the
+                filters." Search covers Guest, room, colleague and reason text
+                only, so a person who thinks in the words on screen finds
+                nothing, and the empty state does not say search ignores action
+                names. The Action select has 56 entries in one flat,
+                unsorted-by-topic list (it is searchable).
+              </td>
+              <td>
+                Typing the words in an action name ("rate", "cancelled",
+                "check-in") finds those events, or the empty state says "search
+                does not look at action names, use the Action filter".
+              </td>
+              <td>
+                Match the search text against the localized action labels on the
+                server, or suggest the Action filter in the empty state. Group
+                the 56 actions by area (Reservations, Money, Staff, Rooms,
+                Maintenance, HR).
+              </td>
+              <td>M</td>
+              <td>
+                <a href="06-search-rate-no-match.png">06</a>,
+                <a href="05-action-filter-open.png">05</a> · reproduced Y ·
+                <span class="tag v">verified</span>
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-05</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>
+                List · Owner · desktop 1440 and wider · record with a long
+                reason
+              </td>
+              <td>
+                The "Why" text runs off the right edge of the table and is cut
+                mid-word ("...meets RG-S1"). The code intends a two-line clamp,
+                but the column never wraps. In Arabic the same text is cut on
+                the left. The full reason is only on the record screen.
+              </td>
+              <td>
+                The reason wraps to two lines with an ellipsis, so the first
+                words of why are always readable.
+              </td>
+              <td>
+                Give the Why cell a fixed max width so
+                <code>line-clamp-2</code> applies; keep the record screen as the
+                full view.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-owner-default.png">01</a>,
+                <a href="12-arabic-rtl.png">12</a>,
+                <a href="13-manager-view.png">13</a> · reproduced Y ·
+                <span class="tag v">verified</span>
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-06</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>List · Owner · 375 px (emulated phone)</td>
+              <td>
+                The five filters stack to about one full screen before the first
+                record. The table is 1263 px wide inside a 341 px frame, so only
+                When and What are visible; Who and Why sit off screen with no
+                cue to scroll. The owner on a phone sees what happened but not
+                who did it.
+              </td>
+              <td>
+                On a phone each event is a card: when, what, who, why. Filters
+                collapse behind one "Filter" button.
+              </td>
+              <td>
+                Render rows as stacked cards under a breakpoint; collapse the
+                filter form. The page has no horizontal page scroll (document
+                width = 375), only the inner table.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="11-mobile-375.png">11</a>,
+                <a href="15-turkish-768.png">15</a> · reproduced Y ·
+                <span class="tag v">verified</span>. The same happens at 768 px:
+                the table is 1276 px wide in a 462 px frame beside the sidebar,
+                so only When and What show and the Where column is cut at the
+                edge (screenshot 15, in Turkish).
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-07</td>
+              <td><span class="tag sev-polish">polish</span></td>
+              <td>List · Owner · search of one character</td>
+              <td>
+                Typing "a" shows a small grey line "Type at least two characters
+                to search" but the full, unfiltered list and "15 records" stay
+                below, next to a search box that reads "a". It looks like a
+                result.
+              </td>
+              <td>
+                Hide the table or dim it until the search is valid, or put the
+                message at the search box.
+              </td>
+              <td>
+                Render the message inside the Search field and skip the table.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="07-search-one-char.png">07</a> · reproduced Y ·
+                <span class="tag v">verified</span>. This matches the written
+                rule AL-S1-24, so it is polish, not a defect against the spec.
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-08</td>
+              <td><span class="tag sev-polish">polish</span></td>
+              <td>
+                Action names and subject labels vs sibling screens · Owner
+              </td>
+              <td>
+                One log mixes "Reservation taken" with "Booking cancelled" and
+                "Booking changed"; shows "Accommodation unit" as the type of a
+                room where the rest of the product says Room; "Business day
+                closed" where the Close the day screen says "Close the day";
+                "Unit added" / "Unit blocked" beside "Room status changed";
+                "Nightly rates changed" for a price list.
+              </td>
+              <td>One word per thing across the product.</td>
+              <td>
+                Pick Reservation or Booking, Room or Unit, and align
+                <code>auditAction</code> and <code>auditSubject</code> in
+                <code>messages.ts</code> (all three languages) with the sibling
+                screens.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="05-action-filter-open.png">05</a> ·
+                <span class="tag v">verified</span> (list),
+                <span class="tag i">inferred</span> (sibling wording from
+                <code>messages.ts</code>)
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-09</td>
+              <td><span class="tag sev-slows">slows me down</span></td>
+              <td>List · Owner · repeated changes</td>
+              <td>
+                Seven rows in a row read "Room check after cleaning changed ·
+                Property · (the Property's name)" at the same minute. The list
+                does not show the before/after value, so the owner must open
+                each one to learn it was Off then On. Under pressure, "who
+                changed this rate" means opening every "Nightly rates changed"
+                row in turn.
+              </td>
+              <td>
+                A one-setting change shows "Off → On" (or "₺1.500 → ₺1.750") on
+                the list row.
+              </td>
+              <td>
+                Let <code>ContextFacts</code> expose a one-line summary for
+                single-setting and price changes and use it as the second line
+                in the What cell.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="01-owner-default.png">01</a>,
+                <a href="04-record-room-check-setting.png">04</a> · reproduced Y
+                · <span class="tag v">verified</span>. The rate-change record
+                itself is <span class="tag i">inferred</span> (code and
+                <code>edge-cases.csv</code>); none exists on staging.
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-10</td>
+              <td><span class="tag sev-polish">polish</span></td>
+              <td>List · Owner</td>
+              <td>
+                Times are the Property's wall clock (verified: "Sep 29, 2026,
+                13:08" style, 24-hour), but nothing on the row says which clock;
+                the sentence explaining it sits under the table, after up to 50
+                rows. A record about the whole Organization uses the opened
+                Property's clock.
+              </td>
+              <td>
+                The When header or filter bar says "Times in Istanbul (UTC+3)".
+              </td>
+              <td>Put the zone name in the When column header.</td>
+              <td>S</td>
+              <td>
+                <a href="09-filter-action-and-day.png">09</a> ·
+                <span class="tag v">verified</span>
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-11</td>
+              <td><span class="tag sev-errors">causes errors</span></td>
+              <td>List · Owner · search in a large hotel</td>
+              <td>
+                The search resolves a text to at most 200 Guests, 200 rooms and
+                200 colleagues (<code>MATCH_LIMIT</code>), then looks for events
+                about them. A two-letter fragment that matches more than 200
+                Guests silently drops the rest, and the screen then says "N
+                records" as if complete. "Nothing happened" and "my search was
+                too broad" look the same.
+              </td>
+              <td>
+                "More than 200 matches, type more of the name" when the cap is
+                hit.
+              </td>
+              <td>
+                Have <code>searchIds</code> return whether it hit the cap and
+                show a line; or raise the minimum length.
+              </td>
+              <td>S</td>
+              <td>
+                Code <code>packages/ranza/core/src/audit-log.ts</code> lines
+                82-89 · <span class="tag i">inferred</span>; staging has too few
+                Guests to trigger it.
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-12</td>
+              <td><span class="tag sev-polish">polish</span></td>
+              <td>List · Owner · export</td>
+              <td>
+                The log offers no export or pointer to one. The Data export
+                screen has an "Audit log" dataset gated by
+                <code>audit.read</code> and sits one row above Audit log in the
+                rail, but the log never says so. An owner collecting evidence
+                for an accountant or an insurer will look for a download button
+                here.
+              </td>
+              <td>
+                A "Download these records" link that opens Data export with this
+                dataset selected.
+              </td>
+              <td>
+                Link to <code>/data-export</code> with the dataset preselected;
+                filters are not carried today (<span class="tag i"
+                  >unknown</span
+                >
+                whether the export supports them).
+              </td>
+              <td>S</td>
+              <td>
+                Rail screenshot <a href="01-owner-default.png">01</a>;
+                <code>messages.ts</code> dataset label and migration
+                <code>20260916010700</code> ·
+                <span class="tag i">inferred</span> (I did not open the Data
+                export screen)
+              </td>
+            </tr>
+            <tr>
+              <td>AUDIT-13</td>
+              <td><span class="tag sev-polish">polish</span></td>
+              <td>Rail · Owner, Manager</td>
+              <td>
+                Audit log is the last item, under Data export.
+                <code>use-case.mmd</code> records "where it sits in the rail" as
+                an open question. In the urgent case the owner has to scroll a
+                15-item rail; at 375 px the bottom bar shows about five
+                destinations at a time.
+              </td>
+              <td>One obvious route in under a minute.</td>
+              <td>
+                Keep it last (it is consulted, not worked) but make sure a
+                second entry exists: Today's activity card links to the log for
+                <code>audit.read</code> holders (code), and AUDIT-03 would add
+                one from Folios. Close the open question in the diagram.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-owner-default.png">01</a>,
+                <a href="11-mobile-375.png">11</a> ·
+                <span class="tag v">verified</span> (position),
+                <span class="tag i">inferred</span> (Today link)
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. Jobs</h2>
+      <p class="meta">
+        The pass/fail test was written before each attempt. Seconds are
+        approximate and counted from tool calls, not a stopwatch: this was
+        driven through an automation tool, so they overstate a human's time.
+        Clicks assume a person typing into the same fields.
+      </p>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Pass / fail test (written first)</th>
+              <th>Result</th>
+              <th>~Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1. Find who changed a room-type rate</td>
+              <td>
+                Within 60 s I can name the person, the time and the old and new
+                price.
+              </td>
+              <td>
+                <span class="part">Not testable end to end.</span> No
+                rate-change record exists on staging (all 15 rows read; none is
+                one). Path: Action filter "Nightly rates changed" then Apply (3
+                clicks), then open each row to see the price change (AUDIT-09).
+                Judged from code, <span class="tag i">inferred</span>.
+              </td>
+              <td>n/a</td>
+              <td>3 + 1 per row</td>
+            </tr>
+            <tr>
+              <td>2. Find who cancelled a booking</td>
+              <td>
+                Searching the room or guest and reading the result names the
+                actor and time in one screen.
+              </td>
+              <td>
+                <span class="pass">Pass</span> for the path, on a different
+                event: a room search ("102") returned the 4 events of that stay
+                (booking, check-in, room status, departure change) with actor
+                and time. A cancellation record does not exist on staging.
+              </td>
+              <td>~25</td>
+              <td>2 (type, Enter)</td>
+            </tr>
+            <tr>
+              <td>3. Find who did something, by person</td>
+              <td>Typing a colleague's address returns what they did.</td>
+              <td>
+                <span class="pass">Pass.</span> Searching the Front Desk address
+                returned its one record (1 record, singular label correct).
+              </td>
+              <td>~20</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>4. Narrow to one action on one day</td>
+              <td>
+                Action + day range returns exactly the matching rows with a
+                correct count.
+              </td>
+              <td>
+                <span class="pass">Pass.</span> "Role changed" on 29 Sep
+                returned 1 of 3 role changes. Period picker has Today / 7 / 30
+                days / This month presets and a two-month calendar (verified,
+                <a href="08-period-picker.png">08</a>).
+              </td>
+              <td>~30</td>
+              <td>5 (action, 2 days, Done, Apply)</td>
+            </tr>
+            <tr>
+              <td>5. Explain a balance difference</td>
+              <td>
+                From a Folio I reach the events that touched it in 2 clicks.
+              </td>
+              <td>
+                <span class="fail">Fail (path missing).</span> No link from
+                Folio or reservation into the log (AUDIT-03). Guest-name search
+                finds Folio events (code), but no Folio events exist on staging
+                (<span class="tag i">inferred</span>).
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>6. Open one event and understand what changed</td>
+              <td>
+                The record says what it was before and after without a key name
+                I need to decode.
+              </td>
+              <td>
+                <span class="part">Partial.</span> "Role changed" and "Room
+                check after cleaning changed" pass (<a
+                  href="03-record-role-changed.png"
+                  >03</a
+                >, <a href="04-record-room-check-setting.png">04</a>).
+                "Departure changed" shows raw keys and "None" (<a
+                  href="02-record-departure-changed.png"
+                  >02</a
+                >, AUDIT-01).
+              </td>
+              <td>~15 each</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>7. Send a colleague a link to one event</td>
+              <td>
+                The record URL opens by id for another signed-in reader; a wrong
+                id gives a clear message.
+              </td>
+              <td>
+                <span class="pass">Pass.</span> Records opened by URL in a fresh
+                load; an id that does not exist gives "That record cannot be
+                opened. It does not exist, or it is not one you may read." with
+                a back arrow (<a href="10-record-missing.png">10</a>). Opening
+                the same URL as a second user was not tried (<span class="tag i"
+                  >inferred</span
+                >
+                from <code>auditRecord</code> reading by id).
+              </td>
+              <td>~10</td>
+              <td>0 (URL)</td>
+            </tr>
+            <tr>
+              <td>8. A role without <code>audit.read</code> types the URL</td>
+              <td>
+                No rail entry; the URL explains what to do, with no blank page
+                or 500.
+              </td>
+              <td>
+                <span class="pass">Pass</span> for Front Desk: no "Audit log" in
+                its rail (11 items, no Data export or Integrations either); the
+                URL shows "You can't read the audit log" with who can grant it
+                (<a href="14-frontdesk-url.png">14</a>). Finance, signed in: no
+                "Audit log" in its rail (it does keep Data export) and the URL
+                shows the same refusal (<span class="tag v">verified</span>);
+                this matches the migration <code>20260916004200</code>, which
+                gives <code>audit.read</code> to Owner and Manager only. Manager
+                sees the log and a rail entry (<a href="13-manager-view.png"
+                  >13</a
+                >).
+              </td>
+              <td>~20</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>9. Use it on a phone</td>
+              <td>
+                At 375 px I can read who, what and when for the newest event
+                without sideways scrolling.
+              </td>
+              <td><span class="fail">Fail</span> for who (AUDIT-06).</td>
+              <td>~20</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>10. Read it in Arabic</td>
+              <td>RTL mirrors, actions are translated, dates are localized.</td>
+              <td>
+                <span class="pass">Pass</span> apart from AUDIT-05 (<a
+                  href="12-arabic-rtl.png"
+                  >12</a
+                >). Turkish, opened: filters, headers, action names
+                ("Rezervasyon alındı", "Rol değiştirildi", "Çıkış tarihi
+                değiştirildi"), subject types and dates ("11 Eki 2026 14:55")
+                are all translated, and the No-reason cell reads "Gerekçe
+                gerekmiyor" (<a href="15-turkish-768.png">15</a>). The only
+                untranslated text is the free-text reason a person typed, which
+                is expected.
+              </td>
+              <td>~15</td>
+              <td>0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>4. Top changes, ranked by time saved x frequency</h2>
+      <ol>
+        <li>
+          <b>I can see what a change did without opening the record</b>: before
+          and after on the list row (AUDIT-09, with AUDIT-01).
+        </li>
+        <li>
+          <b>I can go from an event to the booking, stay or room it is about</b
+          >, and from a Folio or reservation to its history (AUDIT-02,
+          AUDIT-03).
+        </li>
+        <li>
+          <b>I can type the words I think in</b> ("rate", "cancelled") and find
+          the events, or am told to use the Action filter (AUDIT-04).
+        </li>
+        <li>
+          <b>I can read the first line of every reason in the list</b>
+          (AUDIT-05).
+        </li>
+        <li>
+          <b>I am told when a search was too broad to be complete</b>
+          (AUDIT-11).
+        </li>
+        <li><b>I can see who did it on my phone</b> (AUDIT-06).</li>
+        <li>
+          <b
+            >Every action reads in plain words in the detail, never a field
+            name</b
+          >
+          (AUDIT-01).
+        </li>
+        <li><b>The same thing has the same name everywhere</b> (AUDIT-08).</li>
+        <li>
+          <b>I can export what I am looking at</b> or am pointed to where
+          (AUDIT-12).
+        </li>
+      </ol>
+
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <ul>
+        <li>
+          <span class="tag v">verified</span> Reservation vs Booking,
+          Accommodation unit vs Room/Unit, Business day vs Close the day
+          (AUDIT-08).
+        </li>
+        <li>
+          <span class="tag v">verified</span> The record screen shows a plain
+          "Role changed" From/To but a raw-key "Departure changed": two writers,
+          two levels of finish (AUDIT-01).
+        </li>
+        <li>
+          <span class="tag i">inferred</span> Today's activity card links into
+          specific records (code, <code>activity-card.tsx</code>), but the log's
+          own rows do not link outward; Today does it better.
+        </li>
+        <li>
+          <span class="tag v">verified</span> Back arrow works as ADR 0035 asks:
+          the list goes to Today, a record goes to the list with the filters
+          kept (record page Back link equals the list URL).
+        </li>
+        <li>
+          <span class="tag v">verified</span> The Front Desk rail has no Data
+          export, Integrations or Audit log, so a role without the permission
+          never sees a dead entry, matching the rule on other screens.
+        </li>
+      </ul>
+
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <b>Denied and failed attempts are not recorded or visible.</b> There
+          is no action in the catalogue for a refusal or a failure (56 known
+          actions, none of them a denial), and each record commits in the same
+          transaction as the action it describes, so a refused action leaves no
+          row by design (<code>use-case.mmd</code>,
+          <code>edge-cases.csv</code> AL-S1-15 and the written note "the record
+          and the action it describes commit together"). Failed and successful
+          sign-ins are out of scope (AL-DEF-05, blueprint 7.6). An owner asking
+          "who tried to cancel that?" has no answer here.
+          <span class="tag i">inferred</span>
+        </li>
+        <li>
+          <b>Today's note that refused actions may have left rows:</b> from
+          event type alone I cannot tell. Since 30 Sep the log gained exactly
+          one row, a "Reservation taken" at a Property on 11 Oct, written by the
+          Manager account; a taken reservation means the action succeeded, not
+          that it was refused. Nothing in the list reads as a refusal.
+          <span class="tag v">verified</span> (list), conclusion about cause
+          <span class="tag unknown">unknown</span>.
+        </li>
+        <li>
+          <b>Export of the audit log</b> exists as a dataset on the Data export
+          screen, proposed in ADR 0043, and is out of scope for this screen
+          (AL-DEF-04). The missing part is only the pointer (AUDIT-12).
+        </li>
+        <li>
+          <b>Invitation accepted</b> is not recorded (AL-DEF-06, deferred).
+        </li>
+        <li>
+          <b>No live updates</b>: a record written while the page is open is not
+          there until reload, by design (AL-S1-13).
+        </li>
+        <li>
+          <b>No sort, no actor filter</b>: newest first only; person is found
+          through free-text search. Not in the feature design; I did not find a
+          deferred row for it. <span class="tag i">inferred</span>
+        </li>
+      </ul>
+
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          Plain-language action names with a correction badge (warning tone +
+          icon + word) for reversals (<a href="05-action-filter-open.png">05</a
+          >; badge from code).
+        </li>
+        <li>
+          Actor shown as a person's address, "You" for the viewer (<a
+            href="13-manager-view.png"
+            >13</a
+          >), never a bare id. A display name is not used; addresses are the
+          identity here (AL-S1-10).
+        </li>
+        <li>
+          Filters, search and paging are server-side URLs: every filtered view
+          is shareable, and "1 record" / "15 records" pluralise correctly (<a
+            href="09-filter-action-and-day.png"
+            >09</a
+          >). Page size is 50 with a newest/older link pair (code; staging has
+          only one page).
+        </li>
+        <li>
+          Period picker with presets and a clear range summary (<a
+            href="08-period-picker.png"
+            >08</a
+          >).
+        </li>
+        <li>
+          Record opens by id and keeps working; a wrong id gives one calm
+          message (<a href="10-record-missing.png">10</a>).
+        </li>
+        <li>
+          The no-permission page tells the person why and who can fix it,
+          without saying the Subscription lacks a module (<a
+            href="14-frontdesk-url.png"
+            >14</a
+          >).
+        </li>
+        <li>
+          Arabic mirrors correctly, including the filter bar and table order (<a
+            href="12-arabic-rtl.png"
+            >12</a
+          >).
+        </li>
+        <li>
+          The audit log stayed clean during this audit: nothing was submitted,
+          and the count was 15 before and after my reads (sign-in is not logged
+          here).
+        </li>
+      </ul>
+
+      <h2>Notes and limits</h2>
+      <ul>
+        <li>
+          Keyboard use: I checked the structure, not real key presses. The
+          filter form is a native GET form whose tab stops are Action, Property,
+          From, To, Search, Apply, in that order, all real buttons or inputs,
+          and each row has exactly one link (15 rows, 15 links), so a record is
+          reachable by Tab and Enter (<span class="tag v">verified</span> in the
+          DOM). Focus rings and the Escape behaviour of the pickers were not
+          driven by keys.
+        </li>
+        <li>
+          Not testable on this data: the "Older records" link and the "Newest"
+          link (staging has one page of 15), a second user opening a shared
+          record link, and the Property filter with more than one Property.
+          These stay <span class="tag i">inferred</span> from code as stated
+          above.
+        </li>
+        <li>
+          Sign-in was done once per role (Owner, Manager, Front Desk, Finance).
+          The first Owner attempt landed back on the sign-in page and I retried
+          once; no rate-limit message appeared.
+        </li>
+        <li>
+          The Manager account saw the same 15 rows as the Owner, including
+          "Whole Organization" records. This is consistent with AL-S1-19 (a
+          writer reads back its own records), because every one of those rows
+          was written by that account; I could not verify the narrowing for an
+          assigned-Property reader on this data.
+        </li>
+        <li>Screenshots live in this folder: 01 to 15, referenced above.</li>
+      </ul>
+    </main>
+  </body>
+</html>

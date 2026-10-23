@@ -1,20 +1,26 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   CircleCheck,
   CircleSlash,
   Clock,
+  Link2,
   RotateCcw,
+  Search,
   UserMinus,
+  UserPlus,
 } from "lucide-react";
 import type { Role, StaffMember } from "@ranza/staff";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
+  Button,
   Combobox,
   DataTableRowActions,
+  Input,
   StatusBadge,
   Table,
   TableBody,
@@ -24,18 +30,17 @@ import {
   TableRow,
   type StatusBadgeProps,
 } from "@ranza/ui";
-import {
-  revokeStaffMember,
-  undoStaffRevoke,
-  type StaffOutcome,
-} from "../../../server/staff";
-import { shippedRoleOf } from "../labels";
+import { shippedRoleOf, UNDO_WINDOW_HOURS } from "../labels";
 import { leavesNoAdministrator } from "../acts-on";
 import { usePickerLabels } from "../../../lib/picker-labels";
 import {
   ConfirmRoleChange,
   type RoleChangeProposal,
 } from "./confirm-role-change";
+import {
+  ConfirmMembership,
+  type MembershipProposal,
+} from "./confirm-membership";
 import {
   heldRoleValue,
   roleNameOf,
@@ -71,7 +76,7 @@ export function RosterTable({
   roster,
   viewerUserId,
 }: {
-  locale: string;
+  locale: SupportedLocale;
   mayAdminister: boolean;
   /** Membership ids the policies would refuse the viewer acting on. */
   membersAboveViewer: readonly string[];
@@ -85,6 +90,10 @@ export function RosterTable({
   const above = new Set(membersAboveViewer);
   const [proposal, setProposal] = useState<RoleChangeProposal | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [membership, setMembership] = useState<MembershipProposal | null>(null);
+  const [membershipOpen, setMembershipOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [showAllRevoked, setShowAllRevoked] = useState(false);
   // Each pick is its own decision, so it starts a dialog with nothing left over
   // from the last: a refusal read once must not block a retry.
   const [attempt, setAttempt] = useState(0);
@@ -125,99 +134,220 @@ export function RosterTable({
         member.userId,
         target.permissions,
       ),
+      gained: gainedBy(member.rolePermissions, target.permissions),
+      lost: gainedBy(target.permissions, member.rolePermissions),
     });
     setAttempt((count) => count + 1);
     setConfirming(true);
   }
 
+  function proposeMembership(
+    kind: MembershipProposal["kind"],
+    member: StaffMember,
+  ): void {
+    setMembership({
+      kind,
+      member,
+      self: member.userId === viewerUserId,
+      lastAdministrator:
+        kind === "revoke" && leavesNoAdministrator(roster, member.userId, []),
+    });
+    setAttempt((count) => count + 1);
+    setMembershipOpen(true);
+  }
+
+  // A revoke stays on the list while it can still be undone, and for as long as
+  // somebody asks to see it afterwards: a roster that dropped it at once would
+  // make the undo invisible, and one that keeps every leaver forever buries the
+  // people who work here (PEOPLE-09).
+  const lingering = (member: StaffMember): boolean =>
+    member.status === "revoked" &&
+    (member.revokedAt === null || undoable(member) !== null);
+  const hiddenRevoked = roster.filter(
+    (member) => member.status === "revoked" && !lingering(member),
+  ).length;
+  const needle = query.trim().toLowerCase();
+  const visible = roster.filter((member) => {
+    if (
+      member.status === "revoked" &&
+      !showAllRevoked &&
+      !lingering(member) &&
+      needle === ""
+    ) {
+      return false;
+    }
+    return (
+      needle === "" ||
+      [
+        member.email,
+        roleNameOf(member, t),
+        ...member.properties.map((property) => property.propertyName),
+      ].some((text) => text.toLowerCase().includes(needle))
+    );
+  });
+
   return (
-    <div className="overflow-x-auto">
-      <Table aria-label={t("staff.peopleTab")}>
-        <TableHeader>
-          <TableRow>
-            <TableHead scope="col">{t("staff.person")}</TableHead>
-            <TableHead scope="col">{t("staff.role")}</TableHead>
-            <TableHead scope="col">{t("staff.properties")}</TableHead>
-            <TableHead scope="col">{t("staff.status")}</TableHead>
-            {mayAdminister ? (
-              <TableHead className="text-end" scope="col">
-                <span className="sr-only">{t("staff.actions")}</span>
-              </TableHead>
-            ) : null}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {roster.map((member) => {
-            const actsOn = mayAdminister && !above.has(member.membershipId);
-            return (
-              <TableRow data-testid="staff-row" key={member.membershipId}>
-                <TableCell>
-                  <span className="flex items-center gap-3">
-                    <Avatar className="size-8">
-                      <AvatarFallback className="text-xs">
-                        {initials(member.email)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="flex flex-col">
-                      <span className="font-medium">{member.email}</span>
-                      {/* Awaiting a password only when a link is actually
-                        outstanding. Whoever created the Organization arrived
-                        through sign-up and has no invitation at all, so reading
-                        `acceptedAt` here told them they were waiting on a
-                        password they had already set. */}
-                      {member.invitation === "pending" ? (
-                        <span className="text-xs text-muted-foreground">
-                          {t("staff.invitationSent")}
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+        <div className="relative w-full max-w-xs">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            aria-label={t("staff.search")}
+            className="ps-9"
+            data-testid="staff-search"
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("staff.search")}
+            type="search"
+            value={query}
+          />
+        </div>
+        {hiddenRevoked > 0 ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              checked={showAllRevoked}
+              data-testid="show-revoked"
+              onChange={(event) => setShowAllRevoked(event.target.checked)}
+              type="checkbox"
+            />
+            {t("staff.showRevoked", { count: hiddenRevoked })}
+          </label>
+        ) : null}
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 p-8 text-center">
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="staff-no-match"
+          >
+            {t("staff.noMatch", { query: query.trim() })}
+          </p>
+          <Button
+            onClick={() => {
+              setQuery("");
+              setShowAllRevoked(true);
+            }}
+            type="button"
+            variant="outline"
+          >
+            {t("staff.showAll")}
+          </Button>
+        </div>
+      ) : (
+        <Table aria-label={t("staff.peopleTab")} className="max-md:block">
+          <TableHeader className="max-md:sr-only">
+            <TableRow>
+              <TableHead scope="col">{t("staff.person")}</TableHead>
+              <TableHead scope="col">{t("staff.role")}</TableHead>
+              <TableHead scope="col">{t("staff.properties")}</TableHead>
+              <TableHead scope="col">{t("staff.status")}</TableHead>
+              {mayAdminister ? (
+                <TableHead className="text-end" scope="col">
+                  <span className="sr-only">{t("staff.actions")}</span>
+                </TableHead>
+              ) : null}
+            </TableRow>
+          </TableHeader>
+          <TableBody className="max-md:block">
+            {visible.map((member) => {
+              const actsOn = mayAdminister && !above.has(member.membershipId);
+              const until = undoable(member);
+              return (
+                <TableRow
+                  className="max-md:grid max-md:grid-cols-[1fr_auto] max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:p-4"
+                  data-testid="staff-row"
+                  key={member.membershipId}
+                >
+                  <TableCell className="max-md:col-span-2 max-md:p-0">
+                    <span className="flex items-center gap-3">
+                      <Avatar className="size-8">
+                        <AvatarFallback className="text-xs">
+                          {initials(member.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate font-medium">
+                          {member.email}
                         </span>
-                      ) : null}
+                        {/* Awaiting a password only when a link is actually
+                          outstanding. Whoever created the Organization arrived
+                          through sign-up and has no invitation at all, so
+                          reading `acceptedAt` here told them they were waiting
+                          on a password they had already set. */}
+                        {member.status === "active" &&
+                        member.invitation === "pending" ? (
+                          <span className="text-xs text-muted-foreground">
+                            {t("staff.invitationSent")}
+                          </span>
+                        ) : null}
+                        {member.status === "revoked" ? (
+                          <span className="text-xs text-muted-foreground">
+                            {until
+                              ? t("staff.undoUntil", {
+                                  until: formatDate(until, locale, {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  }),
+                                })
+                              : t("staff.undoOver", {
+                                  hours: UNDO_WINDOW_HOURS,
+                                })}
+                          </span>
+                        ) : null}
+                      </span>
                     </span>
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {actsOn ? (
-                    <RolePicker
-                      member={member}
-                      onPropose={propose}
-                      roles={roles}
-                    />
-                  ) : (
-                    roleNameOf(member, t)
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {member.accessScope === "organization_wide"
-                    ? t("staff.reachesEverywhere")
-                    : member.properties.length === 0
-                      ? t("staff.reachesNothing")
-                      : member.properties.map((p) => p.propertyName).join(", ")}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge {...statusOf(member, t)} />
-                </TableCell>
-                {mayAdminister ? (
-                  <TableCell className="text-end">
+                  </TableCell>
+                  <TableCell className="max-md:p-0">
                     {actsOn ? (
-                      <MembershipActions
-                        locale={locale}
+                      <RolePicker
                         member={member}
-                        organizationId={organizationId}
+                        onPropose={propose}
+                        roles={roles}
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">
-                        {t("staff.aboveYou")}
-                      </span>
+                      roleNameOf(member, t)
                     )}
                   </TableCell>
-                ) : null}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  <TableCell className="text-muted-foreground max-md:col-span-2 max-md:p-0 max-md:whitespace-normal">
+                    {member.accessScope === "organization_wide"
+                      ? t("staff.reachesEverywhere")
+                      : member.properties.length === 0
+                        ? t("staff.reachesNothing")
+                        : member.properties
+                            .map((property) => property.propertyName)
+                            .join(", ")}
+                  </TableCell>
+                  <TableCell className="max-md:p-0">
+                    <StatusBadge {...statusOf(member, t)} />
+                  </TableCell>
+                  {mayAdminister ? (
+                    <TableCell className="text-end max-md:p-0">
+                      {actsOn ? (
+                        <MembershipActions
+                          member={member}
+                          onPropose={proposeMembership}
+                          undoable={until !== null}
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">
+                          {t("staff.aboveYou")}
+                        </span>
+                      )}
+                    </TableCell>
+                  ) : null}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      )}
       {proposal ? (
         <ConfirmRoleChange
           current={roster.find((member) => member.userId === proposal.userId)}
-          key={attempt}
+          key={`role-${attempt}`}
           locale={locale}
           onClose={() => setConfirming(false)}
           open={confirming}
@@ -225,8 +355,39 @@ export function RosterTable({
           proposal={proposal}
         />
       ) : null}
+      {membership ? (
+        <ConfirmMembership
+          key={`membership-${attempt}`}
+          locale={locale}
+          onClose={() => setMembershipOpen(false)}
+          open={membershipOpen}
+          organizationId={organizationId}
+          proposal={membership}
+        />
+      ) : null}
     </div>
   );
+}
+
+/**
+ * Until when a revoke can be undone, or null once it cannot (or was never
+ * revoked). Read from the roster's own `revokedAt` and the window the module
+ * states, so the screen offers an undo only while the server would accept it.
+ */
+function undoable(member: StaffMember): Date | null {
+  if (member.status !== "revoked" || !member.revokedAt) return null;
+  const until = new Date(
+    Date.parse(member.revokedAt) + UNDO_WINDOW_HOURS * 3_600_000,
+  );
+  return until.getTime() > Date.now() ? until : null;
+}
+
+/** The permissions `next` holds that `from` does not, for the confirmation. */
+function gainedBy(
+  from: readonly string[],
+  next: readonly string[],
+): readonly string[] {
+  return next.filter((permission) => !from.includes(permission));
 }
 
 /**
@@ -242,7 +403,11 @@ export function RosterTable({
 function statusOf(
   member: StaffMember,
   t: (
-    key: "staff.active" | "staff.awaitingPassword" | "staff.revoked",
+    key:
+      | "staff.active"
+      | "staff.awaitingPassword"
+      | "staff.linkNoLonger"
+      | "staff.revoked",
   ) => string,
 ): StatusBadgeProps {
   if (member.status === "revoked") {
@@ -250,6 +415,9 @@ function statusOf(
   }
   if (member.invitation === "pending") {
     return { icon: Clock, label: t("staff.awaitingPassword"), tone: "warning" };
+  }
+  if (member.invitation === "expired" || member.invitation === "withdrawn") {
+    return { icon: Clock, label: t("staff.linkNoLonger"), tone: "warning" };
   }
   return { icon: CircleCheck, label: t("staff.active"), tone: "success" };
 }
@@ -323,59 +491,60 @@ function RolePicker({
   );
 }
 
-/** Revoke, or take it back. Behind one button, as a row's actions always are. */
+/**
+ * What can be done to a membership, behind one button as a row's actions
+ * always are. Every one of them asks first (PEOPLE-02): the menu only proposes.
+ */
 function MembershipActions({
-  locale,
   member,
-  organizationId,
+  onPropose,
+  undoable,
 }: {
-  locale: string;
   member: StaffMember;
-  organizationId: string;
+  onPropose: (kind: MembershipProposal["kind"], member: StaffMember) => void;
+  undoable: boolean;
 }) {
   const t = useTranslations();
-  const [, startTransition] = useTransition();
-  const [outcome, setOutcome] = useState<StaffOutcome>("idle");
 
-  const revoking = member.status === "active";
-
-  function run(): void {
-    setOutcome("idle");
-    startTransition(async () => {
-      const form = new FormData();
-      form.set("locale", locale);
-      form.set("organization", organizationId);
-      form.set("member", member.userId);
-      const result = await (revoking ? revokeStaffMember : undoStaffRevoke)(
-        "idle",
-        form,
-      );
-      if (result !== "done") setOutcome(result);
-    });
-  }
+  const actions =
+    member.status === "active"
+      ? [
+          ...(member.invitation !== null && member.invitation !== "accepted"
+            ? [
+                {
+                  label: t("staff.renewLink"),
+                  icon: Link2,
+                  onSelect: () => onPropose("renew", member),
+                },
+              ]
+            : []),
+          {
+            label: t("staff.revoke"),
+            icon: UserMinus,
+            onSelect: () => onPropose("revoke", member),
+            destructive: true,
+          },
+        ]
+      : undoable
+        ? [
+            {
+              label: t("staff.undoRevoke"),
+              icon: RotateCcw,
+              onSelect: () => onPropose("restore", member),
+            },
+          ]
+        : [
+            {
+              label: t("staff.addBack"),
+              icon: UserPlus,
+              onSelect: () => onPropose("readd", member),
+            },
+          ];
 
   return (
-    <span className="flex items-center justify-end gap-2">
-      {outcome === "lastAdministrator" ? (
-        <span className="text-xs text-destructive">
-          {t("staff.lastAdministrator")}
-        </span>
-      ) : outcome !== "idle" ? (
-        <span className="text-xs text-destructive">{t("staff.refused")}</span>
-      ) : null}
-      <DataTableRowActions
-        actions={[
-          revoking
-            ? {
-                label: t("staff.revoke"),
-                icon: UserMinus,
-                onSelect: run,
-                destructive: true,
-              }
-            : { label: t("staff.undoRevoke"), icon: RotateCcw, onSelect: run },
-        ]}
-        label={`${t("staff.actions")}: ${member.email}`}
-      />
-    </span>
+    <DataTableRowActions
+      actions={actions}
+      label={`${t("staff.actions")}: ${member.email}`}
+    />
   );
 }

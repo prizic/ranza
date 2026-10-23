@@ -12,6 +12,8 @@ export {
   UNDO_REVOKE_WINDOW_HOURS,
 } from "./contracts";
 export type {
+  InvitationLink,
+  InvitationLinkState,
   InvitationStatus,
   Invited,
   MembershipStatus,

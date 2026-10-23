@@ -16,7 +16,7 @@ import { formatMoney, supportedLocales } from "../../packages/i18n/src";
  * own, and the sign may stand before the symbol rather than the digits.
  */
 const figure = (text: string): string => {
-  const clean = text.replace(/[\u200e\u200f\u061c]/g, "");
+  const clean = text.replace(/[\u200e\u200f\u061c\u2066-\u2069]/g, "");
   const digits = clean.match(/\d(?:[\d.,]*\d)?/)?.[0] ?? "";
   return /[-\u2212]/.test(clean) ? `-${digits}` : digits;
 };
@@ -53,5 +53,60 @@ describe("an amount in minor units, shown", () => {
       formatMoney(123456, "KWD", "en"),
     );
     expect(formatMoney(123456, "KWD", "ar")).toMatch(/د\.ك/);
+  });
+});
+
+/**
+ * Money is one left-to-right unit in an Arabic cell. ICU writes a
+ * right-to-left mark before a positive Arabic amount and a left-to-right mark
+ * before the sign of a negative one, so two amounts in one column read in two
+ * orders: `TRY${NBSP}740.00` and "-100.00 TRY". Every character is spelled out
+ * because the invisible ones are the whole behaviour.
+ */
+describe("an amount is one left-to-right unit", () => {
+  const LRI = "\u2066";
+  const PDI = "\u2069";
+  const NBSP = "\u00a0";
+
+  const exact: [
+    amountMinor: number,
+    currency: string,
+    locale: "en" | "tr" | "ar",
+    expected: string,
+  ][] = [
+    [74000, "TRY", "en", `TRY${NBSP}740.00`],
+    [-10000, "TRY", "en", `-TRY${NBSP}100.00`],
+    [0, "TRY", "en", `TRY${NBSP}0.00`],
+    [123456, "KWD", "en", `KWD${NBSP}123.456`],
+    [74000, "TRY", "tr", "\u20ba740,00"],
+    [-10000, "TRY", "tr", "-\u20ba100,00"],
+    [0, "TRY", "tr", "\u20ba0,00"],
+    [123456, "KWD", "tr", `KWD${NBSP}123,456`],
+    [74000, "TRY", "ar", `${LRI}740.00${NBSP}TRY${PDI}`],
+    [-10000, "TRY", "ar", `${LRI}-100.00${NBSP}TRY${PDI}`],
+    [0, "TRY", "ar", `${LRI}0.00${NBSP}TRY${PDI}`],
+    [-123456, "KWD", "ar", `${LRI}-123.456${NBSP}\u062f.\u0643.\u200f${PDI}`],
+    [123456, "KWD", "ar", `${LRI}123.456${NBSP}\u062f.\u0643.\u200f${PDI}`],
+  ];
+
+  for (const [amountMinor, currency, locale, expected] of exact) {
+    it(`${amountMinor} minor units of ${currency} in ${locale} is spelled exactly`, () => {
+      expect(formatMoney(amountMinor, currency, locale)).toBe(expected);
+    });
+  }
+
+  it("writes no invisible character into an English or Turkish amount", () => {
+    for (const locale of ["en", "tr"] as const) {
+      expect(formatMoney(-10000, "TRY", locale)).not.toMatch(
+        /[\u200e\u200f\u061c\u2066-\u2069]/,
+      );
+    }
+  });
+
+  it("gives a positive and a negative Arabic amount the same shape", () => {
+    const shape = (text: string) => text.replace(/[-\d.]+/, "N");
+    expect(shape(formatMoney(74000, "TRY", "ar"))).toBe(
+      shape(formatMoney(-10000, "TRY", "ar")),
+    );
   });
 });

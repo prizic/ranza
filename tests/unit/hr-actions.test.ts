@@ -13,7 +13,11 @@ const registerEmployee = vi.fn();
 const terminateEmployee = vi.fn();
 const approvePayroll = vi.fn();
 const decideLeave = vi.fn();
+const updateEmployee = vi.fn();
+const changeWage = vi.fn();
+const employees = vi.fn();
 const workplace = vi.fn();
+const readRoster = vi.fn();
 const revalidatePath = vi.fn();
 
 // The application resolves its own copy of next, so the mock names that copy.
@@ -37,8 +41,12 @@ vi.mock("../../apps/operator-workspace/src/server/composition", () => ({
       terminateEmployee,
       approvePayroll,
       decideLeave,
+      updateEmployee,
+      changeWage,
+      employees,
       workplace,
     },
+    staff: { readRoster },
   }),
 }));
 
@@ -47,6 +55,9 @@ const ORGANIZATION = "df000002-0000-4000-8000-000000000001";
 const PROPERTY = "df000003-0000-4000-8000-000000000001";
 const OTHER_PROPERTY = "df000003-0000-4000-8000-000000000002";
 const EMPLOYEE = "df000004-0000-4000-8000-000000000001";
+const ACTIVE_LOGIN = "df000006-0000-4000-8000-000000000001";
+const REVOKED_LOGIN = "df000006-0000-4000-8000-000000000002";
+const ANOTHER_ORGANIZATIONS_LOGIN = "df000006-0000-4000-8000-000000000003";
 
 const hr = await import("../../apps/operator-workspace/src/server/hr");
 const { HrInputError, HrRefusedError } =
@@ -68,12 +79,19 @@ beforeEach(() => {
     terminateEmployee,
     approvePayroll,
     decideLeave,
+    updateEmployee,
+    changeWage,
   ]) {
     command.mockReset().mockResolvedValue(undefined);
   }
   workplace
     .mockReset()
     .mockResolvedValue({ currency: "TRY", today: "2026-10-09" });
+  readRoster.mockReset().mockResolvedValue([
+    { userId: ACTIVE_LOGIN, email: "ada@hotel.test", status: "active" },
+    { userId: REVOKED_LOGIN, email: "gone@hotel.test", status: "revoked" },
+  ]);
+  employees.mockReset().mockResolvedValue([{ id: EMPLOYEE, currency: "EUR" }]);
   revalidatePath.mockReset();
   logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -144,6 +162,67 @@ describe("registering an employee", () => {
         field: "request",
       },
     );
+  });
+});
+
+describe("registering an employee from a login", () => {
+  it("HR-S1-50: an active member's login is linked to the record", async () => {
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: ACTIVE_LOGIN,
+    });
+
+    expect(outcome).toEqual({ status: "done" });
+    expect(readRoster).toHaveBeenCalledWith({ userId: VIEWER }, ORGANIZATION);
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ userId: ACTIVE_LOGIN }),
+    );
+  });
+
+  it("registers a person with no login without reading the roster", async () => {
+    await hr.registerEmployeeAction("en", PROPERTY, person);
+    expect(readRoster).not.toHaveBeenCalled();
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ userId: undefined }),
+    );
+  });
+
+  it("HR-S1-55: a login that is revoked, or is not in this Organization, is refused and nothing is registered", async () => {
+    for (const forged of [REVOKED_LOGIN, ANOTHER_ORGANIZATIONS_LOGIN]) {
+      const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+        ...person,
+        userId: forged,
+      });
+      expect(outcome).toEqual({ status: "refused", reason: "not_permitted" });
+    }
+    expect(registerEmployee).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-55: a login id that is not an id is invalid, and the roster is not read", async () => {
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: "not-a-uuid",
+    });
+    expect(outcome).toEqual({ status: "invalid", field: "request" });
+    expect(readRoster).not.toHaveBeenCalled();
+    expect(registerEmployee).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-51: a login that already has a record is the module's refusal, not a failure", async () => {
+    registerEmployee.mockRejectedValue(
+      new HrRefusedError("already_registered"),
+    );
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      userId: ACTIVE_LOGIN,
+    });
+    expect(outcome).toEqual({
+      status: "refused",
+      reason: "already_registered",
+    });
+    expect(logged).not.toHaveBeenCalled();
   });
 });
 
@@ -226,5 +305,102 @@ describe("ending employment", () => {
       await hr.terminateEmployeeAction("en", PROPERTY, EMPLOYEE, "2026-02-31"),
     ).toEqual({ status: "invalid", field: "terminatedOn" });
     expect(terminateEmployee).not.toHaveBeenCalled();
+  });
+});
+
+describe("a start date, an edit and a dated wage (HR-02, HR-03)", () => {
+  it("HR-S1-56: sends the start date as a calendar day, and refuses one that is not on the calendar", async () => {
+    await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      hiredOn: "2026-07-14",
+    });
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ hiredOn: new Date("2026-07-14T00:00:00Z") }),
+    );
+
+    registerEmployee.mockClear();
+    const outcome = await hr.registerEmployeeAction("en", PROPERTY, {
+      ...person,
+      hiredOn: "2026-02-31",
+    });
+    expect(outcome).toEqual({ status: "invalid", field: "dates" });
+    expect(registerEmployee).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-56: leaves the start date to the module when the form sends none", async () => {
+    await hr.registerEmployeeAction("en", PROPERTY, person);
+    expect(registerEmployee).toHaveBeenCalledWith(
+      VIEWER,
+      expect.objectContaining({ hiredOn: undefined }),
+    );
+  });
+
+  it("HR-S1-64: an edit carries the details and never a pay", async () => {
+    const outcome = await hr.updateEmployeeAction("en", PROPERTY, EMPLOYEE, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      department: "Housekeeping",
+      position: "Supervisor",
+      contractType: "part_time",
+      hiredOn: "2025-03-01",
+    });
+    expect(outcome).toEqual({ status: "done" });
+    const [, sent] = updateEmployee.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(sent).toMatchObject({
+      organizationId: ORGANIZATION,
+      employeeId: EMPLOYEE,
+      department: "Housekeeping",
+      hiredOn: new Date("2025-03-01T00:00:00Z"),
+    });
+    expect(sent).not.toHaveProperty("grossPayMinor");
+  });
+
+  it("HR-S1-57: reads a new pay in the employee's own currency, which the form cannot name", async () => {
+    const outcome = await hr.changeWageAction("en", PROPERTY, EMPLOYEE, {
+      effectiveFrom: "2026-11",
+      grossPay: "1234.56",
+    });
+    expect(outcome).toEqual({ status: "done" });
+    expect(changeWage).toHaveBeenCalledWith(VIEWER, {
+      organizationId: ORGANIZATION,
+      employeeId: EMPLOYEE,
+      effectiveFrom: "2026-11",
+      grossPayMinor: 123_456,
+    });
+  });
+
+  it("HR-S1-57: an amount with too many decimals is refused in words and nothing is sent", async () => {
+    const outcome = await hr.changeWageAction("en", PROPERTY, EMPLOYEE, {
+      effectiveFrom: "2026-11",
+      grossPay: "1234.567",
+    });
+    expect(outcome).toEqual({ status: "invalid", field: "grossPay" });
+    expect(changeWage).not.toHaveBeenCalled();
+  });
+
+  it("HR-S1-59: the refusal for an approved month reaches the screen as a reason, not as the database's text", async () => {
+    changeWage.mockRejectedValue(new HrRefusedError("wage_period_approved"));
+    const outcome = await hr.changeWageAction("en", PROPERTY, EMPLOYEE, {
+      effectiveFrom: "2026-01",
+      grossPay: "100",
+    });
+    expect(outcome).toEqual({
+      status: "refused",
+      reason: "wage_period_approved",
+    });
+  });
+
+  it("HR-S1-57: an employee the viewer cannot read is a refusal, not a guess at a currency", async () => {
+    employees.mockResolvedValue([]);
+    const outcome = await hr.changeWageAction("en", PROPERTY, EMPLOYEE, {
+      effectiveFrom: "2026-11",
+      grossPay: "100",
+    });
+    expect(outcome).toEqual({ status: "refused", reason: "not_permitted" });
+    expect(changeWage).not.toHaveBeenCalled();
   });
 });

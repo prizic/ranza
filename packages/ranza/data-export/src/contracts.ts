@@ -49,6 +49,24 @@ export type ExportFailureReason = (typeof EXPORT_FAILURE_REASONS)[number];
 export const EXPORT_ROW_LIMIT = 100_000;
 export const EXPORT_FILE_LIMIT_BYTES = 25 * 1024 * 1024;
 
+/**
+ * A calendar day as a request carries it, `YYYY-MM-DD`. The datasets made of
+ * dated rows (reservations and stays, folio lines, the audit log) are cut to
+ * the days between the first and the last, both included; guests and rooms are
+ * lists and are never cut.
+ */
+export interface ExportRange {
+  from: string | null;
+  to: string | null;
+}
+
+/** The datasets a range cuts. The others come whole whatever the range. */
+export const RANGE_CUT_DATASETS = [
+  "reservations_stays",
+  "folios_payments",
+  "audit_log",
+] as const satisfies readonly ExportResourceType[];
+
 /** The bounds the database holds a schedule's name to. */
 export const SCHEDULE_NAME = { min: 1, max: 200 } as const;
 
@@ -67,6 +85,8 @@ export interface DataExportRecord {
   requesterName: string;
   resourceTypes: ExportResourceType[];
   format: ExportFormat;
+  /** The days the dated datasets were cut to, when they were. */
+  range: ExportRange | null;
   status: ExportStatus;
   triggerType: ExportTriggerType;
   scheduleId: string | null;
@@ -91,8 +111,24 @@ export interface ExportScheduleRecord {
   frequency: ScheduleFrequency;
   status: ScheduleStatus;
   lastRunAt: Date | null;
+  /**
+   * How the schedule's latest run ended, when it failed: a paused schedule
+   * whose latest run failed `requester_not_permitted` was paused for that.
+   */
+  lastRunError: ExportFailureReason | null;
   nextRunAt: Date;
   createdAt: Date;
+}
+
+/**
+ * What the acting Staff Member may ask for at a Property: whether they may
+ * request an export at all, and each dataset by the permission it needs. The
+ * insert policy decides a request; this is the same question asked early, so a
+ * form can say so instead of failing on submit.
+ */
+export interface ExportAbilities {
+  mayCreate: boolean;
+  datasets: Record<ExportResourceType, boolean>;
 }
 
 /** A file a download hands over: only to somebody the database let through. */
@@ -105,6 +141,8 @@ export interface ExportFile {
 export interface RequestExportInput {
   resourceTypes: ExportResourceType[];
   format: ExportFormat;
+  /** Cuts the dated datasets; null or absent: every date. */
+  range?: ExportRange | null;
   /**
    * The name the requester signed up with, when they gave one. Without it the
    * export records their address cut to `local@***`; the database cuts any
@@ -151,9 +189,21 @@ export interface SweepExportsReport {
   failures: { exportId: string; error: unknown }[];
 }
 
+/** Why a request could not be made as it was written, as a code a screen words. */
+export type DataExportInputProblem =
+  | "no_datasets"
+  | "unknown_dataset"
+  | "unknown_format"
+  | "range_not_a_day"
+  | "range_backwards"
+  | "name_missing";
+
 /** The input a request or schedule was given is not one the database could hold. */
 export class DataExportInputError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly problem: DataExportInputProblem,
+  ) {
     super(message);
     this.name = "DataExportInputError";
   }
@@ -162,9 +212,13 @@ export class DataExportInputError extends Error {
 /**
  * A request or a download was refused. One error for every reason, so that
  * "you may not" cannot be told from "there is no such thing" (ADR 0012).
+ *
+ * A request that the requester's own role cannot make carries which of the
+ * datasets they named it will not cover, because that is theirs to know: it is
+ * the answer to "what can I ask for", which the form shows anyway.
  */
 export class DataExportRefusedError extends Error {
-  constructor() {
+  constructor(readonly datasets: readonly ExportResourceType[] = []) {
     super("that export request was refused");
     this.name = "DataExportRefusedError";
   }

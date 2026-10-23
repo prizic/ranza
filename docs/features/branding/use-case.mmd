@@ -1,0 +1,50 @@
+%% Slice 1 is the whole feature: one colour and one logo per Organization, set in
+%% the Workspace and drawn by the Guest/Resident Portal (blueprint 2 "White-label
+%% Configuration", 3.1, 8, story 29). Everything else blueprint 8 lists is a
+%% deferred row in edge-cases.csv.
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%% The states are in states.mmd and are deliberately not repeated here.
+flowchart TD
+
+  OWNER["Staff Member<br/>holding branding.manage across the whole Organization<br/>(the shipped Owner)"]
+  OTHER["Staff Member without it<br/>or holding it at some Properties only"]
+  RESIDENT["Guest or Resident<br/>with a current Stay"]
+  VISITOR["Visitor<br/>not signed in"]
+
+  subgraph S1["slice 1 &mdash; one colour and one logo"]
+    COLOR(["Choose the brand colour<br/>one hex; the foreground and a darker text shade are derived"])
+    LOGO(["Upload the logo<br/>PNG, JPEG or WebP, validated by its bytes"])
+    PREVIEW(["See the Portal header and controls in the draft<br/>before saving"])
+    SAVE(["Save<br/>audited with old and new values"])
+    RESET(["Reset to default<br/>empties both, keeps the rows, audited"])
+    DRAW(["The Portal is drawn in the brand<br/>primary buttons, links, active item, header"])
+    SERVE(["The logo is served, versioned by its hash<br/>revalidated by ETag, 404 where the Portal is not shown"])
+    REFUSE(["Told why a colour or a logo is refused<br/>in their language"])
+  end
+
+  subgraph OUT["Not this feature"]
+    DOMAINS(["Custom domains &mdash; deferred"])
+    TYPE(["Typography &mdash; deferred"])
+    MAIL(["Email sender identity and templates &mdash; deferred"])
+    TERMS(["Terminology mappings &mdash; deferred"])
+    PERPROPERTY(["A brand per Property &mdash; deferred"])
+    OBJECT(["Object storage for the logo &mdash; deferred"])
+    NAME(["Brand name &mdash; deferred"])
+  end
+
+  OWNER --> COLOR
+  OWNER --> LOGO
+  OWNER --> RESET
+  COLOR -- "include" --> PREVIEW
+  LOGO -- "include" --> PREVIEW
+  PREVIEW -- "include" --> SAVE
+  SAVE -- "extend" --> REFUSE
+  OTHER -. "finds no screen, or is told who can" .-> SAVE
+
+  RESIDENT --> DRAW
+  DRAW -- "include" --> SERVE
+  SAVE -- "takes effect on the next load" --> DRAW
+  RESET -- "takes effect on the next load" --> DRAW
+  VISITOR -. "sign-in stays Ranza's" .-> DRAW

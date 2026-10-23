@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { psql } from "./local-database";
-import { aStaffMember, EMAIL, signIn, testProperty } from "./front-desk";
+import {
+  aStaffMember,
+  EMAIL,
+  pickDay,
+  propertyDay,
+  signIn,
+  testProperty,
+} from "./front-desk";
 
 /**
  * Maintenance through the screens a front desk actually uses (RANZ-33).
@@ -53,11 +61,8 @@ test("a problem reported from Rooms takes the room out of order until it is done
 
   // MT-S2-01: reported and taken out of order in one step.
   await dialog.getByRole("textbox", { name: "What is wrong?" }).fill(title);
-  await dialog.getByRole("button", { name: "Urgent" }).click();
-  await expect(dialog.getByRole("button", { name: "Urgent" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await dialog.getByRole("radio", { name: "Urgent" }).check({ force: true });
+  await expect(dialog.getByRole("radio", { name: "Urgent" })).toBeChecked();
   await dialog
     .getByRole("checkbox", { name: "Take it out of order until it is fixed" })
     .click();
@@ -144,9 +149,16 @@ async function openUnitPicker(page: Page, propertyId: string, search: string) {
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  await dialog.getByLabel("Unit").click();
-  await page.keyboard.type(search);
-  return { dialog, options: page.getByRole("option") };
+  await dialog.getByRole("button", { name: /^Arrival/ }).click();
+  await pickDay(page, propertyDay(propertyId, 0));
+  await pickDay(page, propertyDay(propertyId, 2));
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(search);
+  return {
+    dialog,
+    options: dialog.locator('label:has(input[type="radio"][name="unit"])'),
+  };
 }
 
 const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-33");
@@ -338,7 +350,7 @@ test("the board groups requests by state, hides cancelled ones behind a filter, 
   await expect(progress).toContainText("Board in progress");
   await expect(progress).toContainText(unitName);
   await expect(progress).toContainText("This week");
-  await expect(progress).toContainText(EMAIL);
+  await expect(progress).toContainText("Deniz");
   await expect(card("Board new")).toContainText("Urgent");
   await expect(card("Board new")).toContainText("Not assigned");
 
@@ -361,7 +373,7 @@ test("the board groups requests by state, hides cancelled ones behind a filter, 
   await page.getByRole("option", { name: "Any priority" }).click();
 
   await page.getByRole("combobox", { name: "Assignee" }).click();
-  await page.getByRole("option", { name: EMAIL }).click();
+  await page.getByRole("option", { name: "Deniz" }).click();
   await expect(card("Board in progress")).toBeVisible();
   await expect(card("Board new")).toHaveCount(0);
   await expect(count("In progress")).toHaveText("1");
@@ -754,7 +766,10 @@ test("the board reads right to left in Arabic", async ({ page }) => {
   // board's own heading sits under it.
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    page.getByRole("heading", { level: 2, name: /^الصيانة في/ }),
+    page.getByRole("heading", {
+      level: 2,
+      name: /^المشكلات المُبلَّغ عنها هنا/,
+    }),
   ).toBeVisible();
 
   // And the board inside the tabs mirrors too: a Radix primitive takes its

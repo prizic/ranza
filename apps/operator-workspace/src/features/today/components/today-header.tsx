@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import type { TodaySummary } from "../../../server/today-derive";
-import { cutoffTime, dayHeading, shortDay } from "../format";
+import { cutoffTime, dayHeading, shortDay, zoneName } from "../format";
 import { todayHref } from "../links";
 import { LocalClock } from "./local-clock";
 
@@ -97,8 +97,14 @@ export function TodayHeader({
               timeZone={day.timezone}
             />
           </span>
-          <span className="mt-1.5 text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            {day.timezone}
+          {/* The zone's name comes from the engine's own tables, which the
+              server and the browser do not always spell alike. */}
+          <span
+            className="mt-1.5 text-xs font-medium tracking-wider text-muted-foreground uppercase"
+            suppressHydrationWarning
+            title={day.timezone}
+          >
+            {zoneName(day.timezone, locale)}
           </span>
         </p>
         {mayBook ? (

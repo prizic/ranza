@@ -13,9 +13,15 @@ import {
   formatShare,
 } from "../format";
 import { OpenProperty } from "./open-property";
+import { PropertyLink } from "./property-link";
 
 /**
  * One Property, with the figures that let it be set beside the others.
+ *
+ * The share of units in use leads, large, with the count it comes from under
+ * it: that is the figure the eye compares across cards (PORTFOLIO-01). Each of
+ * the other figures is a link to the list behind it at this Property, so a
+ * figure that looks wrong is one press from where it is made (PORTFOLIO-04).
  *
  * A null is never a zero. A Property whose analytics are off is withheld
  * whole and says so; a figure whose module is off there is "not available";
@@ -39,14 +45,31 @@ export function PropertyCard({
     propertyName,
   } = property;
 
-  const count = (value: number | null) =>
-    value === null ? (
-      <span className="font-normal text-muted-foreground">
-        {t("unavailable")}
-      </span>
-    ) : (
-      formatCount(value, locale)
-    );
+  const figure = (
+    label: string,
+    value: number | null,
+    segment: string,
+    query = "",
+  ) => (
+    <Row label={label}>
+      {value === null ? (
+        <span className="font-normal text-muted-foreground">
+          {t("unavailable")}
+        </span>
+      ) : (
+        <PropertyLink
+          className="underline-offset-4 hover:underline"
+          label={t("openList", { label, property: propertyName })}
+          locale={locale}
+          propertyId={propertyId}
+          query={query}
+          segment={segment}
+        >
+          {formatCount(value, locale)}
+        </PropertyLink>
+      )}
+    </Row>
+  );
 
   return (
     <li
@@ -73,13 +96,13 @@ export function PropertyCard({
         <>
           <Occupancy locale={locale} property={property} />
           <dl className="grid gap-2.5 text-sm">
-            <Row label={t("arrivals")}>{count(property.arrivalsToCome)}</Row>
-            <Row label={t("departures")}>
-              {count(property.departuresToCome)}
-            </Row>
-            <Row label={t("maintenance")}>
-              {count(property.openMaintenanceRequests)}
-            </Row>
+            {figure(t("arrivals"), property.arrivalsToCome, "arrivals")}
+            {figure(t("departures"), property.departuresToCome, "departures")}
+            {figure(
+              t("maintenance"),
+              property.openMaintenanceRequests,
+              "maintenance",
+            )}
             <Row label={t("moneyOwed")}>
               {openFolioBalanceMinor === null ? (
                 <span className="inline-flex items-center gap-1.5 font-normal text-muted-foreground">
@@ -87,7 +110,19 @@ export function PropertyCard({
                   {t("hidden")}
                 </span>
               ) : (
-                formatBalance(openFolioBalanceMinor, currency, locale)
+                <PropertyLink
+                  className="underline-offset-4 hover:underline"
+                  label={t("openList", {
+                    label: t("moneyOwed"),
+                    property: propertyName,
+                  })}
+                  locale={locale}
+                  propertyId={propertyId}
+                  query="show=owing"
+                  segment="finance"
+                >
+                  {formatBalance(openFolioBalanceMinor, currency, locale)}
+                </PropertyLink>
               )}
             </Row>
           </dl>
@@ -142,28 +177,30 @@ function Occupancy({
   const share = occupancyPercent(occupiedUnits, sellableUnits);
   return (
     <div>
-      <p className="text-4xl leading-none font-light tracking-tight tabular-nums">
-        {formatCount(occupiedUnits, locale)}
-        <span className="text-xl text-muted-foreground">
-          {" "}
-          / {formatCount(sellableUnits, locale)}
-        </span>
+      <p
+        className="text-4xl leading-none font-light tracking-tight tabular-nums"
+        data-share
+      >
+        {share === null ? "—" : formatShare(share, locale)}
       </p>
       <p className="mt-2 text-xs font-medium tracking-wider text-muted-foreground uppercase">
         {t("cardOccupancy")}
-        {share === null ? null : ` · ${formatShare(share, locale)}`}
       </p>
-      {share === null ? (
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("noSellableUnits")}
-        </p>
-      ) : (
+      <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+        {share === null
+          ? t("noSellableUnits")
+          : t("unitsInUse", {
+              occupied: formatCount(occupiedUnits, locale),
+              sellable: formatCount(sellableUnits, locale),
+            })}
+      </p>
+      {share === null ? null : (
         <div
           aria-label={t("cardOccupancy")}
           aria-valuemax={100}
           aria-valuemin={0}
           aria-valuenow={Math.round(share)}
-          className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-secondary"
+          className="mt-3 flex h-2 overflow-hidden rounded-full bg-secondary"
           role="progressbar"
         >
           <span

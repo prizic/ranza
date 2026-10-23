@@ -24,21 +24,31 @@ const DETAIL_KEYS = ["record", "folio"] as const;
 export function WorkspacePageBar({
   action,
   defaultProperty,
-  entitled,
   locale,
+  reachable,
+  segmentsByProperty,
 }: {
   action?: ReactNode;
   /** The Property the switcher names when the URL names none. */
   defaultProperty: string | undefined;
-  entitled: readonly string[];
   locale: SupportedLocale;
+  reachable: readonly string[];
+  segmentsByProperty: Readonly<Record<string, readonly string[]>>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const titles = useWorkspacePageTitles();
-  const entries = useWorkspaceNav(locale, entitled, defaultProperty);
+  const entries = useWorkspaceNav(
+    locale,
+    reachable,
+    defaultProperty,
+    segmentsByProperty,
+  );
   const t = useTranslations();
-  const withProperty = useWithProperty(defaultProperty);
+  const withProperty = useWithProperty(
+    defaultProperty,
+    Object.keys(segmentsByProperty),
+  );
   const match = pageTitleFor(pathname, titles);
 
   if (!match) return null;

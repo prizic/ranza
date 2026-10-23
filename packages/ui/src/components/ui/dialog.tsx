@@ -7,6 +7,7 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { Button } from "./button";
 import { XIcon } from "lucide-react";
 import { markOverlayClosed } from "../../lib/menu-guard";
+import { useOverlayLabels } from "../overlay-labels";
 
 function Dialog({
   onOpenChange,
@@ -68,6 +69,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const { close } = useOverlayLabels();
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -88,7 +90,7 @@ function DialogContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{close}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -109,12 +111,9 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 
 function DialogFooter({
   className,
-  showCloseButton = false,
   children,
   ...props
-}: React.ComponentProps<"div"> & {
-  showCloseButton?: boolean;
-}) {
+}: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
@@ -128,11 +127,6 @@ function DialogFooter({
       {...props}
     >
       {children}
-      {showCloseButton && (
-        <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
-        </DialogPrimitive.Close>
-      )}
     </div>
   );
 }

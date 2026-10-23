@@ -15,9 +15,9 @@ import { SectionUnavailable } from "./section-unavailable";
 /**
  * Open maintenance at a glance, for the manager (TD-S4-04). Out of order
  * counts Units, beds included, however many requests hold each, as the board
- * it opens does (MT-S2-32). Every figure
- * opens the maintenance board at the Property; the board has no filter to
- * open at yet (TD-DEF-09).
+ * it opens does (MT-S2-32). Every figure opens the maintenance board at the
+ * Property; the one the board can narrow to, the rooms out of order, opens it
+ * narrowed, and the statuses open it whole (TD-DEF-10).
  */
 export function MaintenanceCard({
   locale,
@@ -32,6 +32,9 @@ export function MaintenanceCard({
 }) {
   const t = useTranslations("dashboard");
   const href = todayHref(locale, "maintenance", propertyId);
+  const outOfOrderHref = todayHref(locale, "maintenance", propertyId, {
+    outOfOrder: "1",
+  });
 
   return (
     <section
@@ -56,7 +59,12 @@ export function MaintenanceCard({
       {maintenance.status === "unavailable" ? (
         <SectionUnavailable onRetry={onRetry} />
       ) : (
-        <Figures data={maintenance.data} href={href} locale={locale} />
+        <Figures
+          data={maintenance.data}
+          href={href}
+          locale={locale}
+          outOfOrderHref={outOfOrderHref}
+        />
       )}
     </section>
   );
@@ -66,10 +74,12 @@ function Figures({
   data,
   href,
   locale,
+  outOfOrderHref,
 }: {
   data: Maintenance;
   href: string;
   locale: SupportedLocale;
+  outOfOrderHref: string;
 }) {
   const t = useTranslations("dashboard");
   const rows = [
@@ -111,7 +121,7 @@ function Figures({
       <ul className="mt-4 grid gap-2 border-t border-border pt-4">
         <Figure
           count={data.outOfOrder}
-          href={href}
+          href={outOfOrderHref}
           label={t("roomsOutOfOrder")}
           locale={locale}
           swatch="bg-border"

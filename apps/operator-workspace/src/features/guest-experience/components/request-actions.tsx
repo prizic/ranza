@@ -3,21 +3,35 @@
 import { useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, Loader2, Play, RotateCcw, XCircle } from "lucide-react";
-import type { ServiceRequestItem } from "@ranza/guest-services";
+import type {
+  ServiceRequestItem,
+  ServiceRequestStatus,
+} from "@ranza/guest-services";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   Input,
-  Label,
   Textarea,
+  dialogFrameClassName,
+  fieldClassName,
+  textareaClassName,
 } from "@ranza/ui";
-import { updateServiceRequestStatus } from "../../../server/guest-services";
+import {
+  updateServiceRequestStatus,
+  type ServiceRequestOutcome,
+} from "../../../server/guest-services";
+import { RequestOutcome } from "./request-outcome";
+
+/** The database requires a cancellation reason of at least this many characters. */
+const REASON_MIN = 3;
 
 export interface RequestActionsProps {
   locale: string;
@@ -25,13 +39,22 @@ export interface RequestActionsProps {
   request: ServiceRequestItem;
 }
 
+/**
+ * What can be done to one request, as buttons. Every command's answer is read:
+ * a refusal keeps the dialog open with its reason, and what was typed is kept
+ * (GX-03). Reopening goes where the lifecycle allows: a cancelled request to
+ * New, a resolved one back to In progress (GX-02).
+ */
 export function RequestActions({
   locale,
   propertyId,
   request,
 }: RequestActionsProps) {
   const t = useTranslations("guestExperience");
+  const all = useTranslations();
   const [isPending, startTransition] = useTransition();
+  const [outcome, setOutcome] =
+    useState<ServiceRequestOutcome["status"]>("idle");
 
   const [resolveOpen, setResolveOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState("");
@@ -39,200 +62,209 @@ export function RequestActions({
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const handleStart = () => {
+  const move = (
+    status: ServiceRequestStatus,
+    notes: string | null,
+    onDone: () => void,
+  ) =>
     startTransition(async () => {
-      await updateServiceRequestStatus(
+      const result = await updateServiceRequestStatus(
         locale,
         propertyId,
         request.id,
-        "in_progress",
+        status,
+        notes,
       );
+      setOutcome(result.status);
+      if (result.status === "done") onDone();
     });
-  };
 
-  const handleResolve = () => {
-    startTransition(async () => {
-      await updateServiceRequestStatus(
-        locale,
-        propertyId,
-        request.id,
-        "resolved",
-        resolutionNotes.trim() || null,
-      );
-      setResolveOpen(false);
-      setResolutionNotes("");
-    });
+  const closeDialogs = () => {
+    setResolveOpen(false);
+    setResolutionNotes("");
+    setCancelOpen(false);
+    setCancelReason("");
   };
-
-  const handleCancel = () => {
-    if (!cancelReason.trim()) return;
-    startTransition(async () => {
-      await updateServiceRequestStatus(
-        locale,
-        propertyId,
-        request.id,
-        "cancelled",
-        cancelReason.trim(),
-      );
-      setCancelOpen(false);
-      setCancelReason("");
-    });
-  };
-
-  const handleReopen = () => {
-    startTransition(async () => {
-      await updateServiceRequestStatus(
-        locale,
-        propertyId,
-        request.id,
-        "in_progress",
-      );
-    });
-  };
+  const dialogOpen = resolveOpen || cancelOpen;
+  const reasonValid = cancelReason.trim().length >= REASON_MIN;
+  const reopenTo = request.status === "cancelled" ? "new" : "in_progress";
 
   return (
-    <div className="flex items-center gap-1.5 justify-end">
-      {request.status === "new" && (
-        <Button
-          disabled={isPending}
-          onClick={handleStart}
-          size="sm"
-          variant="outline"
-          className="h-8 gap-1 text-xs"
-        >
-          {isPending ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Play className="size-3.5 text-warning" />
-          )}
-          {t("markInProgress")}
-        </Button>
-      )}
-
-      {(request.status === "new" || request.status === "in_progress") && (
-        <>
+    <div className="grid justify-items-end gap-1">
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {request.status === "new" && (
           <Button
             disabled={isPending}
-            onClick={() => setResolveOpen(true)}
+            onClick={() => move("in_progress", null, () => undefined)}
             size="sm"
             variant="outline"
-            className="h-8 gap-1 text-xs border-success/40 text-success hover:bg-success-soft hover:text-success"
+            className="h-8 gap-1 text-xs"
           >
-            <CheckCircle2 className="size-3.5" />
-            {t("resolve")}
+            {isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Play className="size-3.5 text-warning" />
+            )}
+            {t("markInProgress")}
           </Button>
+        )}
 
-          <Button
-            disabled={isPending}
-            onClick={() => setCancelOpen(true)}
-            size="sm"
-            variant="ghost"
-            className="h-8 gap-1 text-xs text-muted-foreground hover:text-destructive"
-          >
-            <XCircle className="size-3.5" />
-            {t("cancel")}
-          </Button>
-        </>
-      )}
-
-      {(request.status === "resolved" || request.status === "cancelled") && (
-        <Button
-          disabled={isPending}
-          onClick={handleReopen}
-          size="sm"
-          variant="ghost"
-          className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          {isPending ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <RotateCcw className="size-3.5" />
-          )}
-          {t("reopen")}
-        </Button>
-      )}
-
-      {/* Resolve Dialog */}
-      <Dialog open={resolveOpen} onOpenChange={setResolveOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("resolve")}</DialogTitle>
-            <DialogDescription>
-              #{request.number} · {request.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 py-2">
-            <Label htmlFor={`resolve-notes-${request.id}`}>
-              {t("resolutionNotes")}
-            </Label>
-            <Textarea
-              id={`resolve-notes-${request.id}`}
-              placeholder={t("resolutionNotesPlaceholder")}
-              rows={3}
-              value={resolutionNotes}
-              onChange={(e) => setResolutionNotes(e.target.value)}
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                {t("cancel")}
-              </Button>
-            </DialogClose>
+        {(request.status === "new" || request.status === "in_progress") && (
+          <>
             <Button
               disabled={isPending}
-              onClick={handleResolve}
-              type="button"
-              className="gap-1.5"
+              onClick={() => setResolveOpen(true)}
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-xs border-success/40 text-success hover:bg-success-soft hover:text-success"
             >
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
+              <CheckCircle2 className="size-3.5" />
               {t("resolve")}
             </Button>
-          </DialogFooter>
+
+            <Button
+              disabled={isPending}
+              onClick={() => setCancelOpen(true)}
+              size="sm"
+              variant="ghost"
+              className="h-8 gap-1 text-xs text-muted-foreground hover:text-destructive"
+            >
+              <XCircle className="size-3.5" />
+              {t("cancelRequest")}
+            </Button>
+          </>
+        )}
+
+        {(request.status === "resolved" || request.status === "cancelled") && (
+          <Button
+            disabled={isPending}
+            onClick={() => move(reopenTo, null, () => undefined)}
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {isPending ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}
+            {t("reopen")}
+          </Button>
+        )}
+      </div>
+      {dialogOpen ? null : <RequestOutcome status={outcome} />}
+
+      <Dialog
+        open={resolveOpen}
+        onOpenChange={(open) => {
+          setResolveOpen(open);
+          if (!open) setOutcome("idle");
+        }}
+      >
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/bell.svg"
+            eyebrow={t("resolve")}
+            heading={`#${request.number} · ${request.title}`}
+          />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
+              {t("resolveConsequence")}
+            </DialogDescription>
+            <DialogSection
+              labelFor={`resolve-notes-${request.id}`}
+              tag={{ label: all("dialogTagOptional"), required: false }}
+              title={t("resolutionNotes")}
+            >
+              <Textarea
+                className={textareaClassName}
+                id={`resolve-notes-${request.id}`}
+                onChange={(e) => setResolutionNotes(e.target.value)}
+                placeholder={t("resolutionNotesPlaceholder")}
+                rows={3}
+                value={resolutionNotes}
+              />
+            </DialogSection>
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <RequestOutcome status={outcome} />
+            </div>
+          </DialogBody>
+          <DialogActions>
+            <CancelButton
+              disabled={isPending}
+              onClick={() => setResolveOpen(false)}
+              type="button"
+            >
+              {t("close")}
+            </CancelButton>
+            <ArrowButton
+              disabled={isPending}
+              onClick={() =>
+                move("resolved", resolutionNotes.trim() || null, closeDialogs)
+              }
+              type="button"
+            >
+              {t("resolve")}
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 
-      {/* Cancel Dialog */}
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("cancel")}</DialogTitle>
-            <DialogDescription>
-              #{request.number} · {request.title}
+      <Dialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          setCancelOpen(open);
+          if (!open) setOutcome("idle");
+        }}
+      >
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/bell.svg"
+            eyebrow={t("cancelRequest")}
+            heading={`#${request.number} · ${request.title}`}
+          />
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
+              {t("cancelConsequence")}
             </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-3 py-2">
-            <Label htmlFor={`cancel-reason-${request.id}`}>
-              {t("cancelReason")}
-            </Label>
-            <Input
-              id={`cancel-reason-${request.id}`}
-              placeholder={t("cancelReasonPlaceholder")}
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <DialogClose asChild>
-              <Button disabled={isPending} type="button" variant="outline">
-                {t("cancel")}
-              </Button>
-            </DialogClose>
-            <Button
-              disabled={isPending || !cancelReason.trim()}
-              onClick={handleCancel}
-              type="button"
-              variant="destructive"
-              className="gap-1.5"
+            <DialogSection
+              labelFor={`cancel-reason-${request.id}`}
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("cancelReason")}
             >
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
-              {t("cancel")}
-            </Button>
-          </DialogFooter>
+              <Input
+                className={fieldClassName}
+                id={`cancel-reason-${request.id}`}
+                maxLength={200}
+                minLength={REASON_MIN}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder={t("cancelReasonPlaceholder")}
+                value={cancelReason}
+              />
+            </DialogSection>
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <RequestOutcome status={outcome} />
+            </div>
+          </DialogBody>
+          <DialogActions hint={reasonValid ? null : t("reasonHintMissing")}>
+            <CancelButton
+              disabled={isPending}
+              onClick={() => setCancelOpen(false)}
+              type="button"
+            >
+              {t("keepRequest")}
+            </CancelButton>
+            <ArrowButton
+              disabled={isPending || !reasonValid}
+              onClick={() =>
+                move("cancelled", cancelReason.trim(), closeDialogs)
+              }
+              tone="danger"
+              type="button"
+            >
+              {t("cancelRequest")}
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
     </div>

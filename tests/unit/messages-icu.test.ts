@@ -76,6 +76,47 @@ describe("counted strings in three languages", () => {
   });
 });
 
+describe("the Integrations counts", () => {
+  it.each([0, 1, 2, 3, 11, 100])(
+    "say how many stopped deliveries were sent again, in every language, at %i",
+    (count) => {
+      for (const locale of supportedLocales) {
+        const say = t(locale, workspace[locale]);
+        expect(() => say("integrations.retriedAll", { count })).not.toThrow();
+      }
+    },
+  );
+
+  it.each([1, 2, 3, 11])(
+    "say how many deliveries have waited too long, in every language, at %i",
+    (count) => {
+      for (const locale of supportedLocales) {
+        expect(() =>
+          t(locale, workspace[locale])("integrations.overdue", { count }),
+        ).not.toThrow();
+      }
+    },
+  );
+
+  it("gives Arabic a different word at one, two and few", () => {
+    const ar = t("ar", workspace.ar);
+    const forms = [1, 2, 3, 11].map((count) =>
+      ar("integrations.retriedAll", { count }),
+    );
+    expect(new Set(forms).size).toBe(4);
+  });
+
+  it("never says '1 deliveries' in English", () => {
+    const en = t("en", workspace.en);
+    expect(en("integrations.retriedAll", { count: 1 })).toBe(
+      "1 stopped delivery was sent again.",
+    );
+    expect(en("integrations.overdue", { count: 1 })).toContain(
+      "1 delivery has",
+    );
+  });
+});
+
 /**
  * Every string in every language, formatted once. A catalogue entry with a
  * stray brace is a runtime error on the screen that reads it, and only the
@@ -99,50 +140,92 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                age: "3 hr. ago",
                 amount: "₺3.000,00",
                 available: 200,
                 balance: "₺45,00",
                 bed: "x",
+                charged: "₺3.000,00",
                 closed: 10,
+                code: 503,
                 columns: "x",
                 count: 2,
                 currency: "TRY",
+                datasets: "x",
                 date: "16 Sep",
                 days: 14,
+                description: "x",
+                digest: "4821937",
+                digits: 2,
+                duration: "40s",
+                email: "x@example.test",
+                employed: 3,
                 eta: "14:00",
+                every: "every week",
+                excerpt: "x",
+                extra: "₺10,00",
+                first: "101",
                 floor: 2,
+                foreground: "x",
                 from: "16 Sep",
                 guest: "x",
+                hours: 24,
+                label: "x",
+                last: "140",
+                left: 1,
                 max: 2,
+                megabytes: 25,
                 member: "x",
+                method: "x",
                 min: 2,
                 month: "x",
                 n: 2,
                 name: "x",
+                names: "x",
                 nights: 118,
                 number: 12,
                 occupied: 150,
                 of: 9,
                 organization: "x",
+                others: 2,
+                owed: "₺45,00",
+                people: 3,
                 period: "2026-10",
+                permission: "x",
+                permissions: "x",
                 price: "₺1.500,00",
                 property: "x",
+                query: "x",
+                ratio: "4,5",
                 reason: "x",
                 reference: "R3F7K2Q",
                 reporting: 2,
                 revenue: "₺5.900,00",
                 role: "x",
+                roles: "x",
                 room: "x",
+                rows: 100000,
+                seconds: 2,
+                sellable: 20,
+                setting: "x",
+                shade: "#a35200",
                 state: "x",
                 status: "x",
+                subject: "x",
                 time: "14:00",
+                timezone: "Europe/Istanbul",
                 to: "20 Sep",
+                today: "16 Sep",
                 total: "₺3.000,00",
                 type: "x",
+                unclosed: 3,
                 unit: "x",
+                until: "14:00",
                 value: "x",
+                what: "x",
                 when: "16 Sep",
                 who: "x",
+                zone: "Europe/Istanbul",
               }),
             ).not.toThrow();
             return;

@@ -14,6 +14,12 @@ import {
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { asPermission } from "../../staff/labels";
+import { formatSize } from "../../data-export/helpers";
+import { HIDDEN_CONTEXT_KEYS, isContextKey } from "../context-keys";
+import {
+  maintenanceSettingChanges,
+  useMaintenanceSettingWords,
+} from "../summary";
 import type { AuditWords } from "../words";
 
 /**
@@ -27,73 +33,13 @@ import type { AuditWords } from "../words";
  * is visible on the day rather than hidden.
  */
 
-const CONTEXT_KEYS = [
-  "amountMinor",
-  "balanceMinor",
-  "totalGrossMinor",
-  "totalNetMinor",
-  "employeeId",
-  "leaveFrom",
-  "leaveTo",
-  "contractType",
-  "hasSystemAccess",
-  "terminatedOn",
-  "period",
-  "employeeCount",
-  "description",
-  "lineId",
-  "reversedLineId",
-  "reversalLineId",
-  "stayId",
-  "folioId",
-  "accommodationUnitId",
-  "guestId",
-  "guestCreated",
-  "startsOn",
-  "endsOn",
-  "from",
-  "to",
-  "role",
-  "added",
-  "removed",
-  "permissions",
-  "propertyIds",
-  "properties",
-  "propertyId",
-  "userId",
-  "name",
-  "names",
-  "key",
-  "holders",
-  "unitIds",
-  "unitType",
-  "capacity",
-  "building",
-  "floor",
-  "letByTheBed",
-  "hadBeenBlockedFor",
-  "status",
-  "previousStatus",
-] as const;
-
-type ContextKey = (typeof CONTEXT_KEYS)[number];
-
-function isContextKey(key: string): key is ContextKey {
-  return (CONTEXT_KEYS as readonly string[]).includes(key);
-}
-
-/** Folded into the fact beside it rather than shown on a row of its own. */
-const HIDDEN = new Set([
-  "currency",
-  "roleAuthored",
-  "fromAuthored",
-  "toAuthored",
-]);
 const MONEY = new Set([
   "amountMinor",
   "balanceMinor",
   "totalGrossMinor",
   "totalNetMinor",
+  "grossPayMinor",
+  "fromAmountMinor",
 ]);
 const CHANGE = new Set(["from", "to"]);
 const HOUSEKEEPING_STATUS = new Set(["status", "previousStatus"]);
@@ -101,16 +47,46 @@ const PERMISSIONS = new Set(["added", "removed", "permissions"]);
 const DAYS = new Set([
   "startsOn",
   "endsOn",
+  "plannedEndsOn",
+  "fromStartsOn",
+  "toStartsOn",
+  "fromEndsOn",
+  "toEndsOn",
   "leaveFrom",
   "leaveTo",
   "terminatedOn",
+  "effectiveFrom",
+  "businessDate",
+  "servicedOn",
+  "expectedBackOn",
+  "rangeFrom",
+  "rangeTo",
 ]);
+const TIMES = new Set(["fromTime", "toTime"]);
 const DAY = /^\d{4}-\d{2}-\d{2}/;
 /** What the housekeeping module writes, as the Housekeeping screen says it. */
 const ROOM_STATUSES = ["dirty", "clean", "inspected"] as const;
 type RoomStatus = (typeof ROOM_STATUSES)[number];
 const isRoomStatus = (value: unknown): value is RoomStatus =>
   (ROOM_STATUSES as readonly unknown[]).includes(value);
+
+const DATASETS = [
+  "residents_guests",
+  "reservations_stays",
+  "rooms_beds",
+  "folios_payments",
+  "audit_log",
+] as const;
+const isDataset = (value: unknown): value is (typeof DATASETS)[number] =>
+  (DATASETS as readonly unknown[]).includes(value);
+const PAYMENT_METHODS = ["cash", "card", "bank_transfer", "other"] as const;
+const isPaymentMethod = (
+  value: unknown,
+): value is (typeof PAYMENT_METHODS)[number] =>
+  (PAYMENT_METHODS as readonly unknown[]).includes(value);
+const PRIORITIES = ["urgent", "this_week", "can_wait"] as const;
+const isPriority = (value: unknown): value is (typeof PRIORITIES)[number] =>
+  (PRIORITIES as readonly unknown[]).includes(value);
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -130,6 +106,31 @@ const SETTINGS = [
 type Setting = (typeof SETTINGS)[number];
 const isSetting = (value: unknown): value is Setting =>
   (SETTINGS as readonly unknown[]).includes(value);
+
+/**
+ * A brand change or reset names what changed and carries each as `{ from, to }`
+ * (ADR 0046): a colour as `#rrggbb` or null, a logo as its hash and size or
+ * null — never the bytes. It reads as one row per part.
+ */
+const BRANDED = new Set(["branding.changed", "branding.reset"]);
+const BRAND_PARTS = ["color", "logo"] as const;
+type BrandPart = (typeof BRAND_PARTS)[number];
+const isBrandPart = (value: unknown): value is BrandPart =>
+  (BRAND_PARTS as readonly unknown[]).includes(value);
+
+interface LogoFact {
+  hash: string;
+  sizeBytes: number;
+}
+
+function logoFactOf(value: unknown): LogoFact | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "object") return undefined;
+  const { hash, sizeBytes } = value as Partial<LogoFact>;
+  return typeof hash === "string" && typeof sizeBytes === "number"
+    ? { hash, sizeBytes }
+    : undefined;
+}
 
 /**
  * A price list save carries `changes`: each kind of Unit with its price before
@@ -200,7 +201,9 @@ export function ContextFacts({
   const t = useTranslations();
   const currency =
     typeof context.currency === "string" ? context.currency : undefined;
-  const entries = Object.entries(context).filter(([key]) => !HIDDEN.has(key));
+  const entries = Object.entries(context).filter(
+    ([key]) => !HIDDEN_CONTEXT_KEYS.has(key),
+  );
 
   const permission = (key: string) => {
     const known = asPermission(key);
@@ -212,7 +215,9 @@ export function ContextFacts({
   }
 
   function scalar(value: unknown): string {
-    if (value === null || value === undefined) return t("auditNone");
+    // A fact the record carries as nothing is "not set", which is what "no
+    // departure before" means; "None" is for a list with nothing in it.
+    if (value === null || value === undefined) return t("auditNotSet");
     if (typeof value === "boolean") return value ? t("auditYes") : t("auditNo");
     // An id is named; any other text is the text somebody wrote.
     if (typeof value === "string") {
@@ -225,6 +230,27 @@ export function ContextFacts({
   function render(key: string, value: unknown): ReactNode {
     if (MONEY.has(key) && typeof value === "number" && currency) {
       return formatMoney(value, currency, locale);
+    }
+    if (TIMES.has(key) && typeof value === "string") return value.slice(0, 5);
+    if (key === "format" && typeof value === "string") {
+      return value.toUpperCase();
+    }
+    if (key === "bytes" && typeof value === "number") {
+      return formatSize(value, locale);
+    }
+    if (key === "resourceTypes" && Array.isArray(value)) {
+      return list(value, (item) =>
+        isDataset(item) ? t(`dataExport.datasets.${item}`) : String(item),
+      );
+    }
+    if (key === "paymentMethod" && isPaymentMethod(value)) {
+      return t(`paymentMethods.${value}`);
+    }
+    if (key === "returnAs" && isRoomStatus(value)) {
+      return t(`maintenance.returnAs.${value}`);
+    }
+    if (key === "priority" && isPriority(value)) {
+      return t(`maintenance.priorities.${value}`);
     }
     // `from` and `to` are whatever the action changed: a role on a role
     // change, an inspection setting on that setting. `key` on a role record is
@@ -275,6 +301,27 @@ export function ContextFacts({
     CONFIGURED.has(action) && Array.isArray(context.changed)
       ? context.changed.filter(isSetting)
       : null;
+  const branded =
+    BRANDED.has(action) && Array.isArray(context.changed)
+      ? context.changed.filter(isBrandPart)
+      : null;
+  const brandValue = (part: BrandPart, value: unknown): string => {
+    if (value === null) return t("branding.defaultTheme");
+    if (part === "color") return scalar(value);
+    const logo = logoFactOf(value);
+    if (!logo) return scalar(value);
+    const size = new Intl.NumberFormat(locale, {
+      maximumFractionDigits: 1,
+      style: "unit",
+      unit: "kilobyte",
+    }).format(logo.sizeBytes / 1024);
+    return `${logo.hash.slice(0, 12)} · ${size}`;
+  };
+  const maintenanceChanges =
+    action === "maintenance_setting.changed"
+      ? maintenanceSettingChanges(context.from, context.to)
+      : null;
+  const { settingName, settingWord } = useMaintenanceSettingWords();
   const priced =
     action === "price_list.changed" ? priceChangesOf(context.changes) : null;
   const price = (value: Price | null) =>
@@ -284,7 +331,7 @@ export function ContextFacts({
 
   return (
     <Table>
-      <TableCaption>{t("context")}</TableCaption>
+      <TableCaption className="sr-only">{t("context")}</TableCaption>
       <TableHeader>
         <TableRow>
           <TableHead>{t("contextKey")}</TableHead>
@@ -310,6 +357,49 @@ export function ContextFacts({
               </TableCell>
             </TableRow>
           ))
+        ) : maintenanceChanges ? (
+          maintenanceChanges.map((change) => (
+            <TableRow key={change.setting}>
+              <TableCell className="text-muted-foreground">
+                {settingName(change.setting)}
+              </TableCell>
+              <TableCell className="break-words">
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <bdi>{settingWord(change.setting, change.from)}</bdi>
+                  <ArrowRight
+                    aria-label={t("auditChangedTo")}
+                    className="size-3.5 text-muted-foreground rtl:-scale-x-100"
+                  />
+                  <bdi>{settingWord(change.setting, change.to)}</bdi>
+                </span>
+              </TableCell>
+            </TableRow>
+          ))
+        ) : branded ? (
+          branded.map((part) => {
+            const change = context[part];
+            const { from, to } =
+              typeof change === "object" && change !== null
+                ? (change as { from?: unknown; to?: unknown })
+                : { from: undefined, to: undefined };
+            return (
+              <TableRow key={part}>
+                <TableCell className="text-muted-foreground">
+                  {t(`branding.${part}Title`)}
+                </TableCell>
+                <TableCell className="break-words">
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <bdi>{brandValue(part, from ?? null)}</bdi>
+                    <ArrowRight
+                      aria-label={t("auditChangedTo")}
+                      className="size-3.5 text-muted-foreground rtl:-scale-x-100"
+                    />
+                    <bdi>{brandValue(part, to ?? null)}</bdi>
+                  </span>
+                </TableCell>
+              </TableRow>
+            );
+          })
         ) : changed ? (
           changed.map((setting) => {
             const change = changeOf(context[setting]);

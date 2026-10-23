@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { formatMoney, isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
 import {
+  AUDIT_READ_PERMISSION,
   entitledProperties,
   folio,
   FOLIO_CAPABILITY,
-  folios,
+  folioPage,
+  FRONT_DESK_CAPABILITY,
   permittedProperties,
   POST_CHARGE_PERMISSION,
   POST_PAYMENT_PERMISSION,
@@ -17,13 +19,9 @@ import {
   REVERSE_PAYMENT_PERMISSION,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
-import { ListFilterNotice } from "../../../../features/today/components/list-filter-notice";
-import { money } from "../../../../features/today/format";
-import {
-  inFolioFilter,
-  parseFolioFilter,
-  totals,
-} from "../../../../features/today/views";
+import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
+import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
+import { owedMinor, totals } from "../../../../features/today/views";
 
 /**
  * Finance: what each Stay at a Property has accrued, and the charges on one.
@@ -98,58 +96,90 @@ export default async function FinancePage({
     const mayReversePayment = canReversePayment.some(
       (reachable) => reachable.propertyId === selected.propertyId,
     );
+    const folioProperty =
+      properties.find(
+        (candidate) => candidate.propertyId === selected.propertyId,
+      ) ?? property;
+    // The folio's own history, where the Audit log narrows to it: offered to a
+    // viewer who may read the log at its Property and to nobody else.
+    const mayReadHistory = (
+      await permittedProperties(AUDIT_READ_PERMISSION)
+    ).some((reachable) => reachable.propertyId === selected.propertyId);
+    const mayOpenReservation = (
+      await entitledProperties(FRONT_DESK_CAPABILITY)
+    ).some((reachable) => reachable.propertyId === selected.propertyId);
     return (
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
         <FolioPanel
+          auditHref={
+            mayReadHistory
+              ? `${localizeHref(locale, "audit-log")}?${new URLSearchParams({ property: selected.propertyId, subject: selected.folioId })}`
+              : null
+          }
           folio={selected}
           locale={locale}
+          mayOpenReservation={mayOpenReservation}
           mayPostCharge={mayPostCharge}
           mayPostPayment={mayPostPayment}
           mayReverse={mayReverseCharge}
           mayReverseCharge={mayReverseCharge}
           mayReversePayment={mayReversePayment}
+          propertyId={selected.propertyId}
+          timeZone={folioProperty.timezone}
         />
       </>
     );
   }
 
   const financeHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
-  const filter = parseFolioFilter(search.show);
-  const shown = (await folios(property.propertyId)).filter((row) =>
-    inFolioFilter(filter, row),
+  const tab = parseFolioTab(search.show);
+  const { folios: shown, total } = await folioPage(property.propertyId, tab);
+  const owing = tab === "owing" ? shown : [];
+  const owedTotal = totals(
+    owing.map((row) => ({
+      amountMinor: owedMinor(row),
+      currency: row.currency,
+    })),
   );
-  const first = shown[0];
+  const tabHrefs = Object.fromEntries(
+    FOLIO_TABS.map((candidate) => [
+      candidate,
+      candidate === "all" ? financeHref : `${financeHref}&show=${candidate}`,
+    ]),
+  ) as Record<(typeof FOLIO_TABS)[number], string>;
 
   return (
     <>
       <p className="text-sm text-muted-foreground">
         {t("foliosAt")} {property.propertyName}
       </p>
-      {filter ? (
-        <div className="mt-4">
-          <ListFilterNotice
-            allHref={financeHref}
-            count={shown.length}
-            detail={
-              first
-                ? money(
-                    totals(
-                      shown.map((row) => ({
-                        amountMinor: row.balanceMinor,
-                        currency: row.currency,
-                      })),
-                    ),
-                    first.currency,
-                    locale,
-                  )
-                : undefined
-            }
-            filter="filterOpenFolios"
-          />
-        </div>
-      ) : null}
-      <FoliosTable folioHref={financeHref} folios={shown} locale={locale} />
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <FolioTabs current={tab} hrefs={tabHrefs} />
+        {tab === "owing" && owedTotal[0] ? (
+          <p
+            className="text-sm text-muted-foreground tabular-nums"
+            data-testid="owing-summary"
+          >
+            {t("finance.owingSummary", {
+              count: total,
+              amount: formatMoney(
+                owedTotal[0].amountMinor,
+                owedTotal[0].currency,
+                locale,
+              ),
+            })}
+          </p>
+        ) : null}
+      </div>
+      <FoliosTable
+        allHref={financeHref}
+        folioHref={financeHref}
+        folios={shown}
+        locale={locale}
+        tab={tab}
+        total={total}
+      />
     </>
   );
 }

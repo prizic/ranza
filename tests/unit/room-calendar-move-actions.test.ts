@@ -108,7 +108,7 @@ describe("a booking moved from the room calendar", () => {
 
   it("an error nobody expected is recorded and answered as a refusal", async () => {
     amendBooking.mockRejectedValueOnce(new Error("connection reset"));
-    expect(await actions.changeBooking("idle", BOOKING)).toBe("refused");
+    expect(await actions.changeBooking("idle", BOOKING)).toBe("failed");
     expect(logged).toHaveBeenCalledTimes(1);
   });
 });

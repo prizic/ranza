@@ -54,7 +54,12 @@ export async function generateMetadata({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) return {};
   const t = await getTranslations({ locale });
-  return { title: t("productName") };
+  return {
+    title: {
+      default: t("productName"),
+      template: `%s · ${t("productName")}`,
+    },
+  };
 }
 
 export default async function LocaleLayout({

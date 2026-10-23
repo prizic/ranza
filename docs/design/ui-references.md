@@ -35,10 +35,10 @@ One internal application sets the visual language, rather than the layouts
 above, and is the source of truth for it; a second lends the sign-in screen. It is not public, so the pattern is
 described instead of linked.
 
-| Product        | Pattern to study                                                                     | What Ranza takes                                                              |
-| -------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Leaders portal | Floating glass sidebar and bar, light titles, card rows, stat cards                  | The workspace shell, the palette and Geist, recorded in `visual-reference.md` |
-| EduBoard       | Sign-in: framed split card, form beside a dark textured showcase with a serif slogan | The sign-in screen of both applications, in Ranza's colours                   |
+| Product        | Pattern to study                                                                     | What Ranza takes                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Leaders portal | Floating glass sidebar and bar, light titles, card rows, stat cards                  | The palette, Geist, light titles and card rows, recorded in `visual-reference.md`; the shell's arrangement is Ranza's own (ADR 0055, proposed) |
+| EduBoard       | Sign-in: framed split card, form beside a dark textured showcase with a serif slogan | The sign-in screen of both applications, in Ranza's colours                                                                                    |
 
 ## The direction
 

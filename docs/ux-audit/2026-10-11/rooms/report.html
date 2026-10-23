@@ -1,0 +1,1037 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Rooms &amp; beds (/en/rooms)</title>
+    <style>
+      body {
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        color: #1a1a1a;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+        background: #fff;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 18px;
+        margin: 36px 0 10px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 4px;
+      }
+      p.meta {
+        color: #555;
+        margin: 0 0 16px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        margin: 8px 0;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 6px 8px;
+        vertical-align: top;
+        text-align: left;
+      }
+      th {
+        background: #f2f2f2;
+      }
+      .sev {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .errors {
+        color: #a1260f;
+      }
+      .slows {
+        color: #8a5a00;
+      }
+      .polish {
+        color: #555;
+      }
+      img {
+        max-width: 100%;
+        border: 1px solid #ccc;
+        margin: 4px 0;
+      }
+      img.narrow {
+        max-width: 320px;
+      }
+      figure {
+        margin: 8px 0 16px;
+      }
+      figcaption {
+        font-size: 12px;
+        color: #555;
+      }
+      .tag {
+        font-size: 11px;
+        border: 1px solid #999;
+        border-radius: 3px;
+        padding: 0 4px;
+        white-space: nowrap;
+      }
+      ul,
+      ol {
+        margin: 6px 0;
+        padding-left: 22px;
+      }
+      code {
+        background: #f2f2f2;
+        padding: 0 3px;
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>UX audit: Rooms &amp; beds</h1>
+    <p class="meta">
+      Route <code>/en/rooms</code> and the dialogs it opens (Add rooms, Block /
+      Unblock, Report a problem). Staging, build equal to
+      <code>main</code> 4b15c30, audited 2026-10-11 in AUDIT-ONLY mode: nothing
+      was created, blocked or reported. Persona: front-office manager who sets
+      up and maintains the room inventory. Roles checked: Manager (primary),
+      Front Desk, Owner. Locales checked: EN, TR, AR. <br />Data state found:
+      one Property (Demo Otel İstanbul), 3 whole rooms (101 free, 102 in house,
+      201 reserved, a Suite), no building, no floor, no blocked or out-of-order
+      unit. Empty, large and out-of-order states could not be seen and are
+      marked <span class="tag">inferred</span> from code.
+    </p>
+
+    <h2>1. Verdict</h2>
+    <ul>
+      <li>
+        <strong>Unaided use:</strong> mostly yes for reading tonight's occupancy
+        and for adding rooms in bulk; the one-form bulk add (1 to 60 rooms,
+        numbered in sequence) is quick and its refusals are clean.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        <strong>Biggest risk:</strong> the add form commits up to 60 permanent
+        rooms in one click with no preview of the names and no confirm, and
+        nothing in the product can rename, retype or delete a room afterwards. A
+        typo in the first number is a 40-room mistake that stays.
+        <span class="tag"
+          >verified: form; inferred: permanence, from edge-cases RB-S3-12 and
+          RB-S3-15</span
+        >
+      </li>
+      <li>
+        <strong>Permissions:</strong> Front Desk is shown "Add rooms" and "Block
+        bed" exactly like the Manager and only learns at submit that it may not,
+        with "those rooms cannot be added".
+        <span class="tag">verified for Add; Block inferred</span>
+      </li>
+      <li>
+        <strong>Missing for the job:</strong> the page cannot tell me which
+        rooms are dirty (that lives on Housekeeping), has no search or filter,
+        and the status wording differs from its siblings. The persona's
+        "occupied / dirty / blocked right now" needs two screens.
+      </li>
+      <li>
+        <strong>Not a defect:</strong> beds, rename, delete and bulk import are
+        deliberately not built (section 6). No finding below blocks work
+        outright.
+      </li>
+    </ul>
+
+    <h2>2. Findings</h2>
+    <p>
+      Severity: <span class="sev errors">causes errors</span>,
+      <span class="sev slows">slows me down</span>,
+      <span class="sev polish">polish</span>. No finding "blocks work".
+      "Reproduced" is Y when I saw it twice or it is deterministic from the DOM.
+    </p>
+    <div class="wrap">
+      <table>
+        <tr>
+          <th>ID</th>
+          <th>Severity</th>
+          <th>Where (route, role, data)</th>
+          <th>What happened</th>
+          <th>Expected</th>
+          <th>Suggested fix</th>
+          <th>Effort</th>
+          <th>Evidence</th>
+          <th>Status</th>
+        </tr>
+
+        <tr>
+          <td>ROOMS-01</td>
+          <td class="sev errors">causes errors</td>
+          <td>/en/rooms, Front Desk, 3 rooms</td>
+          <td>
+            Front Desk sees the same "Add rooms" button and the same "Block bed"
+            dialog as the Manager. Submitting Add (existing name 101, so nothing
+            could be created) returned only "those rooms cannot be added". It
+            does not say it is a permission matter. The Block form is offered
+            too; I did not submit a valid reason, so the block refusal is from
+            the docs (RB-S3-09: the module answers "cannot be blocked").
+          </td>
+          <td>
+            A role without <code>accommodation.configure</code> does not see
+            actions it cannot use, or is told "ask a manager".
+          </td>
+          <td>
+            Pass the viewer's <code>accommodation.configure</code> flag to
+            <code>RoomsView</code>; hide Add and Block, keep Report a problem;
+            if kept visible, refusal text names the missing permission.
+          </td>
+          <td>S</td>
+          <td>
+            <a href="10-frontdesk-map.png">10</a>,
+            <a href="11-frontdesk-add-refused.png">11</a>,
+            <a href="12-frontdesk-block-offered.png">12</a>. Reproduced Y
+          </td>
+          <td>
+            <span class="tag">verified (Add)</span>
+            <span class="tag">inferred (Block)</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-02</td>
+          <td class="sev errors">causes errors</td>
+          <td>/en/rooms, Manager, Add rooms dialog</td>
+          <td>
+            The form has no preview of what it will create (for example "301 to
+            340, floor 3, Block A") and no confirm step: the single "Add rooms"
+            press writes the whole batch. I filled 40 rooms from 301 and stopped
+            before submit, so the post-submit result is from the docs: all rooms
+            are written, and a room cannot be renamed or deleted afterwards
+            (RB-S3-12, RB-S3-15).
+          </td>
+          <td>
+            I see the exact names I am about to create, and the batch size,
+            before it becomes permanent.
+          </td>
+          <td>
+            One live line under the fields: "Adds 40 rooms: 301 to 340, floor 3,
+            Block A, sleeps 2". Optionally a two-step confirm above 10 rooms.
+          </td>
+          <td>S</td>
+          <td><a href="02-add-rooms-dialog.png">02</a>. Reproduced Y</td>
+          <td>
+            <span class="tag">verified (no preview/confirm)</span>
+            <span class="tag">inferred (permanence)</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-03</td>
+          <td class="sev errors">causes errors</td>
+          <td>
+            /en/rooms and /tr/rooms, Manager, Add rooms with a name that exists
+          </td>
+          <td>
+            Refusal reads "a Unit named 101 is already at this Property":
+            lowercase "a", the word "Unit" (the screen says room everywhere),
+            and in the Turkish UI the message stays in English. The module's
+            error text is passed straight to the screen. The refusal itself is
+            good: nothing was written (still 3 rooms) and the form kept my
+            values.
+          </td>
+          <td>
+            Plain, localised copy: "Room 101 already exists. Pick a different
+            first number."
+          </td>
+          <td>
+            Map the module's error types to translation keys in the server
+            action instead of returning <code>error.message</code>. The same
+            applies to the Block refusals and to the English fallback strings
+            "those rooms cannot be added".
+          </td>
+          <td>M</td>
+          <td>
+            <a href="04-add-rooms-duplicate.png">04</a>,
+            <a href="14-tr-english-error.png">14</a>. Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-04</td>
+          <td class="sev errors">causes errors</td>
+          <td>/en/rooms, Manager, invalid first number</td>
+          <td>
+            Typing "4O1" (letter O) gives the browser's own bubble "Please match
+            the requested format." The field hint says only "Rooms are numbered
+            in sequence starting from here." Nothing says digits only, up to 8.
+            A hotel with rooms like G01 or A-12 gets no explanation (named rooms
+            are out of scope, RB-S2-14). Count 0 gives a native English bubble
+            too.
+          </td>
+          <td>The hint says "Digits only, for example 101".</td>
+          <td>
+            Add "digits only" to the hint and use a custom, localised validation
+            message.
+          </td>
+          <td>S</td>
+          <td><a href="03-add-rooms-invalid.png">03</a>. Reproduced Y</td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-05</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms, Manager, Add rooms dialog</td>
+          <td>
+            Pressing Escape on a half-filled form (I had entered 40 rooms)
+            closes it with no warning. Reopening shows empty fields but still
+            shows the previous attempt's red error ("a Unit named 101 is
+            already..."). Success also gives no confirmation (no toast, no
+            highlight of the new rooms; the dialog just closes)
+            <span class="tag"
+              >inferred, from code: success only closes the dialog</span
+            >.
+          </td>
+          <td>
+            Reopening starts clean; after adding I see "40 rooms added: 301 to
+            340" and the new rooms highlighted.
+          </td>
+          <td>
+            Reset the action state when the dialog closes; add a success toast
+            naming the range.
+          </td>
+          <td>S</td>
+          <td>
+            No screenshot (state visible only in DOM, read by script).
+            Reproduced Y
+          </td>
+          <td>
+            <span class="tag">verified (Escape, stale error)</span>
+            <span class="tag">inferred (no success toast)</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-06</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms, all roles, whole-room Property</td>
+          <td>
+            Bed vocabulary on a hotel with no beds: the tiles say "BEDS 3" and
+            "EMPTY BEDS TONIGHT"; the dialog for a whole room is titled "101 -
+            Block bed" with button "Block bed" and, in the list, every row's
+            action is "Block bed". The Add dialog's description repeats the page
+            subtitle ("Every room and bed at this Property, and who is in each
+            one."), which is wrong for an add form. The room type field is
+            labelled "Stay type". The page shows "Rooms &amp; beds" as the h1
+            and again "Rooms &amp; beds at Demo Otel İstanbul" as the h2.
+          </td>
+          <td>
+            Whole-room Properties read "Rooms", "Empty rooms tonight", "Block
+            room"; "Room type".
+          </td>
+          <td>
+            Choose the noun from the unit (room vs bed); give the Add dialog its
+            own description ("Create rooms in one go. They are numbered in
+            sequence."); rename "Stay type" to "Room type"; drop the repeated
+            heading.
+          </td>
+          <td>S</td>
+          <td>
+            <a href="01-manager-map.png">01</a>,
+            <a href="05-block-dialog-free-room.png">05</a>,
+            <a href="02-add-rooms-dialog.png">02</a>,
+            <a href="09-manager-list.png">09</a>. Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-07</td>
+          <td class="sev errors">causes errors</td>
+          <td>/en/rooms, Manager, room 102 (guest in house) and 101 (free)</td>
+          <td>
+            Taking a room out of sale has two overlapping routes and the page
+            does not say which is which. "Block bed" (reason only, no end date)
+            is the big red primary button; "Report a problem" (which carries the
+            real out-of-order switch, an expected-back date and a maintenance
+            assignee) is a small secondary link in the same dialog. A room with
+            a guest in it is offered "Block bed" with no warning; the refusal
+            exists only at submit (RB-S3-03, from the docs: not submitted). The
+            Report form for the occupied room 102 also lets me tick "Take it out
+            of order until it is fixed" and does not mention that a guest is in
+            the room (stopped before submit; outcome not seen). Neither dialog
+            states the consequence before the click: block says nothing about
+            the booking form or check-in; the out-of-order checkbox does say the
+            front desk cannot sell or check anyone in, which is good.
+          </td>
+          <td>
+            One clear action per intent. A block states "leaves the booking form
+            and refuses check-in; existing bookings stay" and offers an optional
+            "until" date. An occupied room says "Guest ahmed is in this room"
+            before any form.
+          </td>
+          <td>
+            Show a one-line state banner at the top of the dialog (in house,
+            reserved, free); label the two routes "Block (no maintenance)" and
+            "Out of order (maintenance)"; add an optional return date to a
+            block.
+          </td>
+          <td>M</td>
+          <td>
+            <a href="05-block-dialog-free-room.png">05</a>,
+            <a href="06-block-dialog-occupied-room.png">06</a>,
+            <a href="07-report-problem-from-room.png">07</a>,
+            <a href="08-out-of-order-before-submit.png">08</a>. Reproduced Y
+          </td>
+          <td>
+            <span class="tag">verified (dialogs)</span>
+            <span class="tag">inferred (refusal outcomes)</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-08</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms, Manager, 3 rooms</td>
+          <td>
+            The page shows occupied, reserved, free and blocked, but not clean
+            or dirty. The persona's "what is occupied, dirty or blocked right
+            now" takes two screens: Housekeeping shows Dirty, Clean, Inspected
+            and "Ready to let" for the same 3 rooms. For example 101 reads
+            "Free" here and "Clean, waiting for inspection" there. Out-of-order
+            tiles could not be seen (none exist); how they look is
+            <span class="tag">inferred from code</span>.
+          </td>
+          <td>
+            A cleaning chip on each tile, or a link "Cleaning status" to
+            Housekeeping.
+          </td>
+          <td>
+            Read the housekeeping row per room (already one table per ADR 0029)
+            and show a small chip or a filter. Cheapest: a link to Housekeeping
+            next to the tiles.
+          </td>
+          <td>M</td>
+          <td>
+            <a href="01-manager-map.png">01</a>; Housekeeping text read by
+            script. Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-09</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms, Manager, list and map</td>
+          <td>
+            No search, filter, sort or pagination on either view. The list (7
+            columns) is not searchable although the design (use-case.mmd,
+            "searchable") says it is. The sibling Housekeeping board has search,
+            a Columns control, per-page and paging. With 3 rooms it is
+            invisible; at 40 or 300 rooms the whole property renders at once and
+            finding "412" means scrolling the map.
+            <span class="tag"
+              >inferred, from code: the read has no limit and the view renders
+              every unit</span
+            >
+          </td>
+          <td>
+            Type "412" and get the room; filter by status (free, in house,
+            blocked).
+          </td>
+          <td>
+            Reuse Housekeeping's table toolbar (search, status filter, paging)
+            on the list view.
+          </td>
+          <td>M</td>
+          <td><a href="09-manager-list.png">09</a>. Reproduced Y (absence)</td>
+          <td>
+            <span class="tag">verified (no controls)</span>
+            <span class="tag">inferred (scale)</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-10</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms map, Manager</td>
+          <td>
+            The only clickable thing on a tile is the small status pill (for
+            example "Free", "ahmed", "Reserved"). Nothing suggests it is a
+            button. Pressing "Reserved" or the guest's name opens the Block
+            dialog, not the booking or the guest, so I cannot see who is
+            arriving or leaving from the tile. The room type is not on the map
+            tiles at all (201 is a Suite; only the list shows it).
+          </td>
+          <td>
+            Press the tile to see the room's details: type, who is in it, next
+            arrival, with Block as one action there.
+          </td>
+          <td>
+            Make the whole tile the target; link in-house and reserved states to
+            the Reservation; show the type under the number.
+          </td>
+          <td>M</td>
+          <td>
+            <a href="01-manager-map.png">01</a>,
+            <a href="06-block-dialog-occupied-room.png">06</a>,
+            <a href="09-manager-list.png">09</a>. Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-11</td>
+          <td class="sev slows">slows me down</td>
+          <td>/en/rooms at 375 px, Manager</td>
+          <td>
+            The page does not overflow sideways, but the six stat tiles take
+            about 1.3 screens (tall, two per row) before the first room appears.
+            The list view is a 774 px table in a 341 px scroller, so the
+            "Tonight" state and the action sit off-screen to the right. The
+            section sub-navigation pill "Rooms &amp; beds" is clipped.
+          </td>
+          <td>
+            On a phone I see room states without scrolling past the counts.
+          </td>
+          <td>
+            Make tiles a single compact strip on small screens; on narrow widths
+            drop Building and Floor columns or use stacked rows.
+          </td>
+          <td>M</td>
+          <td>
+            <a href="16-375-map.png">16</a>, <a href="17-375-list.png">17</a>.
+            Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-12</td>
+          <td class="sev polish">polish</td>
+          <td>/en/rooms at 768 px</td>
+          <td>
+            The header text ("Rooms &amp; beds at Demo Otel İstanbul" and the
+            subtitle) is squeezed into a narrow column beside the view toggle
+            and Add button; the breadcrumb shows "W... F...".
+          </td>
+          <td>Title block full width; toolbar wraps below.</td>
+          <td>
+            Stack the toolbar under the title below the
+            <code>lg</code> breakpoint.
+          </td>
+          <td>S</td>
+          <td>
+            <a href="18-768-list.png">18</a> (file name says list; it shows the
+            map view, because the view reset when the viewport changed).
+            Reproduced Y
+          </td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-13</td>
+          <td class="sev polish">polish</td>
+          <td>/en/rooms, Manager</td>
+          <td>
+            The map/list choice is plain client state: it resets to the map on
+            reload and is not in the URL. Floors and buildings are optional in
+            the add form; with none set (this demo) the whole map sits under the
+            heading "NO FLOOR SET", which looks like an error rather than a
+            normal state.
+          </td>
+          <td>
+            Remember the view per user; show no floor heading when no room has a
+            floor.
+          </td>
+          <td>
+            Put the view in the URL (<code>?view=list</code>); hide the group
+            heading when every room is ungrouped.
+          </td>
+          <td>S</td>
+          <td><a href="01-manager-map.png">01</a>. Reproduced Y</td>
+          <td><span class="tag">verified</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-14</td>
+          <td class="sev polish">polish</td>
+          <td>/en/rooms, Manager, empty Property</td>
+          <td>
+            Not seen (staging has rooms). From code: an empty Property shows six
+            zero tiles, the view toggle and the empty state "No rooms yet. No
+            rooms have been added to this Property yet. Use 'Add rooms' to
+            create a batch." The empty state has no button of its own, so the
+            call to action is the header button above it. The Housekeeping and
+            Room calendar empty states link to Rooms; this one does not link
+            anywhere.
+          </td>
+          <td>
+            The empty state itself holds the "Add rooms" button and a one-line
+            example.
+          </td>
+          <td>
+            Hide the tiles and toggle when there are no rooms; put the Add
+            dialog trigger in the empty state.
+          </td>
+          <td>S</td>
+          <td>none</td>
+          <td><span class="tag">inferred</span></td>
+        </tr>
+
+        <tr>
+          <td>ROOMS-15</td>
+          <td class="sev polish">polish</td>
+          <td>/en/rooms, any role</td>
+          <td>
+            The page is a server render that only changes when I act or reload;
+            Arrivals polls (ADR 0019). A second desk blocking a room or checking
+            someone in does not appear on my map until I reload.
+            <span class="tag">inferred: no polling in the rooms view</span> For
+            a screen whose job is "right now", that is a trust problem.
+          </td>
+          <td>
+            The map refreshes on its own like Arrivals, or says "as of 14:32".
+          </td>
+          <td>
+            Reuse the TanStack Query polling pattern from Arrivals, or show a
+            timestamp and a refresh button.
+          </td>
+          <td>M</td>
+          <td>none</td>
+          <td><span class="tag">inferred</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <h3>Screenshots cited</h3>
+    <figure>
+      <img src="01-manager-map.png" alt="Manager map" />
+      <figcaption>01 Manager, map view, EN.</figcaption>
+    </figure>
+    <figure>
+      <img src="02-add-rooms-dialog.png" alt="Add rooms dialog" />
+      <figcaption>
+        02 Add rooms dialog: no preview, wrong description, "Stay type".
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="03-add-rooms-invalid.png" alt="Invalid first number" />
+      <figcaption>
+        03 Native bubble "Please match the requested format."
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="04-add-rooms-duplicate.png" alt="Duplicate name refusal" />
+      <figcaption>04 Duplicate room name refused; nothing written.</figcaption>
+    </figure>
+    <figure>
+      <img src="05-block-dialog-free-room.png" alt="Block dialog" />
+      <figcaption>05 "101 - Block bed" for a whole room.</figcaption>
+    </figure>
+    <figure>
+      <img
+        src="06-block-dialog-occupied-room.png"
+        alt="Block dialog on occupied room"
+      />
+      <figcaption>
+        06 Occupied room 102 offered the same Block form, no warning.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="07-report-problem-from-room.png" alt="Report a problem" />
+      <figcaption>
+        07 Report a problem opened from room 102 (room preselected).
+      </figcaption>
+    </figure>
+    <figure>
+      <img
+        src="08-out-of-order-before-submit.png"
+        alt="Out of order before submit"
+      />
+      <figcaption>
+        08 Out-of-order ticked and filled; stopped before "Send request", not
+        persisted.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="09-manager-list.png" alt="Bed list" />
+      <figcaption>09 List view: no search, every row "Block bed".</figcaption>
+    </figure>
+    <figure>
+      <img src="10-frontdesk-map.png" alt="Front desk map" />
+      <figcaption>10 Front Desk sees "Add rooms".</figcaption>
+    </figure>
+    <figure>
+      <img src="11-frontdesk-add-refused.png" alt="Front desk refusal" />
+      <figcaption>
+        11 Front Desk refused: "those rooms cannot be added".
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="12-frontdesk-block-offered.png" alt="Front desk block dialog" />
+      <figcaption>12 Front Desk is offered the Block form.</figcaption>
+    </figure>
+    <figure>
+      <img src="13-tr-map.png" alt="Turkish map" />
+      <figcaption>13 Turkish: fully translated page.</figcaption>
+    </figure>
+    <figure>
+      <img
+        src="14-tr-english-error.png"
+        alt="Turkish dialog with English error"
+      />
+      <figcaption>
+        14 Turkish dialog, English error and "Main" placeholder.
+      </figcaption>
+    </figure>
+    <figure>
+      <img src="15-ar-map.png" alt="Arabic map" />
+      <figcaption>15 Arabic: RTL mirrored correctly.</figcaption>
+    </figure>
+    <figure>
+      <img class="narrow" src="16-375-map.png" alt="375 map" />
+      <figcaption>
+        16 375 px map (the floating bar in the middle is the fixed bottom
+        navigation captured in a full-page shot).
+      </figcaption>
+    </figure>
+    <figure>
+      <img class="narrow" src="17-375-list.png" alt="375 list" />
+      <figcaption>17 375 px viewport after switching to the list.</figcaption>
+    </figure>
+    <figure>
+      <img src="18-768-list.png" alt="768 width" />
+      <figcaption>18 768 px: header squeezed.</figcaption>
+    </figure>
+    <figure>
+      <img src="19-owner-map.png" alt="Owner map" />
+      <figcaption>
+        19 Owner: identical to Manager; single Property, no switcher.
+      </figcaption>
+    </figure>
+
+    <h2>3. Jobs</h2>
+    <p>
+      Seconds are my own tool-driven wall time, not a human's; clicks are
+      counted as a person would press them. "Stopped" means halted at the
+      confirm step per the audit-only mode.
+    </p>
+    <div class="wrap">
+      <table>
+        <tr>
+          <th>Job</th>
+          <th>Pass test (written first)</th>
+          <th>Result</th>
+          <th>Seconds</th>
+          <th>Clicks</th>
+        </tr>
+        <tr>
+          <td>1. First-time setup: empty Property gets its rooms</td>
+          <td>
+            From an empty Property I find how to add rooms without help, and the
+            form explains numbering.
+          </td>
+          <td>
+            Not seen (staging has rooms). Inferred pass with caveats: header Add
+            button plus an empty-state line pointing to it (ROOMS-14).
+          </td>
+          <td>n/a</td>
+          <td>inferred 3</td>
+        </tr>
+        <tr>
+          <td>2. Add 40 rooms (301 to 340, floor 3, Block A)</td>
+          <td>
+            One form, under a minute, I can see the names before they exist, and
+            I can undo a mistake.
+          </td>
+          <td>
+            Stopped before submit. Form fills in one pass (bulk add exists).
+            Fail on "see names first" (ROOMS-02) and on "undo" (Not built).
+          </td>
+          <td>~25</td>
+          <td>2 plus 4 fields</td>
+        </tr>
+        <tr>
+          <td>
+            3. Check tonight: who is in, what is free, what is blocked, what is
+            dirty
+          </td>
+          <td>Within 10 s I answer all four from this page.</td>
+          <td>
+            Partial pass: occupied (102, with the guest's name), reserved (201),
+            free (101), blocked (0 here) are readable. Dirty is not on the page
+            (ROOMS-08).
+          </td>
+          <td>~8</td>
+          <td>0 to 1</td>
+        </tr>
+        <tr>
+          <td>4. Take a room out of service until fixed</td>
+          <td>
+            In 3 clicks from the room, the screen says what happens to bookings
+            and check-in, and I can set when it returns.
+          </td>
+          <td>
+            Stopped before submit. Reached the out-of-order form in 2 clicks
+            with the room preselected; the checkbox explains the consequence and
+            offers an expected-back date. Fail on the two overlapping routes and
+            the occupied-room case (ROOMS-07).
+          </td>
+          <td>~30</td>
+          <td>3 plus typing</td>
+        </tr>
+        <tr>
+          <td>5. Error recovery: bad input</td>
+          <td>
+            For letters, a zero count, a duplicate and a 2-character reason, the
+            screen tells me what to fix, in my language, and keeps my input.
+          </td>
+          <td>
+            Partial pass. Reason too short, letters and zero are stopped
+            client-side. Duplicate refused with form kept and nothing written,
+            but copy is English-only and says "Unit" (ROOMS-03, ROOMS-04).
+          </td>
+          <td>~40</td>
+          <td>4</td>
+        </tr>
+        <tr>
+          <td>6. Correct a mistake: wrong type or name on an added room</td>
+          <td>I can change a room's type or name without the database.</td>
+          <td>
+            Fail. No edit or delete anywhere on the page. Out of scope by design
+            (RB-S3-15), see section 6.
+          </td>
+          <td>n/a</td>
+          <td>n/a</td>
+        </tr>
+        <tr>
+          <td>7. Front Desk, permission difference</td>
+          <td>
+            A Front Desk user is not offered what they cannot do, or is told
+            why.
+          </td>
+          <td>
+            Fail. Add and Block are offered; Add is refused at submit with no
+            reason (ROOMS-01).
+          </td>
+          <td>~20</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>
+            8. Under pressure: room 101's AC is dead and a guest arrives in 20
+            minutes
+          </td>
+          <td>
+            From the page, I make the room unavailable and tell maintenance in
+            under 30 s.
+          </td>
+          <td>
+            Stopped before submit. The right tool (Report a problem with
+            out-of-order) is the small secondary link; the large red button
+            blocks without telling maintenance (ROOMS-07).
+          </td>
+          <td>~30</td>
+          <td>4 plus typing</td>
+        </tr>
+        <tr>
+          <td>9. Locales and layout</td>
+          <td>
+            TR, AR (RTL) fully translated and mirrored; 375 and 768 usable.
+          </td>
+          <td>
+            Pass for TR and AR page chrome. Fail on English strings inside
+            dialogs (ROOMS-03) and layout issues at 375 and 768 (ROOMS-11,
+            ROOMS-12).
+          </td>
+          <td>~60</td>
+          <td>n/a</td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>4. Top changes</h2>
+    <ol>
+      <li>
+        I can see exactly which rooms I am about to create (301 to 340) before I
+        commit them. (ROOMS-02)
+      </li>
+      <li>
+        Front Desk is not shown "Add rooms" or "Block bed", so no one is refused
+        at the last click. (ROOMS-01)
+      </li>
+      <li>
+        I can tell at a glance which rooms are dirty or blocked without opening
+        Housekeeping. (ROOMS-08)
+      </li>
+      <li>
+        When a room is out of order I get one obvious action that tells
+        maintenance and says what happens to bookings; an occupied room warns me
+        first. (ROOMS-07)
+      </li>
+      <li>
+        I type "412" and land on that room; I can filter to free, in-house or
+        blocked at 100 rooms. (ROOMS-09)
+      </li>
+      <li>
+        Error messages are in my language and say what to change in plain words.
+        (ROOMS-03, ROOMS-04)
+      </li>
+      <li>
+        Pressing a room tells me who is in it and when the next guest arrives.
+        (ROOMS-10)
+      </li>
+      <li>
+        The map keeps itself current like Arrivals, so "right now" is right.
+        (ROOMS-15)
+      </li>
+      <li>
+        A hotel without beds sees "Rooms" and "Empty rooms tonight", not beds.
+        (ROOMS-06)
+      </li>
+      <li>On a phone I see rooms before six tall tiles. (ROOMS-11)</li>
+    </ol>
+
+    <h2>5. Inconsistencies</h2>
+    <ul>
+      <li>
+        <strong>Status words.</strong> Rooms says "Free" (tile) and "Empty beds
+        tonight" (count); Housekeeping says "Vacant" and "Guest in house"; Rooms
+        says "Reserved" on the tile and "Reserved tonight" in the count.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        <strong>Room vs unit vs bed.</strong> Screen says room; errors say
+        "Unit"; whole-room dialogs say "bed". <span class="tag">verified</span>
+      </li>
+      <li>
+        <strong>Table tools.</strong> Housekeeping's board has search, column
+        chooser, per-page and paging; Rooms' list has none.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        <strong>Empty states.</strong> Housekeeping and Room calendar link to
+        Rooms when empty; Rooms' own empty state points at a button elsewhere.
+        <span class="tag">inferred</span>
+      </li>
+      <li>
+        <strong>Three ways to make a room unavailable</strong> with three
+        vocabularies: "Block bed", "Out of order" (Report a problem checkbox)
+        and Housekeeping's states. <span class="tag">verified</span>
+      </li>
+      <li>
+        <strong>Dates.</strong> The out-of-order "Expected back" field is a
+        native date input showing dd.mm.yyyy on the English page.
+        <span class="tag">verified</span>
+      </li>
+    </ul>
+
+    <h2>6. Not built / needs backend work</h2>
+    <ul>
+      <li>
+        <strong>Beds as a first-class mode</strong> (let by the bed, A to Z
+        naming, cap 26, dormitory over 26, block a whole dormitory in one go):
+        deferred or out of scope in
+        <code>docs/features/rooms-and-beds/edge-cases.csv</code> (RB-S2-13,
+        RB-S2-15, RB-S3-14). Not reported as defects.
+      </li>
+      <li>
+        <strong>Edit a room</strong> (rename, retype, change capacity or floor):
+        out of scope, RB-S3-15 and RB-S3-10 (the update grant is status and
+        reason only). Backend work: an edit command that refuses once anything
+        names the room.
+      </li>
+      <li>
+        <strong>Remove a mistaken room:</strong> deferred, RB-S3-12 (no DELETE
+        grant).
+      </li>
+      <li>
+        <strong>Named rooms</strong> (G01, Deniz Suite): out of scope, RB-S2-14
+        (digits only).
+      </li>
+      <li>
+        <strong
+          >Bulk add above 60 per batch, ranges across several floors in one go,
+          and CSV import:</strong
+        >
+        not mentioned in the docs or code; one batch per floor works today. The
+        40-room job is covered by bulk add; a 200-room hotel needs several
+        batches. Judged Not built, not a defect.
+        <span class="tag">inferred</span>
+      </li>
+      <li>
+        <strong>Block with an end date:</strong> the docs do not cover it (the
+        maintenance route has "expected back"). <span class="tag">unknown</span>
+      </li>
+      <li>
+        <strong>Per-bed housekeeping:</strong> missing per
+        <code>docs/roadmap.md</code>.
+      </li>
+      <li>
+        <strong
+          >Room amenities, photos and per-type rates on this screen:</strong
+        >
+        rates live in Configuration; the others are not documented.
+      </li>
+    </ul>
+
+    <h2>7. What already works well and must not regress</h2>
+    <ul>
+      <li>
+        Bulk add is one short form and atomic: a duplicate name refuses the
+        whole batch, writes nothing and keeps my values (room count stayed 3).
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        Reason for a block must be 3 or more characters; the field says so, and
+        the browser stops 2 characters before any request.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        The "Take it out of order" checkbox states its consequence in plain
+        words ("The front desk will not be able to sell it or check anyone into
+        it until it returns to service") and offers a return date.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        Report a problem opens with the room preselected from the room's own
+        dialog. <span class="tag">verified</span>
+      </li>
+      <li>
+        State badges carry an icon and a word, never colour alone, and the
+        guest's name shows on an occupied tile.
+        <span class="tag">verified</span>
+      </li>
+      <li>
+        Turkish and Arabic are complete on the page chrome, and Arabic mirrors
+        correctly (sidebar, toolbar, tiles). <span class="tag">verified</span>
+      </li>
+      <li>
+        A Back button and breadcrumb are present (ADR 0035); the page does not
+        scroll sideways at 375 px. <span class="tag">verified</span>
+      </li>
+      <li>
+        Owner and Manager see the same page; the Property is named in the header
+        and the page is scoped to it. <span class="tag">verified</span>
+      </li>
+      <li>
+        Double submit: both dialogs disable their buttons while pending.
+        <span class="tag">inferred, from code</span>
+      </li>
+    </ul>
+
+    <p class="meta">
+      Assumptions: "Manager" is the account with
+      <code>accommodation.configure</code>; "seconds" are agent wall time. No
+      credentials appear in this report. Nothing was created or changed on
+      staging: the only submitted forms were refused ones (duplicate room name
+      as Manager in EN and TR, duplicate room name as Front Desk). The
+      Report-a-problem form for room 102 was filled and left unsent.
+    </p>
+  </body>
+</html>

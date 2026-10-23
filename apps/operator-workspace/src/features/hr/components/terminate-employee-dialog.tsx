@@ -1,19 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { SupportedLocale } from "@ranza/i18n";
+import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  DialogSection,
   DialogTrigger,
+  FormError,
   Input,
-  Label,
+  dialogFrameClassName,
+  fieldClassName,
 } from "@ranza/ui";
 import { terminateEmployeeAction } from "../../../server/hr";
 import { useOutcomeText } from "./outcome-text";
@@ -42,6 +48,7 @@ export function TerminateEmployeeDialog({
   today,
 }: TerminateEmployeeDialogProps) {
   const t = useTranslations("hr.employees");
+  const all = useTranslations();
   const outcomeText = useOutcomeText();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -88,52 +95,64 @@ export function TerminateEmployeeDialog({
           {t("terminate")}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <form onSubmit={confirm}>
-          <DialogHeader>
-            <DialogTitle>
-              {t("terminateTitle", { name: employeeName })}
-            </DialogTitle>
-            <DialogDescription>{t("terminateDescription")}</DialogDescription>
-          </DialogHeader>
+      <DialogContent className={dialogFrameClassName("small")}>
+        <form className="grid" onSubmit={confirm}>
+          <DialogMasthead
+            art="/illustrations/dialogs/remove-access.svg"
+            eyebrow={t("terminate")}
+            heading={employeeName}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
+              {t("terminateDescription")}{" "}
+              <Link
+                className="font-medium text-primary-text underline underline-offset-4"
+                href={localizeHref(locale, `people?property=${propertyId}`)}
+              >
+                {t("terminatePeople")}
+              </Link>
+            </DialogDescription>
 
-          {errorMessage && (
-            <div
-              role="alert"
-              className="mt-3 p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium"
+            <DialogSection
+              labelFor={`terminated-on-${employeeId}`}
+              tag={{ label: all("dialogTagRequired"), required: true }}
+              title={t("terminateDate")}
             >
-              {errorMessage}
-            </div>
-          )}
+              <Input
+                className={fieldClassName}
+                id={`terminated-on-${employeeId}`}
+                max={today}
+                min={new Date(hiredOn).toISOString().slice(0, 10)}
+                onChange={(e) => setLastDay(e.target.value)}
+                required
+                type="date"
+                value={lastDay}
+              />
+            </DialogSection>
 
-          <div className="space-y-1.5 py-4">
-            <Label htmlFor={`terminated-on-${employeeId}`}>
-              {t("terminateDate")}
-            </Label>
-            <Input
-              id={`terminated-on-${employeeId}`}
-              type="date"
-              required
-              min={new Date(hiredOn).toISOString().slice(0, 10)}
-              max={today}
-              value={lastDay}
-              onChange={(e) => setLastDay(e.target.value)}
-            />
-          </div>
+            {errorMessage ? (
+              <div aria-live="polite">
+                <FormError>{errorMessage}</FormError>
+              </div>
+            ) : null}
+          </DialogBody>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
+          <DialogActions>
+            <CancelButton
               disabled={isPending}
               onClick={() => setOpen(false)}
+              type="button"
             >
               {t("cancel")}
-            </Button>
-            <Button type="submit" variant="destructive" disabled={isPending}>
+            </CancelButton>
+            <ArrowButton
+              disabled={isPending || lastDay === ""}
+              tone="danger"
+              type="submit"
+            >
               {isPending ? t("terminating") : t("terminateConfirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

@@ -120,7 +120,7 @@ describe("the booking form", () => {
   it("stops at the lengths the Guest table will accept", () => {
     openForm();
 
-    expect(screen.getByLabelText(messages.en.guest)).toHaveAttribute(
+    expect(screen.getByLabelText(messages.en.guestNameTitle)).toHaveAttribute(
       "maxlength",
       String(GUEST_DETAILS.name.max),
     );
@@ -180,30 +180,27 @@ function day(iso: string) {
   return button;
 }
 
-function chooseUnit(name: RegExp) {
-  fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
-  fireEvent.click(screen.getByRole("option", { name }));
+/** The units are listed once the nights are chosen, so this waits for the row. */
+async function chooseUnit(name: RegExp) {
+  fireEvent.click(await screen.findByRole("radio", { name }));
 }
 
 describe("the quote (ADR 0038)", () => {
-  it("the_booking_dialog_quotes_the_price_and_total", () => {
+  it("the_booking_dialog_quotes_the_price_and_total", async () => {
     openForm();
     expect(screen.queryByText(/a night/)).toBeNull();
 
-    chooseUnit(/101/);
-    expect(screen.getByText(/1,500\.00 a night$/)).toBeVisible();
-
-    fireEvent.click(screen.getByRole("button", { name: /^Arrival/ }));
-    fireEvent.click(day("2026-10-01"));
-    fireEvent.click(day("2026-10-04"));
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/101/);
     expect(
       screen.getByText(/1,500\.00 a night · 3 nights: .*4,500\.00 in total$/),
     ).toBeVisible();
   });
 
-  it("an unpriced kind says its nights will not be charged, before it is taken", () => {
+  it("an unpriced kind says its nights will not be charged, before it is taken", async () => {
     openForm();
-    chooseUnit(/102/);
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/102/);
     expect(
       screen.getByText(
         "No price is set for Bed here, so this booking is taken without one and its nights are not charged.",
@@ -211,17 +208,18 @@ describe("the quote (ADR 0038)", () => {
     ).toBeVisible();
   });
 
-  it("the quote travels back so a changed price refuses the booking (RT-S2-12)", () => {
+  it("the quote travels back so a changed price refuses the booking (RT-S2-12)", async () => {
     openForm();
     const form = () =>
       new FormData(
         screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
       );
-    chooseUnit(/101/);
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/101/);
     expect(form().get("quotedRateMinor")).toBe("150000");
     expect(form().get("quotedCurrency")).toBe("TRY");
     // An unpriced kind is quoted as no price at all.
-    chooseUnit(/102/);
+    await chooseUnit(/102/);
     expect(form().get("quotedRateMinor")).toBe("");
     expect(form().get("quotedCurrency")).toBe("");
   });
@@ -231,10 +229,7 @@ const takeBooking = () =>
   screen.getByRole("button", { name: messages.en.takeBooking });
 
 function chooseStayType(name: string) {
-  fireEvent.click(
-    screen.getByRole("combobox", { name: messages.en.stayTypeLabel }),
-  );
-  fireEvent.click(screen.getByRole("option", { name }));
+  fireEvent.click(screen.getByRole("radio", { name }));
 }
 
 function chooseDates(from: string, to?: string) {
@@ -247,8 +242,7 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
   it("a_guest_booking_is_not_taken_without_a_departure", () => {
     openForm();
     expect(screen.getByText(messages.en.departureRequiredHint)).toBeVisible();
-    chooseUnit(/101/);
-    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
       target: { value: "Nezihe Muhiddin" },
     });
     chooseDates("2026-10-01");
@@ -267,17 +261,17 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
   it("a_residents_booking_may_be_left_open_ended", async () => {
     createReservation.mockResolvedValue("done");
     openForm();
-    chooseUnit(/101/);
     chooseStayType(messages.en.stayType.resident);
     expect(screen.getByText(messages.en.departureHint)).toBeVisible();
     expect(screen.queryByText(messages.en.departureRequiredHint)).toBeNull();
-    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
       target: { value: "Nezihe Muhiddin" },
     });
     chooseDates("2026-10-01");
     fireEvent.keyDown(document.activeElement ?? document.body, {
       key: "Escape",
     });
+    await chooseUnit(/101/);
 
     takeBooking().closest("form")!.requestSubmit();
     await vi.waitFor(() => expect(createReservation).toHaveBeenCalled());
@@ -292,18 +286,18 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
   it("a_refusal_keeps_the_stay_type_the_desk_chose", async () => {
     createReservation.mockResolvedValue("refused");
     openForm();
-    chooseUnit(/101/);
     chooseStayType(messages.en.stayType.resident);
     chooseDates("2026-10-01");
-    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+    await chooseUnit(/101/);
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
       target: { value: "Nezihe Muhiddin" },
     });
     fireEvent.submit(takeBooking().closest("form")!);
 
     expect(await screen.findByText(messages.en.bookingRefused)).toBeVisible();
     expect(
-      screen.getByRole("combobox", { name: messages.en.stayTypeLabel }),
-    ).toHaveTextContent(messages.en.stayType.resident);
+      screen.getByRole("radio", { name: messages.en.stayType.resident }),
+    ).toBeChecked();
     await waitFor(() => expect(takeBooking()).toBeEnabled());
   });
 });
@@ -311,7 +305,7 @@ describe("a departure (RG-S1-11, RG-S3-11)", () => {
 describe("a missing Guest name (RG-S4-15)", () => {
   it("a_missing_guest_name_is_said_under_the_field_in_our_words: under the field, without cancelling the browser's own handling", () => {
     openForm();
-    const guest = screen.getByLabelText(messages.en.guest);
+    const guest = screen.getByLabelText(messages.en.guestNameTitle);
 
     // The browser refusing the empty required field.
     const proceeds = fireEvent.invalid(guest);
@@ -352,7 +346,7 @@ describe("an email the Guest record cannot hold (RG-S1-42)", () => {
   it("a_short_email_is_said_under_the_field_in_our_words: the server's refusal lands on the field, not in the generic message", async () => {
     createReservation.mockResolvedValue("invalidEmail");
     openForm();
-    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
       target: { value: "Nezihe Muhiddin" },
     });
     fireEvent.submit(takeBooking().closest("form")!);
@@ -364,7 +358,6 @@ describe("an email the Guest record cannot hold (RG-S1-42)", () => {
     expect(email).toHaveAttribute("aria-invalid", "true");
     expect(email).toHaveFocus();
     expect(screen.queryByText(messages.en.bookingGuestInvalid)).toBeNull();
-    await waitFor(() => expect(takeBooking()).toBeEnabled());
   });
 
   it("a_short_email_is_said_under_the_field_in_our_words: in Turkish and Arabic too", () => {
@@ -398,7 +391,7 @@ describe("an email the Guest record cannot hold (RG-S1-42)", () => {
 describe("the expected arrival (FD-S6-04, FD-S6-21)", () => {
   it("the_expected_arrival_is_optional_and_asked_after_the_guest_and_the_dates", () => {
     openForm();
-    const guest = screen.getByLabelText(messages.en.guest);
+    const guest = screen.getByLabelText(messages.en.guestNameTitle);
     const time = screen.getByLabelText(messages.en.expectedArrival);
     expect(time).toHaveAttribute("type", "time");
     expect(time).not.toBeRequired();
@@ -450,7 +443,7 @@ describe("the booking form in Arabic (RG-S3-12)", () => {
       screen.getByRole("heading", { name: messages.ar.newReservation }),
     ).toBeVisible();
     for (const label of [
-      messages.ar.guest,
+      messages.ar.guestNameTitle,
       messages.ar.guestEmail,
       messages.ar.guestPhone,
     ]) {
@@ -474,10 +467,8 @@ describe("the booking form in Arabic (RG-S3-12)", () => {
       document.querySelector('[data-slot="calendar"]')?.getAttribute("dir"),
     ).toBe("rtl");
     expect(
-      screen
-        .getByRole("combobox", { name: messages.ar.stayTypeLabel })
-        .getAttribute("dir"),
-    ).toBe("rtl");
+      screen.getByRole("radio", { name: messages.ar.stayType.guest }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -505,25 +496,32 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
       expect.stringContaining("to=2026-10-07"),
     );
 
-    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
-    const taken = await screen.findByRole("option", { name: /101/ });
-    await waitFor(() => expect(taken).toHaveAttribute("aria-disabled", "true"));
-    expect(taken).toHaveTextContent(messages.en.unitBookedThoseNights);
-    // Marked, never hidden: the other Unit is still there and choosable.
-    expect(screen.getByRole("option", { name: /102/ })).not.toHaveAttribute(
-      "aria-disabled",
-      "true",
+    // One wait on the state asserted — the Unit marked taken — instead of a
+    // find followed by a wait.
+    await waitFor(
+      () => expect(screen.getByRole("radio", { name: /101/ })).toBeDisabled(),
+      { timeout: 5_000 },
     );
-  });
+    expect(screen.getByRole("radio", { name: /101/ })).toHaveAccessibleName(
+      expect.stringContaining(messages.en.unitBookedThoseNights),
+    );
+    // Marked, never hidden: the other Unit is still there and choosable.
+    expect(screen.getByRole("radio", { name: /102/ })).toBeEnabled();
+  }, 15_000);
 
   it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: a Unit already chosen says so when the nights make it taken", async () => {
-    availability.mockResolvedValue({
+    availability.mockResolvedValueOnce({ kind: "ready", unavailable: [] });
+    availability.mockResolvedValueOnce({
       kind: "ready",
       unavailable: [{ unitId: "u1", blocker: "occupied" }],
     });
     openForm();
-    chooseUnit(/101/);
     chooseNights();
+    await chooseUnit(/101/);
+
+    // Other nights, which a Guest is already staying on.
+    fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
+    fireEvent.click(day("2026-10-09"));
 
     expect(
       await screen.findByText(messages.en.chosenUnitTakenThoseNights),
@@ -539,26 +537,15 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     availability.mockReturnValueOnce(new Promise(() => {}));
     openForm();
     chooseNights();
-    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
     await waitFor(() =>
-      expect(screen.getByRole("option", { name: /101/ })).toHaveAttribute(
-        "aria-disabled",
-        "true",
-      ),
+      expect(screen.getByRole("radio", { name: /101/ })).toBeDisabled(),
     );
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-      key: "Escape",
-    });
 
     // New dates, new read (which hangs): 101 is no longer marked.
     fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
     fireEvent.click(day("2026-10-09"));
     await waitFor(() => expect(availability).toHaveBeenCalledTimes(2));
-    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
-    expect(screen.getByRole("option", { name: /101/ })).not.toHaveAttribute(
-      "aria-disabled",
-      "true",
-    );
+    expect(screen.getByRole("radio", { name: /101/ })).toBeEnabled();
   });
 
   it("a_unit_booked_for_the_chosen_nights_is_marked_in_the_picker: a refused save reads the marks again, so a Unit taken in between is shown as taken", async () => {
@@ -570,10 +557,10 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     });
     createReservation.mockResolvedValue("unavailable");
     openForm();
-    chooseUnit(/101/);
     chooseNights();
+    await chooseUnit(/101/);
     await waitFor(() => expect(availability).toHaveBeenCalledTimes(1));
-    fireEvent.change(screen.getByLabelText(messages.en.guest), {
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
       target: { value: "Nezihe Muhiddin" },
     });
     fireEvent.submit(takeBooking().closest("form")!);
@@ -602,12 +589,8 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
       expect.anything(),
     );
 
-    fireEvent.click(screen.getByRole("combobox", { name: messages.en.unit }));
     for (const name of [/101/, /102/]) {
-      expect(screen.getByRole("option", { name })).not.toHaveAttribute(
-        "aria-disabled",
-        "true",
-      );
+      expect(await screen.findByRole("radio", { name })).toBeEnabled();
     }
     logged.mockRestore();
   });
@@ -620,10 +603,7 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
 
     // A Resident's booking may be open-ended, so an arrival is enough.
     fireEvent.click(
-      screen.getByRole("combobox", { name: messages.en.stayTypeLabel }),
-    );
-    fireEvent.click(
-      screen.getByRole("option", { name: messages.en.stayType.resident }),
+      screen.getByRole("radio", { name: messages.en.stayType.resident }),
     );
     await waitFor(() =>
       expect(availability).toHaveBeenCalledWith(

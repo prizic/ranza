@@ -7,15 +7,24 @@
  * who may not change a setting is told why rather than handed a control that
  * fails.
  */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { InspectionSettings as Settings } from "../../packages/ranza/housekeeping/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
 // The server action, which the card only calls.
+const setInspection = vi.fn();
 vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
-  setInspection: vi.fn(),
+  setInspection,
 }));
 
 const { InspectionSettings } =
@@ -42,7 +51,23 @@ const manager: Settings = {
   mayConfigureDefault: true,
 };
 
-afterEach(() => cleanup());
+beforeAll(() => {
+  // jsdom has none of these; an opened select reaches for them.
+  class Observer {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", Observer);
+  Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => undefined;
+});
+
+afterEach(() => {
+  cleanup();
+  setInspection.mockReset();
+});
 
 describe("the inspection setting", () => {
   it("says what a Property following the default inherits (HK-S3-09)", () => {
@@ -77,11 +102,194 @@ describe("the inspection setting", () => {
     ).toBeEnabled();
   });
 
-  it("leaves a reader without the permission both values and no control", () => {
+  it("tells a reader without the permission what applies in a sentence, with no control to try (HK-S3-12)", () => {
     show({ ...manager, mayConfigure: false, mayConfigureDefault: false });
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/waits for an inspection before it is ready to let/),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(/A manager can change this/)).toHaveLength(1);
+
+    show({
+      ...manager,
+      organizationDefault: false,
+      effective: false,
+      mayConfigure: false,
+      mayConfigureDefault: false,
+    });
+    expect(
+      screen.getByText(/is ready to let without an inspection/),
+    ).toBeInTheDocument();
+  });
+
+  it("CF-S3-25: embedded in Configuration, a reader who may change neither keeps both values and is told the permission they lack", () => {
+    cleanup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <InspectionSettings
+          embedded
+          locale="en"
+          propertyId="dd000003-0000-4000-8000-000000000001"
+          settings={{
+            ...manager,
+            mayConfigure: false,
+            mayConfigureDefault: false,
+          }}
+        />
+      </NextIntlClientProvider>,
+    );
     for (const name of ["For the whole Organization", "For this Property"]) {
       expect(screen.getByRole("combobox", { name })).toBeDisabled();
     }
-    expect(screen.getAllByText("A manager can change this.")).toHaveLength(2);
+    expect(
+      screen.getAllByText(
+        "You can see these settings. To change them, your role needs “Configure rooms & beds”.",
+      ),
+    ).toHaveLength(2);
+  });
+});
+
+describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
+  async function choose(label: string, option: string | RegExp) {
+    fireEvent.click(screen.getByRole("combobox", { name: label }));
+    fireEvent.click(await screen.findByRole("option", { name: option }));
+  }
+
+  it("CF-S3-21: writes nothing when a choice is made, and shows what it would do", async () => {
+    show({ ...manager, organizationDefault: false, effective: false });
+    expect(
+      within(screen.getByTestId("flow")).queryByText("Inspected"),
+    ).not.toBeInTheDocument();
+
+    await choose("For this Property", "On");
+
+    expect(setInspection).not.toHaveBeenCalled();
+    // The flow follows the choice at once; the buttons wait for it.
+    expect(
+      within(screen.getByTestId("flow")).getByText("Inspected"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Save for this Property" }),
+    ).toBeEnabled();
+    expect(screen.getByText("Not saved yet.")).toBeVisible();
+  });
+
+  it("CF-S3-21: offers no save until there is a change, and discards one", async () => {
+    show(manager);
+    expect(
+      screen.getByRole("button", { name: "Save for this Property" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Discard changes" }),
+    ).toBeNull();
+
+    await choose("For this Property", "Off");
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(
+      screen.getByRole("combobox", { name: "For this Property" }),
+    ).toHaveTextContent("Use the Organization's setting (On)");
+    expect(
+      screen.getByRole("button", { name: "Save for this Property" }),
+    ).toBeDisabled();
+  });
+
+  it("CF-S3-21: saving this Property's own answer sends that scope and that value only", async () => {
+    setInspection.mockResolvedValue({ status: "done" });
+    show(manager);
+    await choose("For this Property", "Off");
+
+    await act(async () => {
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save for this Property" }),
+      );
+    });
+
+    await waitFor(() => expect(setInspection).toHaveBeenCalledTimes(1));
+    const form = setInspection.mock.calls[0]![1] as FormData;
+    expect(form.get("scope")).toBe("property");
+    expect(form.get("value")).toBe("off");
+    expect(await screen.findByText("Saved")).toBeVisible();
+    // And what was saved is what the card now holds, while the refreshed
+    // settings are on their way.
+    expect(
+      screen.getByRole("combobox", { name: "For this Property" }),
+    ).toHaveTextContent("Off");
+    expect(screen.queryByText("Not saved yet.")).toBeNull();
+  });
+
+  it("CF-S3-22: saving the Organization's default asks first and names every Property, and does nothing until it is confirmed", async () => {
+    setInspection.mockResolvedValue({ status: "done" });
+    show(manager);
+    await choose("For the whole Organization", "Off");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText("Change this for every Property?"),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText(
+        "This changes Check rooms after cleaning for every Property: from “On” to “Off”.",
+      ),
+    ).toBeVisible();
+    expect(setInspection).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Keep editing" }),
+    );
+    expect(setInspection).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    );
+    await act(async () => {
+      fireEvent.click(
+        within(await screen.findByRole("dialog")).getByRole("button", {
+          name: "Change for every Property",
+        }),
+      );
+    });
+    await waitFor(() => expect(setInspection).toHaveBeenCalledTimes(1));
+    const form = setInspection.mock.calls[0]![1] as FormData;
+    expect(form.get("scope")).toBe("organization");
+    expect(form.get("value")).toBe("off");
+  });
+
+  it("CF-S3-23: asks before the tab is closed while a choice is unsaved, and not before", async () => {
+    show(manager);
+    const quiet = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(quiet);
+    expect(quiet.defaultPrevented).toBe(false);
+
+    await choose("For this Property", "Off");
+    const asking = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(asking);
+    expect(asking.defaultPrevented).toBe(true);
+  });
+
+  it("CF-S3-21: embedded in another screen's card, it draws no title of its own", () => {
+    cleanup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <InspectionSettings
+          embedded
+          locale="en"
+          propertyId="dd000003-0000-4000-8000-000000000001"
+          settings={manager}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Check rooms after cleaning" }),
+    ).toBeNull();
+    expect(
+      screen.getByRole("combobox", { name: "For this Property" }),
+    ).toBeVisible();
   });
 });

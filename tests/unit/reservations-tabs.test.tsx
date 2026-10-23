@@ -70,6 +70,7 @@ const BASE: ReservationRow = {
   stayId: null,
   stayStartsOn: null,
   folioId: null,
+  overdueDays: 0,
   stayNights: null,
   totalMinor: null,
 };
@@ -123,6 +124,7 @@ function show(rows: ReservationRow[], today: string | null = TODAY) {
       <ReservationsTable
         changing={null}
         locale="en"
+        opening={null}
         propertyId="p1"
         reservations={rows}
         today={today}
@@ -229,10 +231,12 @@ describe("the Reservations list's tabs", () => {
       status: "checked_in" as const,
       startsOn: "2030-01-01",
       endsOn: "2030-01-09",
+      overdueDays: 4,
     };
     show([DEPARTING, overdue]);
     expect(screen.getByText(messages.en.dueToday)).toBeVisible();
-    expect(screen.getByText(/Overdue since/)).toBeVisible();
+    expect(screen.getByText("Overdue · 4 days")).toBeVisible();
+    expect(screen.getByText("Was due Jan 9, 2030")).toBeVisible();
   });
 });
 

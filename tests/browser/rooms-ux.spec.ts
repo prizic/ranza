@@ -1,0 +1,214 @@
+import path from "node:path";
+
+import { expect } from "@playwright/test";
+import { test } from "./hydration";
+
+import { DESK_EMAIL, signIn } from "./front-desk";
+import { aPropertyWithRooms } from "./ux-rooms";
+
+const EVIDENCE = path.resolve(
+  __dirname,
+  "../../docs/evidence/ux-audit/RANZ-62",
+);
+
+/**
+ * Rooms & beds, as the 2026-10-11 audit found it (RANZ-62): who is offered
+ * Add rooms, what an add says it will create, what a refusal says and in which
+ * language, and finding a room on a Property with hundreds.
+ *
+ * Each test brings a Property of its own: a room is never deleted, so a figure
+ * or a refusal asserted against a Property shared with other runs would depend
+ * on them.
+ */
+
+test("a front desk colleague is not offered Add rooms, and a manager sees what an add will create before pressing it", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const { propertyId } = aPropertyWithRooms("rooms ux", [
+    { name: "101" },
+    { name: "102" },
+    { name: "103" },
+  ]);
+
+  // ROOMS-01: the Front desk role does not carry accommodation.configure
+  // (RB-S2-03), so the button that could only refuse is not there.
+  await signIn(page, DESK_EMAIL);
+  await page.goto(`/en/rooms?property=${propertyId}`);
+  await expect(page.getByText("101", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add rooms" })).toHaveCount(0);
+
+  await page.context().clearCookies();
+  await signIn(page);
+  await page.goto(`/en/rooms?property=${propertyId}`);
+  await page.getByRole("button", { name: "Add rooms" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add rooms" });
+
+  // ROOMS-06: the dialog describes itself, not the page, and the type is a
+  // room type.
+  await expect(
+    dialog.getByText("Create rooms in one go. They are numbered in sequence."),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("radiogroup", { name: "What are they?" }),
+  ).toBeVisible();
+
+  // ROOMS-02: a line says what one press creates.
+  await dialog.getByLabel("Building (optional)").fill("Block A");
+  await dialog.getByLabel("Floor (optional)").fill("3");
+  await dialog.getByLabel("First room number").fill("301");
+  await dialog.getByLabel("Number of rooms").fill("40");
+  await expect(dialog.getByTestId("add-rooms-preview")).toHaveText(
+    "Adds 40 rooms: 301 to 340, floor 3, Block A, sleeps 2",
+  );
+  await page.screenshot({
+    path: path.join(EVIDENCE, "add-rooms-says-what-it-creates.png"),
+  });
+
+  await dialog.getByRole("button", { name: "Add 40 rooms" }).click();
+  await expect(dialog).toBeHidden();
+  // ROOMS-05: success says what was written, naming the range.
+  await expect(page.getByRole("status")).toContainText(
+    "Added 40 rooms: 301 to 340.",
+  );
+
+  // ROOMS-09: and a room of the forty is found by its number.
+  await page.getByRole("searchbox").fill("340");
+  await expect(page.getByText("340", { exact: true })).toBeVisible();
+  await expect(page.getByText("101", { exact: true })).toHaveCount(0);
+});
+
+for (const language of [
+  {
+    code: "en",
+    taken: "Room 101 already exists at this Property, so no rooms were added.",
+    digits:
+      "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
+  },
+  {
+    code: "ar",
+    taken: "الغرفة 101 موجودة بالفعل في هذا العقار، لذلك لم تُضف أي غرفة.",
+    digits:
+      "استخدم أرقامًا فقط، من 1 إلى 8 خانات، مثل 101. لا تُقبل الحروف ولا الشرطات.",
+  },
+] as const) {
+  test(`a refusal is worded by the screen in ${language.code} and the form keeps what was typed`, async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const { propertyId } = aPropertyWithRooms(
+      `rooms refusal ${language.code}`,
+      [{ name: "101" }],
+    );
+    await signIn(page);
+    await page.goto(`/${language.code}/rooms?property=${propertyId}`);
+    if (language.code === "ar") {
+      await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+    }
+
+    await page.getByTestId("add-rooms-open").click();
+    const dialog = page.getByRole("dialog");
+
+    // ROOMS-04: the browser's own bubble for "4O1" says this screen's words.
+    await dialog.locator("#firstNumber").fill("4O1");
+    await dialog.locator("form").evaluate((form: HTMLFormElement) => {
+      form.requestSubmit();
+    });
+    const bubble = await dialog
+      .locator("#firstNumber")
+      .evaluate((input: HTMLInputElement) => input.validationMessage);
+    expect(bubble).toBe(language.digits);
+
+    // ROOMS-03: a name already taken is named, in the screen's language, and
+    // nothing typed is lost.
+    await dialog.locator("#firstNumber").fill("101");
+    await dialog.locator("button[type=submit]").click();
+    const refusal = dialog.getByRole("alert");
+    await expect(refusal).toContainText(language.taken);
+    await expect(dialog.locator("#firstNumber")).toHaveValue("101");
+    if (language.code === "en") {
+      await page.screenshot({
+        path: path.join(EVIDENCE, "refusal-in-the-screens-words.png"),
+      });
+    }
+  });
+}
+
+test("Escape on a half-typed batch asks first, and the view survives a reload", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const { propertyId } = aPropertyWithRooms("rooms view", [
+    { name: "101" },
+    { name: "102" },
+  ]);
+  await signIn(page);
+  await page.goto(`/en/rooms?property=${propertyId}`);
+
+  const asked: string[] = [];
+  let accept = false;
+  page.on("dialog", async (dialog) => {
+    asked.push(dialog.message());
+    await (accept ? dialog.accept() : dialog.dismiss());
+  });
+
+  await page.getByRole("button", { name: "Add rooms" }).click();
+  const dialog = page.getByRole("dialog", { name: "Add rooms" });
+  await dialog.getByLabel("First room number").fill("301");
+  await page.keyboard.press("Escape");
+  await expect.poll(() => asked.length).toBe(1);
+  expect(asked[0]).toBe("Discard the rooms you were about to add?");
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("First room number")).toHaveValue("301");
+
+  accept = true;
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  // ROOMS-13: the list is in the URL, so a reload and a link keep it.
+  await page.getByRole("button", { name: "Bed list" }).click();
+  await expect(page).toHaveURL(/view=list/);
+  await page.reload();
+  await expect(
+    page.getByRole("columnheader", { name: "Tonight" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Bed list" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  // ROOMS-13: a Property with no floors does not head its rooms "No floor set".
+  await page.getByRole("button", { name: "Bed map" }).click();
+  await expect(page.getByText("No floor set")).toHaveCount(0);
+
+  // Rule 5: a search that finds nothing says so and offers every room back.
+  await page.getByRole("searchbox").fill("zzz");
+  await expect(page.getByText("No rooms match")).toBeVisible();
+  await page.getByRole("button", { name: "Show all rooms" }).click();
+  await expect(page.getByText("101", { exact: true })).toBeVisible();
+});
+
+test("on a phone the figures are a compact strip and the first room is on the first screens", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const { propertyId } = aPropertyWithRooms("rooms phone", [
+    { name: "101" },
+    { name: "102" },
+    { name: "103" },
+  ]);
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page);
+  await page.goto(`/en/rooms?property=${propertyId}`);
+
+  const firstRoom = page.locator("[id^='room-']").first();
+  await expect(firstRoom).toBeVisible();
+  // ROOMS-11: the six tiles once took 1.3 screens before the first room.
+  const box = (await firstRoom.boundingBox())!;
+  expect(box.y).toBeLessThan(812);
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+  await page.screenshot({ path: path.join(EVIDENCE, "rooms-on-a-phone.png") });
+});

@@ -13,7 +13,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 
 const entitledProperties = vi.fn();
 const folio = vi.fn();
-const folios = vi.fn();
+const folioPage = vi.fn();
 const permittedProperties = vi.fn();
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
@@ -47,9 +47,14 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   POST_PAYMENT_PERMISSION: "finance.post_payment",
   REVERSE_CHARGE_PERMISSION: "finance.reverse_charge",
   REVERSE_PAYMENT_PERMISSION: "finance.reverse_payment",
+  AUDIT_READ_PERMISSION: "audit.read",
+  FRONT_DESK_CAPABILITY: {
+    moduleKey: "front_office",
+    capabilityKey: "front_desk",
+  },
   entitledProperties,
   folio,
-  folios,
+  folioPage,
   permittedProperties,
   requireViewer: async () => ({
     userId: "d9100001-0000-4000-8000-000000000001",
@@ -60,9 +65,15 @@ vi.mock(
   "../../apps/operator-workspace/src/features/finance/components/folios-table",
   () => ({ FoliosTable: () => <p data-testid="folios-table" /> }),
 );
+const folioPanel = vi.fn();
 vi.mock(
   "../../apps/operator-workspace/src/features/finance/components/folio-panel",
-  () => ({ FolioPanel: () => <p data-testid="folio-panel" /> }),
+  () => ({
+    FolioPanel: (props: unknown) => {
+      folioPanel(props);
+      return <p data-testid="folio-panel" />;
+    },
+  }),
 );
 
 const PROPERTY = {
@@ -79,7 +90,11 @@ const FORGED = "d9100004-0000-4000-8000-0000000000ff";
 const { default: FinancePage } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/finance/page");
 
-async function show(search: { property?: string; folio?: string }) {
+async function show(search: {
+  property?: string;
+  folio?: string;
+  show?: string;
+}) {
   const page = await FinancePage({
     params: Promise.resolve({ locale: "en" }),
     searchParams: Promise.resolve(search),
@@ -96,15 +111,16 @@ function expectFinanceIsNotOn() {
   expect(screen.getByText(messages.en.noFinanceDescription)).toBeVisible();
   expect(screen.queryByTestId("folios-table")).toBeNull();
   expect(screen.queryByTestId("folio-panel")).toBeNull();
-  expect(folios).not.toHaveBeenCalled();
+  expect(folioPage).not.toHaveBeenCalled();
   expect(folio).not.toHaveBeenCalled();
 }
 
 beforeEach(() => {
   entitledProperties.mockReset().mockResolvedValue([PROPERTY]);
   folio.mockReset().mockResolvedValue(null);
-  folios.mockReset().mockResolvedValue([]);
+  folioPage.mockReset().mockResolvedValue({ folios: [], total: 0 });
   permittedProperties.mockReset().mockResolvedValue([]);
+  folioPanel.mockReset();
 });
 afterEach(cleanup);
 
@@ -139,6 +155,61 @@ describe("the Finance page where finance is not on", () => {
     await show({ property: PROPERTY.propertyId });
     expect(screen.getByTestId("folios-table")).toBeInTheDocument();
     expect(screen.queryByText(messages.en.noFinanceTitle)).toBeNull();
-    expect(folios).toHaveBeenCalledWith(PROPERTY.propertyId);
+    expect(folioPage).toHaveBeenCalledWith(PROPERTY.propertyId, "all");
+  });
+});
+
+describe("the Finance list's tabs (FIN-02)", () => {
+  it("asks the module for the tab named in the address, and for all when it names none the screen knows", async () => {
+    for (const [shown, asked] of [
+      ["owing", "owing"],
+      ["open", "open"],
+      ["closed", "closed"],
+      ["nonsense", "all"],
+      [undefined, "all"],
+    ] as const) {
+      folioPage.mockClear();
+      await show({ property: PROPERTY.propertyId, show: shown });
+      expect(folioPage).toHaveBeenCalledWith(PROPERTY.propertyId, asked);
+      cleanup();
+    }
+  });
+
+  it("marks the tab that is open", async () => {
+    await show({ property: PROPERTY.propertyId, show: "owing" });
+    expect(
+      screen.getByRole("link", { name: messages.en.finance.tabs.owing }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      screen.getByRole("link", { name: messages.en.finance.tabs.all }),
+    ).not.toHaveAttribute("aria-current");
+  });
+});
+
+describe("a folio's history (AUDIT-03)", () => {
+  const FOLIO = {
+    folioId: "d9100005-0000-4000-8000-000000000001",
+    propertyId: PROPERTY.propertyId,
+  };
+  const history = () =>
+    (folioPanel.mock.calls.at(-1)?.[0] as { auditHref: string | null })
+      .auditHref;
+
+  it("links the Audit log narrowed to the folio, with the Property kept, for a viewer who may read it", async () => {
+    folio.mockResolvedValue(FOLIO);
+    permittedProperties.mockImplementation(async (permission: string) =>
+      permission === "audit.read" ? [PROPERTY] : [],
+    );
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(history()).toBe(
+      `/en/audit-log?property=${PROPERTY.propertyId}&subject=${FOLIO.folioId}`,
+    );
+  });
+
+  it("offers no link to a viewer who may not read the Audit log", async () => {
+    folio.mockResolvedValue(FOLIO);
+    permittedProperties.mockResolvedValue([]);
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(history()).toBeNull();
   });
 });

@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { aStaffMember, signIn } from "./front-desk";
@@ -207,37 +208,42 @@ test("a settled month is explained to the unit: every figure equals the history 
   // it corrects, and the rows sum to the headline.
   await expect(page.locator("tr[data-date]")).toHaveCount(28);
   await expect(dayRow(page, "2026-02-01").getByRole("cell")).toHaveText([
-    "1Sun",
+    /^1 Sun/,
     "0",
     "0.0%",
     "TRY 0.00",
+    "",
   ]);
   await expect(dayRow(page, "2026-02-02").getByRole("cell")).toHaveText([
-    "2Mon",
+    /^2 Mon/,
     "1",
     "33.3%",
     "TRY 100.00",
+    "",
   ]);
   // A's 3 Feb night was charged 100.00 and corrected -100.00 on 2 Mar.
   await expect(dayRow(page, "2026-02-03").getByRole("cell")).toHaveText([
-    "3Tue",
+    /^3 Tue/,
     "1",
     "33.3%",
     "TRY 0.00",
+    "",
   ]);
   // B (120.00) and C (200.00) on the same night.
   await expect(dayRow(page, "2026-02-10").getByRole("cell")).toHaveText([
-    "10Tue",
+    /^10 Tue/,
     "2",
     "66.7%",
     "TRY 320.00",
+    "",
   ]);
   // A Resident night is occupied and earned nothing.
   await expect(dayRow(page, "2026-02-21").getByRole("cell")).toHaveText([
-    "21Sat",
+    /^21 Sat/,
     "1",
     "33.3%",
     "TRY 0.00",
+    "",
   ]);
 
   const rows = page.locator("tr[data-date]");
@@ -251,7 +257,7 @@ test("a settled month is explained to the unit: every figure equals the history 
   expect(revenue).toBeCloseTo(640, 2);
   await expect(
     section(page, words.days).locator("tfoot tr").getByRole("cell"),
-  ).toHaveText([words.monthTotal, "9", "10.7%", "TRY 640.00"]);
+  ).toHaveText([words.monthTotal, "9", "10.7%", "TRY 640.00", ""]);
 
   // Opening a day shows the same count its row does (AN-S3-04).
   await dayRow(page, "2026-02-10").locator("[data-day-link]").click();
@@ -301,7 +307,9 @@ test("the month before it compares against January, and January has no earlier m
   );
   // December had no Stay and no charge, so there is nothing to compare with:
   // no percentage is invented (AN-S2-07).
-  await expect(page.locator("main")).toContainText(words.noPrior);
+  await expect(page.locator("main")).toContainText(
+    say(words.noPrior, { month: "December 2025" }),
+  );
   await expect(page.locator("[data-figure]").first()).not.toContainText(
     "vs December",
   );
@@ -326,17 +334,22 @@ test("an open month says month to date, counts closed days only, and compares th
     page.getByRole("heading", { name: monthName(open.month) }),
   ).toBeVisible();
   await expect(page.locator("main")).toContainText(
-    say(words.monthToDate, { closed, total: daysInMonth }),
+    say(words.monthToDate, { closed, total: closed + 1 }),
   );
   await expect(page.locator("main")).toContainText(words.openNote);
 
-  const available = 2 * closed;
+  // Occupancy counts every day so far, today included; revenue's nights are
+  // the closed days'.
+  const available = 2 * (closed + 1);
+  const closedAvailable = 2 * closed;
   const currentOccupancy = Math.round(1000 / available) / 10;
   const elapsed = Math.min(closed, daysInPriorMonth);
   const priorOccupied = closed >= 28 ? 2 : 1;
   const priorAvailable = 2 * elapsed;
+  const priorDays = Math.min(closed + 1, daysInPriorMonth);
+  const priorNights = closed + 1 >= 28 ? 2 : 1;
   const priorOccupancy =
-    Math.round((priorOccupied / priorAvailable) * 1000) / 10;
+    Math.round((priorNights / (2 * priorDays)) * 1000) / 10;
   const points = Math.round((currentOccupancy - priorOccupancy) * 10) / 10;
   const signed =
     points === 0
@@ -353,7 +366,7 @@ test("an open month says month to date, counts closed days only, and compares th
     `${signed} points vs ${priorName}: ${percent(priorOccupancy)}`,
   );
   // ADR is the one 100.00 night; RevPAR spreads it over the closed days.
-  const revParMinor = Math.round(10000 / available);
+  const revParMinor = Math.round(10000 / closedAvailable);
   await expect(headline(page, words.adr)).toContainText("TRY 100.00");
   await expect(headline(page, words.revPar)).toContainText(lira(revParMinor));
   const priorRevParMinor = Math.round((8000 * priorOccupied) / priorAvailable);
@@ -367,7 +380,7 @@ test("an open month says month to date, counts closed days only, and compares th
     say(words.sameElapsedDays, { month: priorName }),
   );
 
-  // Today is open and counts toward no rate; days to come carry no figure.
+  // Today is open and counts toward no revenue; days to come carry no figure.
   const today = dayRow(page, open.today);
   await expect(today).toHaveAttribute("data-day-state", "open");
   await expect(today).toContainText(words.openDay);
@@ -453,7 +466,7 @@ test("a Property that has not bought analytics is not offered and its address re
   await expect(page.locator('aside a[href^="/en/analytics"]')).toHaveCount(0);
   await page.goto(reportUrl(unbought.propertyId, null));
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notEnabledTitle }),
   ).toBeVisible();
   await expect(page.locator("[data-figure]")).toHaveCount(0);
 });
@@ -473,7 +486,7 @@ test("a Property the viewer is not assigned to is not shown, and the one they ar
 
   await page.goto(reportUrl(elsewhere.propertyId, "2026-02"));
   await expect(
-    page.getByRole("heading", { name: messages.en.notEntitledTitle }),
+    page.getByRole("heading", { name: messages.en.denied.notReachableTitle }),
   ).toBeVisible();
   await expect(page.locator("[data-figure]")).toHaveCount(0);
 

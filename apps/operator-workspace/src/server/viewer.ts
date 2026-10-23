@@ -2,10 +2,12 @@ import "server-only";
 import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { BrandSettings } from "@ranza/branding";
 import {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
+  SEARCH_MATCH_LIMIT,
   TODAY_CAPABILITY,
 } from "@ranza/core";
 import type {
@@ -16,10 +18,13 @@ import type {
   BillingNotice,
   CapabilityProperties,
   CapabilityRef,
+  Denial,
   EntitledProperty,
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
+import { LOCATION_HEADER, signInHref } from "../lib/return-path";
+import { gateOf, type ScreenGate } from "../lib/screens";
 import type { PriceList } from "@ranza/rates";
 import {
   FOLIO_CAPABILITY,
@@ -34,18 +39,22 @@ import {
   SERVICE_REQUEST_CATEGORIES,
   SERVICE_REQUEST_PRIORITIES,
   SERVICE_REQUEST_STATUSES,
+  type ServiceRequestAccess,
   type ServiceRequestCategory,
   type ServiceRequestItem,
   type ServiceRequestPriority,
+  type ServiceRequestStaff,
   type ServiceRequestStatus,
 } from "@ranza/guest-services";
 import {
   INTEGRATIONS_CAPABILITY,
+  type EndpointHealth,
+  type EndpointsView,
+  type FailedOperationPage,
   type FailedOperationRecord,
-  type IntegrationRecord,
-  type IntegrationStatus,
+  type FailureView,
   type OperationStatus,
-  type RetryOperationResult,
+  type WebhookEndpointRecord,
 } from "@ranza/integrations";
 import {
   HR_CAPABILITY,
@@ -73,13 +82,15 @@ export {
 };
 export {
   INTEGRATIONS_CAPABILITY,
+  type EndpointHealth,
+  type EndpointsView,
+  type FailedOperationPage,
   type FailedOperationRecord,
-  type IntegrationRecord,
-  type IntegrationStatus,
+  type FailureView,
   type OperationStatus,
-  type RetryOperationResult,
+  type WebhookEndpointRecord,
 };
-import type { FolioDetail, FolioSummary } from "@ranza/folios";
+import type { FolioDetail, FolioShow, FolioSummary } from "@ranza/folios";
 import {
   BookingChangeError,
   FRONT_DESK_CAPABILITY,
@@ -95,9 +106,10 @@ import type {
   Departure,
   DeparturePreview,
   DepartureView,
+  GuestMatch,
   MovePreview,
   ReservationRow,
-  RoomCalendar,
+  RoomCalendar as RoomCalendarRead,
   RoomCalendarBar,
   RoomCalendarReservationBar,
   RoomCalendarStayBar,
@@ -156,7 +168,12 @@ import type {
   SettingValues,
   UnitHold,
 } from "@ranza/maintenance";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import type { SupportedLocale } from "@ranza/i18n";
+import {
+  loginsWithoutEmployment,
+  type UnregisteredStaffMember,
+} from "../lib/unregistered-staff";
+import { weekToShow } from "../lib/hr-week";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
 import type { TodaySummary } from "./today-derive";
@@ -164,13 +181,11 @@ import { readTodaySummary, todayReads } from "./today-summary";
 import {
   getDayDetail,
   getMonthReport,
-  getPropertyAnalytics,
+  getWindowReport,
   type AnalyticsRange,
-  type DailyMetric,
   type DayDetail,
   type MonthReport,
-  type PaymentMethodBreakdown,
-  type PropertyAnalytics,
+  type WindowReport,
 } from "./analytics";
 import {
   getPortfolio,
@@ -182,13 +197,11 @@ import {
 export { PortfolioTooLargeError };
 export type {
   AnalyticsRange,
-  DailyMetric,
   DayDetail,
   MonthReport,
-  PaymentMethodBreakdown,
   Portfolio,
   PortfolioProperty,
-  PropertyAnalytics,
+  WindowReport,
 };
 
 /**
@@ -217,6 +230,7 @@ export {
   AUDIT_READ_PERMISSION,
   CONFIGURATION_CAPABILITY,
   MIN_SEARCH_LENGTH,
+  SEARCH_MATCH_LIMIT,
   TODAY_CAPABILITY,
   FRONT_DESK_CAPABILITY,
   FOLIO_CAPABILITY,
@@ -293,7 +307,6 @@ export type {
   PriceList,
   PropertySettings,
   ReservationRow,
-  RoomCalendar,
   RoomCalendarBar,
   RoomCalendarReservationBar,
   RoomCalendarStayBar,
@@ -373,7 +386,14 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
  */
 export async function requireViewer(locale: SupportedLocale): Promise<Viewer> {
   const viewer = await currentViewer();
-  if (!viewer) redirect(localizeHref(locale, "sign-in"));
+  if (!viewer) {
+    // Sent to sign in with where they were going, so signing in lands them
+    // there and not on Today (SIGN-02). The proxy writes the header; what it
+    // holds is still only a candidate, which `signInHref` checks.
+    redirect(
+      signInHref(locale, (await headers()).get(LOCATION_HEADER) ?? undefined),
+    );
+  }
   return viewer;
 }
 
@@ -431,10 +451,89 @@ export async function entitledPropertiesByCapability(
  */
 export async function arrivals(
   propertyId: string,
-): Promise<readonly Arrival[]> {
+): Promise<readonly ArrivalRow[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
-  return getComposition().reservations.listArrivals(viewer.userId, propertyId);
+  const list = await getComposition().reservations.listArrivals(
+    viewer.userId,
+    propertyId,
+  );
+  // The request is asked about only when a room on the list is out of order.
+  if (!list.some((row) => row.checkInBlocker === "unit_out_of_service")) {
+    return list;
+  }
+  const holds = await roomHolds(viewer.userId, propertyId);
+  return list.map((row) => {
+    const hold = holds[row.unitId];
+    return row.checkInBlocker === "unit_out_of_service" && hold
+      ? { ...row, hold }
+      : row;
+  });
+}
+
+/**
+ * The maintenance request holding a room out of order and when the room is
+ * expected back (MAINT-17), so the desk can answer a Guest who asks "when?"
+ * without opening Rooms.
+ */
+export interface RoomHold {
+  number: number;
+  expectedBackOn: string | null;
+}
+
+/**
+ * An arrival, with the request that holds its room out of order when one does.
+ * A bed under a room held out of order is held by the room's request, which is
+ * not found from the bed, so its row says out of order and no more.
+ */
+export type ArrivalRow = Arrival & { hold?: RoomHold };
+
+/**
+ * Every room a request holds out of order at a Property, by Unit. Where two
+ * requests hold one room the later number is shown, as Rooms does. Empty where
+ * maintenance is not available or could not be read: the badge then says out
+ * of order without a request, which is still true.
+ */
+async function roomHolds(
+  userId: string,
+  propertyId: string,
+): Promise<Readonly<Record<string, RoomHold>>> {
+  try {
+    const { holds } = await getComposition().maintenance.roomsView(
+      userId,
+      propertyId,
+    );
+    return Object.fromEntries(
+      holds.map((hold) => [
+        hold.unitId,
+        { number: hold.number, expectedBackOn: hold.expectedBackOn },
+      ]),
+    );
+  } catch (error: unknown) {
+    console.error("room_holds.read_failed", { propertyId, userId, error });
+    return {};
+  }
+}
+
+/** What the room is to somebody about to put a Guest in it, from the board. */
+export type RoomReadiness =
+  "ready" | "awaiting_inspection" | "dirty" | "occupied";
+
+/**
+ * The calendar, and what housekeeping says of each room it draws, so a
+ * booking's details can say whether its room is ready for the Guest. Absent
+ * for a Property without housekeeping, and when the board could not be read.
+ */
+export type RoomCalendar = RoomCalendarRead & {
+  readiness?: Readonly<Record<string, RoomReadiness>>;
+  /** The request holding each room out of order, by Unit (MAINT-17). */
+  holds?: Readonly<Record<string, RoomHold>>;
+};
+
+function readinessOf(room: HousekeepingRoom): RoomReadiness {
+  if (room.inHouse) return "occupied";
+  if (room.status === "dirty") return "dirty";
+  return room.ready ? "ready" : "awaiting_inspection";
 }
 
 /**
@@ -453,11 +552,39 @@ export async function roomCalendar(
 ): Promise<RoomCalendar | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
-  return getComposition().reservations.listRoomCalendar(
+  const { housekeeping, reservations } = getComposition();
+  const calendar = await reservations.listRoomCalendar(
     viewer.userId,
     propertyId,
     window,
   );
+  const anyOutOfOrder = calendar.units.some(
+    (unit) =>
+      unit.status === "out_of_service" ||
+      unit.beds.some((bed) => bed.status === "out_of_service"),
+  );
+  const withHolds = anyOutOfOrder
+    ? { ...calendar, holds: await roomHolds(viewer.userId, propertyId) }
+    : calendar;
+  try {
+    const board = await housekeeping.board(viewer.userId, propertyId);
+    return {
+      ...withHolds,
+      readiness: Object.fromEntries(
+        board.rooms
+          .filter((room) => !room.outOfService)
+          .map((room) => [room.unitId, readinessOf(room)]),
+      ),
+    };
+  } catch (error: unknown) {
+    // The calendar is whole without it; the drawer just does not say.
+    console.error("room_calendar.readiness_failed", {
+      propertyId,
+      userId: viewer.userId,
+      error,
+    });
+    return withHolds;
+  }
 }
 
 /**
@@ -678,6 +805,24 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
 }
 
 /**
+ * Guests on file that what is being typed into a new booking may be the same
+ * person as: a prompt, and never a merge. Empty for anybody not signed in and
+ * for a viewer who may not take bookings.
+ */
+export async function guestLookup(
+  propertyId: string,
+  text: string,
+): Promise<readonly GuestMatch[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().reservations.findGuests(
+    viewer.userId,
+    propertyId,
+    text,
+  );
+}
+
+/**
  * The Units a booking may be placed on.
  *
  * Every Unit in service, not the free ones. Which are taken over particular
@@ -714,6 +859,24 @@ export async function folios(
   return getComposition().folios.listFolios(viewer.userId, propertyId);
 }
 
+const FOLIO_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * One page of the Finance list: the Folios the tab asks for, those owing the
+ * most first, with how many there are in all.
+ */
+export async function folioPage(
+  propertyId: string,
+  show: FolioShow,
+): Promise<{ folios: readonly FolioSummary[]; total: number }> {
+  const viewer = await currentViewer();
+  if (!viewer) return { folios: [], total: 0 };
+  return getComposition().folios.listFolioPage(viewer.userId, propertyId, {
+    show,
+  });
+}
+
 /**
  * One Folio and its lines.
  *
@@ -722,6 +885,9 @@ export async function folios(
  * indistinguishable from one that was never there.
  */
 export async function folio(folioId: string): Promise<FolioDetail | null> {
+  // Anything that is not an id is a Folio that is not there, not a query for
+  // the database to refuse and the page to fail on.
+  if (!FOLIO_ID.test(folioId)) return null;
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().folios.folioDetail(viewer.userId, folioId);
@@ -769,7 +935,7 @@ export async function housekeepingBoard(
   if (!viewer) {
     return {
       rooms: [],
-      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0, ready: 0 },
+      counts: { rooms: 0, dirty: 0, clean: 0, inspected: 0 },
       mayMark: false,
     };
   }
@@ -796,19 +962,84 @@ export async function housekeepingInspection(
  * Every Property the viewer reaches in an Organization where they hold
  * `permission` — the gate for a destination no package selection may remove.
  *
+ * A destination that is an Organization's to configure names the capability it
+ * needs as well, by its two keys (strings, so that `cache` can tell one call
+ * from another), and a Property is listed only where that holds for it too.
+ *
  * `cache`d like `entitledProperties`: the layout and the page beneath it ask
  * the same question in one request.
  */
 export const permittedProperties = cache(
-  async (permission: string): Promise<readonly EntitledProperty[]> => {
+  async (
+    permission: string,
+    moduleKey?: string,
+    capabilityKey?: string,
+  ): Promise<readonly EntitledProperty[]> => {
     const viewer = await currentViewer();
     if (!viewer) return [];
     return getComposition().core.listPermittedProperties(
       viewer.userId,
       permission,
+      moduleKey && capabilityKey ? { moduleKey, capabilityKey } : undefined,
     );
   },
 );
+
+/**
+ * Every Property the viewer may open a destination in, by its gate in
+ * `lib/screens.ts` — the question the rail asks of every destination at once,
+ * asked of one. A page that decides for itself what to ask is a page that can
+ * disagree with the rail about whether it is open.
+ */
+export async function screenProperties(
+  gate: ScreenGate,
+): Promise<readonly EntitledProperty[]> {
+  const permissions =
+    typeof gate.permission === "string"
+      ? [gate.permission]
+      : (gate.permission ?? []);
+  if (permissions.length > 0) {
+    // Any one of them opens it, so a Property is listed once however many the
+    // role holds there.
+    const answers = await Promise.all(
+      permissions.map((permission) =>
+        permittedProperties(
+          permission,
+          gate.capability?.moduleKey,
+          gate.capability?.capabilityKey,
+        ),
+      ),
+    );
+    return [
+      ...new Map(
+        answers.flat().map((property) => [property.propertyId, property]),
+      ).values(),
+    ].sort(
+      (a, b) =>
+        a.organizationName.localeCompare(b.organizationName) ||
+        a.propertyName.localeCompare(b.propertyName),
+    );
+  }
+  return gate.capability ? entitledProperties(gate.capability) : [];
+}
+
+/**
+ * Why a destination is closed to the viewer, for the page that has just found
+ * nothing to show. `property` is the `?property=` the viewer arrived with,
+ * unchecked.
+ */
+export async function whyDenied(
+  gate: ScreenGate,
+  property: string | undefined,
+): Promise<Denial> {
+  const viewer = await currentViewer();
+  if (!viewer) return { reason: "no_property" };
+  return getComposition().core.explainDenial(viewer.userId, {
+    capability: gate.capability,
+    permission: gate.permission,
+    propertyId: property,
+  });
+}
 
 /**
  * The Organizations whose Subscription is past due, for an Owner (ADR 0040).
@@ -925,6 +1156,8 @@ const NO_AUDIT: AuditPage = {
   entries: [],
   total: 0,
   nextCursor: null,
+  searchCapped: false,
+  subjectSpan: null,
   labels: {},
   locations: {},
   roles: {},
@@ -1081,6 +1314,21 @@ export async function roomsMaintenance(
 }
 
 /**
+ * Whether the viewer may add rooms at this Property: the permission, held where
+ * the front desk capability is on. The insert policy decides the same thing
+ * (ADR 0012); asking first is what lets the screen say which it is, since the
+ * module answers every kind of refusal alike (RB-S2-03, ROOMS-01).
+ */
+export async function mayConfigureRooms(propertyId: string): Promise<boolean> {
+  const permitted = await permittedProperties(
+    "accommodation.configure",
+    ROOMS_CAPABILITY.moduleKey,
+    ROOMS_CAPABILITY.capabilityKey,
+  );
+  return permitted.some((property) => property.propertyId === propertyId);
+}
+
+/**
  * The equipment register at one Property, each item with its condition and
  * next service; the service plan is the same read by date (MT-S3-04, MT-S4-01).
  */
@@ -1103,16 +1351,17 @@ export async function equipmentRegister(
 }
 
 /**
- * Derives operational and financial analytics metrics for a Property.
- * Returns null if the viewer cannot reach the Property or lacks the analytics capability.
+ * A trailing window of a Property — today, 7 days or 30 — explained as a month
+ * is. Null if the viewer cannot reach the Property or lacks the analytics
+ * capability.
  */
-export async function propertyAnalytics(
+export async function propertyWindowReport(
   propertyId: string,
   range?: string | null,
-): Promise<PropertyAnalytics | null> {
+): Promise<WindowReport | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
-  return getPropertyAnalytics(viewer.userId, propertyId, range);
+  return getWindowReport(viewer.userId, propertyId, range);
 }
 
 /**
@@ -1168,50 +1417,80 @@ export async function propertyServiceRequests(
   return getComposition().guestServices.requests(viewer.userId, propertyId);
 }
 
-export interface IntegrationsViewData {
-  integrations: IntegrationRecord[];
-  failedOperations: FailedOperationRecord[];
+/** What the viewer may do with guest service requests at a Property. */
+export async function serviceRequestAccess(
+  propertyId: string,
+): Promise<ServiceRequestAccess> {
+  const viewer = await currentViewer();
+  if (!viewer) return { mayCreate: false, mayManage: false };
+  return getComposition().guestServices.access(viewer.userId, propertyId);
 }
 
+/** Who a guest service request at a Property can be assigned to. */
+export async function serviceRequestAssignees(
+  propertyId: string,
+): Promise<ServiceRequestStaff[]> {
+  const viewer = await currentViewer();
+  if (!viewer) return [];
+  return getComposition().guestServices.assignees(viewer.userId, propertyId);
+}
+
+export interface IntegrationsViewData {
+  endpoints: EndpointsView;
+  /** The failures on the page asked for. */
+  failures: FailedOperationPage;
+  /** How many failures at the Property are open, whichever view is shown. */
+  openTotal: number;
+  /** The signed-in user, so the screen can say "You" for what they closed. */
+  viewerId: string | null;
+}
+
+/** How many failures one page of the Integrations screen lists. */
+export const INTEGRATIONS_PAGE_SIZE = 25;
+
 /**
- * Reads external system integrations and active failed operations for a Property.
+ * The Organization's webhook endpoints and the Property's failures, for the
+ * Integrations screen (ADR 0045). The endpoints are the Organization's and the
+ * failures are the Property's, so both are asked for.
  */
 export async function propertyIntegrations(
+  organizationId: string,
   propertyId: string,
+  view: FailureView,
+  page: number,
 ): Promise<IntegrationsViewData> {
   const viewer = await currentViewer();
   if (!viewer) {
-    return { integrations: [], failedOperations: [] };
+    return {
+      endpoints: { endpoints: [], mayManage: false },
+      failures: { records: [], total: 0 },
+      openTotal: 0,
+      viewerId: null,
+    };
   }
 
-  const comp = getComposition();
-  const [integrations, failedOperations] = await Promise.all([
-    comp.integrations.integrations(viewer.userId, propertyId),
-    comp.integrations.failedOperations(viewer.userId, propertyId),
-  ]);
-
-  return {
-    integrations,
-    failedOperations,
+  const integrations = getComposition().integrations;
+  const shown = {
+    view,
+    limit: INTEGRATIONS_PAGE_SIZE,
+    offset: (page - 1) * INTEGRATIONS_PAGE_SIZE,
   };
-}
+  const [endpoints, failures] = await Promise.all([
+    integrations.endpoints(viewer.userId, organizationId),
+    integrations.failedOperations(viewer.userId, propertyId, shown),
+  ]);
+  const openTotal =
+    view === "open"
+      ? failures.total
+      : (
+          await integrations.failedOperations(viewer.userId, propertyId, {
+            view: "open",
+            limit: 1,
+            offset: 0,
+          })
+        ).total;
 
-/**
- * Retries a failed external integration operation.
- */
-export async function retryIntegrationOperation(
-  propertyId: string,
-  operationId: string,
-): Promise<RetryOperationResult> {
-  const viewer = await currentViewer();
-  if (!viewer) {
-    throw new Error("Unauthorized");
-  }
-
-  return getComposition().integrations.retryOperation(viewer.userId, {
-    propertyId,
-    operationId,
-  });
+  return { endpoints, failures, openTotal, viewerId: viewer.userId };
 }
 
 export interface HrViewData {
@@ -1221,7 +1500,18 @@ export interface HrViewData {
   currency: string;
   /** The Property's own calendar date, `YYYY-MM-DD`. */
   today: string;
+  /** The Organization's Properties the viewer may use HR at, for naming where somebody works. */
+  properties: readonly { propertyId: string; propertyName: string }[];
+  /** The rota's week, Monday to Sunday, on the Property's own calendar (HR-06). */
+  week: readonly string[];
   employees: readonly EmployeeRecord[];
+  /**
+   * Active Staff Members of the Organization with no employment record: they
+   * can sign in and are not on the rota or in payroll (HR-S1-49). Empty for a
+   * viewer who may not register an employee, because the panel that lists them
+   * is the only thing it is read for.
+   */
+  unregisteredStaff: readonly UnregisteredStaffMember[];
   shifts: readonly ShiftRecord[];
   leaveRequests: readonly LeaveRequestRecord[];
   /**
@@ -1236,17 +1526,44 @@ export interface HrViewData {
 const PERIOD = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
+ * The Organization's logins with no employment record, for the panel that
+ * offers them for registration.
+ *
+ * Any member of an Organization reads its roster, so no permission is asked
+ * here; the caller decides whether the viewer is shown the answer. A roster
+ * that cannot be read leaves the panel out rather than the screen, and is
+ * reported.
+ */
+async function unregisteredStaffOf(
+  userId: string,
+  organizationId: string,
+  employees: readonly EmployeeRecord[],
+): Promise<readonly UnregisteredStaffMember[]> {
+  try {
+    const roster = await getComposition().staff.readRoster(
+      { userId },
+      organizationId,
+    );
+    return loginsWithoutEmployment(roster, employees);
+  } catch (error: unknown) {
+    console.error("hr.unregistered_staff_failed", { organizationId }, error);
+    return [];
+  }
+}
+
+/**
  * Reads employee records, the weekly rota, leave requests and the payroll
  * period for the HR screen.
  */
 export async function hrViewData(
   propertyId: string,
-  period?: string,
+  options: { period?: string | undefined; week?: string | undefined } = {},
 ): Promise<HrViewData | null> {
+  const { period, week: requestedWeek } = options;
   const viewer = await currentViewer();
   if (!viewer) return null;
 
-  const entitled = await entitledProperties(HR_CAPABILITY);
+  const entitled = await screenProperties(gateOf("hr"));
   const targetProperty = entitled.find((p) => p.propertyId === propertyId);
   if (!targetProperty) return null;
 
@@ -1266,16 +1583,11 @@ export async function hrViewData(
           targetProperty.organizationId,
         );
 
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const distanceToMonday = (dayOfWeek + 6) % 7;
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - distanceToMonday);
-  monday.setHours(0, 0, 0, 0);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  // The Property's own calendar, not this server's and not the browser's: the
+  // week is counted from the date the Property says it is (HR-06).
+  const week = weekToShow(requestedWeek, workplace.today);
+  const monday = new Date(`${week[0]}T00:00:00Z`);
+  const sunday = new Date(`${week[6]}T00:00:00Z`);
 
   const [employees, shifts, leaveRequests, payroll] = await Promise.all([
     comp.hr.employees(viewer.userId, targetProperty.organizationId),
@@ -1294,15 +1606,47 @@ export async function hrViewData(
     ),
   ]);
 
+  const unregisteredStaff = canManage
+    ? await unregisteredStaffOf(
+        viewer.userId,
+        targetProperty.organizationId,
+        employees,
+      )
+    : [];
+
   return {
     organizationId: targetProperty.organizationId,
     propertyId,
     currency: workplace.currency,
     today: workplace.today,
+    properties: entitled
+      .filter((p) => p.organizationId === targetProperty.organizationId)
+      .map((p) => ({ propertyId: p.propertyId, propertyName: p.propertyName })),
+    week,
     employees,
+    unregisteredStaff,
     shifts,
     leaveRequests,
     payroll,
     canManage,
   };
+}
+
+export type { BrandSettings };
+
+/**
+ * The brand the Branding screen edits for one Organization, and whether the
+ * viewer may change it (ADR 0046). The default brand with `canManage` false is
+ * what a viewer the policies give nothing to is shown, which is also what an
+ * Organization that never opened the screen has; the page tells the two apart
+ * by `canManage`.
+ *
+ * Not `cache`d: saving changes this, and the request that saved re-reads it.
+ */
+export async function organizationBrand(
+  organizationId: string,
+): Promise<BrandSettings | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().branding.brandSettings(viewer.userId, organizationId);
 }

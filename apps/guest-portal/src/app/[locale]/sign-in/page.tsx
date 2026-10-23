@@ -1,10 +1,22 @@
 import { notFound, redirect } from "next/navigation";
-import { BedDouble, Building2, DoorOpen, LogIn, LogOut } from "lucide-react";
+import { BedDouble, Building2, CalendarDays } from "lucide-react";
+import type { Metadata } from "next";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { currentViewer } from "../../../server/viewer";
 import { SignInForm } from "./sign-in-form";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isSupportedLocale(locale)) return {};
+  const t = await getTranslations({ locale });
+  return { title: t("signIn") };
+}
 
 /**
  * The gate. Deliberately not the Portal shell: there is no Stay and no
@@ -14,7 +26,8 @@ import { SignInForm } from "./sign-in-form";
  *
  * Composed by SplitAuthLayout, after EduBoard's login. Its service
  * row names what the Stay page shows — the Portal has built nothing else, and
- * the row is not a place to promise it.
+ * the row is not a place to promise it. Password reset by email does not
+ * exist (nothing sends mail), so the page says who can help instead (GP-01).
  */
 export default async function SignInPage({
   params,
@@ -31,11 +44,9 @@ export default async function SignInPage({
   const t = await getTranslations();
   const services = (
     [
-      [BedDouble, t("stay")],
-      [Building2, t("property")],
-      [DoorOpen, t("unit")],
-      [LogIn, t("arrival")],
-      [LogOut, t("departure")],
+      [BedDouble, t("serviceRoom")],
+      [Building2, t("serviceProperty")],
+      [CalendarDays, t("serviceDates")],
     ] as const
   ).map(([Icon, label]) => ({
     icon: <Icon aria-hidden="true" strokeWidth={1.25} />,
@@ -60,7 +71,10 @@ export default async function SignInPage({
       subtitle={t("signInSummary")}
       title={t("welcomeBack")}
     >
-      <SignInForm redirectTo={stay} />
+      <SignInForm
+        forgotHref={localizeHref(locale, "forgot-password")}
+        redirectTo={stay}
+      />
     </SplitAuthLayout>
   );
 }

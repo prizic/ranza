@@ -46,8 +46,14 @@ export function UnitTypeSection({
   const root = useTranslations();
   const occupancy = (percent: number | null) =>
     percent === null ? "—" : formatPercentValue(percent, locale);
+  // Nights were slept and none has a charge: revenue is not zero, it is not
+  // known, in these rows as in the headline (ANALYTICS-02).
   const money = (minor: number | null) =>
-    formatMinorMoney(minor, currency, locale);
+    formatMinorMoney(
+      figures.roomRevenueUnknown ? null : minor,
+      currency,
+      locale,
+    );
   const stacked = (revenue: number | null, adr: number | null) =>
     mayReadMoney ? (
       <span className="mt-0.5 block text-xs font-normal whitespace-normal text-muted-foreground sm:hidden">

@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { test } from "./hydration";
 
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { aFreshProperty } from "./fresh-property";
@@ -114,10 +115,13 @@ test("an arrival row carries an expected time, the Unit's readiness, a balance a
   await expectTheWholeRowToBeInView(page);
 
   // All four on the one row, before the Guest is in.
-  await expect(row).toContainText(`Expected 23:30`);
+  await expect(row).toContainText("Expected 23:30");
   await expect(row).toContainText(words.ready);
-  // Before check-in there is no bill, and a zero would claim there is one.
-  await expect(row).toContainText(words.noFolio);
+  // Before check-in there is no bill: no Balance column at all, rather than a
+  // zero that would claim there is one or a constant "No Folio" on every row.
+  await expect(page.getByRole("columnheader", { name: "Balance" })).toHaveCount(
+    0,
+  );
   await expect(row.getByRole("button", { name: "Check in" })).toBeVisible();
 
   const menu = await openMenu(page, row);
@@ -193,9 +197,9 @@ test("an arrival into a room that is not ready is asked about, and a room that c
   // Not ready: said on the row, asked about when the button is pressed, and
   // "Not now" leaves the booking as it was.
   const dirtyRow = await openArrivals(page, desk.propertyId, dirty);
-  await expect(dirtyRow).toContainText(words.notReady);
+  await expect(dirtyRow).toContainText(words.roomDirty);
   await dirtyRow.getByRole("button", { name: "Check in" }).click();
-  await expect(dirtyRow).toContainText(words.roomNotReady);
+  await expect(dirtyRow).toContainText("has not been cleaned yet");
   await page.screenshot({
     path: path.join(EVIDENCE, "03-arrival-into-a-room-not-ready.png"),
   });
@@ -244,11 +248,10 @@ test("cancelling needs a reason, a booking that has since arrived cannot be mark
     .click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Reason").fill("   ");
-  await dialog.getByRole("button", { name: words.cancelBooking }).click();
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(
-    /A reason of at least \d+ characters? is needed/,
-  );
+  await expect(
+    dialog.getByRole("button", { name: words.cancelBooking }),
+  ).toBeDisabled();
+  await expect(dialog).toContainText(words.dialogHintReason);
   expect(reservationStatusOf(cancelled)).toBe("confirmed");
   await dialog.getByRole("button", { name: words.keepBooking }).click();
   await expect(dialog).toBeHidden();
@@ -271,7 +274,7 @@ test("cancelling needs a reason, a booking that has since arrived cannot be mark
   await other.close();
 
   await noShow.getByRole("button", { name: words.markNoShow }).click();
-  await expect(noShow).toContainText(words.endBookingRefused);
+  await expect(noShow).toContainText(words.refusalAlreadyCheckedIn);
   expect(reservationStatusOf(arrived)).toBe("checked_in");
 });
 
@@ -318,8 +321,10 @@ test("a departure row carries its balance and a menu, and checking out with mone
   await expect(dialog.getByText("TRY 45.00").first()).toBeVisible();
   // Acknowledged but with no reason: held back, and the Guest is still in.
   await dialog.getByRole("checkbox").click();
-  await dialog.getByRole("button", { name: words.confirmCheckOut }).click();
-  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: words.checkOut, exact: true }),
+  ).toBeDisabled();
+  await expect(dialog).toContainText(words.dialogHintReason);
   expect(
     psql(
       `select stay.status from public.stays as stay
@@ -361,7 +366,7 @@ test("a Finance reader, who holds no front desk permission, sees the rows and ha
 
   const row = await openArrivals(page, desk.propertyId, waiting);
   // The information is there: the time, the readiness, the nothing owed yet.
-  await expect(row).toContainText("Expected");
+  await expect(row).toContainText("No time given");
   await expect(row).toContainText(words.ready);
   await expect(row.getByRole("button", { name: "Check in" })).toHaveCount(0);
   const menu = await openMenu(page, row);
@@ -403,7 +408,9 @@ test("the arrival row in Arabic carries the same four things and mirrors", async
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(row).toContainText(ar.expectedAt.replace("{time}", "23:30"));
   await expect(row).toContainText(ar.ready);
-  await expect(row).toContainText(ar.noFolio);
+  await expect(
+    page.getByRole("columnheader", { name: ar.balance }),
+  ).toHaveCount(0);
   const menu = await openMenu(page, row);
   await expect(menu.getByRole("menuitem")).toHaveText([
     ar.showOnRoomMap,

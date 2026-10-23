@@ -2,9 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
+import { CircleCheck, SprayCan } from "lucide-react";
 import type { DepartedStay } from "@ranza/reservations";
 import { formatDate, formatNumber, type SupportedLocale } from "@ranza/i18n";
 import {
+  StatusBadge,
   Table,
   TableBody,
   TableCaption,
@@ -83,6 +85,7 @@ export function LiveLeftToday({
                 <TableHead>{t("reservation")}</TableHead>
                 <TableHead>{t("roomAndBed")}</TableHead>
                 <TableHead>{t("leftAt")}</TableHead>
+                <TableHead>{t("roomRowHeading")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -109,6 +112,23 @@ export function LiveLeftToday({
                       hourCycle: "h23",
                       timeZone,
                     })}
+                  </TableCell>
+                  <TableCell>
+                    {/* Where a check-out leaves the room, and what housekeeping
+                        says of it now (ADR 0029). */}
+                    {row.unitIsReady ? (
+                      <StatusBadge
+                        icon={CircleCheck}
+                        label={t("ready")}
+                        tone="success"
+                      />
+                    ) : (
+                      <StatusBadge
+                        icon={SprayCan}
+                        label={t("roomNeedsCleaning")}
+                        tone="warning"
+                      />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

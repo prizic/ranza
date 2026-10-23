@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Calendar, Loader2, Pause, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ExportScheduleRecord } from "../types";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   Badge,
   Button,
@@ -12,6 +12,8 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  EmptyState,
+  StatusBadge,
   Table,
   TableBody,
   TableCell,
@@ -20,68 +22,44 @@ import {
   TableRow,
 } from "@ranza/ui";
 import { toggleExportScheduleAction } from "../../../server/data-export";
+import { pausedForWantOfRight } from "../helpers";
+import type { ExportScheduleRecord } from "../types";
 
-interface ExportSchedulesTableProps {
-  schedules: ExportScheduleRecord[];
-  locale: string;
-  propertyId: string;
-}
-
+/**
+ * The Organization's schedules, running and paused alike. A schedule takes one
+ * change, pause or resume (EXP-S1-34); a paused one says why when the database
+ * knows why, because "Paused" alone reads as a decision somebody took.
+ */
 export function ExportSchedulesTable({
-  schedules,
   locale,
+  onNew,
+  organization,
   propertyId,
-}: ExportSchedulesTableProps) {
+  schedules,
+  timezone,
+}: {
+  locale: SupportedLocale;
+  onNew: () => void;
+  organization: string;
+  propertyId: string;
+  schedules: readonly ExportScheduleRecord[];
+  timezone: string;
+}) {
   const t = useTranslations("dataExport");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [refusal, setRefusal] = useState<string | null>(null);
 
-  const getDatasetLabel = (
-    res: ExportScheduleRecord["resourceTypes"][number],
-  ): string => {
-    switch (res) {
-      case "residents_guests":
-        return t("datasets.residents_guests");
-      case "reservations_stays":
-        return t("datasets.reservations_stays");
-      case "rooms_beds":
-        return t("datasets.rooms_beds");
-      case "folios_payments":
-        return t("datasets.folios_payments");
-      case "audit_log":
-        return t("datasets.audit_log");
-    }
-  };
-
-  const getFrequencyLabel = (
-    freq: ExportScheduleRecord["frequency"],
-  ): string => {
-    switch (freq) {
-      case "daily":
-        return t("frequencies.daily");
-      case "weekly":
-        return t("frequencies.weekly");
-      case "monthly":
-        return t("frequencies.monthly");
-    }
-  };
-
   const handleToggle = async (schedule: ExportScheduleRecord) => {
-    const nextStatus = schedule.status === "active" ? "paused" : "active";
     setLoadingId(schedule.id);
     setRefusal(null);
     try {
-      const res = await toggleExportScheduleAction(
+      const result = await toggleExportScheduleAction(
         locale,
         propertyId,
         schedule.id,
-        nextStatus,
+        schedule.status === "active" ? "paused" : "active",
       );
-      if (res.status !== "done") {
-        setRefusal(
-          res.status === "refused" ? t("scheduleRefused") : t("scheduleFailed"),
-        );
-      }
+      if (result.status !== "done") setRefusal(t("scheduleFailed"));
     } catch (error) {
       console.error("data_export.schedule_toggle_failed", {
         scheduleId: schedule.id,
@@ -94,141 +72,131 @@ export function ExportSchedulesTable({
   };
 
   return (
-    <Card className="border-border">
-      <CardHeader className="p-4 sm:p-6">
-        <CardTitle className="text-lg font-semibold text-foreground">
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg font-semibold">
           {t("schedulesTitle")}
         </CardTitle>
-        <CardDescription className="text-sm text-muted-foreground">
-          {t("schedulesDescription")}
+        <CardDescription>
+          {t("schedulesDescription", { organization })}
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-0 sm:p-6 sm:pt-0">
-        {refusal && (
-          <div
-            className="m-4 rounded-md border border-destructive/30 bg-destructive/15 p-3 text-sm text-destructive sm:m-0 sm:mb-4"
+      <CardContent className="px-0 sm:px-6">
+        {refusal ? (
+          <p
+            className="m-4 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive sm:m-0 sm:mb-4"
             role="alert"
           >
             {refusal}
-          </div>
-        )}
+          </p>
+        ) : null}
         {schedules.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            {t("noSchedules")}
-          </div>
+          <EmptyState
+            action={
+              <Button onClick={onNew} type="button">
+                {t("tabs.newSchedule")}
+              </Button>
+            }
+            description={t("noSchedulesDescription")}
+            title={t("noSchedules")}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.name")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.datasets")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.format")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.frequency")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.status")}
-                  </TableHead>
-                  <TableHead className="text-start">
-                    {t("scheduleHeaders.nextRun")}
-                  </TableHead>
-                  <TableHead className="text-end">
-                    {t("scheduleHeaders.actions")}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {schedules.map((schedule) => {
-                  const nextRunDate = new Date(
-                    schedule.nextRunAt,
-                  ).toLocaleString(locale, {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  });
-                  const isLoading = loadingId === schedule.id;
-
-                  return (
-                    <TableRow key={schedule.id}>
-                      <TableCell className="font-medium text-foreground">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="whitespace-normal">
+                  {t("scheduleHeaders.name")}
+                </TableHead>
+                <TableHead className="whitespace-normal">
+                  {t("scheduleHeaders.datasets")}
+                </TableHead>
+                <TableHead className="whitespace-normal">
+                  {t("scheduleHeaders.status")}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {schedules.map((schedule) => {
+                const isLoading = loadingId === schedule.id;
+                const active = schedule.status === "active";
+                return (
+                  <TableRow key={schedule.id}>
+                    <TableCell className="align-top whitespace-normal">
+                      <span className="block text-sm font-medium break-words">
                         {schedule.name}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {schedule.resourceTypes.map((res) => (
-                            <Badge
-                              key={res}
-                              variant="secondary"
-                              className="text-[11px] font-normal"
-                            >
-                              {getDatasetLabel(res)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs uppercase text-foreground">
-                        {schedule.format}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {getFrequencyLabel(schedule.frequency)}
+                      </span>
+                      <span className="block text-xs break-words text-muted-foreground">
+                        {t("madeBy", { name: schedule.createdByName })}
+                      </span>
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      <ul className="grid gap-1">
+                        {schedule.resourceTypes.map((dataset) => (
+                          <li className="text-sm" key={dataset}>
+                            {t(`datasets.${dataset}`)}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="uppercase">{schedule.format}</span>
+                        <Badge variant="outline">
+                          {t(`frequencies.${schedule.frequency}`)}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {schedule.status === "active" ? (
-                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300">
-                            {t("scheduleStatuses.active")}
-                          </Badge>
+                      </p>
+                    </TableCell>
+                    <TableCell className="align-top whitespace-normal">
+                      <div className="grid justify-items-start gap-1.5">
+                        <StatusBadge
+                          icon={active ? Play : Pause}
+                          label={t(`scheduleStatuses.${schedule.status}`)}
+                          tone={active ? "success" : "neutral"}
+                        />
+                        {active ? (
+                          <span className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+                            <Calendar aria-hidden="true" className="size-3.5" />
+                            {t("scheduleHeaders.nextRun")}:{" "}
+                            {formatDate(new Date(schedule.nextRunAt), locale, {
+                              hour: "2-digit",
+                              hourCycle: "h23",
+                              minute: "2-digit",
+                              timeZone: timezone,
+                            })}
+                          </span>
                         ) : (
-                          <Badge
-                            variant="outline"
-                            className="text-muted-foreground"
-                          >
-                            {t("scheduleStatuses.paused")}
-                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {pausedForWantOfRight(schedule)
+                              ? t("pausedBecauseCreatorCannot", {
+                                  name: schedule.createdByName,
+                                })
+                              : t("pausedByHand")}
+                          </span>
                         )}
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                        <span className="flex items-center gap-1.5">
-                          <Calendar className="size-3.5" />
-                          {nextRunDate}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-end">
                         <Button
-                          size="sm"
-                          variant="ghost"
                           disabled={isLoading}
                           onClick={() => handleToggle(schedule)}
-                          className="h-8 gap-1.5"
+                          size="sm"
+                          type="button"
+                          variant="outline"
                         >
                           {isLoading ? (
-                            <Loader2 className="size-3.5 animate-spin" />
-                          ) : schedule.status === "active" ? (
-                            <>
-                              <Pause className="size-3.5 text-amber-600" />
-                              <span>{t("pause")}</span>
-                            </>
+                            <Loader2
+                              aria-hidden="true"
+                              className="animate-spin"
+                            />
+                          ) : active ? (
+                            <Pause aria-hidden="true" />
                           ) : (
-                            <>
-                              <Play className="size-3.5 text-emerald-600" />
-                              <span>{t("resume")}</span>
-                            </>
+                            <Play aria-hidden="true" />
                           )}
+                          {active ? t("pause") : t("resume")}
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </CardContent>
     </Card>

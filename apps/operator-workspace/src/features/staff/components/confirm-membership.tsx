@@ -1,0 +1,244 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { useTranslations } from "next-intl";
+import type { StaffMember } from "@ranza/staff";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
+import {
+  ArrowButton,
+  CancelButton,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogMasthead,
+  dialogFrameClassName,
+} from "@ranza/ui";
+import {
+  addBackStaffMember,
+  renewInvitationLink,
+  revokeStaffMember,
+  undoStaffRevoke,
+  type InviteOutcome,
+  type StaffOutcome,
+} from "../../../server/staff";
+import { InvitationLink } from "./invitation-link";
+import { UNDO_WINDOW_HOURS } from "../labels";
+import { roleNameOf } from "./role-options";
+
+/** What a row's menu proposes to do to a membership, before it is done. */
+export interface MembershipProposal {
+  kind: "revoke" | "restore" | "renew" | "readd";
+  member: StaffMember;
+  /** The viewer's own row. */
+  self: boolean;
+  /** Predicted from the roster; the trigger stays the authority (SP-S1-47). */
+  lastAdministrator: boolean;
+}
+
+/**
+ * Asks before a membership is changed, naming what the change does.
+ *
+ * Revoking ends every session the person holds and is not undone for good by
+ * the same press; the dialog says so, says how long the undo lasts, and says
+ * what stays. It is the role-change confirmation's pattern (SP-S1-41) applied
+ * to the other irreversible-feeling act on this screen (PEOPLE-02).
+ *
+ * A refusal the actor can act on is predicted before the press and ends the
+ * dialog with the way out (PEOPLE-11); any other stays in the dialog, where
+ * the decision was made, and nothing the person typed is lost because nothing
+ * is typed here.
+ *
+ * Remount it for each proposal (a `key`): its outcome belongs to one decision.
+ */
+export function ConfirmMembership({
+  locale,
+  onClose,
+  open,
+  organizationId,
+  proposal,
+}: {
+  locale: SupportedLocale;
+  onClose: () => void;
+  open: boolean;
+  organizationId: string;
+  proposal: MembershipProposal;
+}) {
+  const t = useTranslations();
+  const { kind, member, self, lastAdministrator } = proposal;
+  const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<StaffOutcome>("idle");
+  const [link, setLink] = useState<InviteOutcome | null>(null);
+  const cancelButton = useRef<HTMLButtonElement>(null);
+
+  const blocked =
+    (kind === "revoke" && lastAdministrator) || outcome === "lastAdministrator";
+  const issuesLink = kind === "renew" || kind === "readd";
+
+  async function confirm(): Promise<void> {
+    setPending(true);
+    const form = new FormData();
+    form.set("locale", locale);
+    form.set("organization", organizationId);
+    form.set("member", member.userId);
+
+    try {
+      if (issuesLink) {
+        const result = await (
+          kind === "renew" ? renewInvitationLink : addBackStaffMember
+        )({ state: "idle" }, form);
+        if (result.state === "done") setLink(result);
+        else setOutcome(result.state);
+        return;
+      }
+      const result = await (
+        kind === "revoke" ? revokeStaffMember : undoStaffRevoke
+      )("idle", form);
+      setOutcome(result);
+      if (result === "done") onClose();
+    } catch (error) {
+      console.error("staff.membership_change_failed", {
+        kind,
+        member: member.userId,
+        error,
+      });
+      setOutcome("refused");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const undoUntil = member.revokedAt
+    ? formatDate(
+        new Date(Date.parse(member.revokedAt) + UNDO_WINDOW_HOURS * 3_600_000),
+        locale,
+        {
+          hour: "numeric",
+          minute: "2-digit",
+        },
+      )
+    : null;
+
+  return (
+    <Dialog
+      onOpenChange={(next) => {
+        if (!next && !pending) onClose();
+      }}
+      open={open}
+    >
+      <DialogContent
+        className={dialogFrameClassName("small")}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          cancelButton.current?.focus();
+        }}
+        showCloseButton={false}
+      >
+        <DialogMasthead
+          art={
+            kind === "revoke"
+              ? "/illustrations/dialogs/remove-access.svg"
+              : "/illustrations/dialogs/invite.svg"
+          }
+          eyebrow={t(`staff.membership.${kind}.confirm`)}
+          heading={member.email}
+        />
+        <DialogBody simple>
+          <DialogDescription asChild>
+            <div className="grid gap-3 text-sm">
+              {link && issuesLink ? (
+                <p className="m-0">{t(`staff.membership.${kind}.done`)}</p>
+              ) : blocked ? (
+                <p className="m-0">{t("staff.lastAdministrator")}</p>
+              ) : (
+                <>
+                  <p className="m-0 font-medium">
+                    {t(`staff.membership.${kind}.title`, {
+                      member: member.email,
+                    })}
+                  </p>
+                  <p className="m-0">
+                    {t(`staff.membership.${kind}.body`, {
+                      member: member.email,
+                      role: roleNameOf(member, t),
+                    })}
+                  </p>
+                  {kind === "revoke" ? (
+                    <>
+                      <p className="m-0">
+                        {t("staff.membership.revoke.keeps")}
+                      </p>
+                      <p className="m-0">
+                        {t("staff.membership.revoke.undo", {
+                          hours: UNDO_WINDOW_HOURS,
+                        })}
+                      </p>
+                    </>
+                  ) : null}
+                  {kind === "revoke" && self ? (
+                    <p className="m-0 font-medium text-destructive">
+                      {t("staff.membership.revoke.self")}
+                    </p>
+                  ) : null}
+                  {kind === "restore" && undoUntil ? (
+                    <p className="m-0">
+                      {t("staff.membership.restore.until", {
+                        until: undoUntil,
+                      })}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </div>
+          </DialogDescription>
+
+          {link?.token && link.expiresAt ? (
+            <InvitationLink
+              expiresAt={link.expiresAt}
+              locale={locale}
+              token={link.token}
+            />
+          ) : null}
+
+          {!link && outcome !== "idle" && outcome !== "done" ? (
+            <p className="m-0 text-sm text-destructive" role="alert">
+              {outcome === "lastAdministrator"
+                ? t("staff.lastAdministrator")
+                : t("staff.refused")}
+            </p>
+          ) : null}
+        </DialogBody>
+
+        <DialogActions>
+          {link ? (
+            <ArrowButton onClick={onClose} ref={cancelButton} type="button">
+              {t("staff.done")}
+            </ArrowButton>
+          ) : (
+            <>
+              <CancelButton
+                disabled={pending}
+                onClick={onClose}
+                ref={cancelButton}
+                type="button"
+              >
+                {blocked ? t("staff.confirmRoleClose") : t("staff.cancel")}
+              </CancelButton>
+              {blocked ? null : (
+                <ArrowButton
+                  disabled={pending}
+                  onClick={() => void confirm()}
+                  tone={kind === "revoke" ? "danger" : "default"}
+                  type="button"
+                >
+                  {t(`staff.membership.${kind}.confirm`)}
+                </ArrowButton>
+              )}
+            </>
+          )}
+        </DialogActions>
+      </DialogContent>
+    </Dialog>
+  );
+}

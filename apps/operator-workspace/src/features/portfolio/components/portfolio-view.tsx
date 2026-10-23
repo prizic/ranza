@@ -5,9 +5,16 @@ import { useTranslations } from "next-intl";
 import { EmptyState, PageHeader } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import type { Portfolio } from "../../../server/portfolio";
-import { summarize } from "../derive";
+import {
+  sortProperties,
+  summarize,
+  type PortfolioSort,
+  type PortfolioView as View,
+} from "../derive";
 import { OpenProperty } from "./open-property";
+import { PortfolioControls } from "./portfolio-controls";
 import { PropertyCard } from "./property-card";
+import { PropertyTable } from "./property-table";
 import { SummaryStats } from "./summary-stats";
 import { TodayLink } from "./today-link";
 
@@ -25,12 +32,16 @@ export function PortfolioView({
   data,
   locale,
   organizationName,
+  sort = "name",
+  view = "cards",
 }: {
   /** When the figures were read, already written in the viewer's language. */
   asOf: string;
   data: Portfolio;
   locale: SupportedLocale;
   organizationName: string;
+  sort?: PortfolioSort;
+  view?: View;
 }) {
   const t = useTranslations("portfolio");
   const { properties } = data;
@@ -63,8 +74,9 @@ export function PortfolioView({
   }
 
   const summary = summarize(data);
+  const ordered = sortProperties(properties, sort);
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <PageHeader
         aside={<p className="text-sm text-muted-foreground">{asOf}</p>}
       >
@@ -85,18 +97,24 @@ export function PortfolioView({
 
       <SummaryStats locale={locale} summary={summary} />
 
-      <ul
-        aria-label={t("listLabel")}
-        className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
-      >
-        {properties.map((property) => (
-          <PropertyCard
-            key={property.propertyId}
-            locale={locale}
-            property={property}
-          />
-        ))}
-      </ul>
+      <PortfolioControls sort={sort} view={view} />
+
+      {view === "table" ? (
+        <PropertyTable locale={locale} properties={ordered} />
+      ) : (
+        <ul
+          aria-label={t("listLabel")}
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        >
+          {ordered.map((property) => (
+            <PropertyCard
+              key={property.propertyId}
+              locale={locale}
+              property={property}
+            />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

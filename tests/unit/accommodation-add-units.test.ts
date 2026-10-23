@@ -93,4 +93,22 @@ describe("adding rooms is refused by its shape, before any statement runs", () =
       ).toBe("only a room is let by the bed");
     }
   });
+
+  it("names the input it refused, so a screen can point at it (ROOMS-04)", async () => {
+    const field = async (input: NewUnits) => {
+      const outcome = await accommodation.addUnits(SOME_USER, input).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      return (outcome as UnitConfigurationError).field;
+    };
+    expect(await field({ ...room, firstNumber: "4O1" })).toBe("firstNumber");
+    expect(await field({ ...room, count: 0 })).toBe("count");
+    expect(await field({ ...room, capacity: 65 })).toBe("capacity");
+    expect(await field({ ...room, floor: 201 })).toBe("floor");
+    expect(await field({ ...room, building: "x".repeat(61) })).toBe("building");
+    expect(await field({ ...room, unitType: "suite", letByTheBed: true })).toBe(
+      "letByTheBed",
+    );
+  });
 });

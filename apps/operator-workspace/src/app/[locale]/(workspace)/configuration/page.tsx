@@ -1,7 +1,10 @@
 import { notFound } from "next/navigation";
 import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState, PageHeader } from "@ranza/ui";
+import { Sparkles, Wrench } from "lucide-react";
+import { PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { ALL_SCREENS, gateOf } from "../../../../lib/screens";
+import { ScreenDenied } from "../screen-denied";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
 import { MaintenanceSettingsCard } from "../../../../features/maintenance/components/maintenance-settings";
 import { OrganizationCard } from "../../../../features/configuration/components/organization-card";
@@ -12,11 +15,12 @@ import {
 } from "../../../../features/configuration/components/overview-cards";
 import { PropertySettingsForm } from "../../../../features/configuration/components/property-settings-form";
 import { RatesCard } from "../../../../features/configuration/components/rates-card";
+import { unpricedKinds } from "../../../../features/configuration/unpriced";
+import { SettingsCard } from "../../../../features/configuration/components/settings-card";
 import {
   SectionNav,
   type Section,
 } from "../../../../features/configuration/components/section-nav";
-import { ALL_SCREENS } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   CONFIGURATION_CAPABILITY,
@@ -28,6 +32,7 @@ import {
   propertySettings,
   requireViewer,
   timezoneNames,
+  whyDenied,
 } from "../../../../server/viewer";
 
 /**
@@ -83,9 +88,12 @@ export default async function ConfigurationPage({
 
   if (!property || !settings) {
     return (
-      <EmptyState
-        description={t("notEntitledDescription")}
-        title={t("notEntitledTitle")}
+      <ScreenDenied
+        denial={await whyDenied(
+          gateOf("configuration"),
+          (await searchParams).property,
+        )}
+        locale={locale}
       />
     );
   }
@@ -124,7 +132,21 @@ export default async function ConfigurationPage({
     { id: "organization", label: t("configuration.organizationTitle") },
     { id: "property", label: t("configuration.propertyTitle") },
     { id: "time", label: t("configuration.timeTitle") },
-    ...(prices ? [{ id: "rates" as const, label: t("rates.title") }] : []),
+    ...(prices
+      ? [
+          {
+            id: "rates" as const,
+            label: t("rates.title"),
+            ...(unpricedKinds(prices).length > 0
+              ? {
+                  note: t("rates.unpricedCount", {
+                    count: unpricedKinds(prices).length,
+                  }),
+                }
+              : {}),
+          },
+        ]
+      : []),
     ...(inspection
       ? [
           {
@@ -178,22 +200,34 @@ export default async function ConfigurationPage({
             />
           ) : null}
           {inspection ? (
-            <section className="scroll-mt-24" id="housekeeping">
+            <SettingsCard
+              hint={t("housekeeping.inspectionHint")}
+              icon={Sparkles}
+              id="housekeeping"
+              title={t("housekeeping.inspectionTitle")}
+            >
               <InspectionSettings
+                embedded
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={inspection}
               />
-            </section>
+            </SettingsCard>
           ) : null}
           {maintenance ? (
-            <section className="scroll-mt-24" id="maintenance">
+            <SettingsCard
+              hint={t("maintenance.settingsHint")}
+              icon={Wrench}
+              id="maintenance"
+              title={t("maintenance.settingsTitle")}
+            >
               <MaintenanceSettingsCard
+                embedded
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={maintenance}
               />
-            </section>
+            </SettingsCard>
           ) : null}
           {switchedOn.length > 0 ? (
             <SwitchedOnCard screens={switchedOn} />

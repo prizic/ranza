@@ -1,5 +1,6 @@
 import "server-only";
 import { createAuthModule } from "@ranza/auth";
+import { createBrandingModule } from "@ranza/branding";
 import { assertUnprivileged, createPrismaClient } from "@ranza/db";
 import { createStaysModule } from "@ranza/stays";
 
@@ -88,7 +89,12 @@ function compose() {
       : {}),
   });
 
-  return { auth, linkRanzaUser, stays: createStaysModule({ db: tenantDb }) };
+  return {
+    auth,
+    linkRanzaUser,
+    branding: createBrandingModule({ db: tenantDb }),
+    stays: createStaysModule({ db: tenantDb }),
+  };
 }
 
 type Composition = ReturnType<typeof compose>;

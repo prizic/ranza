@@ -9,10 +9,12 @@ import type {
 } from "./contracts";
 import { calculatePlaceholderDeductions } from "./deductions";
 import { HrRefusedError } from "./errors";
+import { toWageChanges, wageFor } from "./employees";
 import { maskIban } from "./iban";
 import { minorUnits, validPeriod } from "./input";
 import type { HrDeps, HrTransaction } from "./ports";
 import { refusal } from "./refusals";
+import { organizationToday as today } from "./clock";
 
 interface PayrollAccess {
   /** Blueprint 3.5 gates 1-3: the Subscription, the Entitlement and a Property with HR on. */
@@ -63,13 +65,13 @@ async function payrollAccess(
  * is unique per period, so one that left a Property out would leave it without
  * payslips for good (HR-S1-24).
  */
-function payableEmployees(
+async function payableEmployees(
   tx: HrTransaction,
   organizationId: string,
   firstDay: Date,
   lastDay: Date,
 ) {
-  return tx.hrEmployee.findMany({
+  const employees = await tx.hrEmployee.findMany({
     where: {
       organizationId,
       hiredOn: { lte: lastDay },
@@ -77,6 +79,29 @@ function payableEmployees(
     },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { id: "asc" }],
   });
+  // The pay in force for the period, from the dated changes, so a raise that
+  // starts later does not change what an earlier month says (HR-03).
+  const changes = await tx.hrWageChange.findMany({
+    where: {
+      organizationId,
+      employeeId: { in: employees.map((employee) => employee.id) },
+    },
+    orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }],
+    select: { employeeId: true, effectiveFrom: true, grossPayMinor: true },
+  });
+  const month = firstDay.toISOString().slice(0, 7);
+  return employees.map((employee) => ({
+    ...employee,
+    grossPayMinor: BigInt(
+      wageFor(
+        minorUnits(employee.grossPayMinor),
+        toWageChanges(
+          changes.filter((change) => change.employeeId === employee.id),
+        ),
+        month,
+      ),
+    ),
+  }));
 }
 
 interface Payable {
@@ -220,23 +245,6 @@ async function readRun(
   };
 }
 
-/**
- * Today for the Organization — the earliest calendar day across its Properties,
- * so a period that has ended has ended everywhere. The database asks the same
- * question of the same function (HR-S1-45), so the module can name the reason
- * and the trigger still holds for a caller that never came through here.
- */
-async function today(
-  tx: HrTransaction,
-  organizationId: string,
-): Promise<string> {
-  const [row] = await tx.$queryRaw<{ today: string }[]>`
-    select to_char(app.hr_today(${organizationId}::uuid, null), 'YYYY-MM-DD')
-             as today
-  `;
-  return row?.today ?? new Date().toISOString().slice(0, 10);
-}
-
 /** Payroll runs, approved once for the whole Organization and then locked. */
 export function createPayroll(deps: HrDeps) {
   /**
@@ -312,6 +320,14 @@ export function createPayroll(deps: HrDeps) {
       await tx.$executeRaw`
         select pg_advisory_xact_lock(
           hashtextextended(${`payroll:${organizationId}:${period}`}, 0))
+      `;
+
+      // The Organization's payroll lock, before the wages are read: a wage dated
+      // into this month takes it too, so the two cannot both succeed and leave a
+      // run that paid the old wage under a history that says otherwise.
+      await tx.$executeRaw`
+        select pg_advisory_xact_lock(
+          hashtextextended(${`hr_payroll:${organizationId}`}, 0))
       `;
 
       const access = await payrollAccess(tx, organizationId);

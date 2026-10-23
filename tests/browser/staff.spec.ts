@@ -79,6 +79,17 @@ test("an administrator invites a colleague and is given the link to pass on", as
 
   await dialog.getByLabel("Email").fill(email);
 
+  // The role starts empty: a role picked for the person inviting is a role
+  // handed out by accident (PEOPLE-03).
+  await expect(dialog.getByLabel("Role")).toHaveText("Choose a role");
+  await dialog.getByLabel("Role").click();
+  // The shipped one: an Organization may have a "Front desk" of its own too.
+  await page
+    .getByRole("option", { exact: true, name: "Front desk" })
+    .first()
+    .click();
+  await expect(dialog).toContainText("Bookings, check-in and check-out");
+
   // Where they work, through the searchable multi-picker: found by typing,
   // and only the one picked — its "(housekeeping off)" sibling matches the
   // same search and must not come along.
@@ -90,13 +101,15 @@ test("an administrator invites a colleague and is given the link to pass on", as
   await page.keyboard.press("Escape");
   await expect(dialog.getByLabel("Properties")).toHaveText("E2E Test Property");
 
-  await dialog.getByRole("button", { name: "Create the invitation" }).click();
+  await dialog.getByRole("button", { name: "Create invitation link" }).click();
 
   // The dialog stays open on purpose. This is the only moment the token exists
-  // in a readable form — the database holds its digest and nothing else.
-  const token = dialog.getByTestId("invitation-token");
-  await expect(token).toBeVisible();
-  await expect(token).not.toHaveValue("");
+  // in a readable form — the database holds its digest and nothing else. It is
+  // a whole address, because the token alone opens nothing (PEOPLE-01).
+  const link = dialog.getByTestId("invitation-link");
+  await expect(link).toBeVisible();
+  await expect(link).toHaveValue(/\/en\/accept-invitation\?token=[\w-]{43}$/);
+  await expect(dialog).toContainText("No email was sent");
 
   await page.reload();
 
@@ -105,7 +118,7 @@ test("an administrator invites a colleague and is given the link to pass on", as
   // Active immediately, and not yet accepted: the membership was never waiting
   // on the link.
   await expect(row).toContainText("Awaiting a password");
-  await expect(row).toContainText("Invitation sent");
+  await expect(row).toContainText("Link not yet used");
   await expect(row).toContainText("E2E Test Property");
   await expect(row).not.toContainText("housekeeping off");
 });
@@ -153,11 +166,12 @@ test("an Organization defines a role of its own and sees it beside the shipped o
   // And a shipped role is on the same grid, shown and not editable. The first
   // of that name: shipped columns come before the Organization's own, and the
   // Organization may have a "Front desk" of its own (see "picked apart" below).
+  // as a mark rather than a disabled box, which read as an empty grid.
   await expect(
     page
-      .getByRole("checkbox", { name: "Front desk: Check somebody in" })
+      .getByRole("img", { name: "Front desk: Check somebody in: Allowed" })
       .first(),
-  ).toBeDisabled();
+  ).toBeVisible();
 });
 
 /**
@@ -212,6 +226,9 @@ test("an administrator changes somebody's role from the roster", async ({
   await expect(select).toBeEnabled();
   await expect(row.getByText("That was refused.")).toHaveCount(0);
   await expect.poll(() => roleOf(colleague)).toBe("housekeeping@shipped");
+  // The roster has to show the new role before the next pick, or the next pick
+  // is proposed from the role the screen no longer holds.
+  await expect(select).toHaveText("Housekeeping");
 
   // One the Organization wrote, which only the scope half tells apart.
   await select.click();
@@ -333,7 +350,9 @@ test("a Front desk Staff Member reads the roster and is offered nothing to chang
   ).toHaveCount(0);
   await expect(page.getByRole("combobox")).toHaveCount(0);
   await expect(
-    page.getByText("You can see the team. An Owner or Manager can change it."),
+    page.getByText(
+      "You can see the team. People who manage staff can change it.",
+    ),
   ).toBeVisible();
 });
 
@@ -350,7 +369,9 @@ test("an Owner is offered Invite and Define a role", async ({ page }) => {
     page.getByRole("button", { exact: true, name: "Define a role" }),
   ).toBeVisible();
   await expect(
-    page.getByText("You can see the team. An Owner or Manager can change it."),
+    page.getByText(
+      "You can see the team. People who manage staff can change it.",
+    ),
   ).toHaveCount(0);
 });
 
