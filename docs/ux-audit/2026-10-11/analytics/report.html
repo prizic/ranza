@@ -1,283 +1,1223 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UX audit: Analytics (2026-10-11)</title>
-<style>
-  :root { --ink:#16211d; --muted:#5b6762; --line:#d9dfdc; --bg:#fbfaf6; --card:#fff; --bad:#9b2c1d; --warn:#8a5a00; --ok:#1d6b4b; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--bg); }
-  main { max-width:1180px; margin:0 auto; padding:24px 16px 80px; }
-  h1 { font-size:26px; margin:0 0 4px; }
-  h2 { font-size:20px; margin:40px 0 12px; padding-top:12px; border-top:1px solid var(--line); }
-  h3 { font-size:16px; margin:20px 0 6px; }
-  p, li { max-width:78ch; }
-  .meta { color:var(--muted); font-size:13px; }
-  .verdict { background:var(--card); border:1px solid var(--line); border-inline-start:4px solid var(--bad); padding:14px 18px; }
-  .verdict p { margin:6px 0; }
-  .tablewrap { overflow-x:auto; border:1px solid var(--line); background:var(--card); }
-  table { border-collapse:collapse; width:100%; font-size:13px; min-width:960px; }
-  th, td { text-align:start; vertical-align:top; padding:8px 10px; border-bottom:1px solid var(--line); }
-  th { background:#f1f4f2; font-weight:600; position:sticky; top:0; }
-  td.id { white-space:nowrap; font-weight:600; }
-  .sev { white-space:nowrap; font-weight:600; }
-  .sev.blocks { color:var(--bad); }
-  .sev.errors { color:var(--bad); }
-  .sev.slows { color:var(--warn); }
-  .sev.polish { color:var(--muted); }
-  .tag { display:inline-block; font-size:11px; padding:0 6px; border:1px solid var(--line); border-radius:3px; background:#f6f8f7; white-space:nowrap; }
-  .tag.v { color:var(--ok); border-color:var(--ok); }
-  .tag.i { color:var(--warn); border-color:var(--warn); }
-  .tag.u { color:var(--muted); }
-  img { max-width:100%; height:auto; border:1px solid var(--line); background:#fff; display:block; margin:6px 0 4px; }
-  figure { margin:12px 0 18px; }
-  figcaption { font-size:12px; color:var(--muted); }
-  .shots { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; }
-  code { background:#eef1ef; padding:0 4px; border-radius:3px; font-size:12.5px; }
-  .pass { color:var(--ok); font-weight:600; }
-  .fail { color:var(--bad); font-weight:600; }
-  .part { color:var(--warn); font-weight:600; }
-  @media (max-width:640px){ main{padding:16px 16px 60px;} h1{font-size:22px;} }
-</style>
-</head>
-<body>
-<main>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Analytics (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #16211d;
+        --muted: #5b6762;
+        --line: #d9dfdc;
+        --bg: #fbfaf6;
+        --card: #fff;
+        --bad: #9b2c1d;
+        --warn: #8a5a00;
+        --ok: #1d6b4b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      main {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 24px 16px 80px;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 20px;
+        margin: 40px 0 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 16px;
+        margin: 20px 0 6px;
+      }
+      p,
+      li {
+        max-width: 78ch;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .verdict {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-inline-start: 4px solid var(--bad);
+        padding: 14px 18px;
+      }
+      .verdict p {
+        margin: 6px 0;
+      }
+      .tablewrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        background: var(--card);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        min-width: 960px;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        background: #f1f4f2;
+        font-weight: 600;
+        position: sticky;
+        top: 0;
+      }
+      td.id {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .sev {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .sev.blocks {
+        color: var(--bad);
+      }
+      .sev.errors {
+        color: var(--bad);
+      }
+      .sev.slows {
+        color: var(--warn);
+      }
+      .sev.polish {
+        color: var(--muted);
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        padding: 0 6px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        background: #f6f8f7;
+        white-space: nowrap;
+      }
+      .tag.v {
+        color: var(--ok);
+        border-color: var(--ok);
+      }
+      .tag.i {
+        color: var(--warn);
+        border-color: var(--warn);
+      }
+      .tag.u {
+        color: var(--muted);
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        background: #fff;
+        display: block;
+        margin: 6px 0 4px;
+      }
+      figure {
+        margin: 12px 0 18px;
+      }
+      figcaption {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .shots {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 16px;
+      }
+      code {
+        background: #eef1ef;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 12.5px;
+      }
+      .pass {
+        color: var(--ok);
+        font-weight: 600;
+      }
+      .fail {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .part {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      @media (max-width: 640px) {
+        main {
+          padding: 16px 16px 60px;
+        }
+        h1 {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UX audit: Analytics</h1>
+      <p class="meta">
+        Route <code>/en/analytics</code> and its views (month report,
+        <code>?day=</code> drill-down, trailing windows today / 7d / 30d).
+        Audited 2026-10-11 on hosted staging, Property "Demo Otel İstanbul", as
+        Owner (primary), plus Manager, Finance, Front Desk and Housekeeping.
+        Mode: audit only, nothing was changed or submitted. Labels:
+        <span class="tag v">verified</span> I saw it,
+        <span class="tag i">inferred</span> read in code or docs,
+        <span class="tag u">unknown</span> could not find out.
+      </p>
 
-<h1>UX audit: Analytics</h1>
-<p class="meta">Route <code>/en/analytics</code> and its views (month report, <code>?day=</code> drill-down, trailing windows today / 7d / 30d). Audited 2026-10-11 on hosted staging, Property "Demo Otel İstanbul", as Owner (primary), plus Manager, Finance, Front Desk and Housekeeping. Mode: audit only, nothing was changed or submitted. Labels: <span class="tag v">verified</span> I saw it, <span class="tag i">inferred</span> read in code or docs, <span class="tag u">unknown</span> could not find out.</p>
+      <h2 style="border-top: 0; margin-top: 20px">1. Verdict</h2>
+      <div class="verdict">
+        <p>
+          <strong
+            >Not yet: the owner cannot trust the screen the way it is shipped,
+            and the manager cannot use the daily views at all.</strong
+          >
+          The month report is well designed (every headline shows its division,
+          dash versus zero is handled, an empty month says so), but on this data
+          it shows September, a finished month, as "Month to date, 6 of 30 days
+          closed", and October as three dashes. The three trailing-window tabs
+          (Today, Last 7 days, Last 30 days) are a second, older design that
+          contradicts both the Today page and its own table.
+        </p>
+        <p>
+          <strong>Biggest risk:</strong> a number that looks authoritative and
+          is wrong. The "Today" tab reads
+          <em>0.0%, 0 / 0 occupied nights</em> while the Today page reads 33% in
+          house and the row directly beneath it reads 33.3%. The "Last 7 days"
+          tab reads 0.0% above seven rows of 33.3%. Revenue per available night
+          reads "TRY 0.00" while two occupied nights have no price, so an
+          unknown is shown as a measured zero.
+        </p>
+        <p>
+          <strong>What is real:</strong> every figure on this Property is zero
+          or dashes because the staging data has no priced night, no payment, no
+          charge and only 6 closed days. I could verify structure, wording,
+          roles, locales and cross-page agreement, but not that ADR, RevPAR,
+          corrections, other revenue or payment methods are right with real
+          money. The browser specs in <code>edge-cases.csv</code> (AN-S4-*)
+          claim to prove those; I did not re-run them.
+        </p>
+        <p>
+          <strong>Counts:</strong> 14 findings: 0 block work, 7 cause errors, 5
+          slow me down, 2 polish. Unaided use by the owner: a month with all
+          days closed would probably work; today's data does not.
+        </p>
+      </div>
 
-<h2 style="border-top:0;margin-top:20px">1. Verdict</h2>
-<div class="verdict">
-<p><strong>Not yet: the owner cannot trust the screen the way it is shipped, and the manager cannot use the daily views at all.</strong> The month report is well designed (every headline shows its division, dash versus zero is handled, an empty month says so), but on this data it shows September, a finished month, as "Month to date, 6 of 30 days closed", and October as three dashes. The three trailing-window tabs (Today, Last 7 days, Last 30 days) are a second, older design that contradicts both the Today page and its own table.</p>
-<p><strong>Biggest risk:</strong> a number that looks authoritative and is wrong. The "Today" tab reads <em>0.0%, 0 / 0 occupied nights</em> while the Today page reads 33% in house and the row directly beneath it reads 33.3%. The "Last 7 days" tab reads 0.0% above seven rows of 33.3%. Revenue per available night reads "TRY 0.00" while two occupied nights have no price, so an unknown is shown as a measured zero.</p>
-<p><strong>What is real:</strong> every figure on this Property is zero or dashes because the staging data has no priced night, no payment, no charge and only 6 closed days. I could verify structure, wording, roles, locales and cross-page agreement, but not that ADR, RevPAR, corrections, other revenue or payment methods are right with real money. The browser specs in <code>edge-cases.csv</code> (AN-S4-*) claim to prove those; I did not re-run them.</p>
-<p><strong>Counts:</strong> 14 findings: 0 block work, 7 cause errors, 5 slow me down, 2 polish. Unaided use by the owner: a month with all days closed would probably work; today's data does not.</p>
-</div>
+      <h2>2. Findings</h2>
+      <p class="meta">
+        Severity: blocks work / causes errors / slows me down / polish.
+        "Reproduced" means I saw it at least twice (reload, other role, other
+        locale). Effort S under a day, M a few days, L a week or more.
+      </p>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where (route, role, data)</th>
+              <th>What happened</th>
+              <th>What I expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="id">ANALYTICS-01</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>?range=today|7d|30d</code>, Owner, EN and TR. 11 days
+                since Oct 1 are unclosed; one guest in house every night.
+              </td>
+              <td>
+                Headline occupancy covers closed days only; the table beneath
+                includes open days. <strong>Today tab:</strong> 0.0%, "0 / 0
+                Occupied Nights", table row 33.3%.
+                <strong>Last 7 days:</strong> 0.0%, "0 / 0", seven rows of
+                33.3%. <strong>Last 30 days:</strong> 11.1% (2 / 18) above a
+                table with 13 occupied nights. The Today page says
+                <em>Occupancy 33%, in house 1 / 3</em>. None of these views says
+                "closed days only".
+              </td>
+              <td>
+                The Today tab to say 33% like the Today page and like its own
+                row. If a figure excludes open days, the page must say so, as
+                the month view does ("closed days only, N of M").
+              </td>
+              <td>
+                Occupancy does not need a charge: count open days in occupancy
+                (the month table already shows 33.3% for them). Keep ADR/RevPAR
+                closed-days-only and say so with the same badge the month view
+                uses. Better: retire the old component and make the windows a
+                month-view variant.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="16-owner-today-window.png">16</a>,
+                <a href="14-turkish-7d-window.png">14</a>,
+                <a href="03-owner-30d-window.png">03</a>,
+                <a href="17-cross-today-page.png">17</a> (Today page)
+              </td>
+              <td><span class="tag v">verified</span> reproduced Y (EN, TR)</td>
+            </tr>
 
-<h2>2. Findings</h2>
-<p class="meta">Severity: blocks work / causes errors / slows me down / polish. "Reproduced" means I saw it at least twice (reload, other role, other locale). Effort S under a day, M a few days, L a week or more.</p>
-<div class="tablewrap">
-<table>
-<thead><tr>
-<th>ID</th><th>Severity</th><th>Where (route, role, data)</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th>
-</tr></thead>
-<tbody>
+            <tr>
+              <td class="id">ANALYTICS-02</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                Month Sep 2026 and all trailing windows, Owner/Manager/Front
+                Desk. 2 occupied nights, both "No price on the booking".
+              </td>
+              <td>
+                Unknown shown as zero. Month view: RevPAR "TRY 0.00 room revenue
+                ÷ 18 available nights" and Room revenue "TRY 0.00" while 2 of 2
+                occupied nights have no price. ADR is correctly "—". Trailing
+                windows: ADR is "TRY 0.00" (month view says "—" for the same
+                data). Total revenue "TRY 0.00", Payments "TRY 0.00".
+              </td>
+              <td>
+                An unpriced night is not a night that earned zero. RevPAR and
+                revenue should carry a warning next to the number ("2 occupied
+                nights have no price; revenue is understated"), and ADR should
+                be "—" in every view.
+              </td>
+              <td>
+                When uncharged nights &gt; 0, put one line under RevPAR, Net
+                room revenue and Total revenue linking to the "Nights with no
+                charge" section. Make the trailing windows use the same dash
+                rule.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="02-owner-september.png">02</a>,
+                <a href="03-owner-30d-window.png">03</a>
+              </td>
+              <td><span class="tag v">verified</span> reproduced Y</td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-01</td><td class="sev errors">causes errors</td>
-<td><code>?range=today|7d|30d</code>, Owner, EN and TR. 11 days since Oct 1 are unclosed; one guest in house every night.</td>
-<td>Headline occupancy covers closed days only; the table beneath includes open days. <strong>Today tab:</strong> 0.0%, "0 / 0 Occupied Nights", table row 33.3%. <strong>Last 7 days:</strong> 0.0%, "0 / 0", seven rows of 33.3%. <strong>Last 30 days:</strong> 11.1% (2 / 18) above a table with 13 occupied nights. The Today page says <em>Occupancy 33%, in house 1 / 3</em>. None of these views says "closed days only".</td>
-<td>The Today tab to say 33% like the Today page and like its own row. If a figure excludes open days, the page must say so, as the month view does ("closed days only, N of M").</td>
-<td>Occupancy does not need a charge: count open days in occupancy (the month table already shows 33.3% for them). Keep ADR/RevPAR closed-days-only and say so with the same badge the month view uses. Better: retire the old component and make the windows a month-view variant.</td>
-<td>M</td>
-<td><a href="16-owner-today-window.png">16</a>, <a href="14-turkish-7d-window.png">14</a>, <a href="03-owner-30d-window.png">03</a>, <a href="17-cross-today-page.png">17</a> (Today page)</td>
-<td><span class="tag v">verified</span> reproduced Y (EN, TR)</td></tr>
+            <tr>
+              <td class="id">ANALYTICS-03</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>?month=2026-09</code> (a finished month), all four roles.
+                6 of 30 days closed.
+              </td>
+              <td>
+                September is labelled
+                <em>"Month to date · 6 of 30 days closed"</em> and says
+                <em
+                  >"Today is still open: its nights are not charged until the
+                  day closes"</em
+                >. It is a past month. 24 of 30 rows say "Open day · Not yet
+                charged", including Sep 1 to 20 when the Property had no units
+                (available = 0) and Sep 21 to 24, which the Close day screen
+                does not list as waiting (it starts at Oct 1) and does not list
+                as closed (its history starts Sep 25).
+              </td>
+              <td>
+                A finished month with unclosed days should say "Incomplete: 24
+                of 30 days were never closed" and name the reason. Days before
+                the Property had any unit should read "Before opening", not
+                "Open day". The "Today" sentence is wrong for any month but the
+                current one.
+              </td>
+              <td>
+                Derive the badge from whether the month has ended, not from "any
+                day not closed" (cause: <code>server/analytics.ts</code> sets
+                state "open" whenever
+                <code>closedDays.length !== monthDays.length</code>). Add a
+                state for "ended, incomplete". Mark pre-opening days.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="02-owner-september.png">02</a>,
+                <a href="04-cross-close-day.png">04</a>
+              </td>
+              <td>
+                Label and rows <span class="tag v">verified</span>; cause
+                <span class="tag i">inferred</span> from code. Reproduced Y (4
+                roles)
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-02</td><td class="sev errors">causes errors</td>
-<td>Month Sep 2026 and all trailing windows, Owner/Manager/Front Desk. 2 occupied nights, both "No price on the booking".</td>
-<td>Unknown shown as zero. Month view: RevPAR "TRY 0.00 room revenue ÷ 18 available nights" and Room revenue "TRY 0.00" while 2 of 2 occupied nights have no price. ADR is correctly "—". Trailing windows: ADR is "TRY 0.00" (month view says "—" for the same data). Total revenue "TRY 0.00", Payments "TRY 0.00".</td>
-<td>An unpriced night is not a night that earned zero. RevPAR and revenue should carry a warning next to the number ("2 occupied nights have no price; revenue is understated"), and ADR should be "—" in every view.</td>
-<td>When uncharged nights &gt; 0, put one line under RevPAR, Net room revenue and Total revenue linking to the "Nights with no charge" section. Make the trailing windows use the same dash rule.</td>
-<td>S</td>
-<td><a href="02-owner-september.png">02</a>, <a href="03-owner-30d-window.png">03</a></td>
-<td><span class="tag v">verified</span> reproduced Y</td></tr>
+            <tr>
+              <td class="id">ANALYTICS-04</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                Default landing <code>/en/analytics</code> = October 2026,
+                Owner. 0 of 31 days closed, 10 days waiting on Close day.
+              </td>
+              <td>
+                The first thing the owner sees is three dashes and a column of
+                TRY 0.00. The note blames only today ("Today is still open"),
+                but 11 days are open, 10 of them waiting for someone to close
+                them. The page never says that, and never links to Close day.
+              </td>
+              <td>
+                "10 days are waiting to be closed, so October has no figures
+                yet" with a link to Close day for roles that may close. For
+                other roles, name who closes the day.
+              </td>
+              <td>
+                Read the waiting-days count (Close day already computes it) and
+                show it in the badge area with a link.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-owner-default-october.png">01</a>,
+                <a href="04-cross-close-day.png">04</a>
+              </td>
+              <td><span class="tag v">verified</span> reproduced Y</td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-03</td><td class="sev errors">causes errors</td>
-<td><code>?month=2026-09</code> (a finished month), all four roles. 6 of 30 days closed.</td>
-<td>September is labelled <em>"Month to date · 6 of 30 days closed"</em> and says <em>"Today is still open: its nights are not charged until the day closes"</em>. It is a past month. 24 of 30 rows say "Open day · Not yet charged", including Sep 1 to 20 when the Property had no units (available = 0) and Sep 21 to 24, which the Close day screen does not list as waiting (it starts at Oct 1) and does not list as closed (its history starts Sep 25).</td>
-<td>A finished month with unclosed days should say "Incomplete: 24 of 30 days were never closed" and name the reason. Days before the Property had any unit should read "Before opening", not "Open day". The "Today" sentence is wrong for any month but the current one.</td>
-<td>Derive the badge from whether the month has ended, not from "any day not closed" (cause: <code>server/analytics.ts</code> sets state "open" whenever <code>closedDays.length !== monthDays.length</code>). Add a state for "ended, incomplete". Mark pre-opening days.</td>
-<td>M</td>
-<td><a href="02-owner-september.png">02</a>, <a href="04-cross-close-day.png">04</a></td>
-<td>Label and rows <span class="tag v">verified</span>; cause <span class="tag i">inferred</span> from code. Reproduced Y (4 roles)</td></tr>
+            <tr>
+              <td class="id">ANALYTICS-05</td>
+              <td class="sev errors">causes errors</td>
+              <td>October and September, all roles.</td>
+              <td>
+                The comparison line reads
+                <em>"There is no earlier month to compare with."</em> on
+                October, where September exists and has data (the comparison
+                covers the same elapsed days = 0, so no figures). It is also
+                shown for September, where August is empty (correct there). The
+                same sentence covers two different situations. The month
+                "previous" arrow in September is enabled although the line says
+                there is none.
+              </td>
+              <td>
+                "No closed days yet, so there is nothing to compare" for
+                October; "August had no activity" for September.
+              </td>
+              <td>
+                Split the message by cause (the code already knows:
+                <code>elapsed = 0</code> versus prior without figures).
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-owner-default-october.png">01</a>,
+                <a href="02-owner-september.png">02</a>
+              </td>
+              <td>
+                Text <span class="tag v">verified</span>; cause
+                <span class="tag i">inferred</span> from
+                <code>buildMonthReport</code>
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-04</td><td class="sev errors">causes errors</td>
-<td>Default landing <code>/en/analytics</code> = October 2026, Owner. 0 of 31 days closed, 10 days waiting on Close day.</td>
-<td>The first thing the owner sees is three dashes and a column of TRY 0.00. The note blames only today ("Today is still open"), but 11 days are open, 10 of them waiting for someone to close them. The page never says that, and never links to Close day.</td>
-<td>"10 days are waiting to be closed, so October has no figures yet" with a link to Close day for roles that may close. For other roles, name who closes the day.</td>
-<td>Read the waiting-days count (Close day already computes it) and show it in the badge area with a link.</td>
-<td>S</td>
-<td><a href="01-owner-default-october.png">01</a>, <a href="04-cross-close-day.png">04</a></td>
-<td><span class="tag v">verified</span> reproduced Y</td></tr>
+            <tr>
+              <td class="id">ANALYTICS-06</td>
+              <td class="sev slows">slows me down</td>
+              <td>October, day-by-day table, Owner.</td>
+              <td>
+                Open days show "33.3%" occupancy in every row (Oct 1 to 11)
+                while the headline is "—", the total row is "—" and the page
+                says open days "count toward no rate". Rows and total disagree
+                on the same screen. The one-guest-in-every-night pattern comes
+                from an overdue departure (Today: "Was due to leave on Oct 1"),
+                which nothing on Analytics hints at.
+              </td>
+              <td>
+                Either show open-day occupancy in the headline (see 01) or show
+                "—" in rows and say why.
+              </td>
+              <td>
+                Decide one rule for occupancy on open days and apply it to
+                headline, total row and rows.
+              </td>
+              <td>S</td>
+              <td><a href="01-owner-default-october.png">01</a></td>
+              <td><span class="tag v">verified</span></td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-05</td><td class="sev errors">causes errors</td>
-<td>October and September, all roles.</td>
-<td>The comparison line reads <em>"There is no earlier month to compare with."</em> on October, where September exists and has data (the comparison covers the same elapsed days = 0, so no figures). It is also shown for September, where August is empty (correct there). The same sentence covers two different situations. The month "previous" arrow in September is enabled although the line says there is none.</td>
-<td>"No closed days yet, so there is nothing to compare" for October; "August had no activity" for September.</td>
-<td>Split the message by cause (the code already knows: <code>elapsed = 0</code> versus prior without figures).</td>
-<td>S</td>
-<td><a href="01-owner-default-october.png">01</a>, <a href="02-owner-september.png">02</a></td>
-<td>Text <span class="tag v">verified</span>; cause <span class="tag i">inferred</span> from <code>buildMonthReport</code></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-07</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                Front Desk (<code>frontdesk@</code>), Manager, Finance (Finance
+                is expected to), month and all windows.
+              </td>
+              <td>
+                Front Desk sees every money figure: net/total revenue, ADR,
+                RevPAR, revenue booked, money collected, collected by method.
+                The gate is <code>finance.manage_folio</code>; the shipped Front
+                Desk role holds it because check-in opens a folio (migration
+                <code>20260916002300</code> comment). The permission that lets a
+                clerk open a folio also lets them read the hotel's monthly
+                takings.
+              </td>
+              <td>
+                Whether the clerk should read property revenue is an owner
+                decision. The screen's own docs call this "governed financial
+                visibility", but the gate does not govern it from the front
+                desk.
+              </td>
+              <td>
+                Decision, not a defect to fix quietly: either accept it and say
+                so in the feature doc, or add a separate "view revenue reports"
+                permission and grant it to Owner/Manager/Finance only.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="11-frontdesk-september.png">11</a>,
+                <a href="18-finance-september.png">18</a>
+              </td>
+              <td>
+                Visible <span class="tag v">verified</span>; intent
+                <span class="tag i">inferred</span> from migration
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-06</td><td class="sev slows">slows me down</td>
-<td>October, day-by-day table, Owner.</td>
-<td>Open days show "33.3%" occupancy in every row (Oct 1 to 11) while the headline is "—", the total row is "—" and the page says open days "count toward no rate". Rows and total disagree on the same screen. The one-guest-in-every-night pattern comes from an overdue departure (Today: "Was due to leave on Oct 1"), which nothing on Analytics hints at.</td>
-<td>Either show open-day occupancy in the headline (see 01) or show "—" in rows and say why.</td>
-<td>Decide one rule for occupancy on open days and apply it to headline, total row and rows.</td>
-<td>S</td>
-<td><a href="01-owner-default-october.png">01</a></td>
-<td><span class="tag v">verified</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-08</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                Housekeeping (<code>housekeeping@</code>), month and trailing
+                windows.
+              </td>
+              <td>
+                The hidden money is explained, but in system words:
+                <em
+                  >"You do not hold permission to view financial metrics
+                  (finance.manage_folio)."</em
+                >
+                It shows a raw permission key and does not say who to ask. The
+                month note above it still says "Every rate and revenue figure
+                covers the closed days only" to a reader who sees none.
+              </td>
+              <td>
+                "Revenue figures are visible to Owner, Manager, Finance and
+                Front Desk. Ask your manager if you need them." No key.
+              </td>
+              <td>
+                Replace the string; drop the revenue sentence for masked
+                readers.
+              </td>
+              <td>S</td>
+              <td><a href="12-housekeeping-masked.png">12</a></td>
+              <td><span class="tag v">verified</span></td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-07</td><td class="sev errors">causes errors</td>
-<td>Front Desk (<code>frontdesk@</code>), Manager, Finance (Finance is expected to), month and all windows.</td>
-<td>Front Desk sees every money figure: net/total revenue, ADR, RevPAR, revenue booked, money collected, collected by method. The gate is <code>finance.manage_folio</code>; the shipped Front Desk role holds it because check-in opens a folio (migration <code>20260916002300</code> comment). The permission that lets a clerk open a folio also lets them read the hotel's monthly takings.</td>
-<td>Whether the clerk should read property revenue is an owner decision. The screen's own docs call this "governed financial visibility", but the gate does not govern it from the front desk.</td>
-<td>Decision, not a defect to fix quietly: either accept it and say so in the feature doc, or add a separate "view revenue reports" permission and grant it to Owner/Manager/Finance only.</td>
-<td>M</td>
-<td><a href="11-frontdesk-september.png">11</a>, <a href="18-finance-september.png">18</a></td>
-<td>Visible <span class="tag v">verified</span>; intent <span class="tag i">inferred</span> from migration</td></tr>
+            <tr>
+              <td class="id">ANALYTICS-09</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                <code>?range=…</code> versus <code>?month=…</code>, Owner.
+              </td>
+              <td>
+                Two designs behind one tab bar. Trailing windows: title
+                "Analytics &amp; Reporting" under "Analytics", columns "Occupied
+                Units / Available Units" holding night counts, card "3 Sellable
+                Units", "Total Revenue" captioned "Total Revenue", no arithmetic
+                under any figure, English-only phrasing like "RevPAR (Revenue
+                Per Available Room)" while the month view says "per available
+                night". Switching tab changes layout, vocabulary and rules
+                (closed-only versus not).
+              </td>
+              <td>
+                One screen, one vocabulary, one rule. The month view's
+                arithmetic lines are what a non-accountant needs and the windows
+                lack them.
+              </td>
+              <td>
+                Rebuild the windows on the month components (see 01). At minimum
+                align labels (nights, not units) and add the division under each
+                figure.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="03-owner-30d-window.png">03</a> versus
+                <a href="02-owner-september.png">02</a>
+              </td>
+              <td><span class="tag v">verified</span></td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-08</td><td class="sev slows">slows me down</td>
-<td>Housekeeping (<code>housekeeping@</code>), month and trailing windows.</td>
-<td>The hidden money is explained, but in system words: <em>"You do not hold permission to view financial metrics (finance.manage_folio)."</em> It shows a raw permission key and does not say who to ask. The month note above it still says "Every rate and revenue figure covers the closed days only" to a reader who sees none.</td>
-<td>"Revenue figures are visible to Owner, Manager, Finance and Front Desk. Ask your manager if you need them." No key.</td>
-<td>Replace the string; drop the revenue sentence for masked readers.</td>
-<td>S</td>
-<td><a href="12-housekeeping-masked.png">12</a></td>
-<td><span class="tag v">verified</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-10</td>
+              <td class="sev errors">causes errors</td>
+              <td>
+                <code>?range=30d</code>, Owner. Sep 12 to 20: the Property had
+                no units.
+              </td>
+              <td>
+                Nine rows show "0 Occupied, 0 Available, 0.0%" with an empty
+                bar. The month view correctly shows "—" for those same days. The
+                feature's own rule (AN-S2-03) says nothing happening is not zero
+                percent.
+              </td>
+              <td>"—" when available nights = 0.</td>
+              <td>One-line fix in the old table.</td>
+              <td>S</td>
+              <td><a href="03-owner-30d-window.png">03</a></td>
+              <td><span class="tag v">verified</span></td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-09</td><td class="sev slows">slows me down</td>
-<td><code>?range=…</code> versus <code>?month=…</code>, Owner.</td>
-<td>Two designs behind one tab bar. Trailing windows: title "Analytics &amp; Reporting" under "Analytics", columns "Occupied Units / Available Units" holding night counts, card "3 Sellable Units", "Total Revenue" captioned "Total Revenue", no arithmetic under any figure, English-only phrasing like "RevPAR (Revenue Per Available Room)" while the month view says "per available night". Switching tab changes layout, vocabulary and rules (closed-only versus not).</td>
-<td>One screen, one vocabulary, one rule. The month view's arithmetic lines are what a non-accountant needs and the windows lack them.</td>
-<td>Rebuild the windows on the month components (see 01). At minimum align labels (nights, not units) and add the division under each figure.</td>
-<td>M</td>
-<td><a href="03-owner-30d-window.png">03</a> versus <a href="02-owner-september.png">02</a></td>
-<td><span class="tag v">verified</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-11</td>
+              <td class="sev slows">slows me down</td>
+              <td>
+                Day drill-down <code>?day=2026-09-30</code> and "Nights with no
+                charge", Owner.
+              </td>
+              <td>
+                The drawer shows stay 102 with "No price on the booking", but
+                nothing to open: no link to the reservation or folio, and
+                "Nights with no charge" has no action either. The owner learns a
+                booking has no price and must find it elsewhere.
+              </td>
+              <td>
+                A link from the stay to its reservation (role-aware) so the
+                price can be fixed.
+              </td>
+              <td>
+                Add a link in the stay row; reservation screen already exists.
+              </td>
+              <td>S</td>
+              <td><a href="06-day-detail-sep30.png">06</a></td>
+              <td>
+                Missing link <span class="tag v">verified</span>; whether the
+                reservation can still be priced
+                <span class="tag u">unknown</span>
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-10</td><td class="sev errors">causes errors</td>
-<td><code>?range=30d</code>, Owner. Sep 12 to 20: the Property had no units.</td>
-<td>Nine rows show "0 Occupied, 0 Available, 0.0%" with an empty bar. The month view correctly shows "—" for those same days. The feature's own rule (AN-S2-03) says nothing happening is not zero percent.</td>
-<td>"—" when available nights = 0.</td>
-<td>One-line fix in the old table.</td>
-<td>S</td>
-<td><a href="03-owner-30d-window.png">03</a></td>
-<td><span class="tag v">verified</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-12</td>
+              <td class="sev polish">polish</td>
+              <td>Month day table, all roles.</td>
+              <td>
+                Only the two-character date cell ("27 Sun") is a link; the row
+                has no hover or arrow, so nothing says a day opens. The link's
+                <code>aria-label</code> is "Show Sunday, Sep 27, 2026", which
+                replaces the visible text "27 Sun". 30 small targets on a phone.
+              </td>
+              <td>Whole row is the target, or a visible "Details" cue.</td>
+              <td>
+                Make the row a link or add a chevron; make the accessible name
+                contain the visible text.
+              </td>
+              <td>S</td>
+              <td>DOM check (no screenshot needed)</td>
+              <td>
+                Link scope <span class="tag v">verified</span>; WCAG
+                label-in-name <span class="tag i">inferred</span>
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-11</td><td class="sev slows">slows me down</td>
-<td>Day drill-down <code>?day=2026-09-30</code> and "Nights with no charge", Owner.</td>
-<td>The drawer shows stay 102 with "No price on the booking", but nothing to open: no link to the reservation or folio, and "Nights with no charge" has no action either. The owner learns a booking has no price and must find it elsewhere.</td>
-<td>A link from the stay to its reservation (role-aware) so the price can be fixed.</td>
-<td>Add a link in the stay row; reservation screen already exists.</td>
-<td>S</td>
-<td><a href="06-day-detail-sep30.png">06</a></td>
-<td>Missing link <span class="tag v">verified</span>; whether the reservation can still be priced <span class="tag u">unknown</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-13</td>
+              <td class="sev polish">polish</td>
+              <td>EN versus TR versus AR, month view.</td>
+              <td>
+                Currency is written three ways: EN "TRY 0.00", TR "₺0,00", AR
+                "0.00 TRY" with Latin digits. TR is the only one using the lira
+                sign. The Arabic percent carries direction marks ("11.1‎%‎"),
+                harmless on screen.
+              </td>
+              <td>One currency convention per locale, chosen on purpose.</td>
+              <td>
+                Check <code>formatMinorMoney</code> currency display option for
+                EN.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="13-turkish-september.png">13</a>,
+                <a href="15-arabic-september.png">15</a>,
+                <a href="02-owner-september.png">02</a>
+              </td>
+              <td>
+                <span class="tag v">verified</span>; whether EN "TRY" is
+                deliberate <span class="tag u">unknown</span>
+              </td>
+            </tr>
 
-<tr><td class="id">ANALYTICS-12</td><td class="sev polish">polish</td>
-<td>Month day table, all roles.</td>
-<td>Only the two-character date cell ("27 Sun") is a link; the row has no hover or arrow, so nothing says a day opens. The link's <code>aria-label</code> is "Show Sunday, Sep 27, 2026", which replaces the visible text "27 Sun". 30 small targets on a phone.</td>
-<td>Whole row is the target, or a visible "Details" cue.</td>
-<td>Make the row a link or add a chevron; make the accessible name contain the visible text.</td>
-<td>S</td>
-<td>DOM check (no screenshot needed)</td>
-<td>Link scope <span class="tag v">verified</span>; WCAG label-in-name <span class="tag i">inferred</span></td></tr>
+            <tr>
+              <td class="id">ANALYTICS-14</td>
+              <td class="sev slows">slows me down</td>
+              <td>375 px, month view (Sept), Owner.</td>
+              <td>
+                No horizontal overflow and the tables restack with labels
+                (good), but the page is about 9,600 px tall: three full-width
+                headline cards, then 30 day cards. The first screen is two
+                paragraphs of caveat plus one card; ADR is below the fold, so
+                occupancy, ADR and RevPAR cannot be read together on a phone.
+                The sticky bottom bar covers the lower card edge.
+              </td>
+              <td>
+                A manager checking occupancy on a phone sees all three headline
+                figures without scrolling past the notes.
+              </td>
+              <td>
+                Put the three figures in a compact row above the notes, or
+                collapse the day table behind a toggle.
+              </td>
+              <td>M</td>
+              <td>
+                <a href="09-mobile-375-top.png">09</a>,
+                <a href="10-mobile-375-unit-type-table.png">10</a>,
+                <a href="08-mobile-375-september.png">08</a>
+              </td>
+              <td>
+                <span class="tag v">verified</span> at 375 px emulation, one run
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-<tr><td class="id">ANALYTICS-13</td><td class="sev polish">polish</td>
-<td>EN versus TR versus AR, month view.</td>
-<td>Currency is written three ways: EN "TRY 0.00", TR "₺0,00", AR "0.00 TRY" with Latin digits. TR is the only one using the lira sign. The Arabic percent carries direction marks ("11.1‎%‎"), harmless on screen.</td>
-<td>One currency convention per locale, chosen on purpose.</td>
-<td>Check <code>formatMinorMoney</code> currency display option for EN.</td>
-<td>S</td>
-<td><a href="13-turkish-september.png">13</a>, <a href="15-arabic-september.png">15</a>, <a href="02-owner-september.png">02</a></td>
-<td><span class="tag v">verified</span>; whether EN "TRY" is deliberate <span class="tag u">unknown</span></td></tr>
+      <h3>Screenshots cited above</h3>
+      <div class="shots">
+        <figure>
+          <a href="01-owner-default-october.png"
+            ><img
+              src="01-owner-default-october.png"
+              alt="October default view, all dashes and zeros"
+          /></a>
+          <figcaption>
+            01 Owner, default October: dashes, zeros, 11 "Open day" rows.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="02-owner-september.png"
+            ><img
+              src="02-owner-september.png"
+              alt="September month report labelled month to date"
+          /></a>
+          <figcaption>
+            02 Owner, September: "Month to date" on a finished month; RevPAR TRY
+            0.00 with 2 unpriced nights.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="03-owner-30d-window.png"
+            ><img src="03-owner-30d-window.png" alt="Last 30 days window"
+          /></a>
+          <figcaption>
+            03 Owner, last 30 days: 11.1% above a table with 13 occupied nights;
+            0.0% for days with no units.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="16-owner-today-window.png"
+            ><img
+              src="16-owner-today-window.png"
+              alt="Today tab reading 0.0 percent"
+          /></a>
+          <figcaption>
+            16 Owner, Today tab: 0.0%, 0 / 0 nights, row below says 33.3%.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="14-turkish-7d-window.png"
+            ><img src="14-turkish-7d-window.png" alt="Turkish last 7 days"
+          /></a>
+          <figcaption>
+            14 Turkish, last 7 days: %0,0 above rows of %33,3.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="12-housekeeping-masked.png"
+            ><img
+              src="12-housekeeping-masked.png"
+              alt="Housekeeping masked view with raw permission key"
+          /></a>
+          <figcaption>12 Housekeeping: raw key in the notice.</figcaption>
+        </figure>
+        <figure>
+          <a href="11-frontdesk-september.png"
+            ><img
+              src="11-frontdesk-september.png"
+              alt="Front desk sees all money figures"
+          /></a>
+          <figcaption>11 Front Desk: full money view.</figcaption>
+        </figure>
+        <figure>
+          <a href="17-cross-today-page.png"
+            ><img
+              src="17-cross-today-page.png"
+              alt="Today page showing 33 percent occupancy"
+          /></a>
+          <figcaption>
+            17 Today page, same moment: 33%, in house 1 / 3.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="18-finance-september.png"
+            ><img src="18-finance-september.png" alt="Finance role September"
+          /></a>
+          <figcaption>
+            18 Finance: full money view, same label as Owner.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="06-day-detail-sep30.png"
+            ><img src="06-day-detail-sep30.png" alt="Day detail drawer"
+          /></a>
+          <figcaption>
+            06 Day drawer, Sep 30: stay with no price and no link.
+          </figcaption>
+        </figure>
+        <figure>
+          <a href="07-owner-august-empty.png"
+            ><img
+              src="07-owner-august-empty.png"
+              alt="August empty month state"
+          /></a>
+          <figcaption>
+            07 August: "Nothing happened", correct empty state.
+          </figcaption>
+        </figure>
+      </div>
 
-<tr><td class="id">ANALYTICS-14</td><td class="sev slows">slows me down</td>
-<td>375 px, month view (Sept), Owner.</td>
-<td>No horizontal overflow and the tables restack with labels (good), but the page is about 9,600 px tall: three full-width headline cards, then 30 day cards. The first screen is two paragraphs of caveat plus one card; ADR is below the fold, so occupancy, ADR and RevPAR cannot be read together on a phone. The sticky bottom bar covers the lower card edge.</td>
-<td>A manager checking occupancy on a phone sees all three headline figures without scrolling past the notes.</td>
-<td>Put the three figures in a compact row above the notes, or collapse the day table behind a toggle.</td>
-<td>M</td>
-<td><a href="09-mobile-375-top.png">09</a>, <a href="10-mobile-375-unit-type-table.png">10</a>, <a href="08-mobile-375-september.png">08</a></td>
-<td><span class="tag v">verified</span> at 375 px emulation, one run</td></tr>
+      <h2>3. Jobs</h2>
+      <p class="meta">
+        Pass/fail test written first. Times are rough (I navigated by direct
+        URL, so seconds are not stopwatch figures); clicks are counted by
+        following the screen's own controls from the rail.
+      </p>
+      <div class="tablewrap">
+        <table style="min-width: 900px">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Job (persona)</th>
+              <th>Pass test, written first</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>J1</td>
+              <td>Owner: "How did we do last month?"</td>
+              <td>
+                From Analytics I can state last month's occupancy, ADR and
+                revenue and I believe them.
+              </td>
+              <td>
+                <span class="fail">Fail</span> on this data: September says 6 of
+                30 days closed, ADR "—", revenue TRY 0.00 (ANALYTICS-02, 03).
+                Structure itself is clear.
+              </td>
+              <td>~20</td>
+              <td>2 (rail, previous-month arrow)</td>
+            </tr>
+            <tr>
+              <td>J2</td>
+              <td>Owner: compare with last month</td>
+              <td>
+                Each headline shows the prior month's figure and the change.
+              </td>
+              <td>
+                <span class="fail">Fail / not testable</span>: September's prior
+                (August) is empty, October's prior has zero elapsed days; both
+                say "no earlier month" (ANALYTICS-05). The populated case is
+                covered only by browser specs I did not run.
+              </td>
+              <td>~30</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J3</td>
+              <td>Owner: explain ADR/RevPAR to a partner</td>
+              <td>
+                From the headline I reach the division and the rows behind it
+                without help.
+              </td>
+              <td>
+                <span class="pass">Pass</span> in the month view (arithmetic
+                under each card, unit-type rows, day drawer).
+                <span class="fail">Fail</span> in the trailing windows (no
+                arithmetic).
+              </td>
+              <td>~40</td>
+              <td>3 (rail, day link, drawer)</td>
+            </tr>
+            <tr>
+              <td>J4</td>
+              <td>Manager: daily occupancy check</td>
+              <td>
+                Analytics "Today" equals the Today page for the same date.
+              </td>
+              <td>
+                <span class="fail">Fail</span>: Analytics 0.0% (0 / 0), Today
+                page 33% (1 / 3) (ANALYTICS-01). The month view's Oct 11 row
+                (33.3%) does agree.
+              </td>
+              <td>~25</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>J5</td>
+              <td>Owner: find the nights with no price and why</td>
+              <td>I see the count, the reason and the stay.</td>
+              <td>
+                <span class="part">Partial</span>: "No price on the booking, 2
+                nights", then drawer shows stay 102 (guest first name only). No
+                way to open the booking (ANALYTICS-11).
+              </td>
+              <td>~35</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J6</td>
+              <td>Owner: look at a long period (a quarter, a year)</td>
+              <td>I can see 12 months or a custom range.</td>
+              <td>
+                <span class="fail">Not possible</span>: month stepper plus three
+                windows of at most 30 days. Not listed as deferred except "same
+                month last year" (AN-DEF-02). See section 6.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>J7</td>
+              <td>Under pressure: month-end, the page shows dashes</td>
+              <td>The screen tells me why and what to do next.</td>
+              <td>
+                <span class="fail">Fail</span>: it blames "today"; the real
+                cause (10 days waiting to close) lives on another screen with no
+                link (ANALYTICS-04).
+              </td>
+              <td>~15 to find the cause by hand on Close day</td>
+              <td>3</td>
+            </tr>
+            <tr>
+              <td>J8</td>
+              <td>Roles: what is shown and hidden, and is hiding explained</td>
+              <td>Hidden figures are absent and a plain sentence says why.</td>
+              <td>
+                <span class="part">Partial</span>: Housekeeping masked
+                server-side with a sentence containing a raw key (ANALYTICS-08);
+                Manager, Finance and Front Desk see everything (ANALYTICS-07).
+              </td>
+              <td>~120 (3 sign-ins)</td>
+              <td>n/a</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="meta">
+        Not attempted: first-time setup (analytics has none; the "not bought"
+        and "not assigned" states are read from the code only, AN-S4-06/07),
+        export (none exists), any form submit (there is no form on this screen).
+      </p>
 
-</tbody></table></div>
+      <h2>4. Top changes, ranked by time saved × frequency</h2>
+      <ol>
+        <li>
+          <strong
+            >"Today" and "Last 7 days" show the same occupancy as the Today
+            page.</strong
+          >
+          Fixes ANALYTICS-01, 06, 10: the number a manager checks daily is
+          currently wrong in its own table.
+        </li>
+        <li>
+          <strong
+            >I can see at a glance why a month has no figures, and press one
+            link to fix it.</strong
+          >
+          A "10 days waiting to close" notice with a link to Close day
+          (ANALYTICS-04) and a correct label for finished-but-unclosed months
+          (ANALYTICS-03).
+        </li>
+        <li>
+          <strong>A revenue figure I cannot trust says so.</strong> A warning
+          under RevPAR/revenue when occupied nights have no price; the same dash
+          rule in every view (ANALYTICS-02).
+        </li>
+        <li>
+          <strong>One screen, not two.</strong> Rebuild the three trailing
+          windows on the month components so the arithmetic and the rules match
+          (ANALYTICS-09).
+        </li>
+        <li>
+          <strong>The comparison line tells me the real reason</strong> there is
+          nothing to compare (ANALYTICS-05).
+        </li>
+        <li>
+          <strong>I can open the booking behind an unpriced night</strong>
+          straight from the day drawer (ANALYTICS-11).
+        </li>
+        <li>
+          <strong>The owner decides, in writing, who may read revenue.</strong>
+          Resolve ANALYTICS-07 as a decision, then fix the masked wording
+          (ANALYTICS-08).
+        </li>
+        <li>
+          <strong
+            >The three headline figures fit on a phone's first screen</strong
+          >
+          (ANALYTICS-14).
+        </li>
+      </ol>
 
-<h3>Screenshots cited above</h3>
-<div class="shots">
-<figure><a href="01-owner-default-october.png"><img src="01-owner-default-october.png" alt="October default view, all dashes and zeros"></a><figcaption>01 Owner, default October: dashes, zeros, 11 "Open day" rows.</figcaption></figure>
-<figure><a href="02-owner-september.png"><img src="02-owner-september.png" alt="September month report labelled month to date"></a><figcaption>02 Owner, September: "Month to date" on a finished month; RevPAR TRY 0.00 with 2 unpriced nights.</figcaption></figure>
-<figure><a href="03-owner-30d-window.png"><img src="03-owner-30d-window.png" alt="Last 30 days window"></a><figcaption>03 Owner, last 30 days: 11.1% above a table with 13 occupied nights; 0.0% for days with no units.</figcaption></figure>
-<figure><a href="16-owner-today-window.png"><img src="16-owner-today-window.png" alt="Today tab reading 0.0 percent"></a><figcaption>16 Owner, Today tab: 0.0%, 0 / 0 nights, row below says 33.3%.</figcaption></figure>
-<figure><a href="14-turkish-7d-window.png"><img src="14-turkish-7d-window.png" alt="Turkish last 7 days"></a><figcaption>14 Turkish, last 7 days: %0,0 above rows of %33,3.</figcaption></figure>
-<figure><a href="12-housekeeping-masked.png"><img src="12-housekeeping-masked.png" alt="Housekeeping masked view with raw permission key"></a><figcaption>12 Housekeeping: raw key in the notice.</figcaption></figure>
-<figure><a href="11-frontdesk-september.png"><img src="11-frontdesk-september.png" alt="Front desk sees all money figures"></a><figcaption>11 Front Desk: full money view.</figcaption></figure>
-<figure><a href="17-cross-today-page.png"><img src="17-cross-today-page.png" alt="Today page showing 33 percent occupancy"></a><figcaption>17 Today page, same moment: 33%, in house 1 / 3.</figcaption></figure>
-<figure><a href="18-finance-september.png"><img src="18-finance-september.png" alt="Finance role September"></a><figcaption>18 Finance: full money view, same label as Owner.</figcaption></figure>
-<figure><a href="06-day-detail-sep30.png"><img src="06-day-detail-sep30.png" alt="Day detail drawer"></a><figcaption>06 Day drawer, Sep 30: stay with no price and no link.</figcaption></figure>
-<figure><a href="07-owner-august-empty.png"><img src="07-owner-august-empty.png" alt="August empty month state"></a><figcaption>07 August: "Nothing happened", correct empty state.</figcaption></figure>
-</div>
+      <h2>5. Inconsistencies with sibling screens</h2>
+      <div class="tablewrap">
+        <table style="min-width: 820px">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Analytics</th>
+              <th>Sibling</th>
+              <th>Agrees?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Occupancy today (Oct 11)</td>
+              <td>
+                Today tab 0.0%, 0 / 0 nights (<a
+                  href="16-owner-today-window.png"
+                  >16</a
+                >); month table row 33.3%
+              </td>
+              <td>
+                Today page: "Occupancy 33%, in house 1 / 3, expected tonight
+                33%"
+              </td>
+              <td>
+                <span class="fail">No</span> for the Today tab (<a
+                  href="17-cross-today-page.png"
+                  >17</a
+                >
+                beside <a href="16-owner-today-window.png">16</a>); yes for the
+                month row.
+              </td>
+            </tr>
+            <tr>
+              <td>Days closed in September</td>
+              <td>6 of 30 closed</td>
+              <td>
+                Close day "Recently closed": Sep 25 to 30 = 6 days (<a
+                  href="04-cross-close-day.png"
+                  >04</a
+                >)
+              </td>
+              <td><span class="pass">Yes</span></td>
+            </tr>
+            <tr>
+              <td>Days waiting in October</td>
+              <td>0 of 31 closed; Oct 1 to 11 "Open day" (11 rows)</td>
+              <td>Close day: "10 days waiting" (Oct 1 to 10) plus today</td>
+              <td>
+                <span class="pass">Yes</span> (10 + today = 11), but Analytics
+                never mentions Close day
+              </td>
+            </tr>
+            <tr>
+              <td>Nights not charged</td>
+              <td>"No price on the booking: 2 nights" (Sep 29, 30)</td>
+              <td>
+                Close day: Sep 29 and Sep 30 "1 not charged" each; stay 102 "No
+                price on the booking"
+              </td>
+              <td><span class="pass">Yes</span></td>
+            </tr>
+            <tr>
+              <td>Money</td>
+              <td>Room revenue, collected, all TRY 0.00</td>
+              <td>
+                Finance: one folio, 0 lines, balance TRY 0.00 (<a
+                  href="05-cross-finance.png"
+                  >05</a
+                >); Today "Charges today TRY 0.00"
+              </td>
+              <td>
+                <span class="pass">Yes</span>, but all zero, so the agreement
+                proves little
+              </td>
+            </tr>
+            <tr>
+              <td>Unit count</td>
+              <td>3 sellable units; 18 available nights over 6 closed days</td>
+              <td>Today "Rooms 1 / 3", booked-ahead "x of 3"</td>
+              <td><span class="pass">Yes</span></td>
+            </tr>
+            <tr>
+              <td>How a locked figure is shown</td>
+              <td>Housekeeping: absent plus a sentence with a raw key</td>
+              <td>Not compared (other agents cover Finance and Today)</td>
+              <td><span class="tag u">unknown</span></td>
+            </tr>
+            <tr>
+              <td>Vocabulary</td>
+              <td>Month view "nights"; windows "units"</td>
+              <td>Close day, Today use "nights"</td>
+              <td><span class="fail">Windows differ</span> (ANALYTICS-09)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="meta">
+        Back button (ADR 0035): the top bar shows a back arrow and breadcrumb
+        "Workspace &gt; Analytics" on the month, window and drawer states (<a
+          href="02-owner-september.png"
+          >02</a
+        >). The day drawer has previous/next day arrows and a close control and
+        keeps focus in the dialog (<a href="06-day-detail-sep30.png">06</a>); I
+        did not test where focus returns on close,
+        <span class="tag u">unknown</span>.
+      </p>
 
-<h2>3. Jobs</h2>
-<p class="meta">Pass/fail test written first. Times are rough (I navigated by direct URL, so seconds are not stopwatch figures); clicks are counted by following the screen's own controls from the rail.</p>
-<div class="tablewrap">
-<table style="min-width:900px">
-<thead><tr><th>#</th><th>Job (persona)</th><th>Pass test, written first</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
-<tbody>
-<tr><td>J1</td><td>Owner: "How did we do last month?"</td><td>From Analytics I can state last month's occupancy, ADR and revenue and I believe them.</td><td><span class="fail">Fail</span> on this data: September says 6 of 30 days closed, ADR "—", revenue TRY 0.00 (ANALYTICS-02, 03). Structure itself is clear.</td><td>~20</td><td>2 (rail, previous-month arrow)</td></tr>
-<tr><td>J2</td><td>Owner: compare with last month</td><td>Each headline shows the prior month's figure and the change.</td><td><span class="fail">Fail / not testable</span>: September's prior (August) is empty, October's prior has zero elapsed days; both say "no earlier month" (ANALYTICS-05). The populated case is covered only by browser specs I did not run.</td><td>~30</td><td>3</td></tr>
-<tr><td>J3</td><td>Owner: explain ADR/RevPAR to a partner</td><td>From the headline I reach the division and the rows behind it without help.</td><td><span class="pass">Pass</span> in the month view (arithmetic under each card, unit-type rows, day drawer). <span class="fail">Fail</span> in the trailing windows (no arithmetic).</td><td>~40</td><td>3 (rail, day link, drawer)</td></tr>
-<tr><td>J4</td><td>Manager: daily occupancy check</td><td>Analytics "Today" equals the Today page for the same date.</td><td><span class="fail">Fail</span>: Analytics 0.0% (0 / 0), Today page 33% (1 / 3) (ANALYTICS-01). The month view's Oct 11 row (33.3%) does agree.</td><td>~25</td><td>2</td></tr>
-<tr><td>J5</td><td>Owner: find the nights with no price and why</td><td>I see the count, the reason and the stay.</td><td><span class="part">Partial</span>: "No price on the booking, 2 nights", then drawer shows stay 102 (guest first name only). No way to open the booking (ANALYTICS-11).</td><td>~35</td><td>3</td></tr>
-<tr><td>J6</td><td>Owner: look at a long period (a quarter, a year)</td><td>I can see 12 months or a custom range.</td><td><span class="fail">Not possible</span>: month stepper plus three windows of at most 30 days. Not listed as deferred except "same month last year" (AN-DEF-02). See section 6.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>J7</td><td>Under pressure: month-end, the page shows dashes</td><td>The screen tells me why and what to do next.</td><td><span class="fail">Fail</span>: it blames "today"; the real cause (10 days waiting to close) lives on another screen with no link (ANALYTICS-04).</td><td>~15 to find the cause by hand on Close day</td><td>3</td></tr>
-<tr><td>J8</td><td>Roles: what is shown and hidden, and is hiding explained</td><td>Hidden figures are absent and a plain sentence says why.</td><td><span class="part">Partial</span>: Housekeeping masked server-side with a sentence containing a raw key (ANALYTICS-08); Manager, Finance and Front Desk see everything (ANALYTICS-07).</td><td>~120 (3 sign-ins)</td><td>n/a</td></tr>
-</tbody></table></div>
-<p class="meta">Not attempted: first-time setup (analytics has none; the "not bought" and "not assigned" states are read from the code only, AN-S4-06/07), export (none exists), any form submit (there is no form on this screen).</p>
+      <h2>6. Not built / needs backend work</h2>
+      <ul>
+        <li>
+          <strong>Export / print / share a month.</strong> Deferred:
+          <code>AN-DEF-03</code> in
+          <code>docs/features/analytics/edge-cases.csv</code> ("brief is to
+          explain a month without exporting"). No export button exists on any
+          state (DOM checked). The owner's partner use case is therefore unmet;
+          a "Data export" destination exists in the rail but I did not open it.
+        </li>
+        <li>
+          <strong>Same month last year:</strong> <code>AN-DEF-02</code>.
+          <strong>Forecast / bookings on the books:</strong>
+          <code>AN-DEF-04</code>.
+          <strong>Several Properties side by side:</strong>
+          <code>AN-DEF-05</code> (a Portfolio screen exists separately).
+        </li>
+        <li>
+          <strong>Other revenue by category:</strong> <code>AN-DEF-01</code>.
+          <strong
+            >Out-of-order nights as a line and as a RevPAR setting:</strong
+          >
+          <code>AN-DEF-06</code>, <code>AN-DEF-07</code> (maintenance holds keep
+          no intervals).
+        </li>
+        <li>
+          <strong>Custom date range, quarter or year view:</strong> not in
+          <code>edge-cases.csv</code> and not in the roadmap rows I read; I
+          cannot tell whether it is planned, <span class="tag u">unknown</span>.
+          Today the longest view is 30 days or one month.
+        </li>
+        <li>
+          <strong>A chart of the month:</strong> the month report has no trend
+          or shape view; the day table is the only visual. The old windows have
+          inline bars. No row asks for a chart, so this is not a defect. (The
+          inline bars are not colour-only: the percentage is printed beside
+          each, and the bar is <code>aria-hidden</code>. Verified.)
+        </li>
+        <li>
+          <strong>Finance role:</strong> signed in and checked the September
+          month view; it shows the same full money view as Owner, with the same
+          "Month to date" label and "no earlier month" line (<a
+            href="18-finance-september.png"
+            >18</a
+          >). Trailing windows were not re-checked as Finance.
+          <span class="tag v">verified</span>
+        </li>
+        <li>
+          <strong>Not verified for lack of data:</strong> prior-month comparison
+          with figures, corrections, other revenue, payments by method, ADR with
+          real prices, a full year, many unit types, a Resident Stay, a one-day
+          month, a Property without the analytics capability (AN-S4-06) or one
+          the viewer is not assigned to (AN-S4-07). Those are only claimed by
+          the specs.
+        </li>
+      </ul>
 
-<h2>4. Top changes, ranked by time saved × frequency</h2>
-<ol>
-<li><strong>"Today" and "Last 7 days" show the same occupancy as the Today page.</strong> Fixes ANALYTICS-01, 06, 10: the number a manager checks daily is currently wrong in its own table.</li>
-<li><strong>I can see at a glance why a month has no figures, and press one link to fix it.</strong> A "10 days waiting to close" notice with a link to Close day (ANALYTICS-04) and a correct label for finished-but-unclosed months (ANALYTICS-03).</li>
-<li><strong>A revenue figure I cannot trust says so.</strong> A warning under RevPAR/revenue when occupied nights have no price; the same dash rule in every view (ANALYTICS-02).</li>
-<li><strong>One screen, not two.</strong> Rebuild the three trailing windows on the month components so the arithmetic and the rules match (ANALYTICS-09).</li>
-<li><strong>The comparison line tells me the real reason</strong> there is nothing to compare (ANALYTICS-05).</li>
-<li><strong>I can open the booking behind an unpriced night</strong> straight from the day drawer (ANALYTICS-11).</li>
-<li><strong>The owner decides, in writing, who may read revenue.</strong> Resolve ANALYTICS-07 as a decision, then fix the masked wording (ANALYTICS-08).</li>
-<li><strong>The three headline figures fit on a phone's first screen</strong> (ANALYTICS-14).</li>
-</ol>
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          <strong>The arithmetic under every headline</strong> ("2 occupied ÷ 18
+          available nights", "TRY 0.00 room revenue ÷ 18 available nights") is
+          exactly what a non-accountant can check by hand.
+          <span class="tag v">verified</span>
+        </li>
+        <li>
+          <strong>Dash versus zero in the month view:</strong> ADR is "—" with
+          "No charged Guest nights yet, so there is nothing to divide", and
+          August says "Nothing happened in August 2026… not the same as zero".
+          <span class="tag v">verified</span> (<a
+            href="07-owner-august-empty.png"
+            >07</a
+          >)
+        </li>
+        <li>
+          <strong>The "Nights with no charge" section</strong> groups uncharged
+          nights by reason and states "Counts only: no amounts", visible to
+          every role. <span class="tag v">verified</span>
+        </li>
+        <li>
+          <strong>Cross-screen numbers agree</strong> on closed-day count,
+          uncharged nights and zero money (section 5).
+        </li>
+        <li>
+          <strong>Masking is server-side:</strong> Housekeeping gets no money
+          cells, no money columns, no money cards, only nights and occupancy.
+          <span class="tag v">verified</span> (<a
+            href="12-housekeeping-masked.png"
+            >12</a
+          >)
+        </li>
+        <li>
+          <strong>Locales:</strong> Turkish is fully translated with correct
+          decimal comma and percent sign (<a href="13-turkish-september.png"
+            >13</a
+          >); Arabic is right to left, mirrors the layout and the month stepper
+          arrows, and translates the long explanatory sentences (<a
+            href="15-arabic-september.png"
+            >15</a
+          >). Only the trailing-window labels need an English-phrasing review.
+        </li>
+        <li>
+          <strong>375 px:</strong> no horizontal scroll, tables restack with row
+          labels. <span class="tag v">verified</span>
+        </li>
+        <li>
+          <strong
+            >Previous-month arrow disabled before the first activity</strong
+          >
+          rather than leading to an empty page.
+          <span class="tag v">verified</span> (August).
+        </li>
+        <li>
+          <strong>Day drawer:</strong> opens from a plain link (shareable URL),
+          has previous/next day and close, and shows each stay with its unit and
+          the reason there was no charge. <span class="tag v">verified</span>
+        </li>
+      </ul>
 
-<h2>5. Inconsistencies with sibling screens</h2>
-<div class="tablewrap">
-<table style="min-width:820px">
-<thead><tr><th>Item</th><th>Analytics</th><th>Sibling</th><th>Agrees?</th></tr></thead>
-<tbody>
-<tr><td>Occupancy today (Oct 11)</td><td>Today tab 0.0%, 0 / 0 nights (<a href="16-owner-today-window.png">16</a>); month table row 33.3%</td><td>Today page: "Occupancy 33%, in house 1 / 3, expected tonight 33%"</td><td><span class="fail">No</span> for the Today tab (<a href="17-cross-today-page.png">17</a> beside <a href="16-owner-today-window.png">16</a>); yes for the month row.</td></tr>
-<tr><td>Days closed in September</td><td>6 of 30 closed</td><td>Close day "Recently closed": Sep 25 to 30 = 6 days (<a href="04-cross-close-day.png">04</a>)</td><td><span class="pass">Yes</span></td></tr>
-<tr><td>Days waiting in October</td><td>0 of 31 closed; Oct 1 to 11 "Open day" (11 rows)</td><td>Close day: "10 days waiting" (Oct 1 to 10) plus today</td><td><span class="pass">Yes</span> (10 + today = 11), but Analytics never mentions Close day</td></tr>
-<tr><td>Nights not charged</td><td>"No price on the booking: 2 nights" (Sep 29, 30)</td><td>Close day: Sep 29 and Sep 30 "1 not charged" each; stay 102 "No price on the booking"</td><td><span class="pass">Yes</span></td></tr>
-<tr><td>Money</td><td>Room revenue, collected, all TRY 0.00</td><td>Finance: one folio, 0 lines, balance TRY 0.00 (<a href="05-cross-finance.png">05</a>); Today "Charges today TRY 0.00"</td><td><span class="pass">Yes</span>, but all zero, so the agreement proves little</td></tr>
-<tr><td>Unit count</td><td>3 sellable units; 18 available nights over 6 closed days</td><td>Today "Rooms 1 / 3", booked-ahead "x of 3"</td><td><span class="pass">Yes</span></td></tr>
-<tr><td>How a locked figure is shown</td><td>Housekeeping: absent plus a sentence with a raw key</td><td>Not compared (other agents cover Finance and Today)</td><td><span class="tag u">unknown</span></td></tr>
-<tr><td>Vocabulary</td><td>Month view "nights"; windows "units"</td><td>Close day, Today use "nights"</td><td><span class="fail">Windows differ</span> (ANALYTICS-09)</td></tr>
-</tbody></table></div>
-<p class="meta">Back button (ADR 0035): the top bar shows a back arrow and breadcrumb "Workspace &gt; Analytics" on the month, window and drawer states (<a href="02-owner-september.png">02</a>). The day drawer has previous/next day arrows and a close control and keeps focus in the dialog (<a href="06-day-detail-sep30.png">06</a>); I did not test where focus returns on close, <span class="tag u">unknown</span>.</p>
-
-<h2>6. Not built / needs backend work</h2>
-<ul>
-<li><strong>Export / print / share a month.</strong> Deferred: <code>AN-DEF-03</code> in <code>docs/features/analytics/edge-cases.csv</code> ("brief is to explain a month without exporting"). No export button exists on any state (DOM checked). The owner's partner use case is therefore unmet; a "Data export" destination exists in the rail but I did not open it.</li>
-<li><strong>Same month last year:</strong> <code>AN-DEF-02</code>. <strong>Forecast / bookings on the books:</strong> <code>AN-DEF-04</code>. <strong>Several Properties side by side:</strong> <code>AN-DEF-05</code> (a Portfolio screen exists separately).</li>
-<li><strong>Other revenue by category:</strong> <code>AN-DEF-01</code>. <strong>Out-of-order nights as a line and as a RevPAR setting:</strong> <code>AN-DEF-06</code>, <code>AN-DEF-07</code> (maintenance holds keep no intervals).</li>
-<li><strong>Custom date range, quarter or year view:</strong> not in <code>edge-cases.csv</code> and not in the roadmap rows I read; I cannot tell whether it is planned, <span class="tag u">unknown</span>. Today the longest view is 30 days or one month.</li>
-<li><strong>A chart of the month:</strong> the month report has no trend or shape view; the day table is the only visual. The old windows have inline bars. No row asks for a chart, so this is not a defect. (The inline bars are not colour-only: the percentage is printed beside each, and the bar is <code>aria-hidden</code>. Verified.)</li>
-<li><strong>Finance role:</strong> signed in and checked the September month view; it shows the same full money view as Owner, with the same "Month to date" label and "no earlier month" line (<a href="18-finance-september.png">18</a>). Trailing windows were not re-checked as Finance. <span class="tag v">verified</span></li>
-<li><strong>Not verified for lack of data:</strong> prior-month comparison with figures, corrections, other revenue, payments by method, ADR with real prices, a full year, many unit types, a Resident Stay, a one-day month, a Property without the analytics capability (AN-S4-06) or one the viewer is not assigned to (AN-S4-07). Those are only claimed by the specs.</li>
-</ul>
-
-<h2>7. What already works well and must not regress</h2>
-<ul>
-<li><strong>The arithmetic under every headline</strong> ("2 occupied ÷ 18 available nights", "TRY 0.00 room revenue ÷ 18 available nights") is exactly what a non-accountant can check by hand. <span class="tag v">verified</span></li>
-<li><strong>Dash versus zero in the month view:</strong> ADR is "—" with "No charged Guest nights yet, so there is nothing to divide", and August says "Nothing happened in August 2026… not the same as zero". <span class="tag v">verified</span> (<a href="07-owner-august-empty.png">07</a>)</li>
-<li><strong>The "Nights with no charge" section</strong> groups uncharged nights by reason and states "Counts only: no amounts", visible to every role. <span class="tag v">verified</span></li>
-<li><strong>Cross-screen numbers agree</strong> on closed-day count, uncharged nights and zero money (section 5).</li>
-<li><strong>Masking is server-side:</strong> Housekeeping gets no money cells, no money columns, no money cards, only nights and occupancy. <span class="tag v">verified</span> (<a href="12-housekeeping-masked.png">12</a>)</li>
-<li><strong>Locales:</strong> Turkish is fully translated with correct decimal comma and percent sign (<a href="13-turkish-september.png">13</a>); Arabic is right to left, mirrors the layout and the month stepper arrows, and translates the long explanatory sentences (<a href="15-arabic-september.png">15</a>). Only the trailing-window labels need an English-phrasing review.</li>
-<li><strong>375 px:</strong> no horizontal scroll, tables restack with row labels. <span class="tag v">verified</span></li>
-<li><strong>Previous-month arrow disabled before the first activity</strong> rather than leading to an empty page. <span class="tag v">verified</span> (August).</li>
-<li><strong>Day drawer:</strong> opens from a plain link (shareable URL), has previous/next day and close, and shows each stay with its unit and the reason there was no charge. <span class="tag v">verified</span></li>
-</ul>
-
-<p class="meta" style="margin-top:40px">Data state found: 3 units in 2 types (Room: 2 units, 12 available nights over the 6 closed days; Suite: 1 unit, 6 nights), 1 stay (guest first name only, 102) in house since Sep 29 and overdue since Oct 1, 0 folio lines, 0 payments, 6 closed days (Sep 25 to 30). Nothing was created, edited or submitted; sign-in was the only form used.</p>
-
-</main>
-</body>
+      <p class="meta" style="margin-top: 40px">
+        Data state found: 3 units in 2 types (Room: 2 units, 12 available nights
+        over the 6 closed days; Suite: 1 unit, 6 nights), 1 stay (guest first
+        name only, 102) in house since Sep 29 and overdue since Oct 1, 0 folio
+        lines, 0 payments, 6 closed days (Sep 25 to 30). Nothing was created,
+        edited or submitted; sign-in was the only form used.
+      </p>
+    </main>
+  </body>
 </html>
