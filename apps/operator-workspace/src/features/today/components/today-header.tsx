@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Moon, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
@@ -31,6 +32,7 @@ export function TodayHeader({
   day,
   freshAt,
   greeting,
+  layoutSwitcher,
   locale,
   mayBook,
   name,
@@ -40,6 +42,8 @@ export function TodayHeader({
   day: TodaySummary["day"];
   freshAt: string;
   greeting: Greeting;
+  /** Where the viewer picks how Today is drawn; absent where there is no choice. */
+  layoutSwitcher?: ReactNode;
   locale: SupportedLocale;
   mayBook: boolean;
   name: string;
@@ -71,6 +75,7 @@ export function TodayHeader({
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-4">
+        {layoutSwitcher}
         <p
           className={cn(
             "flex items-center gap-1.5 text-xs",

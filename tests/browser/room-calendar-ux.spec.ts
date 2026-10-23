@@ -141,6 +141,24 @@ async function open(
     `/${locale}/room-calendar?property=${scene.propertyId}&q=${scene.tag}&${window}`,
   );
   await expect(page.locator("[data-unit-id]").first()).toBeVisible();
+  await expectShellSettled(page);
+}
+
+/**
+ * Below 1280 px the sidebar is served open and folds to icons once the page has
+ * hydrated, over 300 ms. Anything measured before it has finished is measured
+ * on a page that is about to move: a bar is hovered where it no longer is, and
+ * a grid is found twenty pixels from where it settles.
+ */
+async function expectShellSettled(page: Page): Promise<void> {
+  const width = page.viewportSize()?.width ?? 0;
+  const hasRail = width >= 768;
+  const foldsToIcons = width < 1280;
+  if (!hasRail || !foldsToIcons) return;
+  const rail = page.locator("aside").first();
+  await expect
+    .poll(async () => (await rail.boundingBox())?.width ?? Infinity)
+    .toBeLessThan(120);
 }
 
 function bar(page: Page, name: string | RegExp) {
@@ -246,10 +264,15 @@ test("a one-night booking names its Guest at once, on hover and on focus", async
   await open(page, scene, { days: 30 });
 
   const target = bar(page, /./);
-  await target.hover();
   const card = page.locator("[data-bar-card]");
-  // No wait for a browser tooltip: the name is on screen as the pointer lands.
-  await expect(card).toContainText(guest, { timeout: 1_000 });
+  // A pointer that arrives before the page has hydrated is not heard, so it is
+  // brought again. Each arrival still has one second and no more: there is no
+  // wait for a browser tooltip, the name is on screen as the pointer lands.
+  await expect(async () => {
+    await page.mouse.move(5, 5);
+    await target.hover();
+    await expect(card).toContainText(guest, { timeout: 1_000 });
+  }).toPass();
   await expect(card).toContainText("Confirmed");
   await capture(page, "short-bar-names-its-guest");
   await page.mouse.move(5, 5);

@@ -4,6 +4,7 @@ import { onlineManager, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useRef,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -36,6 +37,9 @@ import { SectionUnavailable } from "./section-unavailable";
 import { OrganizationStrip } from "./organization-strip";
 import { OfTotal, StatTile } from "./stat-tile";
 import { TodayHeader, type Greeting } from "./today-header";
+import { DeskLayout } from "../layouts/desk-layout";
+import { LayoutSwitcher } from "../layouts/layout-switcher";
+import { layoutCookieName, type TodayLayout } from "../layouts/model";
 
 /** Once a minute, and on focus: a front desk leaves this open for a shift. */
 export const REFRESH_MS = 60_000;
@@ -67,15 +71,21 @@ async function fetchSummary(propertyId: string): Promise<TodaySummary> {
 export function TodayDashboard({
   clock,
   greeting,
+  initialLayout,
   locale,
   name,
+  nowMs,
   properties,
   scope,
 }: {
   clock: string;
   greeting: Greeting;
+  /** How this Staff Member last chose to have Today drawn, read from their cookie. */
+  initialLayout: TodayLayout;
   locale: SupportedLocale;
   name: string;
+  /** The server's clock when the page was built, so the first paint agrees. */
+  nowMs: number;
   /** The Organization's Properties with Today, for the strip; one or none is no strip. */
   properties: readonly { propertyId: string; propertyName: string }[];
   scope: TodayScope;
@@ -117,6 +127,15 @@ export function TodayDashboard({
   // its own outcome lands and must not run again for a new function.
   const refetch = query.refetch;
   const retry = useCallback(() => void refetch(), [refetch]);
+  const [layout, setLayout] = useState(initialLayout);
+  const chooseLayout = useCallback(
+    (next: TodayLayout) => {
+      setLayout(next);
+      // A year, on this device: a preference of the person, not a record.
+      document.cookie = `${layoutCookieName(scope.userId)}=${next}; path=/; max-age=31536000; samesite=lax`;
+    },
+    [scope.userId],
+  );
   if (!summary) return null;
 
   // A focus is not a card: a role can lead somewhere nothing it may see is
@@ -140,13 +159,34 @@ export function TodayDashboard({
         day={day}
         freshAt={clockAt(lastComplete.current, locale, day.timezone)}
         greeting={greeting}
+        {...(summary.desk
+          ? {
+              layoutSwitcher: (
+                <LayoutSwitcher onChange={chooseLayout} value={layout} />
+              ),
+            }
+          : {})}
         locale={locale}
         mayBook={summary.mayBook}
         name={name}
         stale={query.isError || partlyStale || paused}
       />
 
-      {summary.focus === "none" || noCards ? (
+      {summary.desk && layout !== "overview" ? (
+        summary.desk.status === "ok" ? (
+          <DeskLayout
+            desk={summary.desk.data}
+            layout={layout}
+            locale={locale}
+            nowMs={nowMs}
+            onChanged={retry}
+            scope={scope}
+            summary={summary}
+          />
+        ) : (
+          <SectionUnavailable onRetry={retry} />
+        )
+      ) : summary.focus === "none" || noCards ? (
         <p className="rounded-2xl bg-muted px-5 py-4 text-muted-foreground">
           {t("nothingForRole")}
         </p>
