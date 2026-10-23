@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: HR and Payroll (2026-10-11)</title>
+<style>
+  :root { --bg:#fff; --fg:#14201c; --muted:#5b6761; --line:#d8dedb; --soft:#f3f6f4; --warn:#8a4b00; --bad:#9b1c1c; --ok:#14634a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 20px; margin: 40px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  p.meta { color: var(--muted); margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; font-size: 13.5px; }
+  th, td { text-align: left; vertical-align: top; border: 1px solid var(--line); padding: 6px 8px; }
+  th { background: var(--soft); }
+  .tw { overflow-x: auto; }
+  .sev { font-weight: 600; white-space: nowrap; }
+  .s1 { color: var(--bad); } .s2 { color: var(--warn); } .s3 { color: var(--fg); } .s4 { color: var(--muted); }
+  .tag { display:inline-block; border:1px solid var(--line); border-radius: 4px; padding: 0 5px; font-size: 12px; background: var(--soft); }
+  figure { margin: 12px 0; }
+  figure img { max-width: 100%; border: 1px solid var(--line); }
+  figcaption { color: var(--muted); font-size: 13px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  code { background: var(--soft); padding: 0 4px; border-radius: 3px; font-size: 13px; }
+  ul { padding-left: 20px; }
+  .note { background: var(--soft); border-left: 3px solid var(--line); padding: 8px 12px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>UX audit: HR &amp; Payroll</h1>
+<p class="meta">Route <code>/en/hr</code> (and <code>/tr</code>, <code>/ar</code>). Audited 2026-10-11 on hosted staging (same code as main 4b15c30), audit-only mode: nothing was submitted or saved. Roles: Owner (primary), Manager, Front Desk. Screenshots show the shared staging test accounts (truncated test emails in the sidebar); no real staff data was on the page.</p>
+
+<div class="note"><strong>Data state found:</strong> the staging Organization has <strong>0 employees, 0 shifts, 0 leave requests and no payroll runs</strong>, while the People screen lists 5 active staff accounts. So every list view was seen only in its empty state. "One" and "40 employees" views, the payslip drawer, the leave table and the terminate dialog were <strong>not seen live</strong>; they are judged from the code and labelled <em>inferred</em>. <em>verified</em> = I saw it in the running app, or read the exact line of code that decides it. <em>inferred</em> = reasoned from code or docs, not exercised.</div>
+
+<h2>1. Verdict</h2>
+<ul>
+  <li><strong>Could the owner or office manager use it unaided today?</strong> To look around, yes: the four tabs are clear, labels are plain, Turkish, English and Arabic (RTL) all render and the back button is present. To run real staff records, no: there is no start date on registration and no way to edit an employee afterwards, so the first wage typo or raise cannot be handled.</li>
+  <li><strong>Biggest risk:</strong> payroll approval permanently locks a run built from deduction rates that the screen itself says are unapproved placeholders, and the confirm dialog says employees "will be paid" although nothing is paid by the system (HR-04).</li>
+  <li><strong>Second risk:</strong> the HR screen is shown to every role in the navigation. Front Desk does not hold "See staff records and payroll" in the role grid yet opens the page and is told "No employees registered" (HR-01). The database probably hides the data; the page then misreports it as empty.</li>
+  <li><strong>People vs HR:</strong> two parallel, unconnected lists of the same humans (People: 5 logins, HR: 0 employees). Nothing on either screen says which to use for what, except one sentence in the terminate dialog (HR-10).</li>
+  <li>Counts: 18 findings. 2 block work, 6 cause errors, 6 slow me down, 4 polish. 13 of 18 rest at least partly on code reading because staging has no data.</li>
+</ul>
+
+<h2>2. Findings</h2>
+<div class="tw">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>Expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th></tr></thead>
+<tbody>
+
+<tr><td>HR-01</td><td class="sev s2">causes errors</td><td>/en/hr, Front Desk (also Finance, Housekeeping by the same logic), 0 employees</td><td>"HR &amp; Payroll" is in the navigation and the page opens with the full tab set. The People role grid shows only Manager and Owner hold "See staff records and payroll"; Front Desk, Finance and Housekeeping do not. The page shows "No employees registered / Get started by adding your first employee", the Leave tab offers "Request leave", and Payroll says "Ask someone with Organization-wide access", which is not the reason. The screen gates on the module entitlement (<code>staff_administration</code> capability in <code>screens.ts</code>), not on the <code>hr.view</code> permission. Blueprint 5.11 says HR "requires stricter permissions than general staff administration".</td><td>A user without the permission does not see the destination, or sees "You do not have access to staff records", never a statement that the Property has no employees.</td><td>Gate the nav item and page on <code>hr.view</code> (the audit log already does this with <code>permission</code> in <code>screens.ts</code>). Show an explicit no-access state.</td><td>S</td><td><a href="09-frontdesk-hr.png">09</a>; grid read from People. Page and nav: <em>verified</em>, reproduced Y (2 loads). That the data is withheld by row-level security and so the empty state is false: <em>inferred</em> (HR-S1-05).</td></tr>
+
+<tr><td>HR-02</td><td class="sev s1">blocks work</td><td>Register employee dialog, Owner and Manager</td><td>The form has no start date, no Property and no link to a login. The action never sends a hire date, and the database fills in today. Everybody already on staff is therefore recorded as hired today, shows "Since Oct 2026", and is left out of every earlier month's payroll run. The terminate dialog's earliest allowed last day is the hire date, so a past leaver cannot be recorded either.</td><td>Enter existing staff with their real start date, and see which Property they work at.</td><td>Add "Start date" (default today) to the dialog; pass it to <code>registerEmployee</code>, which already accepts <code>hiredOn</code>. Show the Property.</td><td>S</td><td><a href="07-owner-register-dialog.png">07</a> shows the fields (<em>verified</em>). Behaviour of the missing date: <em>verified</em> in code (<code>server/hr.ts</code> registerEmployeeAction, <code>employees.ts</code> <code>coalesce(hired_on, current_date)</code>). Not submitted.</td></tr>
+
+<tr><td>HR-03</td><td class="sev s1">blocks work</td><td>Employee cards, Owner</td><td>An employee can be registered and ended, nothing else. There is no way to change wage, position, department, contract type, phone, email or IBAN after saving. A wrong gross pay or a raise cannot be corrected; the only route is to end the person and register a new record, which loses their history and (HR-02) their start date. "Contract" is only one of four fixed types: no contract dates, no fixed-term end, no documents.</td><td>Edit a record; keep a dated wage history.</td><td>An "Edit" action with a dated change for wage (so past runs stay true).</td><td>L</td><td>Only list, register and terminate exist in <code>packages/ranza/hr/src/employees.ts</code> and <code>server/hr.ts</code>: <em>verified</em> by reading. Cards not seen (0 employees).</td></tr>
+
+<tr><td>HR-04</td><td class="sev s2">causes errors</td><td>Payroll tab, approve dialog, Owner</td><td>"Approve and lock" is permanent: the dialog says there is no way yet to reverse or revise (HR-DEF-10). The same screen says the social security, income tax and stamp duty figures are unapproved placeholders that must not be used to pay anyone (HR-DEF-03). The dialog does not repeat that warning, and says "N employees will be paid in TRY", but the system pays nobody (HR-DEF-01).</td><td>Do not allow an irreversible approval of numbers the product says are wrong, or at least say so at the point of no return and say "recorded", not "paid".</td><td>Repeat the placeholder warning inside the dialog with an explicit tick; change "will be paid" to "will be recorded as the payroll for"; or hold Approve until DEF-03 is decided.</td><td>S</td><td>Copy read in <code>messages.ts</code> (<code>hr.payroll.confirmBody</code>, <code>confirmLocked</code>, <code>placeholderBody</code>): <em>verified</em>. Dialog not opened: no draft exists to approve. Not pressed.</td></tr>
+
+<tr><td>HR-05</td><td class="sev s3">slows me down</td><td>Payroll tab, all roles with reach</td><td>The previous/next period arrows are page links. The active tab is local state, so every period change reloads on the Employees tab. A direct link with <code>?period=2026-10</code> also opens Employees. Going back three months to check last quarter costs a click on "Payroll" each time.</td><td>Stay on Payroll when I change period.</td><td>Put the tab in the URL (<code>?tab=payroll</code>) or select Payroll when <code>period</code> is present.</td><td>S</td><td>Reproduced Y: after loading <code>?period=2026-10</code> the selected tab was "Employees" (<em>verified</em>). Screenshot <a href="05-owner-payroll-running-month.png">05</a> is after clicking Payroll again.</td></tr>
+
+<tr><td>HR-06</td><td class="sev s2">causes errors</td><td>This week (rota), Owner or Manager with a browser east of UTC, which is every Turkish user</td><td>The week's dates come from the browser's local midnight converted with <code>toISOString()</code>. Computed with <code>TZ=Europe/Istanbul</code>: the column labelled Monday (5 Oct) is keyed <code>2026-10-04</code>. A shift set in the Monday column is saved for Sunday 4 Oct, which the server's Monday-to-Sunday read excludes, so it would appear to vanish after the next load. Every other column is also keyed one day early.</td><td>The column I click is the date I mean.</td><td>Build the dates from the Property's calendar date (the page already receives <code>today</code> in the Property's time zone) and format without <code>toISOString</code>.</td><td>S</td><td><em>inferred</em>: arithmetic checked in Node with <code>TZ=Europe/Istanbul</code>, UI path not exercised (no employees; writes not allowed). Code: <code>rota-table.tsx</code>.</td></tr>
+
+<tr><td>HR-07</td><td class="sev s3">slows me down</td><td>This week (rota)</td><td>Only the current week exists: no previous/next week control, no date shown, tab is called "This week". A manager planning next week on Friday cannot. Each cell is a single button that cycles Morning, Evening, Day, Off and saves on every click, so Morning to Off is 3 saves, with no shift times visible without hover.</td><td>Plan next week; set a shift in one or two actions.</td><td>Week navigation with dates in the header; a small menu or keyboard-friendly select per cell.</td><td>M</td><td><a href="02-owner-rota-empty.png">02</a> (header has no week control, <em>verified</em>). Cycling behaviour <em>inferred</em> from <code>rota-table.tsx</code>.</td></tr>
+
+<tr><td>HR-08</td><td class="sev s2">causes errors</td><td>Leave tab, Owner or Manager, pending request</td><td>"Approve" and "Decline" sit side by side and act on one click. A decision is final (HR-S1-18: "already decided"), there is no confirm, no reason field and no undo, and nothing tells the employee. The tab badge shows the pending count but the table is ordered by start date, newest first, with history mixed in and no filter.</td><td>A mis-click on Decline is recoverable, or confirmed; pending requests come first.</td><td>Confirm or an undo toast; sort pending first or add a status filter.</td><td>S</td><td><em>inferred</em> from <code>leave-table.tsx</code> and <code>leave.ts</code>; the table was empty and I did not press anything.</td></tr>
+
+<tr><td>HR-09</td><td class="sev s2">causes errors</td><td>Leave tab, Owner (0 staff), and view-only roles</td><td>"Request leave" is offered even when there is nobody to request leave for: the Staff member picker is an empty, collapsed control. With dates filled in, the submit handler returns silently when no staff member is selected, with no message. The button is also shown to roles that cannot manage HR (it is not gated by <code>canManage</code>); they fill the form and are refused.</td><td>Hide or disable the button with a reason; a visible message on every failed submit.</td><td>Gate by <code>canManage</code> and by "has employees"; show the reason in the dialog.</td><td>S</td><td><a href="13-owner-leave-dialog-no-staff.png">13</a> (empty picker, <em>verified</em>). Silent submit and the missing <code>canManage</code> check: <em>inferred</em> from code, not submitted.</td></tr>
+
+<tr><td>HR-10</td><td class="sev s3">slows me down</td><td>People vs HR &amp; Payroll, Owner</td><td>The same humans live in two unconnected places. People ("Who works here, which Properties they reach, and what each role may do") lists 5 active accounts; HR lists 0. Registering an employee cannot be linked to a login (the action never sends <code>userId</code>), and People never mentions HR. The rail shows both with near-identical icons next to each other. The only bridge is one sentence in the terminate dialog: "change that on the People screen" (plain text, not a link). So a hotel types each person twice and nothing says which record is the source for pay, rota or access.</td><td>One sentence on each screen: People is who can sign in; HR is who is employed. Link them where a person is both.</td><td>Rename or caption People as sign-in and permissions only; on HR show a "Has a login" mark and link; offer "Add to HR" from a People row.</td><td>M</td><td>Counts 5 vs 0 <em>verified</em> (People page read as Owner; its screenshot is not included because it shows account emails). Missing link: <em>verified</em> in <code>server/hr.ts</code>. Design intent is documented in <code>docs/handover/operator-workspace-screens.md</code>: separate on purpose.</td></tr>
+
+<tr><td>HR-11</td><td class="sev s3">slows me down</td><td>Employees tab, 40 employees</td><td>Cards in a 3-column grid, unpaginated and unsearchable, no filter by department or status. Leavers never drop off: they stay in the grid after active staff. The tab count "(N)" counts only active staff while the grid shows everyone, so 40 active plus 10 left reads "(40)" over 50 cards. Cards show no Property although the list is Organization-wide.</td><td>Find one person among 40 quickly; hide or collapse leavers.</td><td>Search box, department and status filter, "Show people who left" toggle, a table at this size.</td><td>M</td><td><em>inferred</em> from <code>employees-table.tsx</code>, <code>hr-view.tsx</code>, <code>employees.ts</code> (no limit, no search). Seen only at 0 employees.</td></tr>
+
+<tr><td>HR-12</td><td class="sev s2">causes errors</td><td>This week and Leave, an Organization with 2+ Properties</td><td>Employees and leave are read for the whole Organization, shifts for the selected Property only. The rota lists every employed person, including staff of other Properties, as a row of "Off", and the leave picker lists them too. Setting a shift or leave for such a person is refused with "assigned to a different Property".</td><td>The rota and the leave picker list the people who work at this Property.</td><td>Filter rota rows and the picker to the selected Property (and Organization-wide staff).</td><td>S</td><td><em>inferred</em> (<code>hr-view.tsx</code> passes <code>employed</code> to both; refusal text in <code>hr.outcomes.refused.other_property</code>). Staging has one Property.</td></tr>
+
+<tr><td>HR-13</td><td class="sev s3">slows me down</td><td>All tabs at 375 px</td><td>The tab bar is 445 px wide on a 375 px screen: "Payroll" is off-screen with no scroll cue, and the page itself scrolls sideways (document width 462). At 768 px the tab bar fits.</td><td>All four tabs reachable without sideways scrolling.</td><td>Let the tab bar scroll with a fade, or show icons only below 480 px.</td><td>S</td><td><a href="11-owner-375-rota.png">11</a>, reproduced Y. At 768 px (<a href="12-owner-768-rota.png">12</a>) the shell sidebar takes most of the width and cuts off the page bar; that is the workspace shell, not HR (see section 5).</td></tr>
+
+<tr><td>HR-14</td><td class="sev s4">polish</td><td>Rota and Leave empty states, Employees for a view-only user</td><td>The empty rota is a bare table header with no message or next step. The empty Leave state repeats the title: "Leave requests" above "Leave requests". A user who cannot manage HR is told "Get started by adding your first employee" with no button.</td><td>Each empty state says what is missing and who can fix it.</td><td>Rota: "Register employees first" with a link to the Employees tab. Leave: drop the duplicate title. Read-only copy for view-only roles.</td><td>S</td><td><a href="02-owner-rota-empty.png">02</a>, <a href="03-owner-leave-empty.png">03</a>, <a href="09-frontdesk-hr.png">09</a>: <em>verified</em>.</td></tr>
+
+<tr><td>HR-15</td><td class="sev s4">polish</td><td>Payroll tab, Owner</td><td>The period is shown as raw "2026-09" in all three languages. A "Draft" badge appears although no run exists (nothing to pay, or the month has not ended). The arrows allow stepping into any future month.</td><td>"September 2026", and a badge only when a draft run exists.</td><td>Format with the locale's month name; badge text "Not approved" or none when blocked.</td><td>S</td><td><a href="04-owner-payroll.png">04</a>, <a href="05-owner-payroll-running-month.png">05</a>, <a href="10-owner-tr-payroll.png">10</a> (Turkish: "Taslak" on an empty month): <em>verified</em>.</td></tr>
+
+<tr><td>HR-16</td><td class="sev s4">polish</td><td>Payslip drawer</td><td>The button reads "Download PDF" but calls <code>window.print()</code>, which prints the whole page. The payroll table has no stamp duty column although the drawer lists it, and the drawer is the only place the IBAN appears (masked).</td><td>A real payslip PDF or a print view of the payslip only; the word "Print" until then.</td><td>Rename to "Print" or add a print stylesheet scoped to the drawer.</td><td>S</td><td><em>inferred</em> from <code>payslip-drawer.tsx</code> (no payslip existed to open).</td></tr>
+
+<tr><td>HR-17</td><td class="sev s4">polish</td><td>Arabic navigation rail</td><td>The label for HR is cut off: "الموارد البشرية والر…".</td><td>A readable label.</td><td>Shorter label ("الموارد البشرية") like Turkish "İnsan kaynakları".</td><td>S</td><td><a href="06-owner-ar-employees.png">06</a>, <em>verified</em>.</td></tr>
+
+<tr><td>HR-18</td><td class="sev s3">slows me down</td><td>Payroll, a month with mixed currencies or an old draft</td><td>Two messages end in a task nobody can do from the screen: "A draft for this period already exists and needs an administrator to clear it" and "This period cannot be approved until that is resolved" (employees in more than one currency). Neither says where to go or how.</td><td>A message with a next action.</td><td>Link to the employee whose currency differs; name where a draft is cleared or build that action.</td><td>M</td><td><em>inferred</em>: copy in <code>messages.ts</code>; neither state could be produced with no data.</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>3. Jobs</h2>
+<p class="meta">Pass/fail tests were written before attempting each job. Times are rough (not stopwatch-measured); nothing was submitted. "Stopped before submit" means I stopped at the final button as the audit mode requires.</p>
+<div class="tw">
+<table>
+<thead><tr><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Time</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>J1 First-time setup: register the first employee</td><td>From an empty directory I reach a form with every field a contract needs (start date, Property, wage, contract), in 2 clicks or fewer.</td><td><strong>Fail on fields.</strong> Dialog reached from the empty-state button; no start date, no Property, no login link (HR-02, HR-10). Stopped before submit, not persisted.</td><td>~10 s to open</td><td>1</td></tr>
+<tr><td>J2 Weekly: approve a pending leave request</td><td>Find the pending request and decide it in 3 clicks or fewer, with the consequence stated first.</td><td>Could not run: 0 requests. <em>Inferred:</em> 1 click but no confirm, no undo (HR-08).</td><td>n/a</td><td>1 (inferred)</td></tr>
+<tr><td>J3 Weekly: set next week's rota for 8 staff</td><td>Move to next week and set 56 cells with at most 2 actions per cell.</td><td><strong>Fail (inferred).</strong> No next-week control (HR-07); up to 3 saving clicks per cell; Monday column may save to the wrong date for Turkish browsers (HR-06). No staff on staging to try.</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>J4 Bulk: enter 40 existing employees</td><td>Under a minute each, with real start dates; or an import.</td><td><strong>Fail (inferred).</strong> One dialog per person, 9 fields, no start date (HR-02), no import. Import is not mentioned in the feature docs, so it is a gap, not a defect.</td><td>n/a</td><td>~40 x 11</td></tr>
+<tr><td>J5 Error recovery: fix a wrong wage</td><td>Open the record, change the wage, see it saved with a date.</td><td><strong>Fail.</strong> No edit exists (HR-03).</td><td>n/a</td><td>n/a</td></tr>
+<tr><td>J6 Under pressure: approve last month's payroll</td><td>Reach last month's payroll in 3 clicks or fewer, see totals and per-person lines, approve with consequences named.</td><td><strong>Partial pass.</strong> Payroll tab defaults to the latest ended month (2026-09) in 2 clicks; correct blocker text ("no active employees to pay"). Approval itself not reachable with no data; dialog text read from code (HR-04). Manager reaches the same tab and is told why payroll is not theirs: pass.</td><td>~15 s</td><td>2</td></tr>
+<tr><td>J7 Roles: what do Manager and Front Desk see?</td><td>Hidden things are explained; nothing sensitive shows to a role without the permission.</td><td>Manager: pass, tabs and "Add employee" visible, Payroll replaced by an explanation (<a href="08-manager-payroll-needs-reach.png">08</a>). Front Desk: <strong>fail</strong>, sees the whole screen and a false empty state (HR-01).</td><td>~60 s</td><td>~6</td></tr>
+<tr><td>J8 Language: Turkish and Arabic</td><td>All copy translated, Arabic mirrors, no English left over.</td><td><strong>Pass</strong> for the screens seen (<a href="06-owner-ar-employees.png">06</a>, <a href="10-owner-tr-payroll.png">10</a>). Arabic nav label truncated (HR-17). Dialogs and refusal messages for Arabic were not opened; Turkish copy read in <code>messages.ts</code> (<em>inferred</em> complete: types require every key).</td><td>~30 s</td><td>2</td></tr>
+<tr><td>J9 Phone: use the screen at 375 px</td><td>All tabs reachable, no sideways page scroll.</td><td><strong>Fail.</strong> Payroll tab off-screen, page 462 px wide (HR-13).</td><td>~20 s</td><td>2</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li><strong>I can enter staff with the date they actually started</strong> and see which Property they belong to (HR-02). Small change, unblocks onboarding and past payroll months.</li>
+  <li><strong>I can correct a wage or a position</strong> without ending the person (HR-03). Needed by the first typo.</li>
+  <li><strong>I am not asked to lock payroll that the screen calls unusable</strong>, and the dialog says "recorded", not "paid" (HR-04).</li>
+  <li><strong>People who may not see staff records do not see a screen that says there are none</strong> (HR-01).</li>
+  <li><strong>I can tell People from HR in one glance</strong> and jump between the two (HR-10).</li>
+  <li><strong>My rota columns are the dates I clicked</strong>, and I can plan next week (HR-06, HR-07).</li>
+  <li><strong>I stay on Payroll when I change month</strong> (HR-05).</li>
+  <li><strong>I can find one person among 40</strong> and hide those who left (HR-11).</li>
+  <li><strong>A leave decision I mis-click can be undone or is confirmed</strong> (HR-08).</li>
+  <li><strong>I can use all four tabs on a phone</strong> (HR-13).</li>
+</ol>
+
+<h2>5. Inconsistencies</h2>
+<ul>
+  <li><strong>People vs HR</strong> (HR-10): two staff lists, different vocabulary ("Active" account vs "Active" employee, "Left" vs revoked), no cross link. People's role grid says Front Desk has no HR access; the rail and page give it anyway (HR-01).</li>
+  <li><strong>Gating:</strong> the audit log hides itself by permission; HR hides itself only by purchased module. Same shell, two rules.</li>
+  <li><strong>Shell at 768 px:</strong> in a touch-emulated 768 px viewport the sidebar stayed open and clipped the page bar and tabs (<a href="12-owner-768-rota.png">12</a>). I did not check other pages, so I cannot say whether the shell or only HR is affected; treat as a shell question for the orchestrator.</li>
+  <li><strong>Month format:</strong> HR shows "2026-09"; other screens format dates with the locale (<code>formatDate</code> is used for "Since", "Left" and "Approved on" on this very page).</li>
+  <li><strong>Title:</strong> English heading "HR &amp; Payroll" but Turkish heading and rail say only "İnsan kaynakları" while the tab is "Bordro"; Arabic rail truncates. Not wrong, but the three names differ in scope.</li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<p>These are documented deferrals, not UX defects (<code>docs/features/hr/edge-cases.csv</code>, <code>docs/roadmap.md</code>).</p>
+<ul>
+  <li><strong>Paying a run, a paid status</strong> (HR-DEF-01), <strong>payroll to the ledger</strong> (HR-DEF-02), <strong>approved deduction rules</strong> (HR-DEF-03: the figures are placeholders), <strong>a run per currency</strong> (HR-DEF-04), <strong>part months and unpaid leave</strong> (HR-DEF-05), <strong>correcting an approved run</strong> (HR-DEF-10).</li>
+  <li><strong>Revealing a whole IBAN</strong> (HR-DEF-07): only country and last four are ever shown; intentional.</li>
+  <li><strong>Own permission for approving payroll</strong> (HR-DEF-08), <strong>pending leave of a leaver</strong> (HR-DEF-09), <strong>employees of an archived Property</strong> (HR-DEF-06).</li>
+  <li><strong>Time clock, attendance, statutory exports</strong>: listed as missing in the roadmap. Blueprint 5.11 also lists departments, positions and workforce reporting as owned; the screen has free-text department and position only.</li>
+  <li><strong>Not in any doc I found (so a candidate gap, not a deferral):</strong> editing an employee (HR-03), a hire date on registration (HR-02), bulk import, employee self-service for leave.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>Back button to Today on the HR screen, mirrored in Arabic (ADR 0035). <em>verified</em></li>
+  <li>Turkish, English and Arabic all render with correct RTL, tab labels and empty states. <em>verified</em></li>
+  <li>Manager sees a plain reason why payroll is not theirs ("Payroll is run for the whole Organization... Ask someone with Organization-wide access"), instead of an empty or broken tab. <em>verified</em> (<a href="08-manager-payroll-needs-reach.png">08</a>)</li>
+  <li>Payroll defaults to the latest month that has ended, and a running month states plainly why it cannot be approved yet. <em>verified</em></li>
+  <li>The placeholder-deductions warning is on the payroll screen and the drawer, in all three languages. <em>verified</em> (the dialog is the gap, HR-04)</li>
+  <li>Ending employment: the dialog says the record, shifts, leave and payslips stay and that it does not remove system access, and caps the last day between hire date and today. <em>inferred</em> from code.</li>
+  <li>IBAN shown masked only; wages and leave kinds are not written to the audit trail (HR-S1-30, HR-S1-37). <em>inferred</em> from the feature docs.</li>
+  <li>Every refusal maps to a plain sentence in all three languages (<code>hr.outcomes</code>), never a code. <em>verified</em> in <code>messages.ts</code>; the type system requires every key.</li>
+  <li>No console errors or warnings on any HR screen visited. <em>verified</em></li>
+</ul>
+
+<h2>Screenshots</h2>
+<div class="grid">
+<figure><img src="01-owner-employees.png" alt="Employees tab, empty"><figcaption>01 Owner, Employees, empty</figcaption></figure>
+<figure><img src="02-owner-rota-empty.png" alt="Rota empty"><figcaption>02 Owner, This week, empty</figcaption></figure>
+<figure><img src="03-owner-leave-empty.png" alt="Leave empty"><figcaption>03 Owner, Leave, empty</figcaption></figure>
+<figure><img src="04-owner-payroll.png" alt="Payroll 2026-09"><figcaption>04 Owner, Payroll, last ended month</figcaption></figure>
+<figure><img src="05-owner-payroll-running-month.png" alt="Payroll running month"><figcaption>05 Owner, Payroll, running month</figcaption></figure>
+<figure><img src="06-owner-ar-employees.png" alt="Arabic"><figcaption>06 Owner, Arabic</figcaption></figure>
+<figure><img src="07-owner-register-dialog.png" alt="Register dialog"><figcaption>07 Register dialog (opened, not submitted)</figcaption></figure>
+<figure><img src="08-manager-payroll-needs-reach.png" alt="Manager payroll"><figcaption>08 Manager, Payroll</figcaption></figure>
+<figure><img src="09-frontdesk-hr.png" alt="Front desk HR"><figcaption>09 Front Desk, HR page</figcaption></figure>
+<figure><img src="10-owner-tr-payroll.png" alt="Turkish payroll"><figcaption>10 Owner, Turkish, Payroll</figcaption></figure>
+<figure><img src="11-owner-375-rota.png" alt="375 px"><figcaption>11 Owner, 375 px</figcaption></figure>
+<figure><img src="12-owner-768-rota.png" alt="768 px"><figcaption>12 Owner, 768 px</figcaption></figure>
+<figure><img src="13-owner-leave-dialog-no-staff.png" alt="Leave dialog"><figcaption>13 Leave dialog with no staff (opened, not submitted)</figcaption></figure>
+</div>
+
+<p class="meta">Assumptions: "Owner" test account stands for the owner/office manager persona; Finance and Housekeeping were not signed in as, their HR behaviour is inferred from the role grid. Nothing was persisted: no form was submitted, no row action pressed, and only dialog openers were clicked.</p>
+</main>
+</body>
+</html>

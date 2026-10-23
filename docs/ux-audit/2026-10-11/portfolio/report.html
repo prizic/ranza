@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: Portfolio (All Properties), 2026-10-11</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; color: #1a1a1a; background: #fff; max-width: 1180px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 36px 0 10px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: #f3f3f3; }
+  .tag { font-size: 12px; padding: 1px 6px; border: 1px solid #999; border-radius: 3px; white-space: nowrap; }
+  .v { background: #e6f4ea; } .i { background: #fff4d6; } .u { background: #eee; }
+  img { max-width: 100%; border: 1px solid #ccc; margin: 6px 0 2px; }
+  figure { margin: 12px 0; }
+  figcaption { font-size: 12px; color: #555; }
+  .note { background: #f7f7f7; border-left: 3px solid #999; padding: 8px 12px; margin: 12px 0; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<h1>UX audit: Portfolio (All Properties)</h1>
+<p>Route <code>/en/portfolio</code> &middot; Staging <code>ranza.46-225-168-54.nip.io</code> (code identical to <code>main</code> 4b15c30 per the brief) &middot; 2026-10-11 &middot; Persona: a multi-hotel owner comparing Properties each morning &middot; Mode: audit only, nothing was submitted or changed.</p>
+
+<div class="note">
+<strong>Data state, stated first because it limits everything below.</strong> On staging the Organization &ldquo;Prizic Demo&rdquo; has exactly one Property reachable by every account I could test. I signed in as Owner, Manager and Front Desk (<em>verified</em>); all three reach only &ldquo;Demo Otel &#304;stanbul&rdquo;. The Owner&rsquo;s Property switcher lists that one Property and no other (<em>verified</em>, menu opened and closed without selecting). I was told not to create a second Property, so <strong>I never saw the populated comparison page</strong>. Everything about 2 vs 12 Properties, ranking, currencies and click-through is judged from code and the feature docs and is labelled <em>inferred</em>. Finance and Housekeeping accounts were not tested (not asked).
+</div>
+
+<h2>1. Verdict</h2>
+<ol>
+  <li><strong>Could this persona use it unaided?</strong> Not on staging: the rail correctly hides the page from a one-Property viewer, and a typed URL gives a clear &ldquo;Nothing to compare yet&rdquo; with a way out. That part works (<em>verified</em>, three roles, three languages, phone width).</li>
+  <li><strong>The populated page, from code (<em>inferred</em>):</strong> it is accurate and careful (null is never zero, occupancy is summed counts, money is never added across currencies, each card keeps its own business date), but it is a read-only grid of cards in alphabetical order.</li>
+  <li><strong>Biggest risk to the stated job</strong> (&ldquo;click into the one that is behind&rdquo;): nothing on the page says which Property is behind. No sort, no ranking, no highlight, and the occupancy share is a small caption under a raw count, so a 40-room and a 10-room Property cannot be compared at a glance (PORTFOLIO-01).</li>
+  <li><strong>Second risk:</strong> the money summary tile has no &ldquo;counted at x of y&rdquo; note, so when some Properties hide money the total is understated and reads as fact; the code promises exactly that guard for the other two tiles (PORTFOLIO-02).</li>
+  <li><strong>One verified defect:</strong> a stale or wrong <code>?property=</code> shows &ldquo;This module is not in your Subscription&rdquo;, which is the wrong reason (PORTFOLIO-03).</li>
+</ol>
+
+<h2>2. Findings</h2>
+<div class="wrap">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
+<tbody>
+<tr>
+  <td>PORTFOLIO-01</td>
+  <td>slows me down</td>
+  <td><code>/portfolio</code>, Owner/Manager with 2+ Properties (populated)</td>
+  <td>Cards are rendered in the order the read returns them: name, then id (<code>derive.ts</code>, <code>portfolio-view.tsx</code>, PF-S1-27). No sort control, no rank, no &ldquo;behind&rdquo; marker. Each card leads with a raw count (&ldquo;10 / 20&rdquo;); the percentage is a 12px caption and the bar is 6px high. Summary tiles say nothing about the spread between Properties.</td>
+  <td>To spot the Property that is behind in under five seconds: sort by occupancy share, money owed, open maintenance or arrivals still to come, and the share shown as the large figure.</td>
+  <td>Add a sort control (default stays name), make the share the headline figure with the count beneath, and optionally mark the lowest and highest in each metric. Needs a design decision on what &ldquo;behind&rdquo; means; do not invent targets.</td>
+  <td>M</td>
+  <td>Code only: <code>features/portfolio/components/*.tsx</code></td>
+  <td><span class="tag i">inferred</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-02</td>
+  <td>causes errors</td>
+  <td><code>/portfolio</code>, any viewer where money is hidden at some Properties but not others</td>
+  <td>The <em>Money owed</em> summary tile is built without a <code>coverage</code> prop (<code>summary-stats.tsx</code>, second <code>SummaryCard</code>). <code>balancesOf()</code> in <code>server/portfolio.ts</code> skips null balances, so a Property with billing off drops out of the sum silently. The occupancy and maintenance tiles do print &ldquo;Counted at x of y Properties&rdquo;; the money tile does not. The page-level amber notice fires only when <em>every</em> entitled Property hides money (<code>moneyHidden</code>).</td>
+  <td>The same guard as the other two tiles. <code>derive.ts</code> states the rule itself: &ldquo;a sum over fewer Properties than are listed, shown without that, would be an understatement that reads as a fact.&rdquo;</td>
+  <td>Compute money coverage (Properties with a non-null balance vs listed) per currency or overall and pass it to the tile.</td>
+  <td>S</td>
+  <td>Code only</td>
+  <td><span class="tag i">inferred</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-03</td>
+  <td>slows me down</td>
+  <td><code>/en/portfolio?property=00000000-0000-0000-0000-000000000000</code>, Owner, any data state</td>
+  <td>An unknown or no-longer-reached Property id (a stale bookmark, a Property unassigned since) shows the heading &ldquo;This module is not in your Subscription&rdquo; and &ldquo;It appears here once your Organization subscribes to it and the Property has it enabled.&rdquo; The URL is left unchanged, the Property button reads &ldquo;Properties&rdquo; (the switcher still lists the real one), and every rail link and the back button carry the bogus id forward (verified in the accessibility snapshot).</td>
+  <td>A message that says the Property in the link is not available to me and offers my real Property. The edge-case rows PF-S2-04 and PF-S2-15 call this &ldquo;the not-available state&rdquo; and the page reuses the Subscription copy for it.</td>
+  <td>Give the page its own not-available copy, or drop an unreached <code>?property=</code> and fall back to the viewer&rsquo;s first Property as Today does. The Subscription wording is right only when no reached Property has Analytics.</td>
+  <td>S</td>
+  <td><code>04-owner-forged-property.png</code>; reproduced Y (twice, in two page loads)</td>
+  <td><span class="tag v">verified</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-04</td>
+  <td>slows me down</td>
+  <td><code>/portfolio</code>, 2+ Properties (populated)</td>
+  <td>The only action on a card is &ldquo;Open &lt;Property&gt;&rdquo;, a plain link to Today at that Property (<code>open-property.tsx</code>). The figures are text, not links: &ldquo;Arrivals still to come: 5&rdquo;, &ldquo;Open maintenance: 7&rdquo; and &ldquo;Money owed&rdquo; cannot be clicked to the list behind them.</td>
+  <td>When a figure looks wrong I click it and land on that list for that Property (arrivals, maintenance, finance).</td>
+  <td>Make each figure a link to its destination with <code>?property=</code> set, using the same remember-then-full-load behaviour. Keep &ldquo;Open&rdquo; for Today. Note a destination may be switched off at that Property; Today already handles that fallback.</td>
+  <td>M</td>
+  <td>Code only</td>
+  <td><span class="tag i">inferred</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-05</td>
+  <td>slows me down</td>
+  <td><code>/portfolio</code>, 2+ Properties, esp. different time zones</td>
+  <td>The page is one server read with no refresh control and no polling (it is not a live screen). The stamp reads &ldquo;Figures as of {time}&rdquo; with a time only, in the working Property&rsquo;s zone (<code>page.tsx</code>, <code>formatTime</code>). Each card shows its own business date, so a tab left open overnight shows yesterday&rsquo;s figures with a plausible time-of-day and no date.</td>
+  <td>A date with the time, and a way to refresh without reloading the browser. This matters for an owner who keeps the tab open all day.</td>
+  <td>Show date and time in the stamp, add a refresh button (router refresh), and say which time zone the time is in when the Properties differ.</td>
+  <td>S</td>
+  <td>Code only</td>
+  <td><span class="tag i">inferred</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-06</td>
+  <td>slows me down</td>
+  <td><code>/portfolio</code>, 12 Properties and more (large)</td>
+  <td>Cards are 3 across at xl, 2 across at md, one column below (<code>portfolio-view.tsx</code>); the loading skeleton gives a card a height of 288px. Twelve cards is about four rows plus the summary row, so more than one screen on a 900px-high laptop and the summary scrolls away. No search, filter or compact (table) mode. Above 200 reached Properties the whole page is replaced by &ldquo;Too many Properties to compare&rdquo; with no way to narrow the set (PF-S1-28, deliberate).</td>
+  <td>With a dozen Properties, a dense table or a compact card that fits all twelve in one screen, and a filter to get under the ceiling.</td>
+  <td>Offer a compact table view with sortable columns (pairs with PORTFOLIO-01). For the ceiling, a filter by region/group once Properties have one; today there is nothing to filter by.</td>
+  <td>M</td>
+  <td>Code and loading skeleton only; card height is from the skeleton, not measured</td>
+  <td><span class="tag i">inferred</span></td>
+</tr>
+<tr>
+  <td>PORTFOLIO-07</td>
+  <td>polish</td>
+  <td><code>/portfolio</code>, all roles; one-Property view verified, populated copy from <code>messages.ts</code></td>
+  <td>(a) The one-Property message says &ldquo;You reach one Property&rdquo;. &ldquo;Reach&rdquo; is system language; an Owner means &ldquo;you have one Property&rdquo;. It also does not say who can add or assign another. (b) The summary tile is called &ldquo;Occupancy across Properties&rdquo; but each card labels the same measure &ldquo;Units in use&rdquo;. (c) &ldquo;Folio&rdquo; is capitalised mid-sentence in &ldquo;Open Folio balances&rdquo;; that is the product vocabulary, but this persona may call it a bill or an account.</td>
+  <td>One name per measure across the tile and the cards; plain wording for the owner.</td>
+  <td>Use &ldquo;Occupancy&rdquo; on both, reword to &ldquo;You have one Property: &hellip;&rdquo;, and name who can add a Property (if that is a built feature).</td>
+  <td>S</td>
+  <td><code>01-owner-desktop.png</code> for (a); (b) and (c) from <code>messages.ts</code></td>
+  <td><span class="tag v">verified</span> (a); <span class="tag i">inferred</span> (b, c)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Counts: causes errors 1, slows me down 5, polish 1, blocks work 0. Console messages on the page: none (<em>verified</em>, Owner, English).</p>
+
+<h2>3. Jobs</h2>
+<p>Pass/fail tests were written before the attempt. Seconds are rough (each is one page load plus reading the screen; I did not time with a stopwatch). Jobs 5 to 8 could not be attempted for real because no account reaches two Properties.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>#</th><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>As Owner, find All Properties from the rail on a one-Property Organization</td><td>The rail either offers it or the product explains its absence</td><td><strong>Partial.</strong> The rail does not offer it (<em>verified</em>, nav list read for Owner, Manager and Front Desk) and nothing explains why. By design (PF-S2-01). An owner who has read about the feature will look for it and not find it.</td><td>~10</td><td>0</td></tr>
+<tr><td>2</td><td>Type <code>/en/portfolio</code> as Owner, Manager and Front Desk</td><td>A page that says what it is, why it is empty and where to go next; no error, no blank</td><td><strong>Pass.</strong> &ldquo;Nothing to compare yet&rdquo;, names the Property, &ldquo;Go to Today&rdquo; button; same for all three roles (<code>01</code>, <code>06</code>, <code>07</code>). Back arrow present and links to Today with the same Property (<em>verified</em>).</td><td>~8 each</td><td>0 (1 to leave)</td></tr>
+<tr><td>3</td><td>Read the same page in Turkish and Arabic</td><td>Fully translated, no raw keys; Arabic mirrors</td><td><strong>Pass.</strong> &ldquo;T&uuml;m Tesisler / Kar&#351;&#305;la&#351;tıracak bir &#351;ey yok&rdquo;; Arabic right to left, sidebar on the right, back arrow flipped (<code>02</code>, <code>03</code>). Only the one-Property state was seen.</td><td>~10</td><td>0</td></tr>
+<tr><td>4</td><td>Open it on a phone (375px)</td><td>No sideways scroll; the action is reachable</td><td><strong>Pass.</strong> scrollWidth equals clientWidth (375); breadcrumb collapses to back arrow plus Property name; button visible (<code>05</code>).</td><td>~10</td><td>0</td></tr>
+<tr><td>5</td><td>Error recovery: open a bookmarked link whose Property is no longer mine</td><td>I am told what is wrong and offered my own Property</td><td><strong>Fail.</strong> Told the module is not in my Subscription; URL unchanged (<code>04</code>, PORTFOLIO-03).</td><td>~8</td><td>0</td></tr>
+<tr><td>6</td><td>Compare 2 Properties and name the one that is behind (the daily job)</td><td>From one screen, in under 10 seconds, without scrolling or doing sums</td><td><strong>Not testable.</strong> Judged from code: likely <em>partial</em>. Two cards fit one screen with the summary; the share is small text and there is no sort (PORTFOLIO-01). <span class="tag i">inferred</span></td><td>n/a</td><td>n/a</td></tr>
+<tr><td>7</td><td>Compare 12 Properties</td><td>Whole list visible or sortable; the odd one out found without reading 72 numbers</td><td><strong>Not testable.</strong> Likely <em>fail</em> on a normal laptop: four rows of tall cards, alphabetical only (PORTFOLIO-01, -06). <span class="tag i">inferred</span></td><td>n/a</td><td>n/a</td></tr>
+<tr><td>8</td><td>Click into the Property that is behind and keep context</td><td>Lands on that Property; rail, switcher and URL agree</td><td><strong>Not testable.</strong> Code: remembers the Property on this device then full-loads Today at <code>?property=</code>, the same as the switcher. That is correct; it lands on Today and not on the list I wanted (PORTFOLIO-04). <span class="tag i">inferred</span></td><td>n/a</td><td>n/a</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li>I can see which Property is behind at a glance: share of occupancy as the headline figure plus a sort (PORTFOLIO-01).</li>
+  <li>I can trust the money total: it says when it was counted at fewer Properties than are listed (PORTFOLIO-02).</li>
+  <li>I can go from a number that looks wrong straight to the list behind it at that Property (PORTFOLIO-04).</li>
+  <li>An old bookmark tells me the real reason and takes me to my Property (PORTFOLIO-03).</li>
+  <li>With twelve Properties I can scan them in one screen and see the date the figures belong to (PORTFOLIO-06, -05).</li>
+</ol>
+
+<h2>5. Inconsistencies</h2>
+<ul>
+  <li><strong>Same measure, two names:</strong> tile &ldquo;Occupancy across Properties&rdquo; vs card &ldquo;Units in use&rdquo; (PORTFOLIO-07). <span class="tag i">inferred</span></li>
+  <li><strong>Guard applied twice, missed once:</strong> occupancy and maintenance tiles print coverage when partial; the money tile does not (PORTFOLIO-02). <span class="tag i">inferred</span></li>
+  <li><strong>Not-available state reused with wrong reason:</strong> the page uses the &ldquo;module not in your Subscription&rdquo; copy (<code>notEntitledTitle</code>, a shared key, <em>inferred</em> to be used by sibling module screens too), but here it also fires for an unreached Property id (PORTFOLIO-03). <span class="tag v">verified</span></li>
+  <li><strong>Doc says Analytics shows 0 percent with no sellable units, the portfolio shows a dash:</strong> deliberate and recorded (PF-S1-16); a user who sees both screens will see different treatment. <span class="tag i">inferred</span></li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<p>Not defects. Sources are in <code>docs/features/portfolio/edge-cases.csv</code> and <code>docs/handover/operator-workspace-screens.md</code> row <code>portfolio</code>.</p>
+<ul>
+  <li><strong>Enterprise-plan gate</strong>: undecided owner question (PF-S2-02). Its absence is not reported as a defect.</li>
+  <li><strong>Charged this month</strong>: deferred, needs a definition (PF-DEF-01).</li>
+  <li><strong>Occupancy trend</strong>: deferred, no real series exists (PF-DEF-02).</li>
+  <li><strong>Money total across currencies</strong>: deferred, needs a rate source (PF-DEF-03). The summary correctly shows one line per currency.</li>
+  <li><strong>A closed (archived) Property&rsquo;s history</strong> in the portfolio: deferred (PF-DEF-04).</li>
+  <li><strong>Event sink for <code>portfolio.viewed</code></strong>: console line only for now (PF-DEF-05).</li>
+  <li><strong>Sorting, filtering, ordering by anything but name</strong> and <strong>deep links from figures</strong>: no edge-case row asks for them (the only ordering row is PF-S1-27, name then id). I treated them as UX gaps (PORTFOLIO-01, -04, -06), not as features the owner already deferred; the owner can reclassify.</li>
+  <li><strong>Two Organizations</strong>: compared one at a time by choosing a Property in the other (PF-S2-14), by design.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li>A viewer who reaches one Property gets a plain explanation, the Property&rsquo;s name and a working &ldquo;Go to Today&rdquo;, in English, Turkish and Arabic, at 375px, with no console errors (<em>verified</em>; figures <code>01</code> to <code>03</code>, <code>05</code> to <code>07</code>).</li>
+  <li>The rail offers the page only where it can show something (<em>verified</em> absent from all three roles&rsquo; navigation here; rule in <code>lib/portfolio-offer.ts</code>, <em>inferred</em> for the populated case).</li>
+  <li>Back button on the inner page, to Today with the same Property (<em>verified</em>).</li>
+  <li>Design rules in code that protect the owner from a wrong comparison (<em>inferred</em>, from <code>derive.ts</code>, <code>property-card.tsx</code>, <code>server/portfolio.ts</code>): a null figure is &ldquo;Not available&rdquo; or &ldquo;Hidden&rdquo;, never 0; occupancy is summed counts, not an average of percentages; no share when nothing is sellable; money is one line per currency and each card is in its own currency; each card carries its own business date; a Property without Analytics stays in the list as &ldquo;withheld&rdquo; and can still be opened; one SQL statement gives one consistent snapshot; a portfolio over 200 Properties is refused rather than truncated.</li>
+  <li>Loading skeleton makes no claim about counts; the error boundary offers &ldquo;Try again&rdquo; and logs the error (<em>inferred</em>).</li>
+</ul>
+
+<h2>Evidence</h2>
+<figure><img src="01-owner-desktop.png" alt="Owner at /en/portfolio, one Property, Nothing to compare yet"><figcaption>01 Owner, English, one Property. Rail has no All Properties entry; the page explains and offers Go to Today.</figcaption></figure>
+<figure><img src="02-owner-tr.png" alt="Same page in Turkish"><figcaption>02 Owner, Turkish.</figcaption></figure>
+<figure><img src="03-owner-ar.png" alt="Same page in Arabic, right to left"><figcaption>03 Owner, Arabic, mirrored.</figcaption></figure>
+<figure><img src="04-owner-forged-property.png" alt="Forged property id shows the Subscription message"><figcaption>04 PORTFOLIO-03: an unreached Property id in the URL shows &ldquo;This module is not in your Subscription&rdquo;.</figcaption></figure>
+<figure><img src="05-owner-375.png" alt="Phone width"><figcaption>05 375px wide, no horizontal scroll.</figcaption></figure>
+<figure><img src="06-manager.png" alt="Manager at /en/portfolio"><figcaption>06 Manager: same one-Property state.</figcaption></figure>
+<figure><img src="07-frontdesk.png" alt="Front Desk at /en/portfolio"><figcaption>07 Front Desk: same state; rail shorter (no Integrations, Data export, Audit log).</figcaption></figure>
+
+</body>
+</html>
