@@ -165,13 +165,16 @@ export function CalendarToolbar({
             // would only be thrown away by the next press.
             onChange={(chosen) => {
               if (chosen.from && chosen.to) {
-                onChange({
-                  from: chosen.from,
-                  days: lengthCovering(
-                    daysBetween(chosen.from, chosen.to) + 1,
-                    lengths,
-                  ),
-                });
+                onChange(
+                  {
+                    from: chosen.from,
+                    days: lengthCovering(
+                      daysBetween(chosen.from, chosen.to) + 1,
+                      lengths,
+                    ),
+                  },
+                  chosen.from,
+                );
               } else if (!chosen.from && !chosen.to) {
                 onChange({ from: null });
               }
