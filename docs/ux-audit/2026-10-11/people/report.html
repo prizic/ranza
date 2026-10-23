@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit: People (staff, roles, access)</title>
+<style>
+  :root { --ink:#16241f; --muted:#5b6b64; --line:#d9e0dc; --bg:#fbfaf6; --card:#fff; --bad:#9b2c2c; --warn:#8a5a00; --ok:#1d5c46; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  h2 { font-size:19px; margin:36px 0 10px; padding-top:12px; border-top:1px solid var(--line); }
+  p.meta { color:var(--muted); margin:0 0 16px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); font-size:13.5px; }
+  th, td { border:1px solid var(--line); padding:7px 9px; vertical-align:top; text-align:start; }
+  th { background:#f1f4f2; font-weight:600; }
+  .wrap { overflow-x:auto; }
+  .sev { font-weight:600; white-space:nowrap; }
+  .s1 { color:var(--bad); } .s2 { color:#b4531a; } .s3 { color:var(--warn); } .s4 { color:var(--muted); }
+  .tag { display:inline-block; font-size:12px; border:1px solid var(--line); border-radius:4px; padding:0 5px; margin:1px 2px 1px 0; background:#fff; }
+  .v { color:var(--ok); } .i { color:var(--warn); }
+  img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:4px; display:block; margin:6px 0; }
+  figure { margin:10px 0; } figcaption { color:var(--muted); font-size:13px; }
+  ol li, ul li { margin:4px 0; }
+  code { background:#eef2ef; padding:0 4px; border-radius:3px; font-size:13px; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:6px; padding:12px 16px; }
+  .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+  .thumbs a { display:block; font-size:12px; color:var(--muted); text-decoration:none; }
+</style>
+</head>
+<body>
+<main>
+<h1>UX audit: People (staff, roles, access)</h1>
+<p class="meta">Route <code>/en/people</code> (also tr, ar) &middot; Staging, Organization "Prizic Demo", one Property &middot; 2026-10-11 &middot; Roles tried: Owner, Manager, Front Desk &middot; Mode: audit only, nothing was changed &middot;
+Labels: <span class="tag v">verified</span> I saw it, <span class="tag i">inferred</span> I read it in code or docs and did not see it run.</p>
+
+<h2>1. Verdict</h2>
+<div class="box">
+<ol>
+  <li><b>No, the owner cannot onboard a new receptionist unaided, and the screen does not say so.</b> Inviting creates a membership and a raw one-time token. I found no page in the app that consumes that token and no "forgot password" or "set password" link on sign-in. <span class="tag i">inferred</span></li>
+  <li><b>Biggest risk: removing a leaver is a single press on a row menu with no confirmation</b> and no consequence named (it ends every session, and the undo window is 24 hours, which the screen never says). Changing a role, by contrast, gets a proper confirmation. <span class="tag i">inferred from code; I did not press it</span></li>
+  <li>The invite form defaults the role to <b>Finance</b> and the Property to nothing, so a hurried owner who types an email and presses the button creates a money-seeing user who can reach no Property. <span class="tag v">verified</span></li>
+  <li>"Who can see money?" is not answerable at a glance: 31 ungrouped rows by 5 roles, and Manager has exactly the same ticks as Owner. <span class="tag v">verified</span></li>
+  <li>What is good: plain-language permission names, no raw enums anywhere, a real role-change confirmation with last-administrator prediction, the three locales and RTL work, and a Back button is present.</li>
+</ol>
+</div>
+
+<h2>2. Findings</h2>
+<p class="meta">Data state: 5 staff (Owner, Manager, Front Desk, Finance, Housekeeping), one Property, no Organization-authored roles, no pending invitations, no revoked members. Empty, many and large states are <span class="tag i">inferred</span> from code. Reproduced: no. Every verified row was seen once in one session and not repeated.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>What I expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Basis</th></tr></thead>
+<tbody>
+
+<tr><td>PEOPLE-01</td><td class="sev s1">blocks work</td>
+<td>Invite dialog, Owner, any state</td>
+<td>The dialog says "You pass the link on yourself" but the code shows a bare 43-character token in a text box (<code>invite-dialog.tsx</code> renders <code>outcome.token</code>), not a URL. The only consumer of the token is the module function <code>accept()</code>; nothing in <code>apps/</code> calls it (grep) and <code>edge-cases.csv</code> SP-S1-32 says "no route is wired". The sign-in page has no set-password or forgot-password link. The invited user row exists and the membership is already active, so the person is on the roster as "Awaiting a password" with no way to get one.</td>
+<td>Invite, copy a working link, the receptionist opens it, sets a password and signs in on Monday.</td>
+<td>Build the accept-invitation page and show a full URL; until then, say on the dialog that sign-in for new staff is not available. Email delivery (blueprint 5.12) is a separate prerequisite.</td>
+<td>L</td>
+<td><a href="03-invite-dialog.png">03</a>; sign-in screenshot not taken (page text read via snapshot). Not submitted.</td>
+<td><span class="tag i">inferred</span> I could not and must not send an invitation, so the token display and the dead end were not run.</td></tr>
+
+<tr><td>PEOPLE-02</td><td class="sev s2">causes errors</td>
+<td>People tab, row "..." menu, Owner and Manager</td>
+<td>"Revoke" is the only item in the row menu and runs on one press: <code>MembershipActions.run()</code> calls <code>revokeStaffMember</code> directly with no dialog. The copy never says that every session of that person ends at once (SP-S1-11), that nothing is deleted, that the row stays as "Revoked", that "Undo" works only for 24 hours (SP-S1-22), or what happens to their open work. A refusal appears only after the press, in red next to the menu. Owner and Manager can also revoke themselves from their own row.</td>
+<td>A confirmation naming the person, "signed out everywhere now", "you can undo for 24 hours", and for self-revoke a warning like the role-change one.</td>
+<td>Reuse the role-change confirmation pattern (<code>confirm-role-change.tsx</code>) for revoke and undo; show the undo deadline on the revoked row.</td>
+<td>S</td>
+<td><a href="01-owner-roster.png">01</a> (menu present, not opened or pressed)</td>
+<td><span class="tag i">inferred</span> from <code>roster-table.tsx</code>. Deliberately not pressed.</td></tr>
+
+<tr><td>PEOPLE-03</td><td class="sev s2">causes errors</td>
+<td>Invite dialog, Owner and Manager</td>
+<td>Role defaults to "Finance" (first item alphabetically: code picks <code>roles[0]</code>), the Properties field is empty and reads "No Property yet", and nothing warns that an invitee with no Property reaches nothing. No role description is shown anywhere in the picker. There is no way to choose "every Property" (code never sends a scope).</td>
+<td>No default role (force a choice), or the least-privileged role; a visible warning when no Property is chosen; one line describing the chosen role.</td>
+<td>Start with an empty role field; show "Reaches no Property yet" in amber; add a one-line role description under the picker.</td>
+<td>S</td>
+<td><a href="03-invite-dialog.png">03</a>, <a href="04-invite-role-picker.png">04</a>, <a href="05-invite-properties-picker.png">05</a></td>
+<td><span class="tag v">verified</span> default and placeholder; <span class="tag i">inferred</span> consequence of an empty Property.</td></tr>
+
+<tr><td>PEOPLE-04</td><td class="sev s2">causes errors</td>
+<td>"What each role can do" tab and Invite, Manager</td>
+<td>Manager has a tick on every one of the 31 permissions, identical to Owner. The only difference between them is reach (Owner = every Property). As Manager, the invite role list offers "Owner", so a Manager can create an Owner-equivalent colleague. The screen never explains what an Owner has that a Manager lacks. Manager sees the Owner row locked with "Their role or reach is above yours.", which is the only hint, and it is about reach, not role.</td>
+<td>A visible difference, or a plain sentence: "Owner and Manager can do the same things; Owner reaches every Property."</td>
+<td>Product decision first: if Manager should not see payroll, ledger or hand out Owner, remove those ticks. Then add a role description line under each column.</td>
+<td>M</td>
+<td><a href="02-owner-roles-grid.png">02</a>, <a href="11-manager-roster.png">11</a></td>
+<td><span class="tag v">verified</span> grid and invite options. Whether the equality is intended is <span class="tag i">unknown</span>.</td></tr>
+
+<tr><td>PEOPLE-05</td><td class="sev s2">causes errors</td>
+<td>"What each role can do" tab, Owner, once an Organization has its own role</td>
+<td>For an Organization-authored role every box is a live toggle that saves immediately (<code>toggle()</code> calls <code>editRole</code>), and the header "Retire" is a one-press menu item. Editing a role ends the sessions of everyone holding it (use-case.mmd: EDITROLE includes ENDSESS). The only warning is the "held by N" count in the column header; there is no confirmation and a refusal shows only as a line at the foot of the grid. Staging has no authored roles, so this was not seen.</td>
+<td>A confirmation: "4 people hold this role; saving signs them out."</td>
+<td>Batch ticks behind a "Save changes" button with a count of affected people.</td>
+<td>M</td>
+<td>none (no authored role to look at)</td>
+<td><span class="tag i">inferred</span> from <code>permission-matrix.tsx</code>.</td></tr>
+
+<tr><td>PEOPLE-06</td><td class="sev s3">slows me down</td>
+<td>"What each role can do" tab, Owner; cross-screen</td>
+<td>To answer "who can see money?" I had to read 31 flat rows. Money-related rows are scattered (Folio, charge, payment, ledger, data exports, rates, payroll) and there are no section headings. There is no "who holds this?" view per permission and no per-person effective-access view. Cross-screen: Analytics revenue figures are gated by the permission shown here as "Open and close a Folio" (handover doc), and Front Desk holds it. Signed in as Front Desk, Analytics shows the Revenue and "Money collected" cards (all 0.00 on this data).</td>
+<td>Grouped rows (Front desk, Money, Staff, Setup...) and a "Money" shortcut or highlight; a person's name in the row for each role.</td>
+<td>Group the catalogue; add a "who can see money" filter; name the revenue gate in plain words.</td>
+<td>M</td>
+<td><a href="02-owner-roles-grid.png">02</a>, <a href="13-frontdesk-analytics-revenue.png">13</a></td>
+<td><span class="tag v">verified</span> flat grid and the Front Desk revenue cards; <span class="tag i">inferred</span> that the gate is the Folio permission.</td></tr>
+
+<tr><td>PEOPLE-07</td><td class="sev s3">slows me down</td>
+<td>Invite dialog and roster, Owner</td>
+<td>The link is shown once and "never again". If the owner closes the dialog before copying it, nothing re-issues it: inviting an existing member returns "That person already has a membership" (<code>invite()</code> inserts with <code>on conflict do nothing</code>). The "Awaiting a password" badge offers no action. After the 24-hour undo window a revoked person also appears to hit that same refusal, although SP-S1-15/16 describe a re-invite path; I did not run it.</td>
+<td>A "New link" action on any "Awaiting a password" row, and a way to bring a revoked person back.</td>
+<td>Add "Resend / new link" and "Re-add" row actions.</td>
+<td>M</td>
+<td>none</td>
+<td><span class="tag i">inferred</span>; the revoked-person re-add is <span class="tag i">unknown</span>.</td></tr>
+
+<tr><td>PEOPLE-08</td><td class="sev s3">slows me down</td>
+<td>People tab, 375 px and 768 px, Owner</td>
+<td>The table is about 728 px wide inside a card of 341 px at 375 and roughly 460 px at 768 (the sidebar stays open at 768). Properties, Status and the "..." Actions menu sit off-screen to the right with no scroll hint, so on a phone you can see a role picker but not Revoke. No page-level horizontal scroll.</td>
+<td>Rows that stack on narrow widths, or at least a visible scroll cue.</td>
+<td>Card layout below 768 px: email, role, status on one line, actions at the end.</td>
+<td>M</td>
+<td><a href="08-owner-375.png">08</a>, <a href="09-owner-768.png">09</a></td>
+<td><span class="tag v">verified</span></td></tr>
+
+<tr><td>PEOPLE-09</td><td class="sev s3">slows me down</td>
+<td>People tab, Owner, 5 rows</td>
+<td>People are identified by email only (avatar initials are derived from it); there is no name column, no search, no filter by role or Property, no sort, and no pagination in the code (<code>roster.map</code>). Revoked people stay in the list permanently. With 30 staff the owner scrolls and reads addresses.</td>
+<td>Search box, role filter, "show revoked" toggle, a display name.</td>
+<td>Add search and a revoked filter; a name field is a schema decision (code comment says so).</td>
+<td>M</td>
+<td><a href="01-owner-roster.png">01</a></td>
+<td><span class="tag v">verified</span> (emails, no search box at 5 rows); <span class="tag i">inferred</span> (no pagination, revoked stay).</td></tr>
+
+<tr><td>PEOPLE-10</td><td class="sev s4">polish</td>
+<td>Role-change confirmation, Owner</td>
+<td>The dialog says "housekeeping... will go from Housekeeping to Manager. Every session they hold will end" and nothing about what they gain or lose. Going from Housekeeping to Manager would give them payroll and ledger access. Good: Cancel has focus, the title is a question, self-demotion and last-administrator cases have their own text (inferred).</td>
+<td>A short "gains: payroll, ledger... / loses: ..." line.</td>
+<td>Compute the permission difference and list the money and staff items.</td>
+<td>M</td>
+<td><a href="07-role-change-confirm.png">07</a></td>
+<td><span class="tag v">verified</span> dialog; cancelled with Escape, role unchanged afterwards (re-read the roster).</td></tr>
+
+<tr><td>PEOPLE-11</td><td class="sev s4">polish</td>
+<td>Revoke and role change, last administrator</td>
+<td>The last-administrator rule is predicted before the confirm for a role change (<code>leavesNoAdministrator</code>) but not for Revoke, where it is refused after the press with "An Organization must keep somebody who can add staff." That text does not say what to do (make another Owner first). Other failures are only "That was refused."</td>
+<td>The same pre-check on revoke, and a next step in the message.</td>
+<td>Call <code>leavesNoAdministrator</code> for revoke; reword to "Make another Owner first."</td>
+<td>S</td>
+<td>none</td>
+<td><span class="tag i">inferred</span></td></tr>
+
+<tr><td>PEOPLE-12</td><td class="sev s4">polish</td>
+<td>All locales, row menu and grid</td>
+<td>English "Revoke" is jargon; Turkish "Kaldır" and Arabic "إلغاء العضوية" read as "remove / cancel membership", so the three locales do not say the same thing. Role "Retire" is "Emekliye ayır" (retire as in pension) in Turkish and "إحالة إلى التقاعد" in Arabic; the English "Retire" itself does not say the role is switched off. Permission labels mix forms ("Reading the audit log", "Take a booking") and use product terms ("Folio", "Guests", "Close the day") with no explanation.</td>
+<td>Plain, consistent verbs: "Remove access", "Switch off role".</td>
+<td>One wording pass across the three catalogues.</td>
+<td>S</td>
+<td><a href="02-owner-roles-grid.png">02</a>, <a href="10-owner-ar.png">10</a></td>
+<td><span class="tag v">verified</span> grid labels; <span class="tag i">inferred</span> menu labels from <code>messages.ts</code>.</td></tr>
+
+<tr><td>PEOPLE-13</td><td class="sev s4">polish</td>
+<td>"What each role can do" tab, all roles</td>
+<td>Shipped-role boxes are disabled checkboxes, so the ticks are pale grey on white; at a glance the grid reads as empty. There is also no "Define a role" starting point such as "copy Front desk": the dialog is 31 unticked, ungrouped boxes in a scrolling modal.</td>
+<td>Clearly readable ticks for read-only boxes; copy-from for a new role.</td>
+<td>Use a solid tick icon for read-only state; add "Start from..." to the dialog.</td>
+<td>S</td>
+<td><a href="02-owner-roles-grid.png">02</a>, <a href="06-define-role-dialog.png">06</a></td>
+<td><span class="tag v">verified</span></td></tr>
+
+<tr><td>PEOPLE-14</td><td class="sev s4">polish</td>
+<td>People, Front Desk</td>
+<td>Front Desk is not denied. They see the whole roster (every colleague's email, role and Property) and the permission grid, read-only, with "You can see the team. An Owner or Manager can change it." That is the documented design ("any Staff Member reads the roster"), so it is clear and calm, but the sentence hard-codes two role names, and a custom role holding "Administer staff" would also qualify.</td>
+<td>Decide deliberately whether a receptionist or housekeeper should see colleagues' emails.</td>
+<td>Either keep, or say "People who manage staff can change it".</td>
+<td>S</td>
+<td><a href="12-frontdesk-people.png">12</a></td>
+<td><span class="tag v">verified</span></td></tr>
+
+</tbody></table>
+</div>
+
+<h2>3. Jobs</h2>
+<p class="meta">Times are rough wall-clock for the steps I could run; I did not time precisely. Clicks are counted to the last safe step.</p>
+<div class="wrap">
+<table>
+<thead><tr><th>Job</th><th>Pass test (written first)</th><th>Result</th><th>Sec</th><th>Clicks</th></tr></thead>
+<tbody>
+<tr><td>J1 First-time setup: invite the first receptionist</td><td>Person appears on the roster with the right role and Property, and can then sign in.</td><td><b>Fail (inferred).</b> Stopped before submit, not persisted. Form reaches the right fields, but there is no working path to a password (PEOPLE-01) and the defaults are wrong (PEOPLE-03).</td><td>~25 to fill</td><td>about 7 (Invite, type email, role open and pick, Property open and pick, Create)</td></tr>
+<tr><td>J2 Most frequent: find who works here and their role</td><td>Answer within 5 s with no click.</td><td>Pass at 5 people. At 30 there is no search (PEOPLE-09).</td><td>&lt;5</td><td>0</td></tr>
+<tr><td>J3 Bulk: onboard 30 staff</td><td>One upload or paste creates all 30.</td><td><b>Not built.</b> No CSV or bulk path exists. 30 invites by hand is about 7 interactions each, roughly 200 clicks, plus passing 30 tokens on by hand.</td><td>n/a</td><td>~200 (estimate)</td></tr>
+<tr><td>J4 Change someone's role</td><td>Pick role, see the consequence named, confirm, row updates.</td><td>Pass up to the confirm: dialog names person, from and to, and that all sessions end. Stopped before the final button, not persisted. Missing: what they gain or lose (PEOPLE-10).</td><td>~15</td><td>3 (picker, option, confirm)</td></tr>
+<tr><td>J5 Remove a leaver's access the same hour</td><td>Consequence named before the click; undoable; open work addressed.</td><td><b>Fail (inferred).</b> No confirmation and no consequence text (PEOPLE-02). I did not open the menu or press anything. Undo exists for 24 hours; open work is not mentioned anywhere.</td><td>n/a</td><td>2 (menu, Revoke)</td></tr>
+<tr><td>J6 "Who can see money?"</td><td>Answer in 30 s from this page alone.</td><td>Partial. I could read the money rows in about a minute, but the revenue gate lives under another name and another screen (PEOPLE-06).</td><td>~60</td><td>1 (tab)</td></tr>
+<tr><td>J7 Error recovery: I removed the wrong person</td><td>Obvious way back, time limit stated.</td><td>Not run. "Undo" is on the revoked row (inferred) but the 24-hour limit is not shown and a late undo says only "That was refused."</td><td>n/a</td><td>1 (inferred)</td></tr>
+<tr><td>J8 Other roles on the page</td><td>Manager can act within their ceiling; Front Desk is clearly limited.</td><td>Pass. Manager: all actions except on the Owner row, which shows "Their role or reach is above yours." Front Desk: read-only, no buttons, explained in one sentence (PEOPLE-14).</td><td>~60</td><td>~6</td></tr>
+</tbody></table>
+</div>
+
+<h2>4. Top changes</h2>
+<ol>
+  <li>I can invite a receptionist and she can set a password and sign in on Monday. (PEOPLE-01)</li>
+  <li>I know exactly what removing someone does, how long I can take it back, and I cannot do it by accident. (PEOPLE-02, 11)</li>
+  <li>A new invite cannot silently become a Finance user with no Property. (PEOPLE-03)</li>
+  <li>I can see at a glance who can see or move money, in plain words. (PEOPLE-06)</li>
+  <li>I understand the difference between Owner and Manager, and a Manager cannot mint an Owner. (PEOPLE-04)</li>
+  <li>Changing what a role may do tells me how many people it affects before it saves. (PEOPLE-05, 10)</li>
+  <li>I can get a new link for someone who lost theirs. (PEOPLE-07)</li>
+  <li>I can use this on my phone, including removing access. (PEOPLE-08)</li>
+  <li>I can search 30 people and tell them apart by name. (PEOPLE-09)</li>
+</ol>
+
+<h2>5. Inconsistencies</h2>
+<ul>
+  <li><b>Role change has a confirmation, revoke does not</b>, although both end every session of the person. Same screen.</li>
+  <li><b>Last-administrator rule</b> is predicted for role change but only reported after the fact for revoke.</li>
+  <li><b>Nav and heading:</b> the page is "People" in English and Turkish ("Kişiler" on the tab) but "الفريق" (the team) in Arabic, and the code and summary say "team" and "Staff" in several places. Not wrong, but three words for one thing.</li>
+  <li>The permission "Open and close a Folio" unlocks revenue figures in Analytics, a link that only the handover doc states. Other money screens (Finance, Data export) use their own gates with matching plain names.</li>
+  <li>People sits beside "HR &amp; Payroll"; the roster has emails only while HR holds staff records. The two lists are not linked (not checked beyond the nav; <span class="tag i">inferred</span>).</li>
+</ul>
+
+<h2>6. Not built / needs backend work</h2>
+<ul>
+  <li><b>Bulk onboarding (CSV import or paste):</b> not built, no screen and no row in the staff <code>edge-cases.csv</code>. The roster page is a single-invite flow. Not a UX defect.</li>
+  <li><b>Accepting an invitation / setting a password:</b> the module has <code>accept()</code> but no route calls it (SP-S1-32). The invitation email depends on the Notifications module (blueprint 5.12), which does not exist. Listed under "Not this feature" in <code>use-case.mmd</code>.</li>
+  <li><b>Changing a person's Property reach after the invite, and making someone organization-wide:</b> the module commands exist (SP-S1-18, 19) but People has no assign or unassign control, and the invite form sends no scope. The handover doc calls this screen "built" with roles and the grid. Not shown in the UI.</li>
+  <li><b>Employment, pay, contracts:</b> belong to HR (<code>use-case.mmd</code> "Not this feature").</li>
+  <li><b>Control Plane permissions:</b> a separate system and screen. Nothing on this page mixes the two (verified: no Control Plane wording on any screen I opened).</li>
+  <li><b>Second factor for Owner/Manager:</b> OA-DIFF-01 says it is a known gap against the blueprint. Relevant to a role-management screen, but not on this page.</li>
+  <li><b>Organization switcher:</b> OA-DIFF-04; one Organization on staging so not exercised.</li>
+</ul>
+
+<h2>7. What already works well and must not regress</h2>
+<ul>
+  <li><span class="tag v">verified</span> No raw enums on screen: "Every Property" for organization-wide, "No Property yet" for none, "Active / Awaiting a password / Revoked" with icon and word.</li>
+  <li><span class="tag v">verified</span> Permission names are plain sentences in all three languages; Arabic mirrors correctly (dir=rtl, columns and menus flip) and Turkish reads naturally.</li>
+  <li><span class="tag v">verified</span> The role-change confirmation: it names the person, from and to, and that sessions end, puts focus on Cancel, and Escape leaves the role unchanged.</li>
+  <li><span class="tag i">inferred</span> Self-demotion and last-administrator cases are predicted before the confirm and block a pointless press; a stale roster is caught ("Somebody changed this role while you were deciding. Nothing was changed.").</li>
+  <li><span class="tag v">verified</span> The row's controls adapt to the viewer: Manager cannot act on the Owner row and is told why in one line; Front Desk gets a read-only roster with a plain explanation.</li>
+  <li><span class="tag v">verified</span> The invite email field uses native <code>type=email</code> and <code>required</code>: "abc" is rejected by the browser before any request (checked with the validity API, form not submitted).</li>
+  <li><span class="tag v">verified</span> A Back button (arrow, top left) is present and goes to Today with the Property kept. No console errors or warnings on the Owner page.</li>
+  <li><span class="tag v">verified</span> The grid footnote states that role changes are audited and enforced by the database, not only by hidden buttons.</li>
+</ul>
+
+<h2>Appendix: evidence and limits</h2>
+<div class="thumbs">
+  <a href="01-owner-roster.png"><img src="01-owner-roster.png" alt="Owner roster">01 Owner roster</a>
+  <a href="02-owner-roles-grid.png"><img src="02-owner-roles-grid.png" alt="Roles grid">02 Roles grid</a>
+  <a href="03-invite-dialog.png"><img src="03-invite-dialog.png" alt="Invite dialog">03 Invite dialog</a>
+  <a href="04-invite-role-picker.png"><img src="04-invite-role-picker.png" alt="Invite role picker">04 Invite role picker</a>
+  <a href="05-invite-properties-picker.png"><img src="05-invite-properties-picker.png" alt="Invite Property picker">05 Property picker</a>
+  <a href="06-define-role-dialog.png"><img src="06-define-role-dialog.png" alt="Define role dialog">06 Define a role</a>
+  <a href="07-role-change-confirm.png"><img src="07-role-change-confirm.png" alt="Role change confirm">07 Role-change confirm</a>
+  <a href="08-owner-375.png"><img src="08-owner-375.png" alt="375 px">08 375 px</a>
+  <a href="09-owner-768.png"><img src="09-owner-768.png" alt="768 px">09 768 px</a>
+  <a href="10-owner-ar.png"><img src="10-owner-ar.png" alt="Arabic">10 Arabic</a>
+  <a href="11-manager-roster.png"><img src="11-manager-roster.png" alt="Manager roster">11 Manager</a>
+  <a href="12-frontdesk-people.png"><img src="12-frontdesk-people.png" alt="Front Desk People">12 Front Desk</a>
+  <a href="13-frontdesk-analytics-revenue.png"><img src="13-frontdesk-analytics-revenue.png" alt="Front Desk Analytics">13 Front Desk Analytics</a>
+</div>
+<ul>
+  <li>Not run, by mode: invite submit, revoke, undo, role change confirm, grid tick, retire, define role save. I did not open the row "..." menu either, because its only item runs on one press.</li>
+  <li>Not seen on staging (no data): pending invitation, revoked member, Organization-authored roles, several Properties, an Organization with no Property (page shows a "not in your Subscription" empty state, <span class="tag i">inferred</span>), 30+ people.</li>
+  <li>The role picker's list items did not appear in the accessibility snapshot (only an empty listbox), though they exist in the page and keyboard selection worked. Screen-reader behaviour is <span class="tag i">unknown</span>.</li>
+  <li>I opened and cancelled the role-change dialog once, selecting a role in the picker. Afterwards the roster was re-read and every role was unchanged.</li>
+</ul>
+</main>
+</body>
+</html>

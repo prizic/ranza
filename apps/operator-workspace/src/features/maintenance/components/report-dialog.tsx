@@ -9,32 +9,35 @@ import type {
 } from "@ranza/maintenance";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
-  Button,
-  Checkbox,
+  ArrowButton,
+  CancelButton,
+  ChoiceGroup,
   Combobox,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  Field,
+  DialogMasthead,
+  DialogNotice,
+  DialogSection,
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Textarea,
+  TickRow,
+  dialogFrameClassName,
+  fieldClassName,
+  textareaClassName,
 } from "@ranza/ui";
 import {
   reportProblem,
   type MaintenanceOutcome,
 } from "../../../server/maintenance";
 import { ImpactNotice } from "./impact-notice";
-import { PRIORITY_LOOK } from "./look";
 import { OutcomeMessage } from "./outcome-message";
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { staffName } from "../../../lib/staff-name";
@@ -86,6 +89,7 @@ export function ReportDialog({
   onDone: (outcome: MaintenanceOutcome) => void;
 }) {
   const t = useTranslations("maintenance");
+  const all = useTranslations();
   const priorities = useTranslations("maintenance.priorities");
   const states = useTranslations("maintenance.states");
   const unitLabels = usePickerLabels(t("chooseUnit"));
@@ -136,235 +140,263 @@ export function ReportDialog({
       request.status !== "cancelled",
   );
 
+  const ready =
+    (unitId !== "" || equipmentId !== "") && title.trim().length >= 3;
+  const required = { label: all("dialogTagRequired"), required: true } as const;
+  const optional = {
+    label: all("dialogTagOptional"),
+    required: false,
+  } as const;
+
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
       {/* It scrolls: with the people affected listed it is taller than a
           laptop's window, and its confirm button is at the bottom. */}
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("reportTitle")}</DialogTitle>
-          <DialogDescription>{t("reportDescription")}</DialogDescription>
-        </DialogHeader>
-
+      <DialogContent className={dialogFrameClassName("medium")}>
         <form
-          className="grid gap-4"
+          className="grid"
           onSubmit={submitWithoutReset(act, () => {
             submittedUnitId.current = unitId;
           })}
         >
+          <DialogMasthead
+            art="/illustrations/dialogs/wrench.svg"
+            eyebrow={t("reportTitle")}
+            heading={t("reportHeading")}
+            large
+          />
           <input name="locale" type="hidden" value={locale} />
           <input name="propertyId" type="hidden" value={propertyId} />
           <input name="unitId" type="hidden" value={unitId} />
           <input name="equipmentId" type="hidden" value={equipmentId} />
-          <input name="priority" type="hidden" value={priority} />
           <input name="assigneeId" type="hidden" value={assigneeId} />
           {impact ? (
             <input name="acknowledge" type="hidden" value="true" />
           ) : null}
 
-          <Field htmlFor="report-unit" label={t("unit")}>
-            <Combobox
-              id="report-unit"
-              labels={unitLabels}
-              onValueChange={(value) =>
-                setUnitId(value === "none" ? "" : value)
-              }
-              options={[
-                { value: "none", label: t("noRoomChosen") },
-                ...options.units.map((candidate) => ({
-                  value: candidate.unitId,
-                  label:
-                    candidate.status === "out_of_service"
-                      ? `${unitLabel(candidate)} · ${t("alreadyOut")}`
-                      : unitLabel(candidate),
-                  keywords: [candidate.name, candidate.roomName ?? ""],
-                })),
-              ]}
-              value={unitId}
-            />
-          </Field>
+          <DialogBody>
+            <DialogDescription className="m-0 py-5 text-sm">
+              {t("reportDescription")}
+            </DialogDescription>
 
-          {alreadyOpen.length > 0 ? (
-            <div
-              className="grid gap-1 rounded-lg border bg-muted/40 px-3 py-2 text-step--1"
-              role="note"
+            <DialogSection
+              labelFor="report-unit"
+              tag={options.equipment.length > 0 ? optional : required}
+              title={t("unit")}
             >
-              <p className="font-medium">{t("alreadyOpenForRoom")}</p>
-              <ul className="grid gap-0.5 text-muted-foreground">
-                {alreadyOpen.map((request) => (
-                  <li key={request.requestId}>
-                    {t("reference", { number: request.number })} ·{" "}
-                    {request.title} · {states(request.status)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {options.equipment.length > 0 ? (
-            <Field htmlFor="report-equipment" label={t("equipment")}>
-              <Select
+              <Combobox
+                id="report-unit"
+                labels={unitLabels}
                 onValueChange={(value) =>
-                  setEquipmentId(value === "none" ? "" : value)
+                  setUnitId(value === "none" ? "" : value)
                 }
-                value={equipmentId === "" ? "none" : equipmentId}
+                options={[
+                  { value: "none", label: t("noRoomChosen") },
+                  ...options.units.map((candidate) => ({
+                    value: candidate.unitId,
+                    label:
+                      candidate.status === "out_of_service"
+                        ? `${unitLabel(candidate)} · ${t("alreadyOut")}`
+                        : unitLabel(candidate),
+                    keywords: [candidate.name, candidate.roomName ?? ""],
+                  })),
+                ]}
+                value={unitId}
+              />
+              {alreadyOpen.length > 0 ? (
+                <DialogNotice>
+                  <span className="grid gap-1">
+                    <span className="font-medium">
+                      {t("alreadyOpenForRoom")}
+                    </span>
+                    {alreadyOpen.map((request) => (
+                      <span key={request.requestId}>
+                        {t("reference", { number: request.number })} ·{" "}
+                        {request.title} · {states(request.status)}
+                      </span>
+                    ))}
+                  </span>
+                </DialogNotice>
+              ) : null}
+            </DialogSection>
+
+            {options.equipment.length > 0 ? (
+              <DialogSection
+                labelFor="report-equipment"
+                tag={optional}
+                title={t("equipment")}
               >
-                <SelectTrigger className="w-full" id="report-equipment">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t("noEquipmentChosen")}</SelectItem>
-                  {options.equipment.map((item) => (
-                    <SelectItem key={item.equipmentId} value={item.equipmentId}>
-                      {item.name} · {item.where}
+                <Select
+                  onValueChange={(value) =>
+                    setEquipmentId(value === "none" ? "" : value)
+                  }
+                  value={equipmentId === "" ? "none" : equipmentId}
+                >
+                  <SelectTrigger className="w-full" id="report-equipment">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {t("noEquipmentChosen")}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          ) : null}
-          {unitId === "" && equipmentId === "" ? (
-            <p className="text-step--1 text-muted-foreground">
-              {t("chooseRoomOrEquipment")}
-            </p>
-          ) : null}
+                    {options.equipment.map((item) => (
+                      <SelectItem
+                        key={item.equipmentId}
+                        value={item.equipmentId}
+                      >
+                        {item.name} · {item.where}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </DialogSection>
+            ) : null}
 
-          <Field htmlFor="report-title" label={t("whatIsWrong")}>
-            <Input
-              autoComplete="off"
-              autoFocus={initialUnitId !== null}
-              id="report-title"
-              maxLength={limits.title}
-              minLength={3}
-              name="title"
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={t("whatPlaceholder")}
-              required
-              value={title}
-            />
-          </Field>
+            <DialogSection
+              labelFor="report-title"
+              tag={required}
+              title={t("whatIsWrong")}
+            >
+              <Input
+                autoComplete="off"
+                autoFocus={initialUnitId !== null}
+                className={fieldClassName}
+                id="report-title"
+                maxLength={limits.title}
+                minLength={3}
+                name="title"
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={t("whatPlaceholder")}
+                required
+                value={title}
+              />
+            </DialogSection>
 
-          <Field htmlFor="report-details" label={t("moreDetails")}>
-            <Textarea
-              id="report-details"
-              maxLength={limits.details}
-              name="details"
-              onChange={(event) => setDetails(event.target.value)}
-              rows={3}
-              value={details}
-            />
-          </Field>
+            <DialogSection
+              labelFor="report-details"
+              tag={optional}
+              title={t("moreDetails")}
+            >
+              <Textarea
+                className={textareaClassName}
+                id="report-details"
+                maxLength={limits.details}
+                name="details"
+                onChange={(event) => setDetails(event.target.value)}
+                rows={3}
+                value={details}
+              />
+            </DialogSection>
 
-          <fieldset className="grid gap-1.5">
-            <legend className="mb-1.5 text-step--1 font-medium">
-              {t("howUrgent")}
-            </legend>
-            <div className="flex flex-wrap gap-2">
-              {PRIORITIES.map((value) => {
-                const Icon = PRIORITY_LOOK[value].icon;
-                return (
-                  <Button
-                    aria-pressed={priority === value}
-                    key={value}
-                    onClick={() => setPriority(value)}
-                    size="sm"
-                    type="button"
-                    variant={priority === value ? "default" : "outline"}
-                  >
-                    <Icon aria-hidden="true" className="size-4" />
-                    {priorities(value)}
-                  </Button>
-                );
-              })}
-            </div>
-          </fieldset>
+            <DialogSection title={t("howUrgent")} titleId="report-priority">
+              <ChoiceGroup
+                labelledBy="report-priority"
+                name="priority"
+                onChange={(value) => setPriority(value as Priority)}
+                options={PRIORITIES.map((value) => ({
+                  label: priorities(value),
+                  value,
+                }))}
+                value={priority}
+              />
+            </DialogSection>
 
-          {mayManage ? (
-            <Field htmlFor="report-assignee" label={t("assignTo")}>
-              <Select
-                onValueChange={(value) =>
-                  setAssigneeId(value === "later" ? "" : value)
-                }
-                value={assigneeId === "" ? "later" : assigneeId}
+            {mayManage ? (
+              <DialogSection
+                labelFor="report-assignee"
+                tag={optional}
+                title={t("assignTo")}
               >
-                <SelectTrigger className="w-full" id="report-assignee">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="later">{t("decideLater")}</SelectItem>
-                  {options.assignees.map((person) => (
-                    <SelectItem key={person.userId} value={person.userId}>
-                      {staffName(person.email, t("formerStaff"))}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          ) : null}
+                <Select
+                  onValueChange={(value) =>
+                    setAssigneeId(value === "later" ? "" : value)
+                  }
+                  value={assigneeId === "" ? "later" : assigneeId}
+                >
+                  <SelectTrigger className="w-full" id="report-assignee">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="later">{t("decideLater")}</SelectItem>
+                    {options.assignees.map((person) => (
+                      <SelectItem key={person.userId} value={person.userId}>
+                        {staffName(person.email, t("formerStaff"))}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </DialogSection>
+            ) : null}
 
-          {mayTakeOutOfOrder && unitId !== "" ? (
-            <div className="grid gap-3 rounded-lg border p-3">
-              <div className="flex items-start gap-3">
-                <Checkbox
+            {mayTakeOutOfOrder && unitId !== "" ? (
+              <DialogSection
+                hint={blocked ? t("unitBlocked") : t("takeOutHint")}
+                labelFor="report-out-of-order"
+              >
+                <TickRow
                   checked={outOfOrder && !blocked}
                   disabled={blocked}
                   id="report-out-of-order"
                   name="outOfOrder"
-                  onCheckedChange={(checked) => setOutOfOrder(checked === true)}
+                  onCheckedChange={setOutOfOrder}
                   value="on"
+                >
+                  {t("outOfOrderSwitch")}
+                </TickRow>
+                {outOfOrder && !blocked ? (
+                  <div className="mt-4 grid gap-2">
+                    <label
+                      className="text-sm font-medium"
+                      htmlFor="report-expected"
+                    >
+                      {t("expectedBack")}
+                    </label>
+                    <Input
+                      className={fieldClassName}
+                      id="report-expected"
+                      min={today}
+                      name="expectedBackOn"
+                      onChange={(event) =>
+                        setExpectedBackOn(event.target.value)
+                      }
+                      type="date"
+                      value={expectedBackOn}
+                    />
+                  </div>
+                ) : null}
+              </DialogSection>
+            ) : null}
+
+            {impact ? (
+              <div className="py-5">
+                <ImpactNotice
+                  impact={impact}
+                  locale={locale}
+                  propertyId={propertyId}
                 />
-                <div className="grid gap-1">
-                  <Label htmlFor="report-out-of-order">
-                    {t("outOfOrderSwitch")}
-                  </Label>
-                  <p className="text-step--1 text-muted-foreground">
-                    {blocked ? t("unitBlocked") : t("takeOutHint")}
-                  </p>
-                </div>
               </div>
-              {outOfOrder && !blocked ? (
-                <Field htmlFor="report-expected" label={t("expectedBack")}>
-                  <Input
-                    id="report-expected"
-                    min={today}
-                    name="expectedBackOn"
-                    onChange={(event) => setExpectedBackOn(event.target.value)}
-                    type="date"
-                    value={expectedBackOn}
-                  />
-                </Field>
-              ) : null}
+            ) : null}
+            <div aria-live="polite" className="py-5 empty:hidden">
+              <OutcomeMessage
+                outcome={
+                  outcome.status === "impact" ? { status: "idle" } : outcome
+                }
+              />
             </div>
-          ) : null}
+          </DialogBody>
 
-          {impact ? (
-            <ImpactNotice
-              impact={impact}
-              locale={locale}
-              propertyId={propertyId}
-            />
-          ) : null}
-          <OutcomeMessage
-            outcome={outcome.status === "impact" ? { status: "idle" } : outcome}
-          />
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {t("close")}
-              </Button>
-            </DialogClose>
-            <Button
-              disabled={pending || (unitId === "" && equipmentId === "")}
-              type="submit"
-            >
+          <DialogActions hint={ready ? null : t("reportHintMissing")}>
+            <CancelButton onClick={() => onOpenChange(false)} type="button">
+              {t("close")}
+            </CancelButton>
+            <ArrowButton disabled={pending || !ready} type="submit">
               {pending
                 ? t("saving")
                 : impact
                   ? t("confirmOutOfOrder")
                   : t("send")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </form>
       </DialogContent>
     </Dialog>

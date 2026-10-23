@@ -1011,7 +1011,9 @@ test.describe("every number on Today opens the list that explains it", () => {
     await free.getByRole("button", { name: CHECK_OUT }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toContainText(day.guest.leavesFree);
-    await dialog.getByRole("button", { name: "Confirm check-out" }).click();
+    await dialog
+      .getByRole("button", { name: "Check out", exact: true })
+      .click();
     await expect(movementRow(page, day.guest.leavesFree)).toHaveCount(0);
     await expect
       .poll(
@@ -1033,7 +1035,7 @@ test.describe("every number on Today opens the list that explains it", () => {
       .getByLabel("Why the balance stays open")
       .fill("Agreed with the manager");
     await capture(page, "check-out-from-today-review");
-    await owing.getByRole("button", { name: "Confirm check-out" }).click();
+    await owing.getByRole("button", { name: "Check out", exact: true }).click();
     await expect(movementRow(page, day.guest.owing)).toHaveCount(0);
     await expect
       .poll(

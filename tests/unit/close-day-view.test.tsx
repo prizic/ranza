@@ -334,7 +334,12 @@ describe("what the day shows", () => {
     expect(screen.getAllByText("Done")).toHaveLength(2);
     expect(screen.queryByText(/ open$/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /^Close / }));
-    expect(screen.getByText(/Nothing is left open/)).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: /Nothing is left open|Close / }),
+    ).toBeTruthy();
+    expect(screen.getAllByText(/Nothing is left open/).length).toBeGreaterThan(
+      0,
+    );
     expect(screen.queryByLabelText("Reason")).toBeNull();
   });
 

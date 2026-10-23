@@ -1,7 +1,7 @@
 import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { Geist, IBM_Plex_Sans_Arabic } from "next/font/google";
+import { Geist, IBM_Plex_Sans_Arabic, Newsreader } from "next/font/google";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
@@ -23,6 +23,18 @@ import { LOCATION_HEADER } from "../../lib/return-path";
 const geist = Geist({
   subsets: ["latin", "latin-ext"],
   variable: "--font-geist",
+  display: "swap",
+});
+
+/**
+ * The display face of a dialog's masthead: the Guest, the booking or the day
+ * it is about, set large in italic. Latin only; Arabic keeps Plex, which draws
+ * no italic, so the shared theme leaves the slant off there.
+ */
+const newsreader = Newsreader({
+  subsets: ["latin", "latin-ext"],
+  style: ["normal", "italic"],
+  variable: "--font-newsreader",
   display: "swap",
 });
 
@@ -96,7 +108,7 @@ export default async function LocaleLayout({
 
   return (
     <html
-      className={`${geist.variable} ${plex.variable}`}
+      className={`${geist.variable} ${plex.variable} ${newsreader.variable}`}
       dir={directionFor(locale)}
       lang={locale}
     >

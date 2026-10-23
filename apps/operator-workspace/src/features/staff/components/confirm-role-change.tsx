@@ -4,13 +4,15 @@ import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { StaffMember } from "@ranza/staff";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import { changeStaffRole, type StaffOutcome } from "../../../server/staff";
 import { asPermission } from "../labels";
@@ -122,6 +124,7 @@ export function ConfirmRoleChange({
       open={open}
     >
       <DialogContent
+        className={dialogFrameClassName("small")}
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           document.getElementById(proposal.triggerId)?.focus();
@@ -132,36 +135,43 @@ export function ConfirmRoleChange({
         }}
         showCloseButton={false}
       >
-        <DialogHeader>
-          <DialogTitle>{t("staff.confirmRoleTitle")}</DialogTitle>
+        <DialogMasthead
+          art="/illustrations/dialogs/change-role.svg"
+          eyebrow={t("staff.confirmRoleConfirm")}
+          facts={`${proposal.fromName} → ${proposal.toName}`}
+          heading={proposal.email}
+        />
+        <DialogBody simple>
           <DialogDescription asChild>
-            <div className="flex flex-col gap-2">
+            <div className="grid gap-3 text-sm">
               {changedMeanwhile ? (
-                <p>
+                <p className="m-0">
                   {t("staff.roleChangedMeanwhile", {
                     member: proposal.email,
                     role: current ? roleNameOf(current, t) : proposal.fromName,
                   })}
                 </p>
               ) : proposal.lastAdministrator ? (
-                <p>{t("staff.lastAdministrator")}</p>
+                <p className="m-0">{t("staff.lastAdministrator")}</p>
               ) : (
                 <>
-                  <p>
+                  <p className="m-0">
                     {t("staff.confirmRoleChange", {
                       member: proposal.email,
                       from: proposal.fromName,
                       to: proposal.toName,
                     })}
                   </p>
-                  <p>{t("staff.confirmRoleSessions")}</p>
+                  <p className="m-0">{t("staff.confirmRoleSessions")}</p>
                   <PermissionDifference
                     lost={proposal.lost}
                     gained={proposal.gained}
                   />
-                  {proposal.self ? <p>{t("staff.confirmRoleSelf")}</p> : null}
+                  {proposal.self ? (
+                    <p className="m-0">{t("staff.confirmRoleSelf")}</p>
+                  ) : null}
                   {proposal.self && proposal.selfLosesAccess ? (
-                    <p>
+                    <p className="m-0">
                       {t("staff.confirmRoleSelfLosesAccess", {
                         to: proposal.toName,
                       })}
@@ -171,38 +181,37 @@ export function ConfirmRoleChange({
               )}
             </div>
           </DialogDescription>
-        </DialogHeader>
-        {outcome !== "idle" &&
-        outcome !== "done" &&
-        outcome !== "roleChangedMeanwhile" ? (
-          <p className="text-sm text-destructive" role="alert">
-            {outcome === "roleRetired"
-              ? t("staff.roleRetired")
-              : outcome === "lastAdministrator"
-                ? t("staff.lastAdministrator")
-                : t("staff.refused")}
-          </p>
-        ) : null}
-        <DialogFooter>
-          <Button
+          {outcome !== "idle" &&
+          outcome !== "done" &&
+          outcome !== "roleChangedMeanwhile" ? (
+            <p className="m-0 text-sm text-destructive" role="alert">
+              {outcome === "roleRetired"
+                ? t("staff.roleRetired")
+                : outcome === "lastAdministrator"
+                  ? t("staff.lastAdministrator")
+                  : t("staff.refused")}
+            </p>
+          ) : null}
+        </DialogBody>
+        <DialogActions>
+          <CancelButton
             disabled={pending}
             onClick={onClose}
             ref={cancelButton}
             type="button"
-            variant="outline"
           >
             {blocked ? t("staff.confirmRoleClose") : t("staff.cancel")}
-          </Button>
+          </CancelButton>
           {blocked ? null : (
-            <Button
+            <ArrowButton
               disabled={pending}
               onClick={() => void confirm()}
               type="button"
             >
               {t("staff.confirmRoleConfirm")}
-            </Button>
+            </ArrowButton>
           )}
-        </DialogFooter>
+        </DialogActions>
       </DialogContent>
     </Dialog>
   );
@@ -235,12 +244,12 @@ function PermissionDifference({
   return (
     <>
       {gained.length > 0 ? (
-        <p data-testid="role-gains">
+        <p className="m-0" data-testid="role-gains">
           {t("staff.confirmRoleGains", { permissions: named(gained) })}
         </p>
       ) : null}
       {lost.length > 0 ? (
-        <p data-testid="role-losses">
+        <p className="m-0" data-testid="role-losses">
           {t("staff.confirmRoleLosses", { permissions: named(lost) })}
         </p>
       ) : null}

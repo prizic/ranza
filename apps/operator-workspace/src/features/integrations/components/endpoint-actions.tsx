@@ -4,14 +4,17 @@ import { useState, useTransition } from "react";
 import { Send, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
   FormError,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import {
   removeEndpointAction,
@@ -116,32 +119,35 @@ export function EndpointActions({
       {failureKey && !removing ? <FormError>{t(failureKey)}</FormError> : null}
 
       <Dialog onOpenChange={setRemoving} open={removing}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("removeTitle")}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/webhook.svg"
+            eyebrow={t("removeTitle")}
+            heading={endpointName}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
               {t("removeDescription", { name: endpointName })}
             </DialogDescription>
-          </DialogHeader>
-          {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
-          <DialogFooter>
-            <Button
+            {failureKey ? <FormError>{t(failureKey)}</FormError> : null}
+          </DialogBody>
+          <DialogActions>
+            <CancelButton
               disabled={pending}
               onClick={() => setRemoving(false)}
               type="button"
-              variant="outline"
             >
               {t("dismiss")}
-            </Button>
-            <Button
+            </CancelButton>
+            <ArrowButton
               disabled={pending}
               onClick={remove}
+              tone="danger"
               type="button"
-              variant="destructive"
             >
               {pending ? t("removing") : t("removeConfirm")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
     </div>
