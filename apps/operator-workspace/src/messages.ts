@@ -813,6 +813,9 @@ export interface Messages {
     closeOwing: string;
     closeCredit: string;
     closeFinal: string;
+    paymentHintMissing: string;
+    paymentHintExtra: string;
+    reverseHintMissing: string;
   };
 
   rooms: string;
@@ -976,6 +979,10 @@ export interface Messages {
     secretCopy: string;
     secretCopied: string;
     secretDone: string;
+    endpointHeading: string;
+    endpointHintMissing: string;
+    operationHeading: string;
+    retryAllHeading: string;
     invalid: {
       name: { empty: string; too_long: string };
       url: {
@@ -2161,6 +2168,8 @@ export interface Messages {
     aGuest: string;
     impactHint: string;
     confirmOutOfOrder: string;
+    reportHeading: string;
+    reportHintMissing: string;
     reported: string;
     saved: string;
     returned: string;
@@ -2204,6 +2213,8 @@ export interface Messages {
     placePlaceholder: string;
     interval: string;
     intervalHint: string;
+    equipmentHeading: string;
+    equipmentHintMissing: string;
     lastServiced: string;
     nextService: string;
     notScheduled: string;
@@ -2509,6 +2520,9 @@ export interface Messages {
     resolutionNotesPlaceholder: string;
     createDialogTitle: string;
     createDialogDesc: string;
+    createHeading: string;
+    createHintMissing: string;
+    reasonHintMissing: string;
     titlePlaceholder: string;
     detailsPlaceholder: string;
     selectCategory: string;
@@ -3913,6 +3927,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} folyoda alacak olarak kalır.",
       closeFinal:
         "Satırlar olduğu gibi kalır, daha fazla satır işlenemez ve kapalı bir folyo yeniden açılamaz.",
+      paymentHintMissing: "Tutarı girin ve nasıl ödendiğini seçin.",
+      paymentHintExtra: "Borçtan fazlasını almak için kutuyu işaretleyin.",
+      reverseHintMissing: "Nedenini en az 3 karakterle yazın.",
       history: "Geçmiş",
     },
 
@@ -4444,6 +4461,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Anahtarı kopyala",
       secretCopied: "Kopyalandı",
       secretDone: "Kaydettim",
+      endpointHeading: "Olaylar nereye gitsin?",
+      endpointHintMissing:
+        "Bir ad yazın, HTTPS adresi girin ve en az bir olay seçin.",
+      operationHeading: "Ulaşmayan bir gönderim",
+      retryAllHeading: "Durmuş tüm gönderimler",
       invalid: {
         name: {
           empty: "Uç noktaya bir ad verin.",
@@ -5388,6 +5410,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
       confirmOutOfOrder: "Yine de hizmet dışı bırak",
+      reportHeading: "Neyin onarılması gerekiyor?",
+      reportHintMissing:
+        "Bir oda ya da ekipman seçin ve neyin bozuk olduğunu yazın.",
       reported: "MT-{number} talebi gönderildi.",
       saved: "Kaydedildi.",
       returned: "Oda yeniden hizmette.",
@@ -5437,6 +5462,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Çamaşır odası",
       interval: "Bakım sıklığı (ay)",
       intervalHint: "Düzenli bakımı yoksa boş bırakın.",
+      equipmentHeading: "Neyin kaydını tutuyoruz?",
+      equipmentHintMissing:
+        "Bir ad ve kategori yazın, nerede olduğunu belirtin.",
       lastServiced: "Son bakım",
       nextService: "Sonraki bakım",
       notScheduled: "Planlanmadı",
@@ -5767,6 +5795,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Yeni Hizmet Talebi Oluştur",
       createDialogDesc:
         "Misafir veya oda için yeni bir operasyonel hizmet talebi kaydedin.",
+      createHeading: "Misafirin neye ihtiyacı var?",
+      createHintMissing:
+        "Misafirin neye ihtiyacı olduğunu birkaç sözcükle yazın.",
+      reasonHintMissing: "Nedenini en az 3 karakterle yazın.",
       titlePlaceholder: "Örn. Ekstra havlu veya yastık talebi",
       detailsPlaceholder: "Talep detaylarını yazınız...",
       selectCategory: "Kategori seçin",
@@ -7303,6 +7335,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} is a credit left on the folio.",
       closeFinal:
         "Its lines stay exactly as they are, nothing more can be posted, and a closed folio cannot be reopened.",
+      paymentHintMissing: "Enter the amount and choose how it was paid.",
+      paymentHintExtra: "Tick the box to take more than is owed.",
+      reverseHintMissing: "Say why, in at least 3 characters.",
       history: "History",
     },
 
@@ -7848,6 +7883,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "Copy secret",
       secretCopied: "Copied",
       secretDone: "I have saved it",
+      endpointHeading: "Where should events go?",
+      endpointHintMissing:
+        "Give it a name, an HTTPS address and at least one event.",
+      operationHeading: "A delivery that did not arrive",
+      retryAllHeading: "Every stopped delivery",
       invalid: {
         name: {
           empty: "Give the endpoint a name.",
@@ -8789,6 +8829,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactHint:
         "Nothing will be cancelled or moved. The front desk will need to move them.",
       confirmOutOfOrder: "Take it out of order anyway",
+      reportHeading: "What needs fixing?",
+      reportHintMissing: "Choose a room or equipment and say what is wrong.",
       reported: "Request MT-{number} sent.",
       saved: "Saved.",
       returned: "The room is back in service.",
@@ -8838,6 +8880,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "Laundry room",
       interval: "Serviced every (months)",
       intervalHint: "Leave it empty if it is not serviced on a schedule.",
+      equipmentHeading: "What are we keeping track of?",
+      equipmentHintMissing:
+        "Give it a name and a category, and say where it is.",
       lastServiced: "Last serviced",
       nextService: "Next service",
       notScheduled: "Not scheduled",
@@ -9165,6 +9210,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       createDialogTitle: "Create Service Request",
       createDialogDesc:
         "Log a new service request on behalf of a guest or accommodation unit.",
+      createHeading: "What does the guest need?",
+      createHintMissing: "Say what the guest needs, in a few words.",
+      reasonHintMissing: "Say why, in at least 3 characters.",
       titlePlaceholder: "e.g. Extra towels requested",
       detailsPlaceholder: "Add any specific instructions or details...",
       selectCategory: "Select category",
@@ -10670,6 +10718,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       closeCredit: "{amount} رصيد دائن يبقى على الحساب.",
       closeFinal:
         "تبقى بنوده كما هي، ولا يمكن قيد أي شيء آخر عليه، ولا يمكن إعادة فتح الحساب بعد إغلاقه.",
+      paymentHintMissing: "أدخل المبلغ واختر طريقة الدفع.",
+      paymentHintExtra: "ضع علامة على المربع لقبول أكثر من المستحق.",
+      reverseHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       history: "السجل",
     },
 
@@ -11204,6 +11255,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       secretCopy: "نسخ المفتاح",
       secretCopied: "تم النسخ",
       secretDone: "حفظته",
+      endpointHeading: "إلى أين تُرسل الأحداث؟",
+      endpointHintMissing:
+        "اكتب اسمًا وعنوان HTTPS واختر حدثًا واحدًا على الأقل.",
+      operationHeading: "إرسال لم يصل",
+      retryAllHeading: "كل عمليات الإرسال المتوقفة",
       invalid: {
         name: {
           empty: "أعطِ نقطة الاستقبال اسمًا.",
@@ -12126,6 +12182,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       aGuest: "ضيف",
       impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
       confirmOutOfOrder: "إخراجها من الخدمة على أي حال",
+      reportHeading: "ما الذي يحتاج إلى إصلاح؟",
+      reportHintMissing: "اختر غرفة أو معدّة واكتب ما العطل.",
       reported: "أُرسل الطلب MT-{number}.",
       saved: "تم الحفظ.",
       returned: "عادت الغرفة إلى الخدمة.",
@@ -12174,6 +12232,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       placePlaceholder: "غرفة الغسيل",
       interval: "الصيانة كل (أشهر)",
       intervalHint: "اتركه فارغًا إن لم تكن لها صيانة دورية.",
+      equipmentHeading: "ما الذي نتتبعه؟",
+      equipmentHintMissing: "اكتب اسمًا وفئة وحدّد مكانه.",
       lastServiced: "آخر صيانة",
       nextService: "الصيانة التالية",
       notScheduled: "غير مجدولة",
@@ -12497,6 +12557,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       resolutionNotesPlaceholder: "الإجراء الذي تم اتخاذه لإنجاز الطلب...",
       createDialogTitle: "تسجيل طلب خدمة جديد",
       createDialogDesc: "تسجيل طلب خدمة جديد لغرفة أو ضيف في المنشأة.",
+      createHeading: "ماذا يحتاج الضيف؟",
+      createHintMissing: "اكتب ما يحتاجه الضيف في بضع كلمات.",
+      reasonHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
       titlePlaceholder: "مثال: طلب مناشف إضافية",
       detailsPlaceholder: "تفاصيل أو تعليمات إضافية...",
       selectCategory: "اختر الفئة",

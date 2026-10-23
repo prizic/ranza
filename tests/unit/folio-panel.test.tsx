@@ -584,9 +584,9 @@ describe("recording a payment states what it records (FIN-05, FIN-06)", () => {
   it("starts from what the Guest owes, with no payment method chosen", () => {
     const dialog = open();
     expect(within(dialog).getByLabelText(/Amount/)).toHaveValue("250.00");
-    expect(within(dialog).getByRole("combobox")).toHaveTextContent(
-      messages.en.finance.chooseMethod,
-    );
+    expect(
+      within(dialog).queryAllByRole("radio", { checked: true }),
+    ).toHaveLength(0);
     expect(within(dialog).getByTestId("payment-summary")).toHaveTextContent(
       "Type the amount and choose the method",
     );
@@ -608,6 +608,11 @@ describe("recording a payment states what it records (FIN-05, FIN-06)", () => {
 
   it("asks the clerk to confirm an amount above what is owed before it can be sent", () => {
     const dialog = open();
+    fireEvent.click(
+      within(dialog).getByRole("radio", {
+        name: messages.en.paymentMethods.cash,
+      }),
+    );
     fireEvent.change(within(dialog).getByLabelText(/Amount/), {
       target: { value: "1,000.00" },
     });
@@ -624,6 +629,11 @@ describe("recording a payment states what it records (FIN-05, FIN-06)", () => {
 
   it("does not ask when the amount is no more than is owed", () => {
     const dialog = open();
+    fireEvent.click(
+      within(dialog).getByRole("radio", {
+        name: messages.en.paymentMethods.cash,
+      }),
+    );
     expect(within(dialog).queryByRole("checkbox")).toBeNull();
     expect(
       within(dialog).getByRole("button", { name: messages.en.addPayment }),

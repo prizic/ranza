@@ -13,15 +13,16 @@ import { ArrowRight, CalendarCheck, Lock } from "lucide-react";
 import type { InspectionSettings as Settings } from "@ranza/housekeeping";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
+  ArrowButton,
   Button,
+  CancelButton,
   Card,
   Dialog,
-  DialogClose,
+  DialogActions,
+  DialogBody,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
   FormError,
   Label,
   Select,
@@ -30,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
   StatusBadge,
+  dialogFrameClassName,
   useUnsavedChangesGuard,
 } from "@ranza/ui";
 import {
@@ -323,24 +325,26 @@ export function InspectionSettings({
       ) : null}
 
       <Dialog onOpenChange={setConfirming} open={confirming}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{configuration("confirmOrgTitle")}</DialogTitle>
-            <DialogDescription>
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/inspection.svg"
+            eyebrow={configuration("confirmOrgTitle")}
+            heading={t("inspectionTitle")}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
               {configuration("orgChangeLine", {
                 setting: t("inspectionTitle"),
                 from: onOff(savedOrganization),
                 to: onOff(organizationValue),
               })}
             </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                {configuration("keepEditing")}
-              </Button>
-            </DialogClose>
-            <Button
+          </DialogBody>
+          <DialogActions>
+            <CancelButton onClick={() => setConfirming(false)} type="button">
+              {configuration("keepEditing")}
+            </CancelButton>
+            <ArrowButton
               onClick={() => {
                 setConfirming(false);
                 save("organization");
@@ -348,8 +352,8 @@ export function InspectionSettings({
               type="button"
             >
               {configuration("confirmOrgChange")}
-            </Button>
-          </DialogFooter>
+            </ArrowButton>
+          </DialogActions>
         </DialogContent>
       </Dialog>
 

@@ -212,7 +212,10 @@ export function DialogNotice({
   icon?: LucideIcon;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3.5">
+    <div
+      className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/5 px-4 py-3.5"
+      role="note"
+    >
       <span className="grid size-7 shrink-0 place-content-center rounded-full bg-primary/15 text-primary-text">
         <Icon aria-hidden="true" className="size-4" />
       </span>

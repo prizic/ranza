@@ -5,7 +5,14 @@ import { expect, type Page } from "@playwright/test";
 import { test } from "./hydration";
 
 import { psql } from "./local-database";
-import { aStaffMember, EMAIL, signIn, testProperty } from "./front-desk";
+import {
+  aStaffMember,
+  EMAIL,
+  pickDay,
+  propertyDay,
+  signIn,
+  testProperty,
+} from "./front-desk";
 
 /**
  * Maintenance through the screens a front desk actually uses (RANZ-33).
@@ -54,11 +61,8 @@ test("a problem reported from Rooms takes the room out of order until it is done
 
   // MT-S2-01: reported and taken out of order in one step.
   await dialog.getByRole("textbox", { name: "What is wrong?" }).fill(title);
-  await dialog.getByRole("button", { name: "Urgent" }).click();
-  await expect(dialog.getByRole("button", { name: "Urgent" })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
+  await dialog.getByRole("radio", { name: "Urgent" }).check({ force: true });
+  await expect(dialog.getByRole("radio", { name: "Urgent" })).toBeChecked();
   await dialog
     .getByRole("checkbox", { name: "Take it out of order until it is fixed" })
     .click();
@@ -145,9 +149,16 @@ async function openUnitPicker(page: Page, propertyId: string, search: string) {
   await page.goto(`/en/reservations?property=${propertyId}`);
   await page.getByRole("button", { name: "New reservation" }).click();
   const dialog = page.getByRole("dialog", { name: "New reservation" });
-  await dialog.getByLabel("Unit").click();
-  await page.keyboard.type(search);
-  return { dialog, options: page.getByRole("option") };
+  await dialog.getByRole("button", { name: /^Arrival/ }).click();
+  await pickDay(page, propertyDay(propertyId, 0));
+  await pickDay(page, propertyDay(propertyId, 2));
+  await dialog
+    .getByRole("searchbox", { name: "Search by unit number or type" })
+    .fill(search);
+  return {
+    dialog,
+    options: dialog.locator('label:has(input[type="radio"][name="unit"])'),
+  };
 }
 
 const EVIDENCE = path.resolve(__dirname, "../../docs/evidence/m1/RANZ-33");
