@@ -1,244 +1,877 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>UX audit: Integrations (2026-10-11)</title>
-<style>
-  :root { --ink:#16211d; --muted:#5d6b66; --line:#d9dfdc; --bg:#fbfaf6; --bad:#9b1c1c; --warn:#8a5a00; --ok:#1d5c46; }
-  * { box-sizing: border-box; }
-  body { margin:0; padding:24px 16px 64px; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
-  main { max-width:1100px; margin:0 auto; }
-  h1 { font-size:26px; margin:0 0 4px; }
-  h2 { font-size:19px; margin:36px 0 10px; padding-top:8px; border-top:1px solid var(--line); }
-  p.meta { color:var(--muted); margin:0 0 16px; }
-  table { width:100%; border-collapse:collapse; font-size:13.5px; margin:8px 0 16px; }
-  th, td { border:1px solid var(--line); padding:6px 8px; vertical-align:top; text-align:start; }
-  th { background:#f0f2ee; }
-  .wrap { overflow-x:auto; }
-  .s-blocks { color:var(--bad); font-weight:600; }
-  .s-errors { color:var(--warn); font-weight:600; }
-  .s-slows, .s-polish { color:var(--muted); font-weight:600; }
-  .tag { font-size:12px; padding:1px 6px; border:1px solid var(--line); border-radius:3px; white-space:nowrap; }
-  figure { margin:12px 0; }
-  figure img { max-width:100%; border:1px solid var(--line); }
-  figcaption { color:var(--muted); font-size:13px; }
-  .figs { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; align-items:start; }
-  code { background:#eef0ec; padding:0 4px; border-radius:3px; font-size:13px; }
-  ul, ol { padding-inline-start:20px; }
-</style>
-</head>
-<body>
-<main>
-<h1>Integrations: UX audit</h1>
-<p class="meta">Route <code>/en/integrations</code> · Hosted staging (<code>main</code> 4b15c30) · 2026-10-11 · Persona: owner or technically light manager who connects a booking channel or payment provider once and needs to know it is still working · Mode: audit only, nothing was changed.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UX audit: Integrations (2026-10-11)</title>
+    <style>
+      :root {
+        --ink: #16211d;
+        --muted: #5d6b66;
+        --line: #d9dfdc;
+        --bg: #fbfaf6;
+        --bad: #9b1c1c;
+        --warn: #8a5a00;
+        --ok: #1d5c46;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px 64px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 26px;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 36px 0 10px;
+        padding-top: 8px;
+        border-top: 1px solid var(--line);
+      }
+      p.meta {
+        color: var(--muted);
+        margin: 0 0 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13.5px;
+        margin: 8px 0 16px;
+      }
+      th,
+      td {
+        border: 1px solid var(--line);
+        padding: 6px 8px;
+        vertical-align: top;
+        text-align: start;
+      }
+      th {
+        background: #f0f2ee;
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .s-blocks {
+        color: var(--bad);
+        font-weight: 600;
+      }
+      .s-errors {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      .s-slows,
+      .s-polish {
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .tag {
+        font-size: 12px;
+        padding: 1px 6px;
+        border: 1px solid var(--line);
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      figure {
+        margin: 12px 0;
+      }
+      figure img {
+        max-width: 100%;
+        border: 1px solid var(--line);
+      }
+      figcaption {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .figs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+        align-items: start;
+      }
+      code {
+        background: #eef0ec;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+      ul,
+      ol {
+        padding-inline-start: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Integrations: UX audit</h1>
+      <p class="meta">
+        Route <code>/en/integrations</code> · Hosted staging (<code>main</code>
+        4b15c30) · 2026-10-11 · Persona: owner or technically light manager who
+        connects a booking channel or payment provider once and needs to know it
+        is still working · Mode: audit only, nothing was changed.
+      </p>
 
-<h2>1. Verdict</h2>
-<ul>
-  <li><strong>No. On staging this persona cannot use the feature at all.</strong> Owner and Manager both see Integrations in the rail, click it, and land on "This module is not in your Subscription". <em>Verified</em>, in English, Turkish and Arabic.</li>
-  <li><strong>I could not see the real screen</strong> (cards, failed operations, Retry). The property does not have the <code>integrations</code> capability and I may not change data, so everything below about the populated screen is <em>inferred</em> from the code, the feature docs and the unit tests, and is labelled that way.</li>
-  <li><strong>Even with the capability on, the page is a read-only status board that cannot do the persona's job.</strong> It has no Connect button, no credentials, no webhooks, no API keys and no delivery log. Nothing in the app or worker ever writes a connection or a failure (<em>inferred</em>, no callers of <code>connectIntegration</code> or <code>recordFailure</code>).</li>
-  <li><strong>Biggest risk: the Retry button.</strong> By the code it marks a failure "resolved" and flips the connection to "Connected" without calling any external system. An owner would be told it is fixed when nothing was retried (<em>inferred</em>, <code>packages/ranza/integrations/src/module.ts</code>).</li>
-</ul>
+      <h2>1. Verdict</h2>
+      <ul>
+        <li>
+          <strong
+            >No. On staging this persona cannot use the feature at all.</strong
+          >
+          Owner and Manager both see Integrations in the rail, click it, and
+          land on "This module is not in your Subscription". <em>Verified</em>,
+          in English, Turkish and Arabic.
+        </li>
+        <li>
+          <strong>I could not see the real screen</strong> (cards, failed
+          operations, Retry). The property does not have the
+          <code>integrations</code> capability and I may not change data, so
+          everything below about the populated screen is <em>inferred</em> from
+          the code, the feature docs and the unit tests, and is labelled that
+          way.
+        </li>
+        <li>
+          <strong
+            >Even with the capability on, the page is a read-only status board
+            that cannot do the persona's job.</strong
+          >
+          It has no Connect button, no credentials, no webhooks, no API keys and
+          no delivery log. Nothing in the app or worker ever writes a connection
+          or a failure (<em>inferred</em>, no callers of
+          <code>connectIntegration</code> or <code>recordFailure</code>).
+        </li>
+        <li>
+          <strong>Biggest risk: the Retry button.</strong> By the code it marks
+          a failure "resolved" and flips the connection to "Connected" without
+          calling any external system. An owner would be told it is fixed when
+          nothing was retried (<em>inferred</em>,
+          <code>packages/ranza/integrations/src/module.ts</code>).
+        </li>
+      </ul>
 
-<h2>2. Findings</h2>
-<div class="wrap">
-<table>
-<thead><tr><th>ID</th><th>Severity</th><th>Where</th><th>What happened</th><th>Expected</th><th>Suggested fix</th><th>Effort</th><th>Evidence</th><th>Status</th></tr></thead>
-<tbody>
-<tr>
-  <td>INTEGRATIONS-01</td><td class="s-blocks">blocks work</td>
-  <td><code>/en|tr|ar/integrations</code>, Owner and Manager, Demo Otel İstanbul</td>
-  <td>The rail lists Integrations. The page shows only "This module is not in your Subscription. It appears here once your Organization subscribes to it and the Property has it enabled." No data, no way forward.</td>
-  <td>A link the rail offers should open the screen. If the module really is off, the rail should not offer it (the rule in <code>lib/screens.ts</code>: "absent from the rail entirely, never greyed out").</td>
-  <td>Make the rail and the page use the same gate. Cause (<em>inferred</em>): the rail entry is gated by permission <code>integrations.view</code> alone (<code>permission</code> field in <code>lib/screens.ts</code>, meant for the audit log), while the page also requires the Property capability <code>platform_core/integrations</code>. Either enable the capability on the demo Property, or gate the rail by capability as well.</td>
-  <td>S</td>
-  <td><a href="01-owner-desktop.png">01</a>, <a href="03-owner-arabic.png">03</a>, <a href="04-owner-375-turkish.png">04</a>. Reproduced Y (3 locales, 2 roles).</td>
-  <td>Symptom verified. Cause inferred.</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-02</td><td class="s-slows">slows me down</td>
-  <td><code>/en/integrations</code> typed directly, Front Desk</td>
-  <td>The rail correctly hides Integrations for Front Desk. Typing the URL gives the same "not in your Subscription" text, as for the Owner. The real reason (inferred: no permission) is never named, and the text tells a person who simply lacks permission to talk to their subscription.</td>
-  <td>A denial that says which of the two it is: not subscribed, or you do not have permission, and who to ask.</td>
-  <td>Distinguish the two cases in <code>page.tsx</code>: capability off vs permission missing, with different copy.</td>
-  <td>S</td>
-  <td><a href="02-frontdesk-direct-url.png">02</a>. Reproduced Y.</td>
-  <td>Verified</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-03</td><td class="s-errors">causes errors</td>
-  <td>Retry on the Failed Operations table, anyone who can open the page</td>
-  <td>Retry runs <code>retryOperation</code>: it selects the failed row, sets <code>status='resolved'</code>, and if no other failure remains for that name sets the integration to <code>connected</code>, clears the error detail and stamps "last sync" now. There is no call to the channel manager, payment provider or any adapter.</td>
-  <td>Retry re-sends the failed operation and only clears it if the external call succeeds (edge-case rows INT-S1-06, -08 and -09 say exactly this, including "attempt count incremented on failure").</td>
-  <td>Do not ship Retry until it re-dispatches through the outbox and reports the real result. Until then remove the button or label it honestly. Attempt counts can never increase today, so INT-S1-09 is not met.</td>
-  <td>L</td>
-  <td>Code only: <code>packages/ranza/integrations/src/module.ts</code> <code>retryOperation</code>. Not exercised (Retry writes).</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-04</td><td class="s-errors">causes errors</td>
-  <td>Integrations page, any role holding <code>integrations.view</code> only (e.g. a Manager without <code>integrations.manage</code>), capability on</td>
-  <td>The Retry button is rendered for everyone. <code>integrations.manage</code> is not checked anywhere in the screen. If the database refuses, the server action puts the raw <code>Error.message</code> under the button (<code>retry-button.tsx</code>, <code>server/integrations.ts</code>); by the SQL (<code>select ... for update</code> then no visible row) that message would be "Failed operation not found or already resolved", which is wrong and confusing.</td>
-  <td>View-only users do not see Retry, or see it disabled with "Needs permission to manage integrations". Errors in plain language.</td>
-  <td>Pass a <code>canManage</code> flag from the page, hide or disable Retry, map known refusals to translated copy.</td>
-  <td>S</td>
-  <td>Code only. Not exercised (Retry writes).</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-05</td><td class="s-blocks">blocks work</td>
-  <td>First-time setup, any role</td>
-  <td>There is no way to connect anything. No Connect button, no provider list, no form, no credentials field. The empty state is "No integrations configured for this property." with no next action. The module has <code>connectIntegration</code> but nothing calls it. The docs row INT-S1-10 says "a manager clicks Connect", so the document promises a button that does not exist.</td>
-  <td>First-time setup reachable from this page, or an honest statement that connections are set up by Ranza support, with a contact.</td>
-  <td>Decide which. If setup is staff-assisted today, say so in the empty state. Otherwise build the connect flow (see section 6).</td>
-  <td>L</td>
-  <td>Code and docs: <code>integration-cards.tsx</code>, <code>module.ts</code>, <code>edge-cases.csv</code> INT-S1-10.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-06</td><td class="s-errors">causes errors</td>
-  <td>Failed Operations card, capability on</td>
-  <td>Card copy says "Operations retry automatically or can be retried manually." Nothing retries automatically: <code>failed_operations</code> is read only by this module, and no worker, job or caller touches it (searched <code>apps</code>, <code>packages</code>, <code>scripts</code>). The empty state says "All external services are in sync", which nothing computes.</td>
-  <td>Copy that states only what the system does.</td>
-  <td>Remove the automatic-retry claim and the "in sync" claim until a worker exists. This also matters for the persona's "silently stops" worry: a stopped sync produces no row at all, so this card cannot reveal it.</td>
-  <td>S</td>
-  <td>Copy: <code>messages.ts</code> <code>integrations.failedOperationsDescription</code>, <code>noFailedOperations</code>. Search result in this audit.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-07</td><td class="s-errors">causes errors</td>
-  <td>Integration card, status Error or any status after a failure</td>
-  <td><code>recordFailure</code> sets "last sync" to now on every failure, so a connection that failed 2 minutes ago shows "Last Sync: 2 minutes ago". The card then reads like a recent success next to a red badge.</td>
-  <td>"Last successful sync" and "Last failure" shown separately.</td>
-  <td>Stop updating <code>last_sync_at</code> on failure. Add a "failed at" value.</td>
-  <td>S</td>
-  <td>Code: <code>module.ts</code> <code>recordFailure</code> SQL (<code>last_sync_at = now()</code>).</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-08</td><td class="s-slows">slows me down</td>
-  <td>Integration cards and failed operations table</td>
-  <td>The error text is printed raw in monospace (<code>item.detail</code>, <code>op.error</code>) as whatever the external system returned, plus a raw <code>operation</code> string. Cards in Error state have no next action (no Retry, Reconnect or Contact support). Only three states exist: Connected, Error, Not Connected. There is no "token expired", "disabled", "partly working" or "syncing".</td>
-  <td>Each state with its own look and a next step, in words a hotel owner understands ("The booking channel rejected our login. Reconnect it.").</td>
-  <td>Map known failures to a short title and one action, keep the raw text behind "Technical details". Add Expired and Disabled states when the adapters exist.</td>
-  <td>M</td>
-  <td>Code: <code>integration-cards.tsx</code>, <code>failed-operations-table.tsx</code>, status check constraint in the migration.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-09</td><td class="s-slows">slows me down</td>
-  <td>Failed Operations table, many rows</td>
-  <td>The query has no limit or paging and Retry is per row, so 30 failures means 30 clicks and one very long table. Resolved failures disappear (<code>status in ('failed','retrying')</code>), so there is no history or delivery log to answer "did it ever work, when did it stop?".</td>
-  <td>A bounded list with paging, "Retry all", and a history view of resolved and failed deliveries.</td>
-  <td>Add limit and paging, a resolved history tab, and a bulk retry once Retry is real.</td>
-  <td>M</td>
-  <td>Code: <code>module.ts</code> <code>failedOperations</code>.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-10</td><td class="s-polish">polish</td>
-  <td>Failed Operations header badge and metric tiles</td>
-  <td>The badge is built as <code>{count} {t("errorCount")}</code>, giving "1 Error" and "5 Error" (not pluralised; in Turkish and Arabic the plural and word order differ). The fourth metric tile ("Failed Operations") uses a clock icon and sits beside "Error", which counts connections: two different things with near-identical names.</td>
-  <td>"1 failed operation" / "5 failed operations", distinct tile names ("Connections in error" vs "Failed operations").</td>
-  <td>Use ICU plural messages and rename the tiles.</td>
-  <td>S</td>
-  <td>Code: <code>failed-operations-table.tsx</code>, <code>integrations-view.tsx</code>.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-11</td><td class="s-slows">slows me down</td>
-  <td>Integrations page when capability is on, a Staff Member without <code>integrations.view</code></td>
-  <td>The page asks only for the Property capability, not the permission. Row-level security would return zero rows, so such a person would see "No integrations configured" and "No failed operations recorded. All external services are in sync." That is a false all-clear, not a denial.</td>
-  <td>A denial, as in INT-S1-03 ("the request is denied").</td>
-  <td>Check <code>integrations.view</code> in <code>page.tsx</code> and show the permission message from INTEGRATIONS-02.</td>
-  <td>S</td>
-  <td>Code: <code>page.tsx</code> uses <code>entitledProperties(INTEGRATIONS_CAPABILITY)</code> only; <code>edge-cases.csv</code> INT-S1-03.</td>
-  <td>Inferred</td>
-</tr>
-<tr>
-  <td>INTEGRATIONS-12</td><td class="s-slows">slows me down</td>
-  <td>Retry and Connect, audit trail</td>
-  <td>Retry changes the state of an operation and a connection but the module writes no audit event (no audit call in <code>module.ts</code>). The owner cannot later see who "fixed" a failed sync.</td>
-  <td>Who retried what, and the result, in the Audit log (the page the rail already offers).</td>
-  <td>Emit an audit event from <code>retryOperation</code> and <code>connectIntegration</code>.</td>
-  <td>S</td>
-  <td>Code only.</td>
-  <td>Inferred</td>
-</tr>
-</tbody>
-</table>
-</div>
-<p>Counts: 2 blocks work, 4 causes errors, 5 slows me down, 1 polish (12 rows; INTEGRATIONS-01 and -02 are the only ones I saw on screen).</p>
+      <h2>2. Findings</h2>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Where</th>
+              <th>What happened</th>
+              <th>Expected</th>
+              <th>Suggested fix</th>
+              <th>Effort</th>
+              <th>Evidence</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>INTEGRATIONS-01</td>
+              <td class="s-blocks">blocks work</td>
+              <td>
+                <code>/en|tr|ar/integrations</code>, Owner and Manager, Demo
+                Otel İstanbul
+              </td>
+              <td>
+                The rail lists Integrations. The page shows only "This module is
+                not in your Subscription. It appears here once your Organization
+                subscribes to it and the Property has it enabled." No data, no
+                way forward.
+              </td>
+              <td>
+                A link the rail offers should open the screen. If the module
+                really is off, the rail should not offer it (the rule in
+                <code>lib/screens.ts</code>: "absent from the rail entirely,
+                never greyed out").
+              </td>
+              <td>
+                Make the rail and the page use the same gate. Cause
+                (<em>inferred</em>): the rail entry is gated by permission
+                <code>integrations.view</code> alone (<code>permission</code>
+                field in <code>lib/screens.ts</code>, meant for the audit log),
+                while the page also requires the Property capability
+                <code>platform_core/integrations</code>. Either enable the
+                capability on the demo Property, or gate the rail by capability
+                as well.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="01-owner-desktop.png">01</a>,
+                <a href="03-owner-arabic.png">03</a>,
+                <a href="04-owner-375-turkish.png">04</a>. Reproduced Y (3
+                locales, 2 roles).
+              </td>
+              <td>Symptom verified. Cause inferred.</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-02</td>
+              <td class="s-slows">slows me down</td>
+              <td><code>/en/integrations</code> typed directly, Front Desk</td>
+              <td>
+                The rail correctly hides Integrations for Front Desk. Typing the
+                URL gives the same "not in your Subscription" text, as for the
+                Owner. The real reason (inferred: no permission) is never named,
+                and the text tells a person who simply lacks permission to talk
+                to their subscription.
+              </td>
+              <td>
+                A denial that says which of the two it is: not subscribed, or
+                you do not have permission, and who to ask.
+              </td>
+              <td>
+                Distinguish the two cases in <code>page.tsx</code>: capability
+                off vs permission missing, with different copy.
+              </td>
+              <td>S</td>
+              <td>
+                <a href="02-frontdesk-direct-url.png">02</a>. Reproduced Y.
+              </td>
+              <td>Verified</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-03</td>
+              <td class="s-errors">causes errors</td>
+              <td>
+                Retry on the Failed Operations table, anyone who can open the
+                page
+              </td>
+              <td>
+                Retry runs <code>retryOperation</code>: it selects the failed
+                row, sets <code>status='resolved'</code>, and if no other
+                failure remains for that name sets the integration to
+                <code>connected</code>, clears the error detail and stamps "last
+                sync" now. There is no call to the channel manager, payment
+                provider or any adapter.
+              </td>
+              <td>
+                Retry re-sends the failed operation and only clears it if the
+                external call succeeds (edge-case rows INT-S1-06, -08 and -09
+                say exactly this, including "attempt count incremented on
+                failure").
+              </td>
+              <td>
+                Do not ship Retry until it re-dispatches through the outbox and
+                reports the real result. Until then remove the button or label
+                it honestly. Attempt counts can never increase today, so
+                INT-S1-09 is not met.
+              </td>
+              <td>L</td>
+              <td>
+                Code only:
+                <code>packages/ranza/integrations/src/module.ts</code>
+                <code>retryOperation</code>. Not exercised (Retry writes).
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-04</td>
+              <td class="s-errors">causes errors</td>
+              <td>
+                Integrations page, any role holding
+                <code>integrations.view</code> only (e.g. a Manager without
+                <code>integrations.manage</code>), capability on
+              </td>
+              <td>
+                The Retry button is rendered for everyone.
+                <code>integrations.manage</code> is not checked anywhere in the
+                screen. If the database refuses, the server action puts the raw
+                <code>Error.message</code> under the button
+                (<code>retry-button.tsx</code>,
+                <code>server/integrations.ts</code>); by the SQL (<code
+                  >select ... for update</code
+                >
+                then no visible row) that message would be "Failed operation not
+                found or already resolved", which is wrong and confusing.
+              </td>
+              <td>
+                View-only users do not see Retry, or see it disabled with "Needs
+                permission to manage integrations". Errors in plain language.
+              </td>
+              <td>
+                Pass a <code>canManage</code> flag from the page, hide or
+                disable Retry, map known refusals to translated copy.
+              </td>
+              <td>S</td>
+              <td>Code only. Not exercised (Retry writes).</td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-05</td>
+              <td class="s-blocks">blocks work</td>
+              <td>First-time setup, any role</td>
+              <td>
+                There is no way to connect anything. No Connect button, no
+                provider list, no form, no credentials field. The empty state is
+                "No integrations configured for this property." with no next
+                action. The module has <code>connectIntegration</code> but
+                nothing calls it. The docs row INT-S1-10 says "a manager clicks
+                Connect", so the document promises a button that does not exist.
+              </td>
+              <td>
+                First-time setup reachable from this page, or an honest
+                statement that connections are set up by Ranza support, with a
+                contact.
+              </td>
+              <td>
+                Decide which. If setup is staff-assisted today, say so in the
+                empty state. Otherwise build the connect flow (see section 6).
+              </td>
+              <td>L</td>
+              <td>
+                Code and docs: <code>integration-cards.tsx</code>,
+                <code>module.ts</code>, <code>edge-cases.csv</code> INT-S1-10.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-06</td>
+              <td class="s-errors">causes errors</td>
+              <td>Failed Operations card, capability on</td>
+              <td>
+                Card copy says "Operations retry automatically or can be retried
+                manually." Nothing retries automatically:
+                <code>failed_operations</code> is read only by this module, and
+                no worker, job or caller touches it (searched <code>apps</code>,
+                <code>packages</code>, <code>scripts</code>). The empty state
+                says "All external services are in sync", which nothing
+                computes.
+              </td>
+              <td>Copy that states only what the system does.</td>
+              <td>
+                Remove the automatic-retry claim and the "in sync" claim until a
+                worker exists. This also matters for the persona's "silently
+                stops" worry: a stopped sync produces no row at all, so this
+                card cannot reveal it.
+              </td>
+              <td>S</td>
+              <td>
+                Copy: <code>messages.ts</code>
+                <code>integrations.failedOperationsDescription</code>,
+                <code>noFailedOperations</code>. Search result in this audit.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-07</td>
+              <td class="s-errors">causes errors</td>
+              <td>
+                Integration card, status Error or any status after a failure
+              </td>
+              <td>
+                <code>recordFailure</code> sets "last sync" to now on every
+                failure, so a connection that failed 2 minutes ago shows "Last
+                Sync: 2 minutes ago". The card then reads like a recent success
+                next to a red badge.
+              </td>
+              <td>
+                "Last successful sync" and "Last failure" shown separately.
+              </td>
+              <td>
+                Stop updating <code>last_sync_at</code> on failure. Add a
+                "failed at" value.
+              </td>
+              <td>S</td>
+              <td>
+                Code: <code>module.ts</code> <code>recordFailure</code> SQL
+                (<code>last_sync_at = now()</code>).
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-08</td>
+              <td class="s-slows">slows me down</td>
+              <td>Integration cards and failed operations table</td>
+              <td>
+                The error text is printed raw in monospace
+                (<code>item.detail</code>, <code>op.error</code>) as whatever
+                the external system returned, plus a raw
+                <code>operation</code> string. Cards in Error state have no next
+                action (no Retry, Reconnect or Contact support). Only three
+                states exist: Connected, Error, Not Connected. There is no
+                "token expired", "disabled", "partly working" or "syncing".
+              </td>
+              <td>
+                Each state with its own look and a next step, in words a hotel
+                owner understands ("The booking channel rejected our login.
+                Reconnect it.").
+              </td>
+              <td>
+                Map known failures to a short title and one action, keep the raw
+                text behind "Technical details". Add Expired and Disabled states
+                when the adapters exist.
+              </td>
+              <td>M</td>
+              <td>
+                Code: <code>integration-cards.tsx</code>,
+                <code>failed-operations-table.tsx</code>, status check
+                constraint in the migration.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-09</td>
+              <td class="s-slows">slows me down</td>
+              <td>Failed Operations table, many rows</td>
+              <td>
+                The query has no limit or paging and Retry is per row, so 30
+                failures means 30 clicks and one very long table. Resolved
+                failures disappear (<code>status in ('failed','retrying')</code
+                >), so there is no history or delivery log to answer "did it
+                ever work, when did it stop?".
+              </td>
+              <td>
+                A bounded list with paging, "Retry all", and a history view of
+                resolved and failed deliveries.
+              </td>
+              <td>
+                Add limit and paging, a resolved history tab, and a bulk retry
+                once Retry is real.
+              </td>
+              <td>M</td>
+              <td>
+                Code: <code>module.ts</code> <code>failedOperations</code>.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-10</td>
+              <td class="s-polish">polish</td>
+              <td>Failed Operations header badge and metric tiles</td>
+              <td>
+                The badge is built as <code>{count} {t("errorCount")}</code>,
+                giving "1 Error" and "5 Error" (not pluralised; in Turkish and
+                Arabic the plural and word order differ). The fourth metric tile
+                ("Failed Operations") uses a clock icon and sits beside "Error",
+                which counts connections: two different things with
+                near-identical names.
+              </td>
+              <td>
+                "1 failed operation" / "5 failed operations", distinct tile
+                names ("Connections in error" vs "Failed operations").
+              </td>
+              <td>Use ICU plural messages and rename the tiles.</td>
+              <td>S</td>
+              <td>
+                Code: <code>failed-operations-table.tsx</code>,
+                <code>integrations-view.tsx</code>.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-11</td>
+              <td class="s-slows">slows me down</td>
+              <td>
+                Integrations page when capability is on, a Staff Member without
+                <code>integrations.view</code>
+              </td>
+              <td>
+                The page asks only for the Property capability, not the
+                permission. Row-level security would return zero rows, so such a
+                person would see "No integrations configured" and "No failed
+                operations recorded. All external services are in sync." That is
+                a false all-clear, not a denial.
+              </td>
+              <td>A denial, as in INT-S1-03 ("the request is denied").</td>
+              <td>
+                Check <code>integrations.view</code> in
+                <code>page.tsx</code> and show the permission message from
+                INTEGRATIONS-02.
+              </td>
+              <td>S</td>
+              <td>
+                Code: <code>page.tsx</code> uses
+                <code>entitledProperties(INTEGRATIONS_CAPABILITY)</code> only;
+                <code>edge-cases.csv</code> INT-S1-03.
+              </td>
+              <td>Inferred</td>
+            </tr>
+            <tr>
+              <td>INTEGRATIONS-12</td>
+              <td class="s-slows">slows me down</td>
+              <td>Retry and Connect, audit trail</td>
+              <td>
+                Retry changes the state of an operation and a connection but the
+                module writes no audit event (no audit call in
+                <code>module.ts</code>). The owner cannot later see who "fixed"
+                a failed sync.
+              </td>
+              <td>
+                Who retried what, and the result, in the Audit log (the page the
+                rail already offers).
+              </td>
+              <td>
+                Emit an audit event from <code>retryOperation</code> and
+                <code>connectIntegration</code>.
+              </td>
+              <td>S</td>
+              <td>Code only.</td>
+              <td>Inferred</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        Counts: 2 blocks work, 4 causes errors, 5 slows me down, 1 polish (12
+        rows; INTEGRATIONS-01 and -02 are the only ones I saw on screen).
+      </p>
 
-<h2>3. Jobs</h2>
-<p>Each pass/fail test was written before the attempt. All seconds are approximate and are the time to reach the dead end, not a completed job.</p>
-<div class="wrap">
-<table>
-<thead><tr><th>Job</th><th>Pass/fail test (written first)</th><th>Result</th><th>Seconds</th><th>Clicks</th></tr></thead>
-<tbody>
-<tr><td>1. First-time setup: connect a booking channel</td><td>Pass if, from the rail, I reach a form or clear instruction that starts a connection in under 5 clicks.</td><td><strong>FAIL.</strong> Page shows the subscription message (verified). Even with the capability on there is no connect control (inferred).</td><td>~20</td><td>1</td></tr>
-<tr><td>2. Daily check: is everything still working?</td><td>Pass if one glance tells me each connection's state and last good sync.</td><td><strong>FAIL.</strong> Nothing to look at on staging. In code, "last sync" is overwritten by failures (INTEGRATIONS-07) and a silent stop leaves no row (INTEGRATIONS-06).</td><td>~20</td><td>1</td></tr>
-<tr><td>3. Understand a failure</td><td>Pass if I can say what failed, since when, and what to do, without a developer.</td><td><strong>FAIL (inferred).</strong> Raw error text, no cause, no action, no history.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>4. Recover: retry a failed operation</td><td>Pass if Retry re-sends it and the result is truthful.</td><td><strong>Stopped before submit, not persisted.</strong> Retry writes. By the code it only marks the row resolved (INTEGRATIONS-03).</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>5. Bulk: many failures at once</td><td>Pass if I can retry or triage 30 failures in under 10 clicks.</td><td><strong>FAIL (inferred).</strong> Per-row Retry, unbounded list, no paging.</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>6. Credentials: view, copy or rotate a key, with the consequence named first</td><td>Pass if the screen shows a masked secret, a copy control and a rotate confirm that names what stops working.</td><td><strong>Not applicable, not built.</strong> The page has no secrets, keys or webhooks (section 6).</td><td>n/a</td><td>n/a</td></tr>
-<tr><td>7. "It is broken and I am under pressure": find out why bookings stopped arriving</td><td>Pass if within 2 minutes I can see a failing connection and the next step.</td><td><strong>FAIL.</strong> Page unreachable on staging. Today's "Needs attention" also lists no integration problems (verified on Today, Owner).</td><td>~30</td><td>2</td></tr>
-<tr><td>8. Roles: Front Desk and Manager</td><td>Pass if a role without access is not shown the link, and a typed URL explains the denial.</td><td>Front Desk rail hides it (<strong>pass, verified</strong>). Typed URL shows the wrong reason (INTEGRATIONS-02). Manager sees the link and the dead end (INTEGRATIONS-01).</td><td>~90</td><td>6</td></tr>
-</tbody>
-</table>
-</div>
+      <h2>3. Jobs</h2>
+      <p>
+        Each pass/fail test was written before the attempt. All seconds are
+        approximate and are the time to reach the dead end, not a completed job.
+      </p>
+      <div class="wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Pass/fail test (written first)</th>
+              <th>Result</th>
+              <th>Seconds</th>
+              <th>Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1. First-time setup: connect a booking channel</td>
+              <td>
+                Pass if, from the rail, I reach a form or clear instruction that
+                starts a connection in under 5 clicks.
+              </td>
+              <td>
+                <strong>FAIL.</strong> Page shows the subscription message
+                (verified). Even with the capability on there is no connect
+                control (inferred).
+              </td>
+              <td>~20</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>2. Daily check: is everything still working?</td>
+              <td>
+                Pass if one glance tells me each connection's state and last
+                good sync.
+              </td>
+              <td>
+                <strong>FAIL.</strong> Nothing to look at on staging. In code,
+                "last sync" is overwritten by failures (INTEGRATIONS-07) and a
+                silent stop leaves no row (INTEGRATIONS-06).
+              </td>
+              <td>~20</td>
+              <td>1</td>
+            </tr>
+            <tr>
+              <td>3. Understand a failure</td>
+              <td>
+                Pass if I can say what failed, since when, and what to do,
+                without a developer.
+              </td>
+              <td>
+                <strong>FAIL (inferred).</strong> Raw error text, no cause, no
+                action, no history.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>4. Recover: retry a failed operation</td>
+              <td>Pass if Retry re-sends it and the result is truthful.</td>
+              <td>
+                <strong>Stopped before submit, not persisted.</strong> Retry
+                writes. By the code it only marks the row resolved
+                (INTEGRATIONS-03).
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>5. Bulk: many failures at once</td>
+              <td>
+                Pass if I can retry or triage 30 failures in under 10 clicks.
+              </td>
+              <td>
+                <strong>FAIL (inferred).</strong> Per-row Retry, unbounded list,
+                no paging.
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>
+                6. Credentials: view, copy or rotate a key, with the consequence
+                named first
+              </td>
+              <td>
+                Pass if the screen shows a masked secret, a copy control and a
+                rotate confirm that names what stops working.
+              </td>
+              <td>
+                <strong>Not applicable, not built.</strong> The page has no
+                secrets, keys or webhooks (section 6).
+              </td>
+              <td>n/a</td>
+              <td>n/a</td>
+            </tr>
+            <tr>
+              <td>
+                7. "It is broken and I am under pressure": find out why bookings
+                stopped arriving
+              </td>
+              <td>
+                Pass if within 2 minutes I can see a failing connection and the
+                next step.
+              </td>
+              <td>
+                <strong>FAIL.</strong> Page unreachable on staging. Today's
+                "Needs attention" also lists no integration problems (verified
+                on Today, Owner).
+              </td>
+              <td>~30</td>
+              <td>2</td>
+            </tr>
+            <tr>
+              <td>8. Roles: Front Desk and Manager</td>
+              <td>
+                Pass if a role without access is not shown the link, and a typed
+                URL explains the denial.
+              </td>
+              <td>
+                Front Desk rail hides it (<strong>pass, verified</strong>).
+                Typed URL shows the wrong reason (INTEGRATIONS-02). Manager sees
+                the link and the dead end (INTEGRATIONS-01).
+              </td>
+              <td>~90</td>
+              <td>6</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-<h2>4. Top changes</h2>
-<ol>
-  <li><strong>The link in the rail opens something usable.</strong> Align the rail gate with the page gate, and enable the capability on the demo Property so the screen can be checked. (INTEGRATIONS-01, S)</li>
-  <li><strong>Retry never tells me something is fixed when nothing was sent.</strong> Make it re-dispatch, or take it away until it does. (INTEGRATIONS-03, L)</li>
-  <li><strong>I can tell what to do about a failure.</strong> Plain title, plain cause, one action; raw text behind a disclosure. (INTEGRATIONS-08, M)</li>
-  <li><strong>I can trust "Last sync".</strong> Separate last success from last failure. (INTEGRATIONS-07, S)</li>
-  <li><strong>The page only claims what the system does.</strong> Drop "retries automatically" and "all in sync". (INTEGRATIONS-06, S)</li>
-  <li><strong>A person without permission is told so, not shown a clean bill of health.</strong> (INTEGRATIONS-02, -11, S)</li>
-  <li><strong>I know how to get my first channel connected.</strong> A real Connect flow, or an honest "contact support" line. (INTEGRATIONS-05, L)</li>
-  <li><strong>I can clear 30 failures without 30 clicks, and see history.</strong> (INTEGRATIONS-09, M)</li>
-  <li><strong>View-only people do not see a Retry button that cannot work.</strong> (INTEGRATIONS-04, S)</li>
-  <li><strong>I can see who retried what in the Audit log.</strong> (INTEGRATIONS-12, S)</li>
-</ol>
+      <h2>4. Top changes</h2>
+      <ol>
+        <li>
+          <strong>The link in the rail opens something usable.</strong> Align
+          the rail gate with the page gate, and enable the capability on the
+          demo Property so the screen can be checked. (INTEGRATIONS-01, S)
+        </li>
+        <li>
+          <strong
+            >Retry never tells me something is fixed when nothing was
+            sent.</strong
+          >
+          Make it re-dispatch, or take it away until it does. (INTEGRATIONS-03,
+          L)
+        </li>
+        <li>
+          <strong>I can tell what to do about a failure.</strong> Plain title,
+          plain cause, one action; raw text behind a disclosure.
+          (INTEGRATIONS-08, M)
+        </li>
+        <li>
+          <strong>I can trust "Last sync".</strong> Separate last success from
+          last failure. (INTEGRATIONS-07, S)
+        </li>
+        <li>
+          <strong>The page only claims what the system does.</strong> Drop
+          "retries automatically" and "all in sync". (INTEGRATIONS-06, S)
+        </li>
+        <li>
+          <strong
+            >A person without permission is told so, not shown a clean bill of
+            health.</strong
+          >
+          (INTEGRATIONS-02, -11, S)
+        </li>
+        <li>
+          <strong>I know how to get my first channel connected.</strong> A real
+          Connect flow, or an honest "contact support" line. (INTEGRATIONS-05,
+          L)
+        </li>
+        <li>
+          <strong
+            >I can clear 30 failures without 30 clicks, and see history.</strong
+          >
+          (INTEGRATIONS-09, M)
+        </li>
+        <li>
+          <strong
+            >View-only people do not see a Retry button that cannot
+            work.</strong
+          >
+          (INTEGRATIONS-04, S)
+        </li>
+        <li>
+          <strong>I can see who retried what in the Audit log.</strong>
+          (INTEGRATIONS-12, S)
+        </li>
+      </ol>
 
-<h2>5. Inconsistencies</h2>
-<ul>
-  <li><strong>Rail vs page:</strong> the rail offers Integrations to Owner and Manager, the page denies them (INTEGRATIONS-01). Sibling entries Configuration, Data export and Audit log sit in the same rail section; I did not open them, so I cannot say whether they have the same mismatch (<em>unknown</em>).</li>
-  <li><strong>Denial wording:</strong> the same "not in your Subscription" text covers both "module off" and "you lack permission" (INTEGRATIONS-02). The brief and ADR direction is that denial is explained.</li>
-  <li><strong>Edge-case doc vs UI:</strong> <code>edge-cases.csv</code> lists "Connect" (INT-S1-10) and attempt counting on failed retry (INT-S1-09); neither exists in the UI or module as described. All 15 rows are still <code>proposed</code>.</li>
-  <li><strong>Test coverage:</strong> only a unit render test (<code>tests/unit/integrations-view.test.tsx</code>), a module unit test and a database test exist. There is no browser test for this screen (no integrations spec in <code>tests/browser</code>), which is how a rail link that opens a denial can ship.</li>
-  <li><strong>Today does not surface integration trouble</strong> in "Needs attention" (verified on Today as Owner). An owner has to remember to open this page.</li>
-</ul>
+      <h2>5. Inconsistencies</h2>
+      <ul>
+        <li>
+          <strong>Rail vs page:</strong> the rail offers Integrations to Owner
+          and Manager, the page denies them (INTEGRATIONS-01). Sibling entries
+          Configuration, Data export and Audit log sit in the same rail section;
+          I did not open them, so I cannot say whether they have the same
+          mismatch (<em>unknown</em>).
+        </li>
+        <li>
+          <strong>Denial wording:</strong> the same "not in your Subscription"
+          text covers both "module off" and "you lack permission"
+          (INTEGRATIONS-02). The brief and ADR direction is that denial is
+          explained.
+        </li>
+        <li>
+          <strong>Edge-case doc vs UI:</strong>
+          <code>edge-cases.csv</code> lists "Connect" (INT-S1-10) and attempt
+          counting on failed retry (INT-S1-09); neither exists in the UI or
+          module as described. All 15 rows are still <code>proposed</code>.
+        </li>
+        <li>
+          <strong>Test coverage:</strong> only a unit render test
+          (<code>tests/unit/integrations-view.test.tsx</code>), a module unit
+          test and a database test exist. There is no browser test for this
+          screen (no integrations spec in <code>tests/browser</code>), which is
+          how a rail link that opens a denial can ship.
+        </li>
+        <li>
+          <strong>Today does not surface integration trouble</strong> in "Needs
+          attention" (verified on Today as Owner). An owner has to remember to
+          open this page.
+        </li>
+      </ul>
 
-<h2>6. Not built / needs backend work</h2>
-<p>These are not UX defects. They are absent features, kept apart on purpose.</p>
-<ul>
-  <li><strong>Any real provider connection</strong> (channel managers, payment providers, door locks, government reporting). <code>docs/roadmap.md</code>: "Channel and distribution integrations", "External payments", door locks are "Not started". Slice s2 in <code>use-case.mmd</code> (webhook receivers, rate and inventory mapping, door-lock keys) is explicitly "Not this slice".</li>
-  <li><strong>Webhooks, API keys, credential storage, rotation and copy:</strong> no table, module function or UI. The roadmap lists "Public APIs, webhooks, integration..." as not started. The persona's secret-handling and "rotation consequences named before the click" checks therefore have nothing to test.</li>
-  <li><strong>Producers of data:</strong> no code path calls <code>connectIntegration</code> or <code>recordFailure</code> (only <code>scripts/db-seed-dev.mjs</code> inserts rows, local only). Failed operations, Error states and "last sync" can only exist from seed data until adapters and an outbox consumer exist.</li>
-  <li><strong>Automatic retry, expired-token, disabled and partial states, delivery log, health checks:</strong> not in the status model (<code>connected | error | not_connected</code>).</li>
-  <li><strong>Placeholder cards for unbuilt providers:</strong> none exist. The page lists only rows in the database, so there is no "coming soon" catalogue; a never-configured Property sees only the empty sentence.</li>
-</ul>
+      <h2>6. Not built / needs backend work</h2>
+      <p>
+        These are not UX defects. They are absent features, kept apart on
+        purpose.
+      </p>
+      <ul>
+        <li>
+          <strong>Any real provider connection</strong> (channel managers,
+          payment providers, door locks, government reporting).
+          <code>docs/roadmap.md</code>: "Channel and distribution integrations",
+          "External payments", door locks are "Not started". Slice s2 in
+          <code>use-case.mmd</code> (webhook receivers, rate and inventory
+          mapping, door-lock keys) is explicitly "Not this slice".
+        </li>
+        <li>
+          <strong
+            >Webhooks, API keys, credential storage, rotation and copy:</strong
+          >
+          no table, module function or UI. The roadmap lists "Public APIs,
+          webhooks, integration..." as not started. The persona's
+          secret-handling and "rotation consequences named before the click"
+          checks therefore have nothing to test.
+        </li>
+        <li>
+          <strong>Producers of data:</strong> no code path calls
+          <code>connectIntegration</code> or <code>recordFailure</code> (only
+          <code>scripts/db-seed-dev.mjs</code> inserts rows, local only). Failed
+          operations, Error states and "last sync" can only exist from seed data
+          until adapters and an outbox consumer exist.
+        </li>
+        <li>
+          <strong
+            >Automatic retry, expired-token, disabled and partial states,
+            delivery log, health checks:</strong
+          >
+          not in the status model (<code>connected | error | not_connected</code
+          >).
+        </li>
+        <li>
+          <strong>Placeholder cards for unbuilt providers:</strong> none exist.
+          The page lists only rows in the database, so there is no "coming soon"
+          catalogue; a never-configured Property sees only the empty sentence.
+        </li>
+      </ul>
 
-<h2>7. What already works well and must not regress</h2>
-<ul>
-  <li><strong>Rail hides it from Front Desk</strong> (verified): Front Desk's rail ends at Configuration, with no Integrations, Data export or Audit log.</li>
-  <li><strong>Back button</strong> is present at the leading edge of the header in English, Turkish and Arabic and mirrors in RTL (verified; Turkish link targets <code>/tr/today?property=...</code>, ADR 0035).</li>
-  <li><strong>All three locales are translated</strong> for the denial state, the page title and the rail; Arabic page is <code>dir="rtl"</code> (verified).</li>
-  <li><strong>375 px:</strong> header and message wrap correctly and the bottom bar appears (verified, <a href="04-owner-375-turkish.png">04</a>), though this is only the empty state. The populated table at 375 px was not seen; the code wraps it in <code>overflow-x-auto</code> (inferred).</li>
-  <li><strong>Security shape is sound in the database</strong> (inferred, migration): row-level security on both tables, insert and update need <code>integrations.manage</code>, no delete grant, column-level update grants. The raw-text and wrong-permission problems above are in the UI layer.</li>
-</ul>
+      <h2>7. What already works well and must not regress</h2>
+      <ul>
+        <li>
+          <strong>Rail hides it from Front Desk</strong> (verified): Front
+          Desk's rail ends at Configuration, with no Integrations, Data export
+          or Audit log.
+        </li>
+        <li>
+          <strong>Back button</strong> is present at the leading edge of the
+          header in English, Turkish and Arabic and mirrors in RTL (verified;
+          Turkish link targets <code>/tr/today?property=...</code>, ADR 0035).
+        </li>
+        <li>
+          <strong>All three locales are translated</strong> for the denial
+          state, the page title and the rail; Arabic page is
+          <code>dir="rtl"</code> (verified).
+        </li>
+        <li>
+          <strong>375 px:</strong> header and message wrap correctly and the
+          bottom bar appears (verified,
+          <a href="04-owner-375-turkish.png">04</a>), though this is only the
+          empty state. The populated table at 375 px was not seen; the code
+          wraps it in <code>overflow-x-auto</code> (inferred).
+        </li>
+        <li>
+          <strong>Security shape is sound in the database</strong> (inferred,
+          migration): row-level security on both tables, insert and update need
+          <code>integrations.manage</code>, no delete grant, column-level update
+          grants. The raw-text and wrong-permission problems above are in the UI
+          layer.
+        </li>
+      </ul>
 
-<h2>Evidence</h2>
-<div class="figs">
-  <figure><img src="01-owner-desktop.png" alt="Owner, English: Integrations shows the subscription denial"><figcaption>01 · Owner, EN, desktop. Rail offers Integrations; page shows the subscription denial.</figcaption></figure>
-  <figure><img src="02-frontdesk-direct-url.png" alt="Front Desk typed URL"><figcaption>02 · Front Desk, typed URL. Rail has no Integrations; same subscription text.</figcaption></figure>
-  <figure><img src="03-owner-arabic.png" alt="Owner, Arabic, RTL"><figcaption>03 · Owner, AR. RTL mirrored, back arrow at the leading edge.</figcaption></figure>
-  <figure><img src="04-owner-375-turkish.png" alt="Owner, Turkish, 375 px"><figcaption>04 · Owner, TR, 375 px. Back arrow, denial text, bottom bar.</figcaption></figure>
-</div>
-<p class="meta">Assumptions: staging's Property lacks the <code>integrations</code> capability (inferred from the denial plus <code>scripts/db-seed-dev.mjs</code> enabling it locally). 768 px was not captured because only the denial text renders. Nothing was submitted; Retry was never pressed.</p>
-</main>
-</body>
+      <h2>Evidence</h2>
+      <div class="figs">
+        <figure>
+          <img
+            src="01-owner-desktop.png"
+            alt="Owner, English: Integrations shows the subscription denial"
+          />
+          <figcaption>
+            01 · Owner, EN, desktop. Rail offers Integrations; page shows the
+            subscription denial.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="02-frontdesk-direct-url.png" alt="Front Desk typed URL" />
+          <figcaption>
+            02 · Front Desk, typed URL. Rail has no Integrations; same
+            subscription text.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="03-owner-arabic.png" alt="Owner, Arabic, RTL" />
+          <figcaption>
+            03 · Owner, AR. RTL mirrored, back arrow at the leading edge.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="04-owner-375-turkish.png" alt="Owner, Turkish, 375 px" />
+          <figcaption>
+            04 · Owner, TR, 375 px. Back arrow, denial text, bottom bar.
+          </figcaption>
+        </figure>
+      </div>
+      <p class="meta">
+        Assumptions: staging's Property lacks the
+        <code>integrations</code> capability (inferred from the denial plus
+        <code>scripts/db-seed-dev.mjs</code> enabling it locally). 768 px was
+        not captured because only the denial text renders. Nothing was
+        submitted; Retry was never pressed.
+      </p>
+    </main>
+  </body>
 </html>
