@@ -123,18 +123,12 @@ const submitted = (name: string) => {
   return form ? new FormData(form).get(name) : null;
 };
 
-async function chooseUnit(description: RegExp) {
-  fireEvent.click(
-    await screen.findByRole("combobox", { name: messages.en.unit }),
-  );
-  fireEvent.click(await screen.findByText(description));
+async function chooseUnit(name: RegExp) {
+  fireEvent.click(await screen.findByRole("radio", { name }));
 }
 
 async function chooseReason(label: string) {
-  fireEvent.click(
-    screen.getByRole("combobox", { name: messages.en.moveGuestReason }),
-  );
-  fireEvent.click(await screen.findByRole("option", { name: label }));
+  fireEvent.click(await screen.findByRole("radio", { name: label }));
 }
 
 describe("the Move Guest dialog", () => {
@@ -148,7 +142,7 @@ describe("the Move Guest dialog", () => {
     ).toBeInTheDocument();
     expect(save()).toBeDisabled();
 
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     expect(save()).toBeDisabled();
     await chooseReason(messages.en.moveReason.fault);
     await waitFor(() => expect(save()).toBeEnabled());
@@ -159,7 +153,7 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_moved_only_into_a_ready_room", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Not ready/);
+    await chooseUnit(/Room.*Not ready/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.moveGuestNotReady),
@@ -170,7 +164,7 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_not_moved_into_an_occupied_room", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Someone is staying then/);
+    await chooseUnit(/Room.*Occupied/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.changeBookingBlockedOccupied),
@@ -181,13 +175,13 @@ describe("the Move Guest dialog", () => {
   it("a_move_needs_a_reason: another reason is said in the note", async () => {
     answering(preview());
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.other);
     expect(
       await screen.findByText(messages.en.moveGuestNoteRequired),
     ).toBeInTheDocument();
     expect(save()).toBeDisabled();
-    fireEvent.change(screen.getByLabelText(messages.en.changeBookingNote), {
+    fireEvent.change(screen.getByLabelText(messages.en.dialogNoteTitle), {
       target: { value: "Family moved together" },
     });
     await waitFor(() => expect(save()).toBeEnabled());
@@ -197,9 +191,9 @@ describe("the Move Guest dialog", () => {
     answering(preview(), preview());
     moveGuest.mockResolvedValueOnce("notReady");
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.other);
-    fireEvent.change(screen.getByLabelText(messages.en.changeBookingNote), {
+    fireEvent.change(screen.getByLabelText(messages.en.dialogNoteTitle), {
       target: { value: "Family moved together" },
     });
     await waitFor(() => expect(save()).toBeEnabled());
@@ -215,7 +209,7 @@ describe("the Move Guest dialog", () => {
     answering(preview(), preview({ version: 2 }));
     moveGuest.mockResolvedValueOnce("changed");
     open();
-    await chooseUnit(/Room · Free/);
+    await chooseUnit(/Room.*Free/);
     await chooseReason(messages.en.moveReason.fault);
     await waitFor(() => expect(save()).toBeEnabled());
     fireEvent.click(save());
@@ -246,8 +240,8 @@ describe("the Move Guest dialog", () => {
         />
       </NextIntlClientProvider>,
     );
-    const field = screen.getByRole("combobox", { name: messages.en.unit });
-    expect(field).not.toHaveTextContent(proposed);
+    expect(screen.queryByRole("radio", { name: /Room/ })).toBeNull();
+    expect(document.body).not.toHaveTextContent(proposed);
     cleanup();
 
     render(
@@ -261,8 +255,6 @@ describe("the Move Guest dialog", () => {
         />
       </NextIntlClientProvider>,
     );
-    expect(
-      screen.getByRole("combobox", { name: messages.en.unit }),
-    ).toHaveTextContent("201");
+    expect(screen.getByRole("radio", { name: /201/ })).toBeInTheDocument();
   });
 });

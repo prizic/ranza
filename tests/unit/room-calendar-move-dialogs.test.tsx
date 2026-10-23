@@ -257,9 +257,8 @@ describe("RC-S3-07: Move Guest opened by a drop", () => {
     screen.getAllByRole("button", { name: t.moveGuest }).at(-1)!;
 
   async function giveAReason() {
-    fireEvent.click(screen.getByRole("combobox", { name: t.moveGuestReason }));
     fireEvent.click(
-      await screen.findByRole("option", { name: t.moveReason.guest_request }),
+      await screen.findByRole("radio", { name: t.moveReason.guest_request }),
     );
   }
 

@@ -333,8 +333,9 @@ test("a new role can start from an existing one and is listed by section", async
     .click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Role name").fill(name);
-  await dialog.getByLabel("Start from").click();
-  await page.getByRole("option", { name: "Housekeeping" }).click();
+  await dialog
+    .getByRole("radio", { exact: true, name: "Housekeeping" })
+    .check({ force: true });
   await expect(dialog.getByLabel("Update room status")).toBeChecked();
   await expect(dialog.getByLabel("Open and close a Folio")).not.toBeChecked();
   await expect(dialog.getByText("Money")).toBeVisible();

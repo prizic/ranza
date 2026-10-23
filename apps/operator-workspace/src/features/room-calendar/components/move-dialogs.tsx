@@ -3,14 +3,16 @@
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
 import {
-  Button,
+  ArrowButton,
+  CancelButton,
   Dialog,
+  DialogActions,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  DialogMasthead,
+  dialogFrameClassName,
 } from "@ranza/ui";
 import type { RoomCalendar } from "../../../server/viewer";
 import { ChangeBookingDialog } from "../../front-office/components/change-booking-dialog";
@@ -177,39 +179,48 @@ export function MoveDialogs({
       };
       return (
         <Dialog onOpenChange={onOpenChange} open>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("cannotMoveTitle")}</DialogTitle>
-              <DialogDescription>
-                <bdi>{guest}</bdi>
-              </DialogDescription>
-            </DialogHeader>
-            <MoveSummary
-              conflicts={request.conflicts.map(text)}
-              from={{
-                place,
-                period: describePeriod(bar.startsOn, bar.endsOn, locale, words),
-              }}
-              to={{
-                place: placeOfUnit(calendar, request.target.unitId) ?? "—",
-                period: describePeriod(
-                  request.target.startsOn,
-                  request.target.endsOn,
-                  locale,
-                  words,
-                ),
-              }}
+          <DialogContent className={dialogFrameClassName("small")}>
+            <DialogMasthead
+              art="/illustrations/dialogs/move-guest.svg"
+              eyebrow={t("cannotMoveTitle")}
+              heading={guest}
             />
-            <DialogFooter>
+            <DialogBody simple>
+              <DialogDescription className="sr-only">
+                {t("cannotMoveTitle")}
+              </DialogDescription>
+              <MoveSummary
+                conflicts={request.conflicts.map(text)}
+                from={{
+                  place,
+                  period: describePeriod(
+                    bar.startsOn,
+                    bar.endsOn,
+                    locale,
+                    words,
+                  ),
+                }}
+                to={{
+                  place: placeOfUnit(calendar, request.target.unitId) ?? "—",
+                  period: describePeriod(
+                    request.target.startsOn,
+                    request.target.endsOn,
+                    locale,
+                    words,
+                  ),
+                }}
+              />
+            </DialogBody>
+            <DialogActions>
               <DialogClose asChild>
-                <Button type="button" variant="outline">
+                <CancelButton type="button">
                   {common("keepAsItWas")}
-                </Button>
+                </CancelButton>
               </DialogClose>
-              <Button disabled type="button">
+              <ArrowButton disabled type="button">
                 {t("confirmMove")}
-              </Button>
-            </DialogFooter>
+              </ArrowButton>
+            </DialogActions>
           </DialogContent>
         </Dialog>
       );

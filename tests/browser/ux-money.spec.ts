@@ -226,21 +226,22 @@ test.describe("Finance (RANZ-67)", () => {
     await page.getByRole("button", { name: "Record payment" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel(/Amount/)).toHaveValue("600.00");
-    await expect(dialog.getByRole("combobox")).toContainText(
-      "Choose how it was paid",
-    );
+    await expect(dialog.getByRole("radio", { checked: true })).toHaveCount(0);
     await expect(dialog.getByTestId("payment-summary")).toContainText(
       "choose the method",
     );
 
-    // No method is chosen for the clerk: skipping it is asked about, not recorded as a card.
-    await dialog.getByRole("button", { name: "Record payment" }).click();
-    await expect(dialog.getByText("Choose how it was paid.")).toBeVisible();
+    // No method is chosen for the clerk: the button waits for one and the
+    // footer says so, rather than recording a card nobody took.
+    const submit = dialog.getByRole("button", { name: "Record payment" });
+    await expect(submit).toBeDisabled();
+    await expect(dialog).toContainText("choose how it was paid");
     await expect(dialog.getByLabel(/Amount/)).toHaveValue("600.00");
+
+    await dialog.getByRole("radio", { name: "Cash" }).check({ force: true });
 
     // More than is owed needs the clerk to say so.
     await dialog.getByLabel(/Amount/).fill("1,000.00");
-    const submit = dialog.getByRole("button", { name: "Record payment" });
     await expect(submit).toBeDisabled();
     await expect(dialog).toContainText(
       "This is TRY 400.00 more than the TRY 600.00 owed",
@@ -248,8 +249,6 @@ test.describe("Finance (RANZ-67)", () => {
     await dialog.getByLabel(/Amount/).fill("600.00");
     await expect(submit).toBeEnabled();
 
-    await dialog.getByRole("combobox").click();
-    await page.getByRole("option", { name: "Cash" }).click();
     await expect
       .poll(async () =>
         plain(await dialog.getByTestId("payment-summary").textContent()),
@@ -290,8 +289,10 @@ test.describe("Finance (RANZ-67)", () => {
     await expect(dialog).toContainText("stays on the folio, marked reversed");
     await expect(dialog).toContainText("This cannot be undone");
     await dialog.getByLabel("Reason").fill("ab");
-    await dialog.getByRole("button", { name: "Reverse" }).click();
-    await expect(dialog.getByLabel("Reason")).toBeFocused();
+    await expect(
+      dialog.getByRole("button", { name: "Reverse" }),
+    ).toBeDisabled();
+    await expect(dialog).toContainText("Say why, in at least 3 characters");
     await dialog.getByLabel("Reason").fill("Charged to the wrong room");
     await dialog.getByRole("button", { name: "Reverse" }).click();
 
