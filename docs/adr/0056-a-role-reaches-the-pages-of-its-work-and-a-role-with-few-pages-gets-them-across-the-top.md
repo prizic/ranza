@@ -54,7 +54,14 @@ a page by being given a command in it and loses it by losing the last one.
 The shipped roles then reach: Housekeeping, Today, Guest Experience, Housekeeping
 and Maintenance; Finance, Today, Departures, Maintenance, Finance, Analytics and Data export;
 Front desk, the six Front Office pages and Guest Experience, Housekeeping,
-Maintenance and Finance; Owner and Manager, everything.
+Maintenance and Finance; Owner, everything; Manager, everything except Branding.
+
+Correction, 2026-10-25 (UX audit SHELL-14): this sentence said "Owner and
+Manager, everything", but Branding is gated by `branding.manage`, which only the
+shipped Owner role holds (`20260916011100_an_organization_has_a_brand`
+guarantees a shipped role that is not the Owner never does), so a Manager is
+refused it. The sentence now states what the matrix does. Whether a Manager
+should reach Branding is the owner's decision and is not made here.
 
 The shell asks every gate in one read (`listPermittedPropertiesByGate`), because
 one read per destination and permission is a connection each and a full page
