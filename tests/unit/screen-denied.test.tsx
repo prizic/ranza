@@ -11,7 +11,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Denial } from "../../packages/ranza/core/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
-vi.mock("next/navigation", () => ({
+vi.mock("../../apps/operator-workspace/node_modules/next/navigation", () => ({
   usePathname: () => "/en/hr",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -85,6 +85,54 @@ describe("a closed destination", () => {
     show("en", { reason: "no_property" });
     expect(
       screen.getByRole("heading", { name: messages.en.noPropertyTitle }),
+    ).toBeInTheDocument();
+  });
+
+  const EVERY_DENIAL: Denial[] = [
+    { reason: "no_property" },
+    { reason: "not_reachable" },
+    { reason: "not_subscribed" },
+    { reason: "not_enabled" },
+    { reason: "no_permission", permission: "hr.view" },
+    { reason: "open" },
+  ];
+
+  for (const locale of LOCALES) {
+    it(`SHELL-05: ${locale} every refusal has the same way on, back to Today`, () => {
+      for (const denial of EVERY_DENIAL) {
+        show(locale, denial);
+        expect(
+          screen.getByRole("link", { name: messages[locale].denied.goToToday }),
+          denial.reason,
+        ).toHaveAttribute("href", `/${locale}/today`);
+        cleanup();
+      }
+    });
+
+    it(`SHELL-04: ${locale} names the page that refused, and not only its permission`, () => {
+      show(locale, { reason: "no_permission", permission: "hr.view" });
+      expect(
+        screen.getByText(
+          new RegExp(messages[locale].navigation.hr.replace("&", "\\&")),
+        ),
+        "the page is named from the route",
+      ).toBeInTheDocument();
+    });
+  }
+
+  it("SHELL-04: sends a refused role to an Owner, since a Manager cannot always add what an Owner can", () => {
+    show("en", { reason: "no_permission", permission: "branding.manage" });
+    expect(
+      screen.getByText(/Ask an Owner of your Organization/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Owners and Managers can/)).toBeNull();
+  });
+
+  it("SHELL-05: a Property that is off is not blamed on an Owner who is the one reading it", () => {
+    show("en", { reason: "not_enabled" });
+    expect(screen.queryByText(/ask your Organization's Owner/i)).toBeNull();
+    expect(
+      screen.getByText(/An Owner of your Organization can ask Prizic/),
     ).toBeInTheDocument();
   });
 });

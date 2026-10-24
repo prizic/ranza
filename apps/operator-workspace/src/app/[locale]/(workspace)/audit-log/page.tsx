@@ -25,6 +25,7 @@ import {
   SEARCH_MATCH_LIMIT,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { ScreenRefusal } from "../screen-denied";
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -119,8 +120,9 @@ export default async function AuditLogPage({
     // that holds it with no Property assigned lands here too, and telling the
     // two apart would take a read of its own, so the copy names both remedies.
     return (
-      <EmptyState
+      <ScreenRefusal
         description={t("auditNotPermittedDescription")}
+        locale={locale}
         title={t("auditNotPermittedTitle")}
       />
     );

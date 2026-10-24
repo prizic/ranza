@@ -304,7 +304,7 @@ export function DataTable<TData, TValue>({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {searchColumns?.length ? (
-          <div className="relative min-w-[120px] flex-1 sm:flex-none">
+          <div className="relative w-full sm:w-auto">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute start-3.5 top-3 size-4 text-muted-foreground"

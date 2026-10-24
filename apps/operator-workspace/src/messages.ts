@@ -66,6 +66,11 @@ export interface Messages {
 
   challengeTitle: string;
   challengeSummary: string;
+  /** The same step, once the person has chosen a backup code. */
+  challengeBackupSummary: string;
+  /** Switches the step between the authenticator's code and a backup code. */
+  useBackupCode: string;
+  useAuthenticatorCode: string;
   code: string;
   verify: string;
   challengeFailed: string;
@@ -2929,7 +2934,6 @@ export interface Messages {
   /** What each planned screen will do, keyed by route segment. */
   screenSummary: Record<string, string>;
   planned: string;
-  handoverLabel: string;
   notEntitledTitle: string;
   notEntitledDescription: string;
   /** The name of the control that closes a dialog or a side sheet. */
@@ -2955,7 +2959,13 @@ export interface Messages {
     openTitle: string;
     openDescription: string;
     goToToday: string;
+    /** Names the page in a refusal when the route does not. */
+    thisPage: string;
   };
+  /** An address that is no page, inside the shell (SHELL-03). */
+  notFound: { pageTitle: string; title: string; description: string };
+  /** A tab left open after the session ended (SHELL-07). */
+  sessionEnded: { title: string; description: string };
   /** 429 with the seconds Better Auth asked for in `X-Retry-After`. */
   signInThrottledAfter: string;
   /** Said above the sign-in form when they were sent here from somewhere. */
@@ -3078,8 +3088,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     signInUnavailable: "Giriş şu anda yapılamıyor. Biraz sonra tekrar deneyin.",
 
     challengeTitle: "İkinci adım",
-    challengeSummary:
-      "Kimlik doğrulama uygulamanızdaki kodu veya bir yedek kodu girin.",
+    challengeSummary: "Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.",
+    challengeBackupSummary: "Yedek kodlarınızdan birini girin.",
+    useBackupCode: "Bunun yerine yedek kod kullan",
+    useAuthenticatorCode: "Kimlik doğrulama uygulamasındaki kodu kullan",
     code: "Kod",
     verify: "Doğrula",
     challengeFailed: "Kod geçerli değil.",
@@ -6432,8 +6444,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "data-export":
         "İsteğe bağlı ve zamanlanmış veri dışa aktarma kayıtları ve indirmeler.",
     },
-    planned: "Planlandı",
-    handoverLabel: "Bu ekranın devir notu",
+    planned: "Daha sonra gelecek",
     notEntitledTitle: "Bu modül aboneliğinizde yok",
     notEntitledDescription:
       "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
@@ -6448,17 +6459,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bağlantıdaki tesis mevcut değil ya da artık erişiminiz yok. Üstteki tesis menüsünden birini seçin veya Bugün'e dönün.",
       notSubscribedTitle: "Bu modül aboneliğinizde yok",
       notSubscribedDescription:
-        "Organizasyonunuzun aboneliği bunu içermiyor, bu yüzden organizasyonda kimse açamaz. Eklenmesi için organizasyonunuzun Sahibi ile görüşün.",
+        "Organizasyonunuzun aboneliği bunu içermiyor, bu yüzden organizasyonda kimse açamaz. Organizasyonunuzun bir Sahibi, eklenmesi için Prizic ile görüşebilir.",
       notEnabledTitle: "Bu modül bu tesiste açık değil",
       notEnabledDescription:
-        "Organizasyonunuzda var, ancak bu tesiste açılmamış. Üstteki menüden başka bir tesis seçin veya bu tesis için açtırmak üzere organizasyonunuzun Sahibi ile görüşün.",
+        "Organizasyonunuzda var, ancak bu tesiste açılmamış. Üstteki menüden başka bir tesis seçin. Organizasyonunuzun bir Sahibi, bu tesiste açılması için Prizic'ten isteyebilir.",
       noPermissionTitle: "Rolünüz bu sayfayı açamıyor",
       noPermissionDescription:
-        "“{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
+        "{page} için “{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
       openTitle: "Bu sayfa şu anda kullanılamıyor",
       openDescription:
         "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
       goToToday: "Bugün'e git",
+      thisPage: "Bu sayfa",
+    },
+    notFound: {
+      pageTitle: "Sayfa bulunamadı",
+      title: "Böyle bir sayfa yok",
+      description:
+        "Bu adres bir sayfaya çıkmıyor. Yazım hatası olup olmadığına bakın veya Bugün'e dönün.",
+    },
+    sessionEnded: {
+      title: "Oturumunuz kapandı",
+      description:
+        "Oturumunuz sona erdi, yeniden oturum açana kadar burada hiçbir şey kaydedilmez. Oturum açtığınızda bu sayfaya dönersiniz.",
     },
     signInThrottledAfter:
       "Çok fazla deneme yapıldı. {seconds} saniye sonra tekrar deneyin.",
@@ -6536,8 +6559,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     signInUnavailable: "Signing in isn't working right now. Try again shortly.",
 
     challengeTitle: "Second step",
-    challengeSummary:
-      "Enter the code from your authenticator app, or one of your backup codes.",
+    challengeSummary: "Enter the 6-digit code from your authenticator app.",
+    challengeBackupSummary: "Enter one of your backup codes.",
+    useBackupCode: "Use a backup code instead",
+    useAuthenticatorCode: "Use the code from your authenticator app",
     code: "Code",
     verify: "Verify",
     challengeFailed: "That code is not valid.",
@@ -6545,7 +6570,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Too many codes were tried, or too much time passed. Sign in again to enter a new code.",
 
     security: "Security",
-    securitySummary: "Manage how your account is signed in to.",
+    securitySummary: "Manage how you sign in.",
     twoFactor: "Two-step verification",
     twoFactorOn: "On",
     twoFactorOff: "Off",
@@ -9900,8 +9925,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "data-export":
         "On-demand and scheduled data exports, records and downloads.",
     },
-    planned: "Planned",
-    handoverLabel: "This screen's handover note",
+    planned: "Coming later",
     notEntitledTitle: "This module is not in your Subscription",
     notEntitledDescription:
       "It appears here once your Organization subscribes to it and the Property has it enabled.",
@@ -9916,17 +9940,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "The link names a Property that doesn't exist or that you no longer have access to. Pick one from the Property menu at the top, or go back to Today.",
       notSubscribedTitle: "This module is not in your Subscription",
       notSubscribedDescription:
-        "Your Organization's Subscription doesn't include it, so nobody in the Organization can open it. Ask your Organization's Owner about adding it.",
+        "Your Organization's Subscription doesn't include it, so nobody in the Organization can open it. An Owner of your Organization can ask Prizic about adding it.",
       notEnabledTitle: "This module isn't switched on at this Property",
       notEnabledDescription:
-        "Your Organization has it, but this Property doesn't. Choose another Property from the menu at the top, or ask your Organization's Owner to request it for this Property.",
+        "Your Organization has it, but this Property doesn't. Choose another Property from the menu at the top. An Owner of your Organization can ask Prizic to switch it on for this Property.",
       noPermissionTitle: "Your role can't open this page",
       noPermissionDescription:
-        "It needs the permission “{permission}”, and your role doesn't include it. Ask whoever manages staff in your Organization to add it to your role.",
+        "{page} needs “{permission}”, and your role doesn't include it. Ask whoever manages staff in your Organization to add it to your role.",
       openTitle: "This page isn't available right now",
       openDescription:
         "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
       goToToday: "Go to Today",
+      thisPage: "This page",
+    },
+    notFound: {
+      pageTitle: "Page not found",
+      title: "That page doesn't exist",
+      description:
+        "The address doesn't lead to a page. Check it for a typing mistake, or go back to Today.",
+    },
+    sessionEnded: {
+      title: "You were signed out",
+      description:
+        "Your session ended, so nothing here will save until you sign in again. You will come back to this page.",
     },
     signInThrottledAfter:
       "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}.",
@@ -10004,8 +10040,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     signInUnavailable: "تسجيل الدخول لا يعمل الآن. حاول مرة أخرى بعد قليل.",
 
     challengeTitle: "الخطوة الثانية",
-    challengeSummary:
-      "أدخل الرمز من تطبيق المصادقة، أو أحد رموز النسخ الاحتياطي.",
+    challengeSummary: "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.",
+    challengeBackupSummary: "أدخل أحد رموز النسخ الاحتياطي.",
+    useBackupCode: "استخدم رمز نسخ احتياطي بدلًا من ذلك",
+    useAuthenticatorCode: "استخدم الرمز من تطبيق المصادقة",
     code: "الرمز",
     verify: "تحقّق",
     challengeFailed: "هذا الرمز غير صالح.",
@@ -13304,8 +13342,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "data-export":
         "تصدير البيانات عند الطلب وفق جداول زمنية، والسجلات والتنزيلات.",
     },
-    planned: "مخطط له",
-    handoverLabel: "ملاحظة التسليم لهذه الشاشة",
+    planned: "ستتوفر لاحقًا",
     notEntitledTitle: "هذه الوحدة غير مشمولة في اشتراكك",
     notEntitledDescription:
       "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",
@@ -13320,17 +13357,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "الرابط يشير إلى منشأة غير موجودة أو لم يعد لديك وصول إليها. اختر منشأة من قائمة المنشآت في الأعلى، أو ارجع إلى اليوم.",
       notSubscribedTitle: "هذه الوحدة غير مشمولة في اشتراكك",
       notSubscribedDescription:
-        "اشتراك مؤسستك لا يتضمنها، لذلك لا يستطيع أحد في المؤسسة فتحها. اطلب من مالك مؤسستك إضافتها.",
+        "اشتراك مؤسستك لا يتضمنها، لذلك لا يستطيع أحد في المؤسسة فتحها. يستطيع أحد مالكي مؤسستك أن يسأل Prizic عن إضافتها.",
       notEnabledTitle: "هذه الوحدة غير مفعّلة في هذه المنشأة",
       notEnabledDescription:
-        "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. اختر منشأة أخرى من القائمة في الأعلى، أو اطلب من مالك مؤسستك طلب تفعيلها هنا.",
+        "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. اختر منشأة أخرى من القائمة في الأعلى. يستطيع أحد مالكي مؤسستك أن يطلب من Prizic تفعيلها في هذه المنشأة.",
       noPermissionTitle: "دورك لا يتيح فتح هذه الصفحة",
       noPermissionDescription:
-        "تحتاج إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك أن يضيفها إلى دورك.",
+        "تحتاج {page} إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك أن يضيفها إلى دورك.",
       openTitle: "هذه الصفحة غير متاحة الآن",
       openDescription:
         "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",
       goToToday: "الانتقال إلى اليوم",
+      thisPage: "هذه الصفحة",
+    },
+    notFound: {
+      pageTitle: "الصفحة غير موجودة",
+      title: "هذه الصفحة غير موجودة",
+      description:
+        "هذا العنوان لا يؤدي إلى صفحة. تحقّق من وجود خطأ في الكتابة، أو ارجع إلى اليوم.",
+    },
+    sessionEnded: {
+      title: "انتهت جلستك",
+      description:
+        "انتهت جلستك، فلن يُحفظ شيء هنا حتى تسجّل الدخول مجددًا. ستعود إلى هذه الصفحة.",
     },
     signInThrottledAfter:
       "محاولات كثيرة جدًا. حاول مجددًا بعد {seconds, plural, one {ثانية واحدة} two {ثانيتين} few {# ثوانٍ} other {# ثانية}}.",

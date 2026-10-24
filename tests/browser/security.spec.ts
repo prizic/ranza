@@ -189,7 +189,10 @@ test("leaving halfway through enrolment asks first, in Arabic too", async ({
     asked.push(dialog.message());
     await dialog.dismiss();
   });
-  await page.locator("aside").getByRole("link", { name: "اليوم" }).click();
+  await page
+    .locator("aside")
+    .getByRole("link", { name: "اليوم", exact: true })
+    .click();
   await expect.poll(() => asked.length).toBe(1);
   expect(asked[0]).toContain("رموز النسخ الاحتياطي");
   await expect(page).toHaveURL(/\/ar\/security/);

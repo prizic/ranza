@@ -1,7 +1,11 @@
 "use client";
 
 import { useRef, useState, type ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 
 /**
  * The client cache, for screens that stay open and change underneath the user.
@@ -23,8 +27,21 @@ function isRetryable(error: unknown): boolean {
   return typeof status === "number" ? status >= 500 : true;
 }
 
-function createClient(): QueryClient {
+/** The session behind a request has ended: the API answers 401 and nothing else. */
+function isSignedOut(error: unknown): boolean {
+  return (error as { status?: unknown } | null)?.status === 401;
+}
+
+function createClient(onSignedOut: () => void): QueryClient {
   return new QueryClient({
+    // Every read an open screen makes passes through here, so the session
+    // ending is noticed once, centrally, and not by each screen's own
+    // "couldn't refresh" (SHELL-07).
+    queryCache: new QueryCache({
+      onError: (error) => {
+        if (isSignedOut(error)) onSignedOut();
+      },
+    }),
     defaultOptions: {
       queries: {
         retry: (count, error) => isRetryable(error) && count < 2,
@@ -49,12 +66,15 @@ function createClient(): QueryClient {
  */
 export function QueryProvider({
   children,
+  onSignedOut,
   scope,
 }: {
   children: ReactNode;
+  /** Told when a read is answered 401. Read once: it has to be stable. */
+  onSignedOut: () => void;
   scope: string;
 }) {
-  const [client] = useState(createClient);
+  const [client] = useState(() => createClient(onSignedOut));
   const held = useRef(scope);
 
   if (held.current !== scope) {

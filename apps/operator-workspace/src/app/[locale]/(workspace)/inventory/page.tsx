@@ -58,9 +58,6 @@ export default async function Page({
 
   return (
     <PlannedScreen
-      blueprintSection={screen.blueprint}
-      handoverHref="https://github.com/prizic/ranza/blob/main/docs/handover/operator-workspace-screens.md"
-      handoverLabel={t("handoverLabel")}
       heading={t("planned")}
       summary={
         t.has(`screenSummary.${SEGMENT}`) ? t(`screenSummary.${SEGMENT}`) : ""

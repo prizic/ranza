@@ -3,7 +3,13 @@
  * to wait when Better Auth says, and offers the way back from the second step.
  * The refusals both forms share are in sign-in-form.test.tsx.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { messages } from "../../apps/operator-workspace/src/messages";
@@ -111,5 +117,75 @@ describe("the Workspace sign-in form", () => {
   it("SIGN-10: puts the cursor in the email field on a screen that has room", () => {
     const say = show();
     expect(screen.getByLabelText(say.email)).toHaveFocus();
+  });
+
+  it("SHELL-10: counts the wait down and keeps the button down until it is over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      fetchMock.mockResolvedValue(answer(429, {}, { "x-retry-after": "3" }));
+      const say = show();
+      submit(say);
+      expect(
+        await screen.findByText("Too many attempts. Try again in 3 seconds."),
+      ).toBeInTheDocument();
+      const button = screen.getByRole("button", { name: say.signIn });
+      expect(
+        button,
+        "pressing it again would meet the same message",
+      ).toBeDisabled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(
+        screen.getByText("Too many attempts. Try again in 2 seconds."),
+      ).toBeInTheDocument();
+
+      for (let second = 0; second < 2; second += 1) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      expect(screen.queryByText(/Too many attempts/)).toBeNull();
+      expect(screen.getByRole("button", { name: say.signIn })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("SHELL-10: tells a screen reader once, not every second", async () => {
+    fetchMock.mockResolvedValue(answer(429, {}, { "x-retry-after": "5" }));
+    const say = show();
+    submit(say);
+    const ticking = await screen.findByText(
+      "Too many attempts. Try again in 5 seconds.",
+    );
+    expect(ticking).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(say.signInThrottled);
+  });
+
+  it("SHELL-13: asks for the six-digit code on a number pad, and a backup code is a switch away", async () => {
+    fetchMock.mockResolvedValue(answer(200, { twoFactorRedirect: true }));
+    const say = show();
+    submit(say);
+
+    const code = await screen.findByLabelText(say.code);
+    expect(code).toHaveAttribute("inputmode", "numeric");
+    expect(code).toHaveAttribute("autocomplete", "one-time-code");
+
+    fireEvent.click(screen.getByRole("button", { name: say.useBackupCode }));
+    expect(screen.getByLabelText(say.code)).toHaveAttribute(
+      "inputmode",
+      "text",
+    );
+    expect(screen.getByText(say.challengeBackupSummary)).toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: say.useAuthenticatorCode }),
+    );
+    expect(screen.getByLabelText(say.code)).toHaveAttribute(
+      "inputmode",
+      "numeric",
+    );
   });
 });

@@ -49,7 +49,10 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   const t = useTranslations();
   const router = useRouter();
   const [challenging, setChallenging] = useState(false);
+  const [backup, setBackup] = useState(false);
   const [failure, setFailure] = useState<Refusal | null>(null);
+  // Whole seconds left of the wait the rate limit asked for, ticking down.
+  const [waitSeconds, setWaitSeconds] = useState(0);
   const [pending, setPending] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const email = useRef<HTMLInputElement>(null);
@@ -63,6 +66,32 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     }
   }, []);
 
+  // The wait counts down on the screen and the button waits with it, so the
+  // person is not left pressing it into the same message (SHELL-10). At zero
+  // the message goes: it described a wait that is over.
+  useEffect(() => {
+    if (waitSeconds <= 0) return;
+    const tick = setTimeout(() => setWaitSeconds(waitSeconds - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [waitSeconds]);
+  useEffect(() => {
+    if (waitSeconds === 0) {
+      setFailure((shown) =>
+        shown?.failure === "throttled" && shown.retryAfter !== null
+          ? null
+          : shown,
+      );
+    }
+  }, [waitSeconds]);
+  const waiting = waitSeconds > 0;
+
+  function refuse(refusal: Refusal) {
+    setFailure(refusal);
+    setWaitSeconds(
+      refusal.failure === "throttled" ? (refusal.retryAfter ?? 0) : 0,
+    );
+  }
+
   /** What a refusal says, for either step. */
   function said(
     refusal: Refusal,
@@ -74,10 +103,33 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
       case "throttled":
         return refusal.retryAfter === null
           ? t("signInThrottled")
-          : t("signInThrottledAfter", { seconds: refusal.retryAfter });
+          : t("signInThrottledAfter", {
+              seconds: waiting ? waitSeconds : refusal.retryAfter,
+            });
       default:
         return t(FAILURE[refusal.failure]);
     }
+  }
+
+  /**
+   * The refusal above the form. While the rate limit's wait counts down the
+   * seconds tick on the screen but are hidden from a screen reader, which would
+   * otherwise hear the whole sentence again every second; it is told once.
+   */
+  function notice(mismatch: "signInFailed" | "challengeFailed") {
+    if (!failure) return null;
+    return waiting ? (
+      <>
+        <p className="sr-only" role="alert">
+          {t("signInThrottled")}
+        </p>
+        <p aria-hidden="true" className={ERROR}>
+          {said(failure, mismatch)}
+        </p>
+      </>
+    ) : (
+      <FormError className={ERROR}>{said(failure, mismatch)}</FormError>
+    );
   }
 
   function complete() {
@@ -106,7 +158,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     if (!response?.ok) {
       const refusal = await refusalOf(response, "sign-in");
       setPending(false);
-      setFailure(refusal);
+      refuse(refusal);
       return;
     }
 
@@ -140,8 +192,11 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
       setPending(false);
       // A spent challenge cannot be answered, so back to the password, which
       // starts a new one.
-      if (refusal.failure === "expired") setChallenging(false);
-      setFailure(refusal);
+      if (refusal.failure === "expired") {
+        setChallenging(false);
+        setBackup(false);
+      }
+      refuse(refusal);
       return;
     }
 
@@ -152,13 +207,9 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     return (
       <form className="grid gap-5" onSubmit={verify}>
         <p className="text-sm font-medium text-muted-foreground">
-          {t("challengeSummary")}
+          {t(backup ? "challengeBackupSummary" : "challengeSummary")}
         </p>
-        {failure ? (
-          <FormError className={ERROR}>
-            {said(failure, "challengeFailed")}
-          </FormError>
-        ) : null}
+        {notice("challengeFailed")}
         <div className="grid gap-2">
           <Label className={LABEL} htmlFor="code">
             {t("code")}
@@ -169,13 +220,28 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
             autoFocus
             className={FIELD}
             id="code"
-            inputMode="text"
+            inputMode={backup ? "text" : "numeric"}
+            key={backup ? "backup-code" : "authenticator-code"}
             name="code"
             required
           />
         </div>
-        <Button className={SUBMIT} disabled={pending} type="submit">
+        <Button className={SUBMIT} disabled={pending || waiting} type="submit">
           {pending ? t("signingIn") : t("verify")}
+        </Button>
+        {/* The authenticator's code is six digits and gets a number pad; a
+            backup code has letters, so it is a switch away rather than the
+            default that costs everyone the full keyboard (SHELL-13). */}
+        <Button
+          className="text-muted-foreground"
+          onClick={() => {
+            setBackup(!backup);
+            setFailure(null);
+          }}
+          type="button"
+          variant="ghost"
+        >
+          {t(backup ? "useAuthenticatorCode" : "useBackupCode")}
         </Button>
         {/* The way back to the password: a wrong account or a mistyped
             password is otherwise only escaped by five wrong codes or a
@@ -184,6 +250,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           className="text-muted-foreground"
           onClick={() => {
             setChallenging(false);
+            setBackup(false);
             setFailure(null);
           }}
           type="button"
@@ -197,9 +264,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
 
   return (
     <form className="grid gap-5" onSubmit={signIn}>
-      {failure ? (
-        <FormError className={ERROR}>{said(failure, "signInFailed")}</FormError>
-      ) : null}
+      {notice("signInFailed")}
       <div className="grid gap-2">
         <Label className={LABEL} htmlFor="email">
           {t("email")}
@@ -241,7 +306,11 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           </Button>
         </div>
       </div>
-      <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
+      <Button
+        className={`mt-2 ${SUBMIT}`}
+        disabled={pending || waiting}
+        type="submit"
+      >
         {pending ? t("signingIn") : t("signIn")}
       </Button>
     </form>

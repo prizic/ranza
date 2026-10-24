@@ -194,6 +194,7 @@ describe("every catalogue parses", () => {
                 others: 2,
                 outOfService: 1,
                 owed: "₺45,00",
+                page: "x",
                 people: 3,
                 percent: "57%",
                 period: "2026-10",

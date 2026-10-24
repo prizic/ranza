@@ -30,6 +30,7 @@ const { navigation } = vi.hoisted(() => ({
     redirect: (to: string) => {
       throw new Error(`redirect ${to}`);
     },
+    usePathname: () => "/en/finance",
   }),
 }));
 vi.mock("next/navigation", navigation);

@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, PanelLeft, PanelLeftClose } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  PanelLeft,
+  PanelLeftClose,
+} from "lucide-react";
 import {
   groupNavEntries,
   hrefPath,
@@ -23,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
+import { useScrollEdges } from "../lib/use-scroll-edges";
 import { cn } from "../lib/utils";
 
 /** Every string is the host's, localized. Required rather than defaulted: an
@@ -44,6 +50,30 @@ export interface RailLabels {
 }
 
 export type SidebarLabels = RailLabels;
+
+const CLOSED_GROUPS_KEY = "ranza-sidebar-closed-groups";
+
+function storedClosedGroups(): string[] {
+  try {
+    const stored: unknown = JSON.parse(
+      localStorage.getItem(CLOSED_GROUPS_KEY) ?? "[]",
+    );
+    return Array.isArray(stored)
+      ? stored.filter((label) => typeof label === "string")
+      : [];
+  } catch (error) {
+    console.warn("sidebar.groups_unreadable", error);
+    return [];
+  }
+}
+
+function storeClosedGroups(closed: readonly string[]): void {
+  try {
+    localStorage.setItem(CLOSED_GROUPS_KEY, JSON.stringify(closed));
+  } catch (error) {
+    console.warn("sidebar.groups_not_saved", error);
+  }
+}
 
 function useActiveHref(root: string) {
   const pathname = usePathname();
@@ -67,6 +97,9 @@ function useActiveHref(root: string) {
  * Leaders tightens its rows on a short screen; the thresholds here are higher
  * because the workspace has a dozen destinations to Leaders' nine, and at
  * Leaders' spacing a 900px laptop would scroll the last of them out of view.
+ * Where even the tightest rows do not fit — an Owner's seventeen destinations
+ * with Front Office open — the list scrolls and a fade at its foot says there
+ * is more below (SHELL-01).
  *
  * Two modes:
  * 1. Expanded: one list, with inline accordion groups for sub-items (Front
@@ -125,27 +158,40 @@ function AppSidebarInner({
   const isActive = useActiveHref(root);
   const { collapsed, setCollapsed, toggle } = useSidebar();
 
-  // Keep track of which accordion groups are open in expanded mode.
-  // Initially open the group containing the active page.
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
-    const currentGroup = navGroupFor(pathname, entries);
-    return currentGroup ? { [currentGroup.label]: true } : {};
-  });
+  // A group is open until the person closes it, and the groups they closed are
+  // remembered on this device: the desk's most frequent pages are inside Front
+  // Office, and two clicks to reach them every shift, after every reload, was
+  // the cost of starting it shut (SHELL-06). Read after the first paint, so the
+  // server and the first client render agree.
+  const [closedGroups, setClosedGroups] = useState<readonly string[]>([]);
+  useEffect(() => setClosedGroups(storedClosedGroups()), []);
 
   // Whenever route changes, ensure the active group is open
   useEffect(() => {
     const currentGroup = navGroupFor(pathname, entries);
     if (currentGroup) {
-      setOpenGroups((prev) => ({ ...prev, [currentGroup.label]: true }));
+      setClosedGroups((closed) =>
+        closed.includes(currentGroup.label)
+          ? closed.filter((label) => label !== currentGroup.label)
+          : closed,
+      );
     }
   }, [pathname, entries]);
 
   const toggleGroup = (groupLabel: string) => {
-    setOpenGroups((prev) => ({
-      ...prev,
-      [groupLabel]: !prev[groupLabel],
-    }));
+    const next = closedGroups.includes(groupLabel)
+      ? closedGroups.filter((label) => label !== groupLabel)
+      : [...closedGroups, groupLabel];
+    setClosedGroups(next);
+    storeClosedGroups(next);
   };
+
+  const navigation = useRef<HTMLElement>(null);
+  const { end: moreBelow } = useScrollEdges(
+    navigation,
+    "y",
+    `${collapsed}:${closedGroups.length}:${entries.length}`,
+  );
 
   const sections = groupNavEntries(entries);
   const sectionLabel = (id: string | undefined) =>
@@ -225,78 +271,93 @@ function AppSidebarInner({
         </div>
 
         {/* Navigation Body */}
-        <nav
-          className={cn(
-            "scrollbar-slim min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto py-2 focus:outline-none lg:space-y-2 lg:py-4",
-            collapsed ? "px-2" : "px-2.5 lg:px-3.5 xl:px-4",
-          )}
-        >
-          {sections.map((section, secIdx) => (
-            <div
-              className="space-y-1 lg:space-y-2"
-              key={section.id ?? `section-${secIdx}`}
-            >
-              {/* A heading names the group; collapsed to icons there is no room
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <nav
+            className={cn(
+              "scrollbar-slim min-h-0 flex-1 space-y-1 overflow-x-hidden overflow-y-auto py-2 focus:outline-none lg:space-y-2 lg:py-4 [@media(max-height:960px)]:space-y-0.5 [@media(max-height:960px)]:py-2",
+              collapsed ? "px-2" : "px-2.5 lg:px-3.5 xl:px-4",
+            )}
+            ref={navigation}
+          >
+            {sections.map((section, secIdx) => (
+              <div
+                className="space-y-1 lg:space-y-2 [@media(max-height:960px)]:space-y-0.5"
+                key={section.id ?? `section-${secIdx}`}
+              >
+                {/* A heading names the group; collapsed to icons there is no room
                   for words, and a section with no heading has none to show, so
                   a rule keeps the groups apart instead. The list is named
                   either way, for a reader who cannot see the heading. */}
-              {!collapsed && sectionLabel(section.id) ? (
-                <p
-                  aria-hidden="true"
-                  className="truncate px-3 pt-3 pb-1 text-[11px] font-semibold tracking-[0.1em] text-on-frame-muted uppercase"
-                >
-                  {sectionLabel(section.id)}
-                </p>
-              ) : secIdx > 0 ? (
-                <div
-                  aria-hidden="true"
-                  className={cn(
-                    "my-2 h-px bg-frame-line",
-                    collapsed ? "mx-auto w-8" : "mx-3",
-                  )}
-                />
-              ) : null}
+                {!collapsed && sectionLabel(section.id) ? (
+                  <p
+                    aria-hidden="true"
+                    className="truncate px-3 pt-3 pb-1 text-[11px] font-semibold tracking-[0.1em] text-on-frame-muted uppercase"
+                  >
+                    {sectionLabel(section.id)}
+                  </p>
+                ) : secIdx > 0 ? (
+                  <div
+                    aria-hidden="true"
+                    className={cn(
+                      "my-2 h-px bg-frame-line",
+                      collapsed ? "mx-auto w-8" : "mx-3",
+                    )}
+                  />
+                ) : null}
 
-              {/* Entries in this section */}
-              <ul
-                aria-label={sectionLabel(section.id)}
-                className="space-y-1 lg:space-y-2"
-                role="list"
-              >
-                {section.entries.map((entry) =>
-                  isNavGroup(entry) ? (
-                    <li key={entry.label}>
-                      {collapsed ? (
-                        <CollapsedGroupItem group={entry} isActive={isActive} />
-                      ) : (
-                        <ExpandedGroupItem
-                          group={entry}
-                          isActive={isActive}
-                          isOpen={Boolean(openGroups[entry.label])}
-                          onToggle={() => toggleGroup(entry.label)}
-                        />
-                      )}
-                    </li>
-                  ) : (
-                    <li key={entry.href}>
-                      {collapsed ? (
-                        <CollapsedLeafItem
-                          active={isActive(entry.href)}
-                          leaf={entry}
-                        />
-                      ) : (
-                        <ExpandedLeafItem
-                          active={isActive(entry.href)}
-                          leaf={entry}
-                        />
-                      )}
-                    </li>
-                  ),
-                )}
-              </ul>
+                {/* Entries in this section */}
+                <ul
+                  aria-label={sectionLabel(section.id)}
+                  className="space-y-1 lg:space-y-2 [@media(max-height:960px)]:space-y-0.5"
+                  role="list"
+                >
+                  {section.entries.map((entry) =>
+                    isNavGroup(entry) ? (
+                      <li key={entry.label}>
+                        {collapsed ? (
+                          <CollapsedGroupItem
+                            group={entry}
+                            isActive={isActive}
+                          />
+                        ) : (
+                          <ExpandedGroupItem
+                            group={entry}
+                            isActive={isActive}
+                            isOpen={!closedGroups.includes(entry.label)}
+                            onToggle={() => toggleGroup(entry.label)}
+                          />
+                        )}
+                      </li>
+                    ) : (
+                      <li key={entry.href}>
+                        {collapsed ? (
+                          <CollapsedLeafItem
+                            active={isActive(entry.href)}
+                            leaf={entry}
+                          />
+                        ) : (
+                          <ExpandedLeafItem
+                            active={isActive(entry.href)}
+                            leaf={entry}
+                          />
+                        )}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            ))}
+          </nav>
+          {moreBelow ? (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 flex h-12 items-end justify-center bg-linear-to-t from-frame to-transparent"
+              data-cue-end="true"
+            >
+              <ChevronDown className="size-4 text-on-frame-muted" />
             </div>
-          ))}
-        </nav>
+          ) : null}
+        </div>
 
         {actions ? (
           <div
@@ -325,7 +386,7 @@ function ExpandedLeafItem({
     <Link
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+        "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:960px)]:py-1.5",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
         active
           ? "bg-frame-active font-semibold text-on-frame"
@@ -377,7 +438,7 @@ function ExpandedGroupItem({
       <button
         aria-expanded={isOpen}
         className={cn(
-          "group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+          "group relative flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 select-none lg:gap-3.5 lg:px-3.5 lg:py-2.5 lg:text-[15px] xl:px-4 xl:py-3 xl:text-base [@media(max-height:960px)]:py-1.5",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
           hasActiveChild
             ? "font-semibold text-on-frame hover:bg-frame-hover"
@@ -412,7 +473,7 @@ function ExpandedGroupItem({
               <Link
                 aria-current={childActive ? "page" : undefined}
                 className={cn(
-                  "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 [@media(max-height:800px)]:py-1.5 [@media(min-height:801px)_and_(max-height:960px)]:py-2",
+                  "group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-300 [@media(max-height:960px)]:py-1.5",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
                   childActive
                     ? "bg-frame-active font-semibold text-on-frame"
@@ -450,7 +511,7 @@ function CollapsedLeafItem({
         aria-current={active ? "page" : undefined}
         aria-label={leaf.label}
         className={cn(
-          "flex size-11 items-center justify-center rounded-xl transition-colors duration-300",
+          "flex size-11 items-center justify-center rounded-xl transition-colors duration-300 [@media(max-height:960px)]:size-10",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
           active
             ? "bg-frame-active text-on-frame"
@@ -496,7 +557,7 @@ function CollapsedGroupItem({
         <DropdownMenuTrigger
           aria-label={group.label}
           className={cn(
-            "flex size-11 cursor-pointer items-center justify-center rounded-xl transition-colors duration-300",
+            "flex size-11 cursor-pointer items-center justify-center rounded-xl transition-colors duration-300 [@media(max-height:960px)]:size-10",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-on-frame",
             hasActiveChild
               ? "bg-frame-active text-on-frame"
@@ -557,7 +618,13 @@ function CollapsedGroupItem({
   );
 }
 
-/** Mobile dock navigation. Clean, scroll-safe, touch-friendly. */
+/**
+ * Mobile dock navigation. Clean, scroll-safe, touch-friendly.
+ *
+ * Opens scrolled to the page the person is on, and fades the edge it can still
+ * travel towards: fifteen destinations in a window that shows four said nothing
+ * of the rest but a label cut off at the edge (SHELL-02).
+ */
 export function AppBottomNav({
   entries,
   label,
@@ -569,6 +636,18 @@ export function AppBottomNav({
 }) {
   const isActive = useActiveHref(root);
   const items = toMobileNav(entries);
+  const dock = useRef<HTMLUListElement>(null);
+  const { start, end } = useScrollEdges(dock, "x", items.length);
+
+  useEffect(() => {
+    const current = dock.current?.querySelector<HTMLElement>(
+      '[aria-current="page"]',
+    );
+    // Not every environment lays out or scrolls; the dock is then as it opened.
+    if (typeof current?.scrollIntoView === "function") {
+      current.scrollIntoView({ block: "nearest", inline: "center" });
+    }
+  }, []);
 
   if (items.length === 0) return null;
 
@@ -576,9 +655,16 @@ export function AppBottomNav({
     <nav
       aria-label={label}
       className="fixed inset-x-3 bottom-3 z-20 rounded-2xl bg-frame shadow-lg shadow-black/20 md:hidden"
+      data-cue-end={end}
+      data-cue-start={start}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <ul className="flex items-center justify-around overflow-x-auto px-1 py-1 scrollbar-none">
+      {start ? <DockFade edge="start" /> : null}
+      {end ? <DockFade edge="end" /> : null}
+      <ul
+        className="flex items-center justify-around overflow-x-auto px-1 py-1 scrollbar-none"
+        ref={dock}
+      >
         {items.map(({ href, icon: Icon, label: itemLabel }) => {
           const active = isActive(href);
           return (
@@ -610,5 +696,26 @@ export function AppBottomNav({
         })}
       </ul>
     </nav>
+  );
+}
+
+function DockFade({ edge }: { edge: "start" | "end" }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute inset-y-1 z-10 flex w-8 items-center from-frame to-transparent",
+        edge === "start"
+          ? "start-1 justify-start bg-linear-to-r rtl:bg-linear-to-l"
+          : "end-1 justify-end bg-linear-to-l rtl:bg-linear-to-r",
+      )}
+    >
+      <ChevronRight
+        className={cn(
+          "size-4 text-on-frame-muted",
+          edge === "start" ? "rotate-180 rtl:rotate-0" : "rtl:rotate-180",
+        )}
+      />
+    </div>
   );
 }

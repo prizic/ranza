@@ -28,7 +28,7 @@ export function useWorkspacePageTitles(): PageTitle[] {
   const t = useTranslations();
   const nav = useTranslations("navigation");
   return [
-    ...ALL_SCREENS.filter((screen) => !screen.children).map((screen) => ({
+    ...ALL_SCREENS.map((screen) => ({
       prefix: `/${screen.segment}`,
       title: nav.has(screen.segment) ? nav(screen.segment) : screen.segment,
       display: !OWN_DISPLAY_TYPE.has(screen.segment),

@@ -14,18 +14,29 @@ import { LOCATION_HEADER } from "./lib/return-path";
  * path that `safeReturnPath` still has to accept.
  *
  * And it remembers the language: a localized request sets a cookie when the language changes, and the
- * bare address opens in that language, then the browser's, then Turkish
- * (SIGN-03).
+ * bare address, or any address with no language in it, opens in that language,
+ * then the browser's, then Turkish (SIGN-03).
  */
 export function proxy(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
 
-  if (pathname === "/") {
-    const locale = openingLocale(
+  const opensIn = () =>
+    openingLocale(
       request.cookies.get(LOCALE_COOKIE)?.value,
       request.headers.get("accept-language"),
     );
-    return NextResponse.redirect(new URL(`/${locale}/today`, request.url));
+
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL(`/${opensIn()}/today`, request.url));
+  }
+
+  // An address with no language in it (`/today`, a bookmark from before the
+  // language prefix) opens in the remembered language rather than a 404
+  // (SHELL-03). What follows the language is the person's to get right.
+  if (!isSupportedLocale(pathname.split("/")[1])) {
+    return NextResponse.redirect(
+      new URL(`/${opensIn()}${pathname}${request.nextUrl.search}`, request.url),
+    );
   }
 
   const query = new URLSearchParams(searchParams);
@@ -55,6 +66,9 @@ export function proxy(request: NextRequest): NextResponse {
   return response;
 }
 
+// Everything but the API, the framework's own files and anything with an
+// extension (the icon): a path with no language is redirected, the rest is told
+// where it was going.
 export const config = {
-  matcher: ["/", "/(tr|en|ar)/:path*"],
+  matcher: ["/((?!api/|_next/|.*\\..*).*)"],
 };

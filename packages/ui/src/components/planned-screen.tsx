@@ -7,25 +7,19 @@ import { Compass } from "lucide-react";
  * to it, and the screen is simply not built. Saying that plainly is better than
  * a blank page, and far better than a half-built screen that looks finished.
  *
- * It states what the screen is for and which section of the blueprint specifies
- * it, because the next person to open this file needs both before they can
- * start — and blueprint section 13 forbids building the tables behind it ahead
- * of the workflow that needs them, so "not built" is a position rather than an
- * oversight.
+ * It states what the screen is for and nothing a hotel cannot act on: which
+ * document of the repository specifies it, and where, is for the next developer
+ * and is in `docs/handover/operator-workspace-screens.md`, not on a page an
+ * Owner opens (SHELL-08). Blueprint section 13 forbids building the tables
+ * behind it ahead of the workflow that needs them, so "not built" is a
+ * position rather than an oversight.
  */
 export function PlannedScreen({
-  blueprintSection,
-  handoverHref,
-  handoverLabel,
   heading,
   summary,
   title,
 }: {
-  /** e.g. "5.4" — the section that specifies this screen. */
-  blueprintSection: string;
-  handoverHref: string;
-  handoverLabel: string;
-  /** Localized "Planned". */
+  /** Localized "Coming later". */
   heading: string;
   /** What this screen will do, in the reader's language. */
   summary: string;
@@ -47,17 +41,6 @@ export function PlannedScreen({
       </p>
       <p className="mt-7 text-2xl leading-snug font-light text-balance">
         {summary}
-      </p>
-      <p className="mt-8 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-5 text-step--1 text-muted-foreground">
-        <a
-          className="font-medium text-primary-text underline-offset-4 hover:underline"
-          href={handoverHref}
-        >
-          {handoverLabel}
-        </a>
-        <span className="tabular-nums opacity-70">
-          Blueprint {blueprintSection}
-        </span>
       </p>
     </section>
   );

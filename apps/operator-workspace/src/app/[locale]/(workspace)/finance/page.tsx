@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { formatMoney, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
@@ -18,7 +17,7 @@ import {
   whyDenied,
 } from "../../../../server/viewer";
 import { gateOf } from "../../../../lib/screens";
-import { ScreenDenied } from "../screen-denied";
+import { ScreenDenied, ScreenRefusal } from "../screen-denied";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
 import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
@@ -74,8 +73,9 @@ export default async function FinancePage({
       return <ScreenDenied denial={denial} locale={locale} />;
     }
     return (
-      <EmptyState
+      <ScreenRefusal
         description={t("noFinanceDescription")}
+        locale={locale}
         title={t("noFinanceTitle")}
       />
     );

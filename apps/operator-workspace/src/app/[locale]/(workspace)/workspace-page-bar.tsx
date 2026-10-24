@@ -63,9 +63,13 @@ export function WorkspacePageBar({
     defaultProperty,
     Object.keys(segmentsByProperty),
   );
-  const match = pageTitleFor(pathname, titles);
-
-  if (!match) return null;
+  // An address that is no page still gets the bar, and with it the way up
+  // (ADR 0035): the not-found screen is drawn under it (SHELL-03).
+  const match = pageTitleFor(pathname, titles) ?? {
+    display: true,
+    prefix: pathname,
+    title: t("notFound.pageTitle"),
+  };
 
   // A nav group has no page of its own, so it is named without a link.
   const group = navGroupFor(pathname, entries);

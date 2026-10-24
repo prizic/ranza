@@ -26,13 +26,13 @@ import {
   TODAY_CAPABILITY,
   type EntitledProperty,
 } from "../../../server/viewer";
-import { QueryProvider } from "../../providers/query-provider";
 import { BillingNotice } from "./billing-notice";
 import { PropertyLink } from "./property-link";
 import { PropertySwitcher } from "./property-switcher";
 import { SignOutItem } from "./sign-out-item";
 import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
 import { WorkspacePageBar } from "./workspace-page-bar";
+import { WorkspaceSession } from "./workspace-session";
 import { WorkspaceBottomNav, WorkspaceRail } from "./workspace-rail";
 
 /**
@@ -258,16 +258,27 @@ export default async function WorkspaceLayout({
                   locale={locale}
                 />
               </div>
-              <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
-              <AccountMenu
-                email={viewer.email}
-                label={t("account")}
-                locale={locale}
-                name={viewer.name}
-                variant="compact"
+              {/* One account control per layout (SHELL-12): the sidebar's
+                  carries it from a tablet up, so the bar's is for a phone,
+                  which has no sidebar, and for a role with chips instead. */}
+              <div
+                className={
+                  mode === "sidebar"
+                    ? "flex items-center gap-2 md:hidden sm:gap-3"
+                    : "flex items-center gap-2 sm:gap-3"
+                }
               >
-                {accountItems}
-              </AccountMenu>
+                <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+                <AccountMenu
+                  email={viewer.email}
+                  label={t("account")}
+                  locale={locale}
+                  name={viewer.name}
+                  variant="compact"
+                >
+                  {accountItems}
+                </AccountMenu>
+              </div>
             </>
           }
           defaultProperty={first?.propertyId}
@@ -329,7 +340,17 @@ export default async function WorkspaceLayout({
         notices={overdue}
         title={(organization) => t("billingNotice.title", { organization })}
       />
-      <QueryProvider scope={viewer.userId}>{children}</QueryProvider>
+      <WorkspaceSession
+        copy={{
+          description: t("sessionEnded.description"),
+          signIn: t("signIn"),
+          title: t("sessionEnded.title"),
+        }}
+        locale={locale}
+        scope={viewer.userId}
+      >
+        {children}
+      </WorkspaceSession>
     </AppShell>
   );
 }

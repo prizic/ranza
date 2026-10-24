@@ -212,6 +212,10 @@ test("a typed address a role may not open says why, in English", async ({
     "Ask whoever manages staff in your Organization",
   );
   await expect(
+    page.getByRole("link", { name: "Go to Today" }),
+    "a refusal is never a dead end (SHELL-05)",
+  ).toBeVisible();
+  await expect(
     page.locator("main"),
     "the Subscription is not why",
   ).not.toContainText("Subscription");
