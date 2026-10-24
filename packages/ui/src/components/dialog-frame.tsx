@@ -669,9 +669,7 @@ export function StayRuler({
         <text
           className="fill-muted-foreground font-mono text-[10px] tracking-widest uppercase"
           key={day}
-          textAnchor={
-            day === 0 ? "start" : day === span ? "end" : "middle"
-          }
+          textAnchor={day === 0 ? "start" : day === span ? "end" : "middle"}
           x={(day * width) / span}
           y="60"
         >
