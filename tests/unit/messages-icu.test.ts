@@ -170,6 +170,7 @@ describe("every catalogue parses", () => {
                 first: "101",
                 floor: 2,
                 foreground: "x",
+                free: 3,
                 from: "16 Sep",
                 guest: "x",
                 hours: 24,

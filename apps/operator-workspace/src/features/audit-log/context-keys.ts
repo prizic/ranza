@@ -44,6 +44,7 @@ export const CONTEXT_KEYS = [
   "accommodationUnitId",
   "guestId",
   "guestCreated",
+  "guestChosen",
   "startsOn",
   "endsOn",
   "plannedEndsOn",

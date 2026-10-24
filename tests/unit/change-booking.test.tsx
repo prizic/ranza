@@ -131,12 +131,13 @@ function answering(body: unknown, status = 200) {
   return fetch;
 }
 
-function open(locale: "en" | "tr" | "ar" = "en") {
+function open(locale: "en" | "tr" | "ar" = "en", onMarkNoShow?: () => void) {
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <ChangeBookingDialog
         booking={BOOKING}
         locale={locale}
+        onMarkNoShow={onMarkNoShow}
         onOpenChange={() => {}}
         open
       />
@@ -237,16 +238,24 @@ describe("the Change booking dialog", () => {
     expect(save()).toBeDisabled();
   });
 
-  it("an_arrival_is_never_moved_into_the_past", async () => {
+  it("an_arrival_is_never_moved_into_the_past: a booking already late says so and offers the no-show, not a red error", async () => {
     answering({
       kind: "preview",
       preview: preview({ today: "2026-10-06" }),
     });
-    open();
+    const markNoShow = vi.fn();
+    open("en", markNoShow);
     expect(
-      await screen.findByText(messages.en.changeBookingBeforeToday),
+      await screen.findByText(
+        /This booking was due on .* the Guest has not arrived/,
+      ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(messages.en.changeBookingBeforeToday)).toBeNull();
     expect(save()).toBeDisabled();
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.en.markNoShow }),
+    );
+    expect(markNoShow).toHaveBeenCalledTimes(1);
   });
 
   it("a_preview_that_could_not_be_read_says_so", async () => {

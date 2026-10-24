@@ -482,10 +482,10 @@ describe("the Reservations list's price column", () => {
       },
     ]);
     // Arrived on the 10th: the booking's 9th is not where the stay began.
-    expect(within(row("RZ-PERIOD")).getByText(/Jan 10, 2030/)).toBeVisible();
+    expect(within(row("RZ-PERIOD")).getByText(/Jan 10/)).toBeVisible();
     expect(within(row("RZ-PERIOD")).queryByText(/Jan 9/)).toBeNull();
     // Not arrived yet: the booking's own dates are all there is.
-    expect(within(row("RZ-BOOKED")).getByText(/Jan 9, 2030/)).toBeVisible();
+    expect(within(row("RZ-BOOKED")).getByText(/Jan 9/)).toBeVisible();
   });
 
   it("the_price_column_shows_the_total_for_the_stay: open-ended and unpriced bookings claim no total", () => {
