@@ -207,6 +207,7 @@ export interface Messages {
     string
   >;
   checkOutFor: string;
+  checkOutInDepartures: string;
   checkOutTitle: string;
   checkOutSummary: string;
   checkOutRoomDirty: string;
@@ -296,6 +297,8 @@ export interface Messages {
   includesNights: string;
   wasDueOn: string;
   overdueDays: string;
+  didNotArriveDays: string;
+  wasDueToArriveOn: string;
   overdueNightsNote: string;
   untilDate: string;
 
@@ -533,11 +536,11 @@ export interface Messages {
   };
   reservationsViews: string;
   reservationsTab: Record<
-    "all" | "arriving" | "inHouse" | "departing" | "upcoming",
+    "all" | "arriving" | "inHouse" | "departing" | "overdue" | "upcoming",
     string
   >;
   reservationsTabEmpty: Record<
-    "arriving" | "inHouse" | "departing" | "upcoming",
+    "arriving" | "inHouse" | "departing" | "overdue" | "upcoming",
     string
   >;
   reservationsTabEmptyHint: string;
@@ -637,6 +640,7 @@ export interface Messages {
   changeBookingBlockedBooked: string;
   changeBookingBlockedOccupied: string;
   changeBookingBeforeToday: string;
+  changeBookingLate: string;
   changeBookingPriceKept: string;
   /** Another kind of Unit: the old price and the new, per night. */
   changeBookingPriceChanges: string;
@@ -3199,12 +3203,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepBooking: "Rezervasyonu koru",
     saving: "Kaydediliyor…",
     checkInBlocked: {
-      not_confirmed: "Önce rezervasyonun onaylanması gerekiyor.",
+      not_confirmed:
+        "Yalnızca bir talep. İptal edip rezervasyonu yeniden alın.",
       unit_blocked: "Birim bloke. Blokeyi kaldırın ya da başka birim seçin.",
       unit_out_of_service: "Birim hizmet dışı. Başka birim seçin.",
       unit_occupied: "Birimde hâlâ konaklayan var. Önce onun çıkışını yapın.",
     },
     checkOutFor: "{guest} için çıkış yap",
+    checkOutInDepartures: "Çıkış yap (Çıkışlar sayfası açılır)",
     checkOutTitle: "Çıkış yap",
     checkOutSummary:
       "Misafir ayrılır. Çıkış geri alınamaz; önce hesabı kontrol edin.",
@@ -3287,7 +3293,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     openInHousekeeping: "Kat hizmetlerinde aç",
     roomRowHeading: "Oda",
     searchGuestRoomReference: "Misafir, oda veya rezervasyon ara",
-    searchReservations: "Misafir, oda, rezervasyon, telefon veya tarih ara",
+    searchReservations: "Ad, oda, telefon, tarih",
     leftToday: "Bugün ayrılanlar",
     leftAt: "Ayrılış",
     nobodyLeftYet: "Bugün henüz ayrılan olmadı.",
@@ -3307,6 +3313,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, one {çıkışta ücretlendirilecek # gece dahil} other {çıkışta ücretlendirilecek # gece dahil}}",
     wasDueOn: "{date} tarihinde çıkacaktı",
     overdueDays: "Gecikmiş · {count, plural, one {# gün} other {# gün}}",
+    didNotArriveDays: "Gelmedi · {count, plural, one {# gün} other {# gün}}",
+    wasDueToArriveOn: "{date} tarihinde gelecekti",
     overdueNightsNote:
       "Bugüne kadarki geceler kapanışta ya da çıkışta hesaba işlenir; sonraki geceler de aynı şekilde.",
     untilDate: "{date} tarihine kadar",
@@ -3606,12 +3614,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       arriving: "Bugün gelenler",
       inHouse: "Konaklayanlar",
       departing: "Bugün çıkanlar",
+      overdue: "Gecikenler",
       upcoming: "Yaklaşanlar",
     },
     reservationsTabEmpty: {
       arriving: "Bugün gelecek kimse yok",
       inHouse: "Konaklayan kimse yok",
       departing: "Bugün ayrılacak kimse yok",
+      overdue: "Geciken kimse yok",
       upcoming: "Daha sonrası için rezervasyon yok",
     },
     reservationsTabEmptyHint:
@@ -3672,9 +3682,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestNamePlaceholder: "Ad soyad",
     guestEmailPlaceholder: "ad@ornek.com",
     guestPhonePlaceholder: "+90 …",
-    bookingChooseDatesFirst: "Boş odaları görmek için önce tarihleri seçin",
+    bookingChooseDatesFirst: "Boş birimleri görmek için önce tarihleri seçin",
     newReservationHintMissing:
-      "Devam etmek için ad, tarihler ve bir oda ekleyin",
+      "Devam etmek için ad, tarihler ve bir birim ekleyin",
     guestNoDetailsOnFile: "İletişim bilgisi kayıtlı değil",
     guestPhoneInvalid:
       "Telefon numarası yalnızca rakam, boşluk, + ( ) - ve . içerebilir.",
@@ -3722,6 +3732,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingBlockedOccupied:
       "Bu birimde o gecelerin bir kısmında konaklayan biri var.",
     changeBookingBeforeToday: "Giriş bugün veya daha sonra olmalı.",
+    changeBookingLate:
+      "Bu rezervasyonun girişi {date} tarihindeydi ve misafir gelmedi. Gelmedi olarak işaretleyin ya da yeni tarih seçin.",
     changeBookingPriceKept: "Gecelik {price}, rezervasyondaki gibi",
     changeBookingPriceChanges: "Gecelik {from} → {to}",
     changeBookingPriceNone:
@@ -3737,8 +3749,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingNotInService: "Bu birim şu anda bu rezervasyonu alamaz.",
     changeBookingNoteInvalid: "Not 3 ile 500 karakter arasında olmalı.",
     changeBookingNothing: "Tarihler ve birim aynı; değiştirilecek bir şey yok.",
-    changeBookingHintUnit: "Devam etmek için boş bir oda seçin",
-    changeBookingWhichUnit: "Hangi oda?",
+    changeBookingHintUnit: "Devam etmek için boş bir birim seçin",
+    changeBookingWhichUnit: "Hangi birim?",
     changeBookingRefused: "Bu rezervasyon değiştirilemiyor.",
     changeDeparture: "Çıkışı değiştir",
     changeDepartureSummary:
@@ -3792,11 +3804,11 @@ export const messages: Record<SupportedLocale, Messages> = {
     unitChipFree: "Boş",
     unitChipBooked: "Rezerve · {reference}",
     unitChipOccupied: "Dolu",
-    moveGuestWhichUnit: "Hangi odaya taşınıyor?",
+    moveGuestWhichUnit: "Hangi birime taşınıyor?",
     moveGuestWhy: "Neden taşınıyor?",
-    unitSearch: "Oda numarası veya türüne göre ara",
-    unitMore: "{count} oda daha var. Bulmak için yazın.",
-    unitNoMatches: "Eşleşen oda yok.",
+    unitSearch: "Birim numarası veya türüne göre ara",
+    unitMore: "{count} birim daha var. Bulmak için yazın.",
+    unitNoMatches: "Eşleşen birim yok.",
     moveGuestNotePlaceholder: "Sonraki vardiyanın bilmesi gereken bir şey",
     moveGuestHintUnit: "Devam etmek için bir oda seçin",
     moveGuestHintReason: "Devam etmek için nedenini seçin",
@@ -6604,12 +6616,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepBooking: "Keep the booking",
     saving: "Saving…",
     checkInBlocked: {
-      not_confirmed: "The booking has to be confirmed first.",
+      not_confirmed: "Only a request. Cancel it and take the booking again.",
       unit_blocked: "The Unit is blocked. Unblock it or choose another.",
       unit_out_of_service: "The Unit is out of order. Choose another.",
       unit_occupied: "Somebody is still in the room. Check them out first.",
     },
     checkOutFor: "Check {guest} out",
+    checkOutInDepartures: "Check out (opens Departures)",
     checkOutTitle: "Check out",
     checkOutSummary:
       "The Guest leaves. A check-out cannot be taken back, so review the bill first.",
@@ -6694,7 +6707,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     openInHousekeeping: "Open in Housekeeping",
     roomRowHeading: "Room",
     searchGuestRoomReference: "Search guest, room or reference",
-    searchReservations: "Search guest, room, reference, phone or date",
+    searchReservations: "Name, room, phone, date",
     leftToday: "Left today",
     leftAt: "Left at",
     nobodyLeftYet: "Nobody has left yet today.",
@@ -6714,6 +6727,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, one {includes # night charged at check-out} other {includes # nights charged at check-out}}",
     wasDueOn: "Was due {date}",
     overdueDays: "Overdue · {count, plural, one {# day} other {# days}}",
+    didNotArriveDays:
+      "Did not arrive · {count, plural, one {# day} other {# days}}",
+    wasDueToArriveOn: "Was due to arrive {date}",
     overdueNightsNote:
       "Nights up to now post at the close or at check-out, and so will the nights after.",
     untilDate: "until {date}",
@@ -7013,12 +7029,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       arriving: "Arriving today",
       inHouse: "In house",
       departing: "Departing today",
+      overdue: "Overdue",
       upcoming: "Upcoming",
     },
     reservationsTabEmpty: {
       arriving: "Nobody is due to arrive",
       inHouse: "Nobody is in house",
       departing: "Nobody is due to depart",
+      overdue: "Nobody is overdue",
       upcoming: "Nothing booked for later",
     },
     reservationsTabEmptyHint: "Switch to All to see every booking.",
@@ -7072,7 +7090,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Could this be the same person? Pick one and the booking is added to that Guest, even if they have no email on file.",
     guestPhoneHint:
       "Optional. With the country code or a leading 0. Used to show a Guest already on file with the same number.",
-    guestPicked: "This booking will be added to {name}, who is already on file.",
+    guestPicked:
+      "This booking will be added to {name}, who is already on file.",
     guestPickedClear: "Not this person",
     unitFreeCount:
       "{free} of {total, plural, one {# unit} other {# units}} free for these nights",
@@ -7130,6 +7149,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingBlockedOccupied:
       "Somebody is staying in that Unit for some of those nights.",
     changeBookingBeforeToday: "The arrival must be today or later.",
+    changeBookingLate:
+      "This booking was due on {date} and the Guest has not arrived. Mark it a no-show, or pick new dates.",
     changeBookingPriceKept: "{price} a night, as booked",
     changeBookingPriceChanges: "{from} → {to} a night",
     changeBookingPriceNone:
@@ -10017,12 +10038,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepBooking: "إبقاء الحجز",
     saving: "جارٍ الحفظ…",
     checkInBlocked: {
-      not_confirmed: "يجب تأكيد الحجز أولًا.",
+      not_confirmed: "طلب فقط. ألغِه وأنشئ الحجز من جديد.",
       unit_blocked: "الوحدة محظورة. ارفع الحظر أو اختر وحدة أخرى.",
       unit_out_of_service: "الوحدة خارج الخدمة. اختر وحدة أخرى.",
       unit_occupied: "لا يزال هناك ضيف في الغرفة. سجّل مغادرته أولًا.",
     },
     checkOutFor: "تسجيل مغادرة {guest}",
+    checkOutInDepartures: "تسجيل المغادرة (يفتح صفحة المغادرة)",
     checkOutTitle: "تسجيل المغادرة",
     checkOutSummary:
       "يغادر الضيف. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
@@ -10099,7 +10121,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     openInHousekeeping: "فتح في التدبير الفندقي",
     roomRowHeading: "الغرفة",
     searchGuestRoomReference: "ابحث عن ضيف أو غرفة أو رقم حجز",
-    searchReservations: "ابحث عن ضيف أو غرفة أو رقم حجز أو هاتف أو تاريخ",
+    searchReservations: "اسم، غرفة، هاتف، تاريخ",
     leftToday: "غادروا اليوم",
     leftAt: "وقت المغادرة",
     nobodyLeftYet: "لم يغادر أحد بعد اليوم.",
@@ -10121,6 +10143,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     wasDueOn: "كان موعد المغادرة {date}",
     overdueDays:
       "متأخر · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    didNotArriveDays:
+      "لم يصل · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    wasDueToArriveOn: "كان موعد الوصول {date}",
     overdueNightsNote:
       "تُرحَّل الليالي حتى الآن عند الإغلاق أو عند المغادرة، وكذلك الليالي التي بعدها.",
     untilDate: "حتى {date}",
@@ -10413,12 +10438,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       arriving: "وصول اليوم",
       inHouse: "المقيمون",
       departing: "مغادرة اليوم",
+      overdue: "المتأخرون",
       upcoming: "القادمة",
     },
     reservationsTabEmpty: {
       arriving: "لا أحد متوقع وصوله اليوم",
       inHouse: "لا أحد مقيم حالياً",
       departing: "لا أحد متوقع مغادرته اليوم",
+      overdue: "لا أحد متأخر",
       upcoming: "لا حجوزات لاحقة",
     },
     reservationsTabEmptyHint: "انتقل إلى «الكل» لعرض كل الحجوزات.",
@@ -10473,7 +10500,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     guestPickedClear: "ليس هذا الشخص",
     unitFreeCount: "{free} من {total} وحدة متاحة لهذه الليالي",
     newReservationQuestion: "من سيقيم ومتى؟",
-    guestNameTitle: "اسم النزيل",
+    guestNameTitle: "اسم الضيف",
     guestNamePlaceholder: "الاسم الكامل",
     guestEmailPlaceholder: "name@example.com",
     guestPhonePlaceholder: "+90 …",
@@ -10524,6 +10551,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeBookingBlockedOccupied:
       "هناك ضيف يقيم في هذه الوحدة خلال بعض تلك الليالي.",
     changeBookingBeforeToday: "يجب أن يكون الوصول اليوم أو بعده.",
+    changeBookingLate:
+      "كان موعد وصول هذا الحجز في {date} ولم يصل الضيف. سجّله كعدم حضور أو اختر تواريخ جديدة.",
     changeBookingPriceKept: "{price} لليلة، كما في الحجز",
     changeBookingPriceChanges: "{from} ← {to} لليلة",
     changeBookingPriceNone: "لا يوجد سعر لـ{type}: سيبقى الحجز بلا سعر.",

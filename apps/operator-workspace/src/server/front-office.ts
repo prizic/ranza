@@ -356,7 +356,6 @@ function optional(form: FormData, field: string): string | null {
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-
 /**
  * The expected-arrival field: `undefined` for a form that never carried it, so
  * a caller that knows nothing of the time cannot clear one, and null for a

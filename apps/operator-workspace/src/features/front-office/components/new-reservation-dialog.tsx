@@ -439,8 +439,7 @@ export function NewReservationDialog({
       disabled: blocker !== undefined,
     };
   });
-  const complete =
-    nameTyped && asking && unitId !== "" && !taken.has(unitId);
+  const complete = nameTyped && asking && unitId !== "" && !taken.has(unitId);
   const freeUnits = units.length - taken.size;
 
   return (

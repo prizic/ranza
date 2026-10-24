@@ -153,6 +153,7 @@ describe("the Reservations list's tabs", () => {
     expect(tab(/Arriving today/)).toHaveTextContent("1");
     expect(tab(/Departing today/)).toHaveTextContent("1");
     expect(tab(/In house/)).toHaveTextContent("2");
+    expect(tab(/Overdue/)).toHaveTextContent("1");
     expect(tab(/Upcoming/)).toHaveTextContent("1");
 
     pick(/Arriving today/);
@@ -163,9 +164,60 @@ describe("the Reservations list's tabs", () => {
     expect(listed()).toEqual(["RZ-DEPARTING", "RZ-INHOUSE"]);
     pick(/Upcoming/);
     expect(listed()).toEqual(["RZ-UPCOMING"]);
-    // Only under All: nobody arrived, and its nights are gone.
+    // Nobody arrived and its nights are gone: it is on no day's list, so it
+    // is under Overdue, where it can be marked a no-show or cancelled.
+    pick(/Overdue/);
+    expect(listed()).toEqual(["RZ-EXPIRED"]);
     pick(/^All/);
     expect(listed()).toContain("RZ-EXPIRED");
+  });
+
+  it("an_overdue_stay_is_under_overdue_and_not_under_departing_today (RESERVATIONS-12)", () => {
+    const overdue = {
+      ...BASE,
+      reservationId: "r_late",
+      reference: "RZ-LATE",
+      guestName: "Katherine Johnson",
+      status: "checked_in" as const,
+      startsOn: "2030-01-01",
+      endsOn: "2030-01-09",
+      overdueDays: 1,
+    };
+    show([DEPARTING, overdue]);
+
+    expect(tab(/Departing today/)).toHaveTextContent("1");
+    expect(tab(/Overdue/)).toHaveTextContent("1");
+    pick(/Departing today/);
+    expect(listed()).toEqual(["RZ-DEPARTING"]);
+    pick(/Overdue/);
+    expect(listed()).toEqual(["RZ-LATE"]);
+    // Still in the house, and the word on its chip finds it.
+    pick(/^All/);
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "overdue" },
+    });
+    expect(listed()).toEqual(["RZ-LATE"]);
+  });
+
+  it("a_booking_that_never_arrived_says_so_and_is_found_by_the_words (RESERVATIONS-07)", () => {
+    show([EXPIRED]);
+    expect(screen.getByText("Did not arrive · 9 days")).toBeVisible();
+    expect(screen.getByText("Was due to arrive Jan 1, 2030")).toBeVisible();
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "did not arrive" },
+    });
+    expect(listed()).toEqual(["RZ-EXPIRED"]);
+  });
+
+  it("the_list_opens_on_who_the_desk_must_act_on_first (RESERVATIONS-15)", () => {
+    show([EXPIRED, UPCOMING, IN_HOUSE, ARRIVING]);
+    const order = screen.queryAllByText(/^RZ-/).map((cell) => cell.textContent);
+    expect(order).toEqual([
+      "RZ-ARRIVING",
+      "RZ-EXPIRED",
+      "RZ-INHOUSE",
+      "RZ-UPCOMING",
+    ]);
   });
 
   it("status_tabs_narrow_the_list_and_show_counts: an empty tab says so and All is still one press away", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CalendarRange,
   CalendarX,
+  DoorClosed,
   DoorOpen,
   MoreHorizontal,
   Receipt,
@@ -66,6 +67,7 @@ export interface EndableBooking {
  */
 export function FrontDeskRowMenu({
   booking,
+  checkOutDue = false,
   folioId,
   guestName,
   housekeeping = false,
@@ -74,6 +76,11 @@ export function FrontDeskRowMenu({
   stay,
   unitId,
 }: {
+  /**
+   * An in-house Guest who is due out today or overdue: the menu then leads to
+   * Departures, where the bill is reviewed and the check-out is made.
+   */
+  checkOutDue?: boolean;
   booking?: EndableBooking | undefined;
   /** An in-house Guest whose departure the viewer may change (AB-S2-05). */
   stay?: ChangeableStay | undefined;
@@ -93,6 +100,24 @@ export function FrontDeskRowMenu({
   const bookingActions =
     booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
 
+  // The dialogs are opened from a menu item that is gone by the time they
+  // close, so focus has nowhere to return to and falls to the page. It returns
+  // to the button that opened the menu instead, once the dialog's own focus
+  // handling has run (RESERVATIONS-05).
+  const trigger = useRef<HTMLButtonElement>(null);
+  const dialogOpen = ending !== null || changing || changingDeparture || moving;
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (dialogOpen) {
+      wasOpen.current = true;
+      return;
+    }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    const timer = setTimeout(() => trigger.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [dialogOpen]);
+
   return (
     <>
       <DropdownMenu>
@@ -100,6 +125,7 @@ export function FrontDeskRowMenu({
           <Button
             aria-label={t("moreActionsFor", { guest: isolate(guestName) })}
             className="pointer-coarse:size-11"
+            ref={trigger}
             size="icon-sm"
             variant="ghost"
           >
@@ -115,6 +141,17 @@ export function FrontDeskRowMenu({
               >
                 <Receipt className="size-4" />
                 <span>{t("openFolio")}</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {checkOutDue ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`${localizeHref(locale, "departures")}?property=${propertyId}`}
+                prefetch={false}
+              >
+                <DoorClosed className="size-4" />
+                <span>{t("checkOutInDepartures")}</span>
               </Link>
             </DropdownMenuItem>
           ) : null}
@@ -213,6 +250,14 @@ export function FrontDeskRowMenu({
         <ChangeBookingDialog
           booking={booking.change}
           locale={locale}
+          onMarkNoShow={
+            booking.mayMarkNoShow
+              ? () => {
+                  setChanging(false);
+                  setEnding("no_show");
+                }
+              : undefined
+          }
           onOpenChange={setChanging}
           open
         />

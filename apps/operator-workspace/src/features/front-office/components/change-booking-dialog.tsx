@@ -2,10 +2,11 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { ChangeOption, ChangePreview } from "@ranza/reservations";
 import {
   ArrowButton,
+  Button,
   CancelButton,
   DateRangeField,
   Dialog,
@@ -141,12 +142,18 @@ export function ChangeBookingDialog({
   booking,
   locale,
   move,
+  onMarkNoShow,
   onOpenChange,
   open,
 }: {
   booking: ChangeableBooking;
   locale: SupportedLocale;
   move?: ProposedMove;
+  /**
+   * Offered beside the notice on a booking that is already late, when the viewer
+   * may mark it a no-show: the other real way out of a form that cannot be saved.
+   */
+  onMarkNoShow?: (() => void) | undefined;
   onOpenChange: (open: boolean) => void;
   open: boolean;
 }) {
@@ -273,6 +280,11 @@ export function ChangeBookingDialog({
   );
   const beforeToday =
     preview !== null && dates.from !== undefined && dates.from < preview.today;
+  // A booking whose arrival has already passed opens on its own past dates:
+  // that is the booking's state, not a mistake the desk made, so it is said as
+  // one and not as a red error on a form nobody has touched.
+  const alreadyLate =
+    beforeToday && move === undefined && dates.from === booking.startsOn;
   const unchanged =
     preview !== null &&
     dates.from === preview.startsOn &&
@@ -519,7 +531,33 @@ export function ChangeBookingDialog({
                 required
                 today={preview?.today}
               />
-              {beforeToday && known.length === 0 ? (
+              {alreadyLate ? (
+                <div
+                  className="grid gap-2 text-step--1 text-muted-foreground"
+                  role="status"
+                >
+                  <p className="m-0">
+                    {t("changeBookingLate", {
+                      date: formatDate(
+                        new Date(`${booking.startsOn}T00:00:00Z`),
+                        locale,
+                        { month: "short", day: "numeric", timeZone: "UTC" },
+                      ),
+                    })}
+                  </p>
+                  {onMarkNoShow ? (
+                    <Button
+                      className="justify-self-start"
+                      onClick={onMarkNoShow}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t("markNoShow")}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : beforeToday && known.length === 0 ? (
                 <p className="m-0 text-step--1 text-destructive">
                   {t("changeBookingBeforeToday")}
                 </p>

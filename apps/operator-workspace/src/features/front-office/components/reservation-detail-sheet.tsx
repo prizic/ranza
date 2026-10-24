@@ -29,6 +29,7 @@ import {
   type SupportedLocale,
 } from "@ranza/i18n";
 import { expectedArrivalLabel } from "../expected-arrival";
+import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
 import { CheckInAction } from "./check-in-action";
@@ -200,6 +201,16 @@ export function ReservationDetailSheet({
             />
             {isDueToday ? (
               <DialogNotice icon={CalendarClock}>{t("dueToday")}</DialogNotice>
+            ) : today && didNotArrive(reservation, today) ? (
+              <DialogNotice icon={AlarmClock}>
+                {t("didNotArriveDays", {
+                  count: daysBetween(startsOn, today),
+                })}{" "}
+                ·{" "}
+                {t("wasDueToArriveOn", {
+                  date: formatFullDate(startsOn, locale),
+                })}
+              </DialogNotice>
             ) : overdueDays > 0 && endsOn ? (
               <DialogNotice icon={AlarmClock}>
                 {t("overdueDays", { count: overdueDays })} ·{" "}
@@ -310,6 +321,7 @@ export function ReservationDetailSheet({
             booking={reservation}
             locale={locale}
             propertyId={propertyId}
+            today={today}
           />
           {mayCheckIn ? (
             <CheckInAction

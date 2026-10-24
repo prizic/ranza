@@ -32,6 +32,7 @@ import { CheckOutDialog } from "./check-out-dialog";
 import { expectedArrivalLabel } from "../expected-arrival";
 import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
+import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { FrontDeskRowMenu } from "./row-menu";
 import { CopyReferenceButton } from "./copy-reference-button";
 
@@ -49,6 +50,25 @@ function day(iso: string, locale: SupportedLocale): string {
   return formatDate(new Date(`${iso}T00:00:00Z`), locale, {
     month: "short",
     timeZone: "UTC",
+  });
+}
+
+/**
+ * A date in a list's Stay column: the year is left out when it is the
+ * Property's own current year, which is nearly always, and which the column
+ * cannot spare the width for (RESERVATIONS-09).
+ */
+function stayDay(
+  iso: string,
+  today: string | null | undefined,
+  locale: SupportedLocale,
+): string {
+  const ownYear = Boolean(today) && today?.slice(0, 4) === iso.slice(0, 4);
+  return formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+    ...(ownYear ? { year: undefined } : {}),
   });
 }
 
@@ -738,6 +758,8 @@ export type ReservationListRow = ReservationRow & {
   guestPhoneDigits: string;
   unitTypeLabel?: string;
   statusLabel?: string;
+  /** What the chip beside the dates says, so "overdue" finds the rows that wear it. */
+  attentionLabel?: string;
   dateSearch?: string;
 };
 
@@ -750,10 +772,12 @@ export function ReservationMenu({
   booking,
   locale,
   propertyId,
+  today,
 }: {
   booking: ReservationListRow;
   locale: SupportedLocale;
   propertyId: string;
+  today?: string | null | undefined;
 }) {
   const label = unitLabel(booking.roomName, booking.unitName);
   const inHouse = booking.stayId !== null;
@@ -790,6 +814,9 @@ export function ReservationMenu({
                   }
                 : undefined,
             }
+      }
+      checkOutDue={
+        inHouse && (booking.overdueDays > 0 || booking.endsOn === today)
       }
       folioId={booking.folioId}
       guestName={booking.guestName}
@@ -922,12 +949,14 @@ function reservationColumns(
                   the total beside this is over the nights the Stay has, so the
                   period starts where the Stay did. */}
               <time dateTime={stayStartsOn ?? startsOn}>
-                {day(stayStartsOn ?? startsOn, locale)}
+                {stayDay(stayStartsOn ?? startsOn, today, locale)}
               </time>
               {endsOn ? (
                 <>
                   {" – "}
-                  <time dateTime={endsOn}>{day(endsOn, locale)}</time>
+                  <time dateTime={endsOn}>
+                    {stayDay(endsOn, today, locale)}
+                  </time>
                 </>
               ) : (
                 <> · {t("openEnded")}</>
@@ -938,6 +967,18 @@ function reservationColumns(
                 <CalendarClock className="size-3" />
                 {t("dueToday")}
               </span>
+            ) : today && didNotArrive(row.original, today) ? (
+              <>
+                <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-1.5 py-0.5 text-step--2 font-medium text-destructive">
+                  <CalendarClock className="size-3" />
+                  {t("didNotArriveDays", {
+                    count: daysBetween(startsOn, today),
+                  })}
+                </span>
+                <span className="block text-step--1 text-muted-foreground">
+                  {t("wasDueToArriveOn", { date: day(startsOn, locale) })}
+                </span>
+              </>
             ) : overdueDays > 0 && endsOn ? (
               <>
                 <span className="mt-0.5 inline-flex items-center gap-1 rounded-md bg-destructive/15 px-1.5 py-0.5 text-step--2 font-medium text-destructive">
@@ -1065,7 +1106,10 @@ function reservationColumns(
               // Where the button would be, what stands in its way, so nobody
               // presses a button that is certain to be refused. Shown to
               // anybody reading the row: it is information, not a control.
-              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+              <span
+                className="line-clamp-3 w-36 whitespace-normal text-end text-step--1 text-muted-foreground"
+                title={t(`checkInBlocked.${booking.checkInBlocker}`)}
+              >
                 {t(`checkInBlocked.${booking.checkInBlocker}`)}
               </span>
             ) : null}
@@ -1086,6 +1130,7 @@ function reservationColumns(
                 key={booking.reservationId}
                 locale={locale}
                 propertyId={propertyId}
+                today={today}
               />
             ) : null}
           </div>

@@ -516,10 +516,11 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
     const search = page.getByRole("searchbox");
     const listed = page.getByRole("row").filter({ hasText: booking.guestName });
 
-    // Placeholder: the whole sentence, not a cut-off list of column names.
+    // Placeholder: short enough to be read whole at 375 px, so the two keys
+    // a desk uses most, phone and date, are announced (RESERVATIONS-16).
     await expect(search).toHaveAttribute(
       "placeholder",
-      "Search guest, room, reference, phone or date",
+      "Name, room, phone, date",
     );
     for (const typed of [
       starts[0]!,

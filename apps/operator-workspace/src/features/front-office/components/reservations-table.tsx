@@ -18,6 +18,9 @@ import { ChangeBookingDialog } from "./change-booking-dialog";
 import { ReservationDetailSheet } from "./reservation-detail-sheet";
 import { useReservationColumns, type ReservationListRow } from "./columns";
 import {
+  attentionRank,
+  daysBetween,
+  didNotArrive,
   inTab,
   RESERVATION_TABS,
   type ReservationTab,
@@ -146,6 +149,10 @@ export function ReservationsTable({
     () =>
       reservations
         .filter((row) => (today ? inTab(row, tab, today) : true))
+        // Stable, so inside a rank the list stays in the order it came in.
+        .sort((a, b) =>
+          today ? attentionRank(a, today) - attentionRank(b, today) : 0,
+        )
         .map((row) => {
           const formatDay = (iso: string) =>
             formatDate(new Date(`${iso}T00:00:00Z`), locale, {
@@ -162,8 +169,18 @@ export function ReservationsTable({
             .join(" ");
           const digits = toAsciiDigits(row.guestPhone ?? "").replace(/\D/g, "");
 
+          const attentionLabel =
+            row.overdueDays > 0
+              ? t("overdueDays", { count: row.overdueDays })
+              : today && didNotArrive(row, today)
+                ? t("didNotArriveDays", {
+                    count: daysBetween(row.startsOn, today),
+                  })
+                : "";
+
           return {
             ...row,
+            attentionLabel,
             guestPhoneDigits: phoneForms(digits),
             unitTypeLabel: t(`unitType.${row.unitType}`),
             statusLabel: t(`reservationStatus.${row.status}`),
@@ -210,7 +227,13 @@ export function ReservationsTable({
             {RESERVATION_TABS.map((name) => (
               <TabsTrigger key={name} value={name}>
                 {t(`reservationsTab.${name}`)}{" "}
-                <span className="tabular-nums text-muted-foreground">
+                <span
+                  className={
+                    name === "overdue" && counts[name] > 0
+                      ? "tabular-nums font-semibold text-destructive"
+                      : "tabular-nums text-muted-foreground"
+                  }
+                >
                   {formatNumber(counts[name], locale)}
                 </span>
               </TabsTrigger>
@@ -251,6 +274,7 @@ export function ReservationsTable({
           "unitTypeLabel",
           "reference",
           "statusLabel",
+          "attentionLabel",
           "dateSearch",
         ]}
       />
