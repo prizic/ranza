@@ -177,6 +177,29 @@ test.describe("the list says who is late (RESERVATIONS-07, -12, -15)", () => {
   });
 });
 
+test.describe("the stay ruler (RESERVATIONS-14)", () => {
+  test("the_change_departure_ruler_labels_the_days_at_equal_gaps", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const guest = anOverdueGuest(propertyId, { daysOverdue: 1 });
+    await signIn(page);
+    await page.goto(`/en/reservations?property=${propertyId}`);
+    const row = page.getByRole("row").filter({ hasText: guest.guestName });
+    await row.getByRole("button", { name: /^More actions for/ }).click();
+    await page.getByRole("menuitem", { name: "Change departure" }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    const labels = dialog.getByRole("img").locator("text");
+    await expect(labels.first()).toBeVisible();
+    expect(await labels.count()).toBeGreaterThan(1);
+    expect(await labels.count()).toBeLessThanOrEqual(8);
+    await page.screenshot({
+      path: path.join(EVIDENCE, "14-change-departure-ruler.png"),
+    });
+  });
+});
+
 test.describe("a row's actions (RESERVATIONS-05, -06, -08, -13)", () => {
   test("focus_returns_to_the_rows_menu_button_when_its_dialog_closes", async ({
     page,
