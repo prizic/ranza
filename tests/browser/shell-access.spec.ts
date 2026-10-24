@@ -99,7 +99,8 @@ for (const [locale, say] of [
     {
       title: "Your role can't open this page",
       today: "Go to Today",
-      mentions: /Finance needs .+ Ask an Owner of your Organization/s,
+      mentions:
+        /Finance needs .+ Ask whoever manages staff in your Organization/s,
     },
   ],
   [
@@ -107,7 +108,7 @@ for (const [locale, say] of [
     {
       title: "دورك لا يتيح فتح هذه الصفحة",
       today: "الانتقال إلى اليوم",
-      mentions: /المالية.+اطلب من أحد مالكي مؤسستك/s,
+      mentions: /المالية.+اطلب ممن يدير الموظفين في مؤسستك/s,
     },
   ],
 ] as const) {

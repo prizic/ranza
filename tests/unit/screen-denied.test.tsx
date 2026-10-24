@@ -120,10 +120,10 @@ describe("a closed destination", () => {
     });
   }
 
-  it("SHELL-04: sends a refused role to an Owner, since a Manager cannot always add what an Owner can", () => {
+  it("SHELL-04: sends a refused role to whoever manages staff, not to a fixed role", () => {
     show("en", { reason: "no_permission", permission: "branding.manage" });
     expect(
-      screen.getByText(/Ask an Owner of your Organization/),
+      screen.getByText(/Ask whoever manages staff in your Organization/),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Owners and Managers can/)).toBeNull();
   });
