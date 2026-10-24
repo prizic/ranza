@@ -4,7 +4,7 @@ import {
   closeSettledFolioWithin,
   openFolioWithin,
 } from "@ranza/folios";
-import { identifyGuestWithin } from "@ranza/guests";
+import { identifyGuestWithin, recallGuestWithin } from "@ranza/guests";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import {
@@ -76,6 +76,13 @@ import {
   type RefusalReason,
 } from "./contracts";
 import type { ReservationsDeps } from "./ports";
+import {
+  FOLD_FROM,
+  FOLD_TO,
+  MIN_NAME_CHARACTERS,
+  MIN_NUMBER_DIGITS,
+  PHONE_TAIL_DIGITS,
+} from "./guest-match";
 import {
   buildRoomCalendar,
   calendarLength,
@@ -1890,12 +1897,26 @@ export function createReservationsModule(deps: ReservationsDeps) {
         );
       }
 
-      const guest = await identifyGuestWithin(tx, {
-        organizationId: unit.organizationId,
-        fullName: booking.guestName,
-        email: booking.guestEmail,
-        phone: booking.guestPhone,
-      });
+      const picked = booking.existingGuestId
+        ? await recallGuestWithin(
+            tx,
+            unit.organizationId,
+            booking.existingGuestId,
+          )
+        : null;
+      if (booking.existingGuestId && !picked) {
+        // Another Organization's Guest, one that never existed and one the
+        // caller cannot read are one answer, like the Unit above.
+        throw new ReservationRefusedError("that booking cannot be taken");
+      }
+      const guest =
+        picked ??
+        (await identifyGuestWithin(tx, {
+          organizationId: unit.organizationId,
+          fullName: booking.guestName,
+          email: booking.guestEmail,
+          phone: booking.guestPhone,
+        }));
 
       let reservationId: string;
       let price: {
@@ -2012,6 +2033,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         context: {
           guestId: guest.guestId,
           guestCreated: guest.created,
+          guestChosen: picked !== null,
           accommodationUnitId: booking.accommodationUnitId,
           startsOn,
           endsOn,
@@ -3408,32 +3430,49 @@ export function createReservationsModule(deps: ReservationsDeps) {
    *
    * Three characters of a name, or four digits of a number, before anything is
    * looked up, and at most five answers: a prompt that something is on file, not
-   * a search of the Organization. Matched by position in the text and not by a
-   * pattern, so a `%` or `_` somebody types is just a character. Never a merge:
-   * a booking is added to an existing Guest only by an exact email
-   * (`identifyGuestWithin`, blueprint 18.7).
+   * a search of the Organization. `text` is the Guest's name as typed and is
+   * also read as a number when it holds enough digits; `phone` is the
+   * telephone field, when the desk filled that in first.
+   *
+   * Compared the way the Reservations list compares (`guest-match.ts`): accents,
+   * case and Arabic-Indic digits do not make two spellings two people, and a
+   * number is compared by its last ten digits so "0537 021 04 95" finds
+   * "+90 537 021 04 95". Matched by position in the text and not by a pattern,
+   * so a `%` or `_` somebody types is just a character. Never a merge: a booking
+   * is added to an existing Guest only by an exact email, or by the desk naming
+   * the Guest they chose from this very list (`NewReservation.existingGuestId`,
+   * blueprint 18.7).
    */
   async function findGuests(
     userId: string,
     propertyId: string,
     text: string,
+    phone = "",
   ): Promise<GuestMatch[]> {
-    const needle = text.trim().toLowerCase();
-    const digits = needle.replace(/\D/g, "");
-    const byName = [...needle].length >= 3;
-    const byNumber = digits.length >= 4;
-    if (!byName && !byNumber) return [];
+    if (text.trim() === "" && phone.trim() === "") return [];
 
     return withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
         tx.$queryRaw<GuestMatch[]>`
+        with typed as (
+          select
+            lower(translate(normalize(${text.trim()}::text, NFC),
+                            ${FOLD_FROM}::text, ${FOLD_TO}::text)) as name,
+            right(regexp_replace(
+              lower(translate(${text}::text, ${FOLD_FROM}::text, ${FOLD_TO}::text)),
+              '[^0-9]', '', 'g'), ${PHONE_TAIL_DIGITS}::int) as text_number,
+            right(regexp_replace(
+              lower(translate(${phone}::text, ${FOLD_FROM}::text, ${FOLD_TO}::text)),
+              '[^0-9]', '', 'g'), ${PHONE_TAIL_DIGITS}::int) as phone_number
+        )
         select guest.id          as "guestId",
                guest.full_name   as "fullName",
                guest.email       as "email",
                guest.phone       as "phone"
           from public.guests as guest
+          cross join typed
           join public.properties as property
             on property.organization_id = guest.organization_id
          where property.id = ${propertyId}::uuid
@@ -3445,10 +3484,23 @@ export function createReservationsModule(deps: ReservationsDeps) {
            and app.has_organization_permission(
              property.organization_id, 'front_desk.book')
            and (
-             (${byName} and position(${needle} in lower(guest.full_name)) > 0)
-             or (${byNumber}
-                 and position(${digits} in
-                      regexp_replace(coalesce(guest.phone, ''), '[^0-9]', '', 'g')) > 0)
+             (char_length(typed.name) >= ${MIN_NAME_CHARACTERS}::int
+              and position(typed.name in lower(translate(
+                    normalize(guest.full_name, NFC),
+                    ${FOLD_FROM}::text, ${FOLD_TO}::text))) > 0)
+             or (greatest(char_length(typed.text_number),
+                          char_length(typed.phone_number)) >= ${MIN_NUMBER_DIGITS}::int
+                 and exists (
+                   select 1
+                     from (select regexp_replace(
+                             lower(translate(coalesce(guest.phone, ''),
+                                             ${FOLD_FROM}::text, ${FOLD_TO}::text)),
+                             '[^0-9]', '', 'g') as digits) as stored
+                    where (char_length(typed.text_number) >= ${MIN_NUMBER_DIGITS}::int
+                           and position(typed.text_number in stored.digits) > 0)
+                       or (char_length(typed.phone_number) >= ${MIN_NUMBER_DIGITS}::int
+                           and position(typed.phone_number in stored.digits) > 0)
+                 ))
            )
          order by guest.full_name
          limit 5

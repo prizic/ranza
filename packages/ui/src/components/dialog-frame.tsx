@@ -564,9 +564,26 @@ function dayNumber(iso: string): number {
   return Math.round(Date.parse(`${iso}T00:00:00Z`) / DAY_MS);
 }
 
+/** Most days that get a label on a stay's ruler, so the labels never touch. */
+const MOST_RULER_LABELS = 7;
+
 /**
- * A stay drawn as a ruler: one labelled tick per day, or about seven evenly
- * spaced when it is long, with five small ones between. It is solid up to today
+ * Days between two labels on a stay of `span` nights: the smallest step that
+ * divides the stay into whole steps with no more than seven labels, so the
+ * first and the last day are both labelled and every gap is the same. A stay
+ * whose length has no such step (eleven nights) is labelled by a step that
+ * does not reach the end, and the end is left unlabelled rather than squeezed
+ * in at an uneven distance.
+ */
+export function rulerLabelStep(span: number): number {
+  for (let step = 1; step <= span; step += 1) {
+    if (span % step === 0 && span / step < MOST_RULER_LABELS) return step;
+  }
+  return Math.ceil(span / (MOST_RULER_LABELS - 1));
+}
+
+/**
+ * A stay drawn as a ruler: a tick per day, a label every `rulerLabelStep` days. It is solid up to today
  * and dotted after, so how far into the stay the Guest is reads before any
  * number does. Dates are `YYYY-MM-DD`; `format` writes a label in the viewer's
  * locale. It runs left to right in both directions, as a calendar bar does.
@@ -589,10 +606,14 @@ export function StayRuler({
 }) {
   const first = dayNumber(start);
   const span = Math.max(dayNumber(end) - first, 1);
-  const labelled = Math.min(span, 6);
+  const step = rulerLabelStep(span);
   const width = 496;
-  const perStep = 6;
-  const steps = labelled * perStep;
+  const labelDays = Array.from(
+    { length: Math.floor(span / step) + 1 },
+    (_, mark) => mark * step,
+  );
+  // A tick for every day while that is legible; past a month only the labels'.
+  const tickEvery = span <= 31 ? 1 : step;
   const progress =
     today === null
       ? 1
@@ -628,13 +649,14 @@ export function StayRuler({
           y2="38"
         />
       ) : null}
-      {Array.from({ length: steps + 1 }, (_, step) => {
-        const x = (step * width) / steps;
-        const major = step % perStep === 0;
+      {Array.from({ length: Math.floor(span / tickEvery) + 1 }, (_, tick) => {
+        const day = tick * tickEvery;
+        const x = (day * width) / span;
+        const major = day % step === 0;
         return (
           <line
             className={x <= nowX ? "stroke-foreground" : "stroke-foreground/30"}
-            key={step}
+            key={day}
             strokeWidth={major ? 1.6 : 1}
             x1={x}
             x2={x}
@@ -643,17 +665,17 @@ export function StayRuler({
           />
         );
       })}
-      {Array.from({ length: labelled + 1 }, (_, mark) => (
+      {labelDays.map((day) => (
         <text
           className="fill-muted-foreground font-mono text-[10px] tracking-widest uppercase"
-          key={mark}
+          key={day}
           textAnchor={
-            mark === 0 ? "start" : mark === labelled ? "end" : "middle"
+            day === 0 ? "start" : day === span ? "end" : "middle"
           }
-          x={(mark * width) / labelled}
+          x={(day * width) / span}
           y="60"
         >
-          {format(iso(first + Math.round((mark * span) / labelled)))}
+          {format(iso(first + day))}
         </text>
       ))}
       {today !== null && progress > 0 && progress < 1 ? (
@@ -687,7 +709,9 @@ export function DialogActions({
       data-slot="dialog-footer"
     >
       <div className="min-w-0 text-step--1 text-muted-foreground">{hint}</div>
-      <div className="ms-auto flex items-center gap-5">{children}</div>
+      <div className="ms-auto flex max-w-full flex-wrap items-center justify-end gap-x-5 gap-y-2">
+        {children}
+      </div>
     </div>
   );
 }

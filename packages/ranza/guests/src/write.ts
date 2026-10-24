@@ -98,7 +98,8 @@ function normalize(value: string | null, lower = false): string | null {
  * Matching is an exact email within the Organization and nothing else. That is
  * deliberately the narrowest possible rule: blueprint 18.7 forbids merging
  * ambiguous people automatically and asks for staff review with the evidence in
- * front of them, so anything fuzzier — a similar name, a shared phone — belongs
+ * front of them (a desk that picks a Guest from the suggestions is that review,
+ * and names them with `recallGuestWithin`), so anything fuzzier — a similar name, a shared phone — belongs
  * to that workflow and not to a booking form. An exact address is not an
  * ambiguous match; two bookings under one is the same person, and treating them
  * as two is the duplicate that review would later have to undo.
@@ -193,4 +194,33 @@ export async function identifyGuestWithin(
     throw new GuestWriteError("the Guest was not recorded");
   }
   return { guestId: row.id, created: row.created };
+}
+
+/**
+ * A Guest the desk chose from the people already on file, by id, within the
+ * Organization the booking is for.
+ *
+ * Not a match: nothing was inferred. The desk saw the name, the email and the
+ * telephone on file, and pressed the one that is the person on the line, which
+ * is the staff review with the evidence in front of them that blueprint 18.7
+ * asks for, done at the moment it is cheapest. It exists because a returning
+ * Guest with no email on file cannot be reached by `identifyGuestWithin`, and
+ * the booking then made a second record that duplicate review would have to undo.
+ *
+ * Null when the Organization has no such Guest, or the caller cannot read it:
+ * a Guest of another Organization is indistinguishable from one that never
+ * existed, so a caller cannot probe for ids. The profile is left as it is for
+ * the reason `identifyGuestWithin` gives.
+ */
+export async function recallGuestWithin(
+  tx: GuestWriteClient,
+  organizationId: string,
+  guestId: string,
+): Promise<IdentifiedGuest | null> {
+  const rows = await tx.$queryRaw<{ id: string }[]>`
+    select id from public.guests
+     where id = ${guestId}::uuid
+       and organization_id = ${organizationId}::uuid
+  `;
+  return rows[0] ? { guestId: rows[0].id, created: false } : null;
 }

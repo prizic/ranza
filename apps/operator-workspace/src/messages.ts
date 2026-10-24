@@ -588,6 +588,10 @@ export interface Messages {
   keepEditing: string;
   guestLookupTitle: string;
   guestLookupHint: string;
+  guestPhoneHint: string;
+  guestPicked: string;
+  guestPickedClear: string;
+  unitFreeCount: string;
   newReservationQuestion: string;
   guestNameTitle: string;
   guestNamePlaceholder: string;
@@ -3656,7 +3660,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepEditing: "Düzenlemeye devam",
     guestLookupTitle: "Kayıtlı misafirler",
     guestLookupHint:
-      "Aynı kişi olabilir mi? Birini seçerseniz e-postası ve telefonu doldurulur ve rezervasyon aynı misafire eklenir. E-postası kayıtlı olmayan bir misafir otomatik eşleşmez.",
+      "Aynı kişi olabilir mi? Birini seçerseniz rezervasyon, e-postası kayıtlı olmasa bile, o misafire eklenir.",
+    guestPhoneHint:
+      "İsteğe bağlı. Ülke koduyla ya da başında 0 ile yazılabilir. Aynı numaralı kayıtlı misafiri göstermek için kullanılır.",
+    guestPicked: "Bu rezervasyon, kayıtlı misafir {name} adına eklenecek.",
+    guestPickedClear: "Bu kişi değil",
+    unitFreeCount:
+      "Bu geceler için {total, plural, other {# birimden}} {free} tanesi boş",
     newReservationQuestion: "Kim kalıyor, ne zaman?",
     guestNameTitle: "Misafir adı",
     guestNamePlaceholder: "Ad soyad",
@@ -7059,7 +7069,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepEditing: "Keep editing",
     guestLookupTitle: "Guests already on file",
     guestLookupHint:
-      "Could this be the same person? Pick one to fill in their email and phone so the booking is added to the same Guest. A Guest with no email on file cannot be matched automatically.",
+      "Could this be the same person? Pick one and the booking is added to that Guest, even if they have no email on file.",
+    guestPhoneHint:
+      "Optional. With the country code or a leading 0. Used to show a Guest already on file with the same number.",
+    guestPicked: "This booking will be added to {name}, who is already on file.",
+    guestPickedClear: "Not this person",
+    unitFreeCount:
+      "{free} of {total, plural, one {# unit} other {# units}} free for these nights",
     newReservationQuestion: "Who is staying, and when?",
     guestNameTitle: "Guest name",
     guestNamePlaceholder: "Full name",
@@ -10450,7 +10466,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     keepEditing: "متابعة التحرير",
     guestLookupTitle: "ضيوف مسجلون من قبل",
     guestLookupHint:
-      "هل قد يكون الشخص نفسه؟ اختر أحدهم لتعبئة بريده وهاتفه فيُضاف الحجز إلى الضيف نفسه. الضيف بلا بريد مسجل لا يمكن مطابقته تلقائيًا.",
+      "هل قد يكون الشخص نفسه؟ اختر أحدهم فيُضاف الحجز إلى ذلك الضيف حتى لو لم يكن له بريد مسجل.",
+    guestPhoneHint:
+      "اختياري. برمز الدولة أو بصفر في البداية. يُستخدم لإظهار ضيف مسجل بالرقم نفسه.",
+    guestPicked: "سيُضاف هذا الحجز إلى {name}، وهو مسجل من قبل.",
+    guestPickedClear: "ليس هذا الشخص",
+    unitFreeCount: "{free} من {total} وحدة متاحة لهذه الليالي",
     newReservationQuestion: "من سيقيم ومتى؟",
     guestNameTitle: "اسم النزيل",
     guestNamePlaceholder: "الاسم الكامل",

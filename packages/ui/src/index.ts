@@ -76,6 +76,7 @@ export {
   fieldClassName,
   OptionList,
   StayRuler,
+  rulerLabelStep,
   textareaClassName,
 } from "./components/dialog-frame";
 export type { DialogTagProps, OptionListItem } from "./components/dialog-frame";

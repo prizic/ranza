@@ -615,3 +615,125 @@ describe("which Units are taken for the nights chosen (RG-S4-06, RG-S4-07)", () 
     );
   });
 });
+
+describe("a returning Guest on file (RESERVATIONS-01, RESERVATIONS-04)", () => {
+  const ON_FILE = {
+    guestId: "11111111-1111-4111-8111-111111111111",
+    fullName: "Emre Özdemir",
+    email: null,
+    phone: "+90 537 021 04 95",
+  };
+
+  function answerLookups() {
+    const lookups: URLSearchParams[] = [];
+    vi.stubGlobal("fetch", (url: string) => {
+      if (url.includes("guest-lookup")) {
+        lookups.push(new URL(url, "http://x").searchParams);
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ guests: [ON_FILE] }),
+        });
+      }
+      return availability(url).then((body: unknown) => ({
+        ok: true,
+        json: async () => body,
+      }));
+    });
+    return lookups;
+  }
+
+  const formData = () =>
+    new FormData(
+      screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+    );
+
+  it("a_telephone_typed_alone_looks_the_guest_up_and_picking_them_books_onto_their_id_without_an_email", async () => {
+    const lookups = answerLookups();
+    openForm();
+
+    fireEvent.change(screen.getByLabelText(messages.en.guestPhone), {
+      target: { value: "0537 021 04 95" },
+    });
+    const suggestion = await screen.findByRole("button", {
+      name: /Emre Özdemir/,
+    });
+    expect(lookups.at(-1)?.get("phone")).toBe("0537 021 04 95");
+    expect(lookups.at(-1)?.get("q")).toBe("");
+
+    fireEvent.click(suggestion);
+    expect(formData().get("existingGuestId")).toBe(ON_FILE.guestId);
+    expect(formData().get("guestName")).toBe("Emre Özdemir");
+    expect(
+      screen.getByText(
+        "This booking will be added to Emre Özdemir, who is already on file.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("describing somebody else after picking lets the pick go", async () => {
+    answerLookups();
+    openForm();
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Ozdemir" },
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Emre Özdemir/ }),
+    );
+    expect(formData().get("existingGuestId")).toBe(ON_FILE.guestId);
+
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Somebody Else" },
+    });
+    expect(formData().get("existingGuestId")).toBe("");
+
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Ozdemir" },
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Emre Özdemir/ }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.en.guestPickedClear }),
+    );
+    expect(formData().get("existingGuestId")).toBe("");
+  });
+
+  it("each of email and telephone has a hint of its own, and the telephone's is not the email rule", () => {
+    openForm();
+    expect(
+      screen.getByLabelText(messages.en.guestEmail),
+    ).toHaveAccessibleDescription(messages.en.guestEmailHint);
+    expect(
+      screen.getByLabelText(messages.en.guestPhone),
+    ).toHaveAccessibleDescription(messages.en.guestPhoneHint);
+    expect(messages.en.guestPhoneHint).not.toContain("instead of opening");
+  });
+});
+
+describe("what the desk needs while choosing (RESERVATIONS-02, RESERVATIONS-03)", () => {
+  it("the_unit_list_says_how_many_are_free_and_what_a_night_costs_on_each_row", async () => {
+    availability.mockResolvedValue({
+      kind: "ready",
+      unavailable: [{ unitId: "u2", blocker: "booked" }],
+    });
+    openForm();
+    chooseDates("2026-10-01", "2026-10-04");
+
+    expect(
+      await screen.findByText("1 of 2 units free for these nights"),
+    ).toBeVisible();
+    expect(screen.getByText("3 nights")).toBeVisible();
+    expect(
+      screen.getByRole("radio", { name: /101.*Room · .*1,500\.00 a night/ }),
+    ).toBeVisible();
+  });
+
+  it("the_total_sits_in_the_footer_beside_the_button_that_takes_the_booking", async () => {
+    openForm();
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/101/);
+
+    const footer = takeBooking().closest("[data-slot=dialog-footer]")!;
+    expect(footer).toHaveTextContent(/3 nights: .*4,500\.00 in total/);
+  });
+});

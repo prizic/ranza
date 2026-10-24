@@ -353,6 +353,10 @@ function optional(form: FormData, field: string): string | null {
   return value.length > 0 ? value : null;
 }
 
+const UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+
 /**
  * The expected-arrival field: `undefined` for a form that never carried it, so
  * a caller that knows nothing of the time cannot clear one, and null for a
@@ -411,6 +415,12 @@ export async function createReservation(
     return "refused";
   }
 
+  // The Guest picked from the suggestions, if one was. An id this screen did
+  // not send is refused rather than dropped: dropping it would record a second
+  // Guest for a person the desk had said was already on file.
+  const pickedGuest = optional(form, "existingGuestId");
+  if (pickedGuest !== null && !UUID.test(pickedGuest)) return "refused";
+
   try {
     await getComposition().reservations.createReservation(viewer.userId, {
       propertyId,
@@ -418,6 +428,7 @@ export async function createReservation(
       guestName,
       guestEmail: optional(form, "guestEmail"),
       guestPhone: optional(form, "guestPhone"),
+      existingGuestId: pickedGuest,
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),

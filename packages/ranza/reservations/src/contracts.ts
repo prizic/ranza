@@ -690,7 +690,8 @@ export interface ReservationRow {
  * A Guest already on file whose name or telephone matches what is being typed
  * into a new booking, so the desk can see a returning person before a second
  * record is made. A suggestion only: nothing here merges Guests, which
- * blueprint 18.7 forbids, and the booking still matches on an exact email.
+ * blueprint 18.7 forbids. A booking is added to one only when the desk picks it
+ * (`NewReservation.existingGuestId`) or gives its exact email.
  */
 export interface GuestMatch {
   guestId: string;
@@ -717,6 +718,13 @@ export interface NewReservation {
   guestName: string;
   guestEmail: string | null;
   guestPhone: string | null;
+  /**
+   * A Guest the desk chose from `findGuests`' suggestions. The booking is then
+   * added to that Guest and the name, email and telephone above are not read:
+   * changing a profile is an edit and belongs to a screen that says so. Absent
+   * for a person nobody chose, who is matched by an exact email or recorded new.
+   */
+  existingGuestId?: string | null;
   stayType: ReservationStayType;
   /** Calendar date as `YYYY-MM-DD`. */
   startsOn: string;

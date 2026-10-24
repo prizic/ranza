@@ -129,10 +129,15 @@ async function fetchAvailability(
 
 async function fetchGuestMatches(
   propertyId: string,
-  text: string,
+  name: string,
+  phone: string,
   signal: AbortSignal,
 ): Promise<readonly GuestMatch[]> {
-  const params = new URLSearchParams({ property: propertyId, q: text });
+  const params = new URLSearchParams({
+    property: propertyId,
+    q: name,
+    phone,
+  });
   const response = await fetch(`/api/front-office/guest-lookup?${params}`, {
     cache: "no-store",
     signal,
@@ -185,9 +190,13 @@ export function NewReservationDialog({
   // somebody took down on a call.
   const [started, setStarted] = useState(false);
   const [askingDiscard, setAskingDiscard] = useState(false);
-  // Guests already on file that the name or number typed may belong to.
+  // Guests already on file that the name or number typed may belong to, and
+  // the one the desk picked: the booking is then added to that Guest by id.
   const [lookup, setLookup] = useState("");
+  const [phoneLookup, setPhoneLookup] = useState("");
+  const [nameTyped, setNameTyped] = useState(false);
   const [matches, setMatches] = useState<readonly GuestMatch[]>([]);
+  const [picked, setPicked] = useState<GuestMatch | null>(null);
   const phoneField = useRef<HTMLInputElement>(null);
   const guestField = useRef<HTMLInputElement>(null);
   // Set by the browser refusing the address and by the server doing so, and
@@ -227,7 +236,10 @@ export function NewReservationDialog({
     setStarted(false);
     setAskingDiscard(false);
     setLookup("");
+    setPhoneLookup("");
+    setNameTyped(false);
     setMatches([]);
+    setPicked(null);
   }, []);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
@@ -294,13 +306,18 @@ export function NewReservationDialog({
   useEffect(() => {
     if (!open) return;
     const text = lookup.trim();
-    if ([...text].length < 3 && text.replace(/\D/g, "").length < 4) {
+    const typedNumber = phoneLookup.replace(/\D/g, "").length >= 4;
+    if (
+      [...text].length < 3 &&
+      text.replace(/\D/g, "").length < 4 &&
+      !typedNumber
+    ) {
       setMatches([]);
       return;
     }
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      fetchGuestMatches(propertyId, lookup, controller.signal)
+      fetchGuestMatches(propertyId, lookup, phoneLookup, controller.signal)
         .then(setMatches)
         .catch((error: unknown) => {
           if (controller.signal.aborted) return;
@@ -312,14 +329,29 @@ export function NewReservationDialog({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [open, propertyId, lookup]);
+  }, [open, propertyId, lookup, phoneLookup]);
 
+  // The fields show the Guest on file, because that is who the booking is
+  // added to: what was typed is not saved over their record.
   function pickMatch(match: GuestMatch) {
+    if (guestField.current) {
+      guestField.current.value = match.fullName;
+      guestField.current.setCustomValidity("");
+    }
     if (emailField.current) emailField.current.value = match.email ?? "";
     if (phoneField.current) phoneField.current.value = match.phone ?? "";
+    setGuestMissing(false);
     setEmailRejected(false);
     setStarted(true);
+    setNameTyped(true);
+    setPicked(match);
     setMatches([]);
+  }
+
+  // Anything typed into the three fields after a pick describes somebody else,
+  // so the pick is let go rather than quietly kept.
+  function describingSomeoneElse() {
+    setPicked(null);
   }
 
   const chosen = units.find((unit) => unit.unitId === unitId);
@@ -385,7 +417,18 @@ export function NewReservationDialog({
     return {
       value: unit.unitId,
       title: unitLabel(unit.roomName, unit.unitName),
-      description: t(`unitType.${unit.unitType}`),
+      description:
+        stayType === "guest" &&
+        unit.nightlyRateMinor !== null &&
+        unit.rateCurrency !== null
+          ? `${t(`unitType.${unit.unitType}`)} · ${t("quotePerNight", {
+              price: formatMoney(
+                unit.nightlyRateMinor,
+                unit.rateCurrency,
+                locale,
+              ),
+            })}`
+          : t(`unitType.${unit.unitType}`),
       chip:
         blocker === undefined
           ? t("unitChipFree")
@@ -397,7 +440,8 @@ export function NewReservationDialog({
     };
   });
   const complete =
-    lookup.trim() !== "" && asking && unitId !== "" && !taken.has(unitId);
+    nameTyped && asking && unitId !== "" && !taken.has(unitId);
+  const freeUnits = units.length - taken.size;
 
   return (
     <Dialog onOpenChange={openChanged} open={open}>
@@ -410,7 +454,10 @@ export function NewReservationDialog({
 
       <DialogContent className={dialogFrameClassName("large")}>
         <form
-          className="grid"
+          // One column that may shrink below its content: an auto track grows
+          // to the widest thing inside it, which cut the right edge of every
+          // field off at 375 px (RESERVATIONS-11).
+          className="grid grid-cols-1"
           onChange={() => setStarted(true)}
           onSubmit={submitWithoutReset(act)}
         >
@@ -462,6 +509,11 @@ export function NewReservationDialog({
             ) : null}
 
             <input name="property" type="hidden" value={propertyId} />
+            <input
+              name="existingGuestId"
+              type="hidden"
+              value={picked?.guestId ?? ""}
+            />
             <input name="locale" type="hidden" value={locale} />
             {/* The quote travels back, so a price that changed while this was
               open refuses the booking rather than charging a price nobody
@@ -527,6 +579,8 @@ export function NewReservationDialog({
                       event.currentTarget.setCustomValidity("");
                       setGuestMissing(false);
                       setLookup(event.target.value);
+                      setNameTyped(event.target.value.trim() !== "");
+                      describingSomeoneElse();
                     }}
                     // Said under the field in our own words, and in the browser's
                     // bubble in them too rather than the browser's own language. The
@@ -552,6 +606,7 @@ export function NewReservationDialog({
 
                 <div className="grid gap-x-4 sm:grid-cols-2">
                   <DialogSection
+                    hint={t("guestEmailHint")}
                     labelFor="booking-email"
                     tag={{ label: t("dialogTagOptional") }}
                     title={t("guestEmail")}
@@ -572,6 +627,7 @@ export function NewReservationDialog({
                       onChange={(event) => {
                         event.currentTarget.setCustomValidity("");
                         setEmailRejected(false);
+                        describingSomeoneElse();
                       }}
                       // In our words, like the Guest's name above, and without
                       // cancelling the event so the browser still decides focus.
@@ -595,6 +651,7 @@ export function NewReservationDialog({
                     ) : null}
                   </DialogSection>
                   <DialogSection
+                    hint={t("guestPhoneHint")}
                     labelFor="booking-phone"
                     tag={{ label: t("dialogTagOptional") }}
                     title={t("guestPhone")}
@@ -603,6 +660,7 @@ export function NewReservationDialog({
                       parsed: a number with a country code, a space or a dash is
                       still the number somebody was given. */}
                     <Input
+                      aria-describedby="booking-phone-hint"
                       autoComplete="off"
                       className={fieldClassName}
                       id="booking-phone"
@@ -610,27 +668,42 @@ export function NewReservationDialog({
                       name="guestPhone"
                       // Digits and the punctuation a number is written with: "abc"
                       // is not a telephone number, and is said so in our words.
-                      onChange={(event) =>
+                      onChange={(event) => {
                         event.currentTarget.setCustomValidity(
                           PHONE_CHARACTERS.test(event.currentTarget.value)
                             ? ""
                             : t("guestPhoneInvalid"),
-                        )
-                      }
+                        );
+                        setPhoneLookup(event.currentTarget.value);
+                        describingSomeoneElse();
+                      }}
                       placeholder={t("guestPhonePlaceholder")}
                       ref={phoneField}
                       type="tel"
                     />
                   </DialogSection>
                 </div>
-                <p
-                  className="m-0 py-4 text-step--1 text-muted-foreground"
-                  id="booking-email-hint"
-                >
-                  {t("guestEmailHint")}
-                </p>
-
-                {matches.length > 0 ? (
+                {picked ? (
+                  <div
+                    className="flex flex-wrap items-center justify-between gap-3 py-5"
+                    role="status"
+                  >
+                    <p className="m-0 min-w-0 text-step--1">
+                      {t("guestPicked", { name: picked.fullName })}
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setPicked(null);
+                        guestField.current?.focus();
+                      }}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {t("guestPickedClear")}
+                    </Button>
+                  </div>
+                ) : matches.length > 0 ? (
                   <DialogSection
                     hint={t("guestLookupHint")}
                     title={t("guestLookupTitle")}
@@ -703,6 +776,13 @@ export function NewReservationDialog({
                     requiredTo={departureRequired}
                     today={today}
                   />
+                  {dates.from && dates.to ? (
+                    <p className="m-0 text-sm font-medium">
+                      {t("stayNights", {
+                        count: nightsBetween(dates.from, dates.to),
+                      })}
+                    </p>
+                  ) : null}
                   {availabilityUnknown ? (
                     <p
                       className="m-0 text-step--1 text-muted-foreground"
@@ -735,6 +815,14 @@ export function NewReservationDialog({
                   tag={{ label: t("dialogTagRequired"), required: true }}
                   title={t("changeBookingWhichUnit")}
                 >
+                  {asking && !availabilityUnknown ? (
+                    <p className="m-0 text-step--1 font-medium" role="status">
+                      {t("unitFreeCount", {
+                        free: freeUnits,
+                        total: units.length,
+                      })}
+                    </p>
+                  ) : null}
                   {asking ? (
                     <OptionList
                       emptyLabel={t("unitNoMatches")}
@@ -758,9 +846,11 @@ export function NewReservationDialog({
                   ) : null}
                 </DialogSection>
 
-                {quote ? (
+                {quote && (unpricedWarning || stayType === "resident") ? (
                   // Polite: it changes as the Unit, the kind of stay and the dates
                   // do, and each change is detail rather than an interruption.
+                  // A priced quote is in the footer instead, beside the button
+                  // that takes the booking, where the scroll never hides it.
                   <div aria-live="polite" className="py-5">
                     {unpricedWarning ? (
                       <DialogNotice icon={CircleAlert}>
@@ -786,7 +876,21 @@ export function NewReservationDialog({
           </DialogBody>
 
           <DialogActions
-            hint={complete ? null : t("newReservationHintMissing")}
+            hint={
+              <>
+                {quote && !unpricedWarning && stayType === "guest" ? (
+                  <p
+                    aria-live="polite"
+                    className="m-0 text-sm font-medium text-foreground"
+                  >
+                    <bdi>{quote}</bdi>
+                  </p>
+                ) : null}
+                {complete ? null : (
+                  <p className="m-0">{t("newReservationHintMissing")}</p>
+                )}
+              </>
+            }
           >
             <CancelButton onClick={() => openChanged(false)} type="button">
               {t("discardBooking")}

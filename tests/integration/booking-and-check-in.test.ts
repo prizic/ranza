@@ -26,6 +26,7 @@ import {
 } from "../../packages/ranza/reservations/src";
 import type { NewReservation } from "../../packages/ranza/reservations/src";
 import { createPrismaClient } from "../../packages/db/src";
+import { latestRecord } from "./audit-record";
 
 const ORG = randomUUID();
 const OTHER_ORG = randomUUID();
@@ -119,6 +120,14 @@ async function statusOf(reservationId: string): Promise<string | undefined> {
     reservationId,
   );
   return row?.status;
+}
+
+async function guestCount(): Promise<number> {
+  const [row] = await owner.$queryRawUnsafe<{ count: number }[]>(
+    "select count(*)::int as count from public.guests where organization_id = $1::uuid",
+    ORG,
+  );
+  return row!.count;
 }
 
 async function staysFor(reservationId: string): Promise<number> {
@@ -678,6 +687,158 @@ describe("who a booking names", () => {
       noEmail.guestCreated,
       otherEmail.guestCreated,
     ]).toEqual([true, true, true]);
+  });
+
+  describe("a returning Guest is found the way a desk types them (RESERVATIONS-01)", () => {
+    const surname = `Özdemir${ORG.slice(0, 6).replaceAll(/[0-9]/g, "x")}`;
+    const line = "+90 537 021 04 95";
+
+    /** A Guest on file with no email, as most walk-ins are. */
+    async function walkIn(fullName: string, phone: string | null) {
+      const booked = await reservations.createReservation(
+        MANAGER,
+        booking(
+          await aUnit(),
+          await day(PROPERTY, 40),
+          await day(PROPERTY, 41),
+          { guestName: fullName, guestPhone: phone },
+        ),
+      );
+      return booked.guestId;
+    }
+
+    it("finds a name typed without its accents, in any case", async () => {
+      const guestId = await walkIn(`Ayşe ${surname}`, null);
+      for (const typed of [
+        `ayse ${surname}`.replace("Ö", "O"),
+        `AYSE ${surname.toUpperCase()}`,
+        `Ayşe ${surname}`,
+      ]) {
+        const found = await reservations.findGuests(MANAGER, PROPERTY, typed);
+        expect(found.map((match) => match.guestId)).toContain(guestId);
+      }
+    });
+
+    it("finds a telephone written with a trunk zero when it was stored with a country code, in the name field or the telephone field", async () => {
+      const guestId = await walkIn(`Phone ${surname}`, line);
+      const byTelephoneField = await reservations.findGuests(
+        MANAGER,
+        PROPERTY,
+        "",
+        "0537 021 04 95",
+      );
+      expect(byTelephoneField.map((match) => match.guestId)).toContain(guestId);
+      const byNameField = await reservations.findGuests(
+        MANAGER,
+        PROPERTY,
+        "0537 021 04 95",
+      );
+      expect(byNameField.map((match) => match.guestId)).toContain(guestId);
+      const arabicDigits = await reservations.findGuests(
+        MANAGER,
+        PROPERTY,
+        "",
+        "٠٥٣٧ ٠٢١ ٠٤ ٩٥",
+      );
+      expect(arabicDigits.map((match) => match.guestId)).toContain(guestId);
+    });
+
+    it("does not find a number one digit off, a fragment too short to mean anyone, or another Organization's Guest", async () => {
+      await walkIn(`Elsewhere ${surname}`, "+90 532 111 22 33");
+      expect(
+        await reservations.findGuests(MANAGER, PROPERTY, "", "0537 021 04 96"),
+      ).toEqual([]);
+      expect(await reservations.findGuests(MANAGER, PROPERTY, "Ay")).toEqual(
+        [],
+      );
+      expect(await reservations.findGuests(MANAGER, PROPERTY, "", "053")).toEqual(
+        [],
+      );
+      await reservations.createReservation(
+        OUTSIDER,
+        booking(
+          await aUnit(OTHER_PROPERTY, OTHER_ORG),
+          await day(OTHER_PROPERTY, 40),
+          await day(OTHER_PROPERTY, 41),
+          {
+            propertyId: OTHER_PROPERTY,
+            guestName: `Foreign ${surname}`,
+            guestPhone: "+90 555 000 11 22",
+          },
+        ),
+      );
+      expect(
+        await reservations.findGuests(MANAGER, PROPERTY, `Foreign ${surname}`),
+      ).toEqual([]);
+      expect(
+        await reservations.findGuests(MANAGER, PROPERTY, "", "0555 000 11 22"),
+      ).toEqual([]);
+    });
+
+    it("suggests nothing to a role that does not take bookings", async () => {
+      await walkIn(`Private ${surname}`, null);
+      expect(
+        await reservations.findGuests(HOUSEKEEPER, PROPERTY, `Private ${surname}`),
+      ).toEqual([]);
+    });
+
+    it("books onto the Guest the desk picked even though they have no email, and records that it was chosen", async () => {
+      const guestId = await walkIn(`Returning ${surname}`, line);
+      const before = await guestCount();
+      const booked = await reservations.createReservation(
+        MANAGER,
+        booking(
+          await aUnit(),
+          await day(PROPERTY, 42),
+          await day(PROPERTY, 43),
+          {
+            guestName: "Typed Differently",
+            existingGuestId: guestId,
+          },
+        ),
+      );
+      expect(booked.guestId).toBe(guestId);
+      expect(booked.guestCreated).toBe(false);
+      expect(await guestCount()).toBe(before);
+      const [profile] = await owner.$queryRawUnsafe<{ fullName: string }[]>(
+        `select full_name as "fullName" from public.guests where id = $1::uuid`,
+        guestId,
+      );
+      expect(profile?.fullName).toBe(`Returning ${surname}`);
+      const record = await latestRecord(
+        owner,
+        "reservation.created",
+        booked.reservationId,
+      );
+      expect(record?.context.guestChosen).toBe(true);
+      expect(record?.context.guestCreated).toBe(false);
+    });
+
+    it("refuses a picked Guest of another Organization, or one that does not exist, and leaves no Guest behind", async () => {
+      const theirs = randomUUID();
+      await owner.$executeRawUnsafe(
+        `insert into public.guests (id, organization_id, full_name)
+         values ($1::uuid, $2::uuid, 'Somebody Else')`,
+        theirs,
+        OTHER_ORG,
+      );
+      const before = await guestCount();
+      for (const existingGuestId of [theirs, randomUUID()]) {
+        const refused = await reservations
+          .createReservation(
+            MANAGER,
+            booking(
+              await aUnit(),
+              await day(PROPERTY, 44),
+              await day(PROPERTY, 45),
+              { guestName: "Probe", existingGuestId },
+            ),
+          )
+          .catch((error: unknown) => error);
+        expect(refused).toBeInstanceOf(ReservationRefusedError);
+      }
+      expect(await guestCount()).toBe(before);
+    });
   });
 
   it("RG-S1-19: one address in two Organizations is two Guests, each in the Unit's Organization", async () => {

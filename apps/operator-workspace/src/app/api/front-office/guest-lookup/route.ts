@@ -1,8 +1,8 @@
 import { currentViewer, guestLookup } from "../../../../server/viewer";
 
 /**
- * Guests already on file that the name or number being typed into a new booking
- * may belong to, so a returning person is seen before a second record is made
+ * Guests already on file that the name or telephone being typed into a new
+ * booking may belong to, so a returning person is seen before a second record is made
  * (RES-05).
  *
  * The same narrow entrance as the other front-office routes: this file calls
@@ -24,7 +24,11 @@ export async function GET(request: Request): Promise<Response> {
   if (!UUID.test(property)) return Response.json({ guests: [] });
 
   try {
-    const guests = await guestLookup(property, search.get("q") ?? "");
+    const guests = await guestLookup(
+      property,
+      search.get("q") ?? "",
+      search.get("phone") ?? "",
+    );
     return Response.json({ guests });
   } catch (error: unknown) {
     console.error("guest_lookup.read_failed", {

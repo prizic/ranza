@@ -813,6 +813,7 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
 export async function guestLookup(
   propertyId: string,
   text: string,
+  phone: string,
 ): Promise<readonly GuestMatch[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
@@ -820,6 +821,7 @@ export async function guestLookup(
     viewer.userId,
     propertyId,
     text,
+    phone,
   );
 }
 
