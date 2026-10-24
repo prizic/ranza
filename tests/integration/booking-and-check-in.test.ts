@@ -42,7 +42,9 @@ const NARROW = randomUUID();
 const OUTSIDER = randomUUID();
 /** The shipped housekeeping role: reaches every Property, checks nobody in. */
 const HOUSEKEEPER = randomUUID();
-const USERS = [MANAGER, NARROW, OUTSIDER, HOUSEKEEPER];
+/** A manager of both Organizations, the one person whose reach is wider than the Unit's. */
+const TWO_ORGANIZATIONS = randomUUID();
+const USERS = [MANAGER, NARROW, OUTSIDER, HOUSEKEEPER, TWO_ORGANIZATIONS];
 
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const reservations = createReservationsModule({ db: prisma });
@@ -165,15 +167,17 @@ function gate(): { opened: Promise<void>; open: () => void } {
 beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.users (id, email) values
-       ($1, $5), ($2, $6), ($3, $7), ($4, $8)`,
+       ($1, $6), ($2, $7), ($3, $8), ($4, $9), ($5, $10)`,
     MANAGER,
     NARROW,
     OUTSIDER,
     HOUSEKEEPER,
+    TWO_ORGANIZATIONS,
     `bc-manager-${MANAGER}@example.test`,
     `bc-narrow-${NARROW}@example.test`,
     `bc-outsider-${OUTSIDER}@example.test`,
     `bc-housekeeper-${HOUSEKEEPER}@example.test`,
+    `bc-both-${TWO_ORGANIZATIONS}@example.test`,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values
@@ -227,13 +231,16 @@ beforeAll(async () => {
        ($1, $3, 'manager', 'organization_wide'),
        ($1, $4, 'front_desk', 'assigned_properties'),
        ($2, $5, 'manager', 'organization_wide'),
-       ($1, $6, 'housekeeping', 'organization_wide')`,
+       ($1, $6, 'housekeeping', 'organization_wide'),
+       ($1, $7, 'manager', 'organization_wide'),
+       ($2, $7, 'manager', 'organization_wide')`,
     ORG,
     OTHER_ORG,
     MANAGER,
     NARROW,
     OUTSIDER,
     HOUSEKEEPER,
+    TWO_ORGANIZATIONS,
   );
   await owner.$executeRawUnsafe(
     `insert into public.property_assignments (property_id, organization_id, user_id)
@@ -751,9 +758,9 @@ describe("who a booking names", () => {
       expect(await reservations.findGuests(MANAGER, PROPERTY, "Ay")).toEqual(
         [],
       );
-      expect(await reservations.findGuests(MANAGER, PROPERTY, "", "053")).toEqual(
-        [],
-      );
+      expect(
+        await reservations.findGuests(MANAGER, PROPERTY, "", "053"),
+      ).toEqual([]);
       await reservations.createReservation(
         OUTSIDER,
         booking(
@@ -778,7 +785,11 @@ describe("who a booking names", () => {
     it("suggests nothing to a role that does not take bookings", async () => {
       await walkIn(`Private ${surname}`, null);
       expect(
-        await reservations.findGuests(HOUSEKEEPER, PROPERTY, `Private ${surname}`),
+        await reservations.findGuests(
+          HOUSEKEEPER,
+          PROPERTY,
+          `Private ${surname}`,
+        ),
       ).toEqual([]);
     });
 
@@ -823,10 +834,17 @@ describe("who a booking names", () => {
         OTHER_ORG,
       );
       const before = await guestCount();
-      for (const existingGuestId of [theirs, randomUUID()]) {
+      // Somebody who reaches both Organizations is the case the row-level
+      // policy alone does not settle: it admits the other Guest to them, and
+      // only the Unit's own Organization says whose Guest this booking takes.
+      for (const [userId, existingGuestId] of [
+        [MANAGER, theirs],
+        [TWO_ORGANIZATIONS, theirs],
+        [MANAGER, randomUUID()],
+      ] as const) {
         const refused = await reservations
           .createReservation(
-            MANAGER,
+            userId,
             booking(
               await aUnit(),
               await day(PROPERTY, 44),
