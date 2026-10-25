@@ -87,7 +87,7 @@ test("change_actions_are_where_the_desk_works: a booking moves to other nights a
   await signIn(page);
   await page.goto(`/en/reservations?property=${propertyId}`);
 
-  await page.getByPlaceholder(/search/i).fill(booking.guestName);
+  await page.getByRole("searchbox").fill(booking.guestName);
   await page
     // The name is isolated for bidi, so it is matched around the marks.
     .getByRole("button", {

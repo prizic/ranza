@@ -634,7 +634,7 @@ test("RC-S3-01: a booking dragged to a free room is previewed, writes nothing, a
   );
 
   await page.goto(`/en/reservations?property=${propertyId}`);
-  await page.getByPlaceholder(/search/i).fill(guest);
+  await page.getByRole("searchbox").fill(guest);
   await expect(
     page.getByRole("row", { name: new RegExp(guest) }).getByText(rooms.B!.name),
   ).toBeVisible();
