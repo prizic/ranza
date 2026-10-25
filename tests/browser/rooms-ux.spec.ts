@@ -4,6 +4,7 @@ import { expect } from "@playwright/test";
 import { test } from "./hydration";
 
 import { DESK_EMAIL, signIn } from "./front-desk";
+import { psql } from "./local-database";
 import { aPropertyWithRooms } from "./ux-rooms";
 
 const EVIDENCE = path.resolve(
@@ -86,13 +87,13 @@ test("a front desk colleague is not offered Add rooms, and a manager sees what a
 for (const language of [
   {
     code: "en",
-    taken: "Room 101 already exists at this Property, so no rooms were added.",
+    taken: "Room 201 already exists at this Property, so no rooms were added.",
     digits:
       "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
   },
   {
     code: "ar",
-    taken: "الغرفة 101 موجودة بالفعل في هذا العقار، لذلك لم تُضف أي غرفة.",
+    taken: "الغرفة 201 موجودة بالفعل في هذا العقار، لذلك لم تُضف أي غرفة.",
     digits:
       "استخدم أرقامًا فقط، من 1 إلى 8 خانات، مثل 101. لا تُقبل الحروف ولا الشرطات.",
   },
@@ -129,13 +130,26 @@ for (const language of [
         .evaluate((input: HTMLInputElement) => input.validationMessage),
     ).toBe("");
 
-    // ROOMS-03: a name already taken is named, in the screen's language, and
-    // nothing typed is lost.
+    // CALENDAR-11: a number the page already knows is taken is named before
+    // the press, and the press is withheld.
     await dialog.locator("#firstNumber").fill("101");
+    await expect(dialog.getByTestId("add-rooms-preview")).toContainText("101");
+    await expect(dialog.locator("button[type=submit]")).toBeDisabled();
+
+    // ROOMS-03: a name another desk took after this page was read is named by
+    // the database's refusal, in the screen's language, and nothing typed is
+    // lost.
+    psql(
+      `insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, '201', 'room', 2
+         from public.properties where id = '${propertyId}'`,
+    );
+    await dialog.locator("#firstNumber").fill("201");
     await dialog.locator("button[type=submit]").click();
     const refusal = dialog.getByRole("alert");
     await expect(refusal).toContainText(language.taken);
-    await expect(dialog.locator("#firstNumber")).toHaveValue("101");
+    await expect(dialog.locator("#firstNumber")).toHaveValue("201");
     if (language.code === "en") {
       await page.screenshot({
         path: path.join(EVIDENCE, "refusal-in-the-screens-words.png"),
