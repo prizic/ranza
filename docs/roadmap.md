@@ -59,8 +59,14 @@ occupancy ahead and Organization strip; and every figure opening exactly the row
 it counts, which a browser spec reads, follows and counts (`TD-S5-*`). The UX
 audit of 2026-10-11 reworked the day (`TD-S7-*`, with the room calendar's
 `RC-S4-*`, all proposed): tonight is one number on Today and the calendar, an overdue Guest
-holds their room and is counted in days, and "ready" means vacant. Guest
-requests on Today are proposed, not built (TD-S6-01).
+holds their room and is counted in days, and "ready" means vacant. The audit
+of 2026-10-24 went through the layouts (`TL-S1-12`, `TL-S2-29` to `TL-S2-38`,
+`TD-S8-*`, all proposed): every arrival still to come is a row with its command
+or its reason, an overdue Guest appears once, dirty and awaiting inspection
+count empty rooms only, and what leads the attention row follows the focus.
+Bulk check-out and a manager's default layout are proposed, not built
+(`TL-S3-01`, `TL-S3-02`). Guest requests on Today are proposed, not built
+(TD-S6-01).
 
 The next few slices, in the order decided by what each one unblocks:
 
