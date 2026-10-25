@@ -482,3 +482,17 @@ export async function loadChargeableStays(
   if (!viewer || !UUID.test(requestId)) return [];
   return getComposition().maintenance.chargeableStays(viewer.userId, requestId);
 }
+
+/**
+ * Who taking a room out of order would affect, read when the form opens so the
+ * desk is told before the first press rather than after it (HOUSEKEEPING-15,
+ * MT-S2-09). Null for anything malformed or unreachable: the form then falls
+ * back to the answer the press itself returns.
+ */
+export async function loadOutOfOrderImpact(
+  unitId: string,
+): Promise<OutOfOrderImpact | null> {
+  const viewer = await currentViewer();
+  if (!viewer || !UUID.test(unitId)) return null;
+  return getComposition().maintenance.outOfOrderImpact(viewer.userId, unitId);
+}

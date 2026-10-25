@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { RotateCcw, UserRound, Wrench, X } from "lucide-react";
 import type {
   BoardState,
   MaintenanceRequestCard,
+  OutOfOrderImpact,
   ReportOptions,
   ReturnAs,
 } from "@ranza/maintenance";
@@ -34,6 +35,7 @@ import {
 import {
   assignRequest,
   cancelRequest,
+  loadOutOfOrderImpact,
   moveRequest,
   prioritiseRequest,
   returnRoomToService,
@@ -120,6 +122,22 @@ export function RequestSheet({
   const [takingOut, setTakingOut] = useState(false);
   const [expectedBackOn, setExpectedBackOn] = useState("");
   const [note, setNote] = useState("");
+  // Who the room holds, read when "Take room out of order" is opened so the
+  // sentence is on screen before the first press (HOUSEKEEPING-15).
+  const [foreseen, setForeseen] = useState<OutOfOrderImpact | null>(null);
+  const foreseenUnitId = takingOut ? (request?.unit?.unitId ?? null) : null;
+
+  useEffect(() => {
+    if (foreseenUnitId === null) return;
+    let current = true;
+    void loadOutOfOrderImpact(foreseenUnitId).then((impact) => {
+      if (current) setForeseen(impact);
+    });
+    return () => {
+      current = false;
+      setForeseen(null);
+    };
+  }, [foreseenUnitId]);
 
   if (!request) return null;
 
@@ -134,10 +152,18 @@ export function RequestSheet({
 
   const open = OPEN.includes(request.status);
   const holding = request.hold !== null;
-  const impact =
+  const refused =
     byName.takeOut.outcome.status === "impact"
       ? byName.takeOut.outcome.impact
       : undefined;
+  // Seen before the press or answered after it: either way the press that
+  // follows says the people were read, so it goes ahead.
+  const foreseenAffected =
+    foreseen !== null &&
+    (foreseen.inHouse.length > 0 || foreseen.reservations.length > 0)
+      ? foreseen
+      : undefined;
+  const impact = refused ?? foreseenAffected;
   const room =
     request.unit === null
       ? null
@@ -151,6 +177,18 @@ export function RequestSheet({
     .filter((part) => part !== null)
     .join(" · ");
   const base = { requestId: request.requestId };
+  // A control the viewer cannot use is the value as text, with the reason once
+  // at the top of the sheet: a greyed select with a chevron reads as a control
+  // that is broken (HOUSEKEEPING-14).
+  const editAssignee = mayManage && request.status !== "cancelled";
+  const editPriority = mayManage && open;
+  const assigneeName = request.assignee
+    ? request.assignee.reachesProperty
+      ? isolate(staffName(request.assignee.email, t("formerStaff")))
+      : t("noLongerHere", {
+          name: isolate(staffName(request.assignee.email, t("formerStaff"))),
+        })
+    : t("notAssigned");
   // Done is one click among the others, so the click says what it does to a
   // room it holds before it is made (MAINT-03).
   const doneHint =
@@ -247,43 +285,42 @@ export function RequestSheet({
               <DialogNotice>{t("heldAfterDone")}</DialogNotice>
             ) : null}
           </DialogSection>
-          <DialogSection labelFor="sheet-assignee" title={t("assignee")}>
-            <Select
-              disabled={!mayManage || pending || request.status === "cancelled"}
-              onValueChange={(value) =>
-                run("assign", {
-                  ...base,
-                  assigneeId: value === "none" ? "" : value,
-                })
-              }
-              value={request.assignee?.userId ?? "none"}
-            >
-              <SelectTrigger className="w-full" id="sheet-assignee">
-                <SelectValue>
-                  {request.assignee
-                    ? request.assignee.reachesProperty
-                      ? isolate(
-                          staffName(request.assignee.email, t("formerStaff")),
-                        )
-                      : t("noLongerHere", {
-                          name: isolate(
-                            staffName(request.assignee.email, t("formerStaff")),
-                          ),
-                        })
-                    : t("notAssigned")}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t("notAssigned")}</SelectItem>
-                {assignees.map((person) => (
-                  <SelectItem key={person.userId} value={person.userId}>
-                    {staffName(person.email, t("formerStaff"))}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {mayManage &&
-            request.status !== "cancelled" &&
+          {mayManage ? null : (
+            <DialogSection>
+              <DialogNotice>{t("sheetReadOnly")}</DialogNotice>
+            </DialogSection>
+          )}
+          <DialogSection
+            {...(editAssignee ? { labelFor: "sheet-assignee" } : {})}
+            title={t("assignee")}
+          >
+            {editAssignee ? (
+              <Select
+                disabled={pending}
+                onValueChange={(value) =>
+                  run("assign", {
+                    ...base,
+                    assigneeId: value === "none" ? "" : value,
+                  })
+                }
+                value={request.assignee?.userId ?? "none"}
+              >
+                <SelectTrigger className="w-full" id="sheet-assignee">
+                  <SelectValue>{assigneeName}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">{t("notAssigned")}</SelectItem>
+                  {assignees.map((person) => (
+                    <SelectItem key={person.userId} value={person.userId}>
+                      {staffName(person.email, t("formerStaff"))}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="m-0 text-sm font-medium">{assigneeName}</p>
+            )}
+            {editAssignee &&
             request.assignee?.userId !== viewerId &&
             assignees.some((person) => person.userId === viewerId) ? (
               <Button
@@ -299,25 +336,34 @@ export function RequestSheet({
             ) : null}
           </DialogSection>
 
-          <DialogSection labelFor="sheet-priority" title={t("priority")}>
-            <Select
-              disabled={!mayManage || pending || !open}
-              onValueChange={(value) =>
-                run("prioritise", { ...base, priority: value })
-              }
-              value={request.priority}
-            >
-              <SelectTrigger className="w-full" id="sheet-priority">
-                <SelectValue>{priorities(request.priority)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {PRIORITIES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {priorities(value)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <DialogSection
+            {...(editPriority ? { labelFor: "sheet-priority" } : {})}
+            title={t("priority")}
+          >
+            {editPriority ? (
+              <Select
+                disabled={pending}
+                onValueChange={(value) =>
+                  run("prioritise", { ...base, priority: value })
+                }
+                value={request.priority}
+              >
+                <SelectTrigger className="w-full" id="sheet-priority">
+                  <SelectValue>{priorities(request.priority)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {PRIORITIES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {priorities(value)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="m-0 text-sm font-medium">
+                {priorities(request.priority)}
+              </p>
+            )}
           </DialogSection>
 
           {mayManage ? (
