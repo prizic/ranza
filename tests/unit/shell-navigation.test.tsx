@@ -179,10 +179,34 @@ describe("a list that scrolls says so (SHELL-01, SHELL-02)", () => {
   });
 });
 
+/** The current item's middle is 350 px beyond the middle of a 100 px wide row. */
+function layOutCurrentItemOffscreen() {
+  const scrollBy = vi.fn();
+  const scrollIntoView = vi.fn();
+  Element.prototype.scrollBy = scrollBy;
+  Element.prototype.scrollIntoView = scrollIntoView;
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: HTMLElement) {
+      const current = this.getAttribute("aria-current") === "page";
+      return {
+        bottom: 0,
+        height: 0,
+        left: current ? 350 : 0,
+        right: 0,
+        toJSON: () => ({}),
+        top: 0,
+        width: 100,
+        x: 0,
+        y: 0,
+      };
+    },
+  );
+  return { scrollBy, scrollIntoView };
+}
+
 describe("the page you are on is in view (SHELL-02, SHELL-15)", () => {
-  it("scrolls the current chip into view", () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
+  it("moves the chips' row, and only it, to the current chip", () => {
+    const { scrollBy, scrollIntoView } = layOutCurrentItemOffscreen();
     route.pathname = "/en/maintenance";
     render(
       <NavChips
@@ -194,16 +218,16 @@ describe("the page you are on is in view (SHELL-02, SHELL-15)", () => {
         label="Pages"
       />,
     );
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView).toHaveBeenCalledWith({
-      block: "nearest",
-      inline: "center",
-    });
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(scrollBy).toHaveBeenCalledWith({ left: 350 });
+    expect(
+      scrollIntoView,
+      "scrollIntoView would move the page along with the row",
+    ).not.toHaveBeenCalled();
   });
 
-  it("scrolls the dock to the current item when it opens", () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
+  it("moves the dock, and only it, to the current item when it opens", () => {
+    const { scrollBy, scrollIntoView } = layOutCurrentItemOffscreen();
     route.pathname = "/en/departures";
     render(
       <AppBottomNav
@@ -212,7 +236,8 @@ describe("the page you are on is in view (SHELL-02, SHELL-15)", () => {
         root="/en/today"
       />,
     );
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).not.toHaveBeenCalled();
   });
 });
 

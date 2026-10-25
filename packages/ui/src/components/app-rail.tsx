@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { SidebarProvider, useSidebar } from "./sidebar-context";
+import { centerInScroller } from "../lib/center-in-scroller";
 import { useScrollEdges } from "../lib/use-scroll-edges";
 import { cn } from "../lib/utils";
 
@@ -643,10 +644,7 @@ export function AppBottomNav({
     const current = dock.current?.querySelector<HTMLElement>(
       '[aria-current="page"]',
     );
-    // Not every environment lays out or scrolls; the dock is then as it opened.
-    if (typeof current?.scrollIntoView === "function") {
-      current.scrollIntoView({ block: "nearest", inline: "center" });
-    }
+    if (dock.current && current) centerInScroller(dock.current, current);
   }, []);
 
   if (items.length === 0) return null;

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { centerInScroller } from "../lib/center-in-scroller";
 import { hrefPath, type NavLeaf } from "./nav";
 import { cn } from "../lib/utils";
 
@@ -32,10 +33,7 @@ export function NavChips({
     const current = row.current?.querySelector<HTMLElement>(
       '[aria-current="page"]',
     );
-    // Not every environment lays out or scrolls; the row is then as it opened.
-    if (typeof current?.scrollIntoView === "function") {
-      current.scrollIntoView({ block: "nearest", inline: "center" });
-    }
+    if (row.current && current) centerInScroller(row.current, current);
   }, [pathname]);
 
   if (entries.length === 0) return null;
