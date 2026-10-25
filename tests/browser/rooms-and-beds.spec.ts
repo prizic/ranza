@@ -110,6 +110,24 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   const guestC = `Test Bed C ${tag}`;
   const reason = `mattress being replaced ${tag}`;
 
+  // The bed figures are only drawn once the Property has a bed, which a fresh
+  // database does not give it: this spec does not lean on another spec's rooms.
+  psql(
+    `with room as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, 'E2E-S-${tag}', 'room', 1
+         from public.properties
+        where id = '${propertyId}'
+          and not exists (select 1 from public.accommodation_units
+                           where property_id = '${propertyId}'
+                             and parent_id is not null)
+       returning id, property_id, organization_id
+     )
+     insert into public.accommodation_units
+       (property_id, organization_id, name, unit_type, capacity, parent_id)
+     select property_id, organization_id, 'A', 'bed', 1, id from room`,
+  );
   await signIn(page);
 
   // RB-S1-09, RB-S2-02: two rooms, three beds each, added in one go.
