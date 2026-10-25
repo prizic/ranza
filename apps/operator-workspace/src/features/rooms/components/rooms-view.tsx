@@ -298,7 +298,9 @@ export function RoomsView({
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm text-muted-foreground">{t("roomsSubtitle")}</p>
+        <p className="text-sm text-muted-foreground">
+          {hasBeds ? t("roomsSubtitle") : t("roomsSubtitleWholeRooms")}
+        </p>
 
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -669,7 +671,7 @@ export function RoomsView({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("rooms")}</TableHead>
+                <TableHead>{hasBeds ? t("rooms") : rp("roomColumn")}</TableHead>
                 <TableHead className="hidden md:table-cell">
                   {t("buildingColumn")}
                 </TableHead>

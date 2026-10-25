@@ -888,6 +888,8 @@ export interface Messages {
 
   rooms: string;
   roomsSubtitle: string;
+  /** The same line where no room is let by the bed. */
+  roomsSubtitleWholeRooms: string;
   noRoomsTitle: string;
   noRoomsDescription: string;
   addRooms: string;
@@ -2136,6 +2138,8 @@ export interface Messages {
     statFree: string;
     statFreeHint: string;
     roomMap: string;
+    /** The list view's first column where no room is let by the bed (`rooms` otherwise). */
+    roomColumn: string;
     roomList: string;
     roomDetails: string;
     blockNeedsPermission: string;
@@ -3075,14 +3079,14 @@ export interface Messages {
     notEnabledDescription: string;
     noPermissionTitle: string;
     noPermissionDescription: string;
-    openTitle: string;
-    openDescription: string;
-    goToToday: string;
-    /** Names the page in a refusal when the route does not. */
     /** A page that any one of several permissions opens: `{permissions}` lists them all. */
     noPermissionAnyDescription: string;
     /** One permission's name set off from the sentence around it. */
     permissionQuoted: string;
+    openTitle: string;
+    openDescription: string;
+    goToToday: string;
+    /** Names the page in a refusal when the route does not. */
     thisPage: string;
   };
   /** An address that is no page, inside the shell (SHELL-03). */
@@ -3853,7 +3857,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Misafir rezervasyonunun bir ayrılış tarihi olmalı. Yalnızca bir Sakinin rezervasyonu açık uçlu bırakılabilir.",
     noBookableUnit:
       "Burada rezerve edilebilecek birim yok — tüm birimler bloke, hizmet dışı ya da yatak bazında kiralanıyor.",
-    openRooms: "Odalar ve yataklara git",
+    openRooms: "Odalara git",
     quotePerNight: "Gecelik {price}",
     quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
     quoteUnpriced:
@@ -4196,6 +4200,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     rooms: "Odalar ve yataklar",
     roomsSubtitle: "Bu tesisteki her oda ve yatak, ve her birinde kim kalıyor.",
+    roomsSubtitleWholeRooms: "Bu tesisteki her oda ve her birinde kim kalıyor.",
     noRoomsTitle: "Henüz oda yok",
     noRoomsDescription:
       "Bu tesise henüz oda eklenmemiş. 'Oda ekle' düğmesini kullanarak odaları toplu ekleyebilirsiniz.",
@@ -4323,7 +4328,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noRoomsTitle: "Henüz oda yok",
       noRoomsDescription:
         "Oda ve yatak eklediğinizde burada günlere göre görünür.",
-      goToRooms: "Odalar ve yataklara git",
+      goToRooms: "Odalara git",
       noMatchTitle: "Eşleşen oda yok",
       noMatchDescription:
         "Seçilen kat, arama veya filtrelerle eşleşen bir şey yok.",
@@ -5561,6 +5566,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       statFreeHint:
         "Şu an boş olan ve bu gece için rezervasyonu bulunmayan odalar. Oda takviminin Boş satırı, misafiri bugün çıkacak odaları da sayar.",
       roomMap: "Oda haritası",
+      roomColumn: "Odalar",
       roomList: "Oda listesi",
       roomDetails: "Oda ayrıntıları",
       blockNeedsPermission:
@@ -5589,7 +5595,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       subtitle: "{property} — tüm odalar",
       noRoomsTitle: "Henüz oda yok",
       noRoomsDescription:
-        "Odalar ve yataklar ekranında eklenen odalar, temizlik durumlarıyla birlikte burada görünür.",
+        "Odalar ekranında eklenen odalar, temizlik durumlarıyla birlikte burada görünür.",
       statRooms: "Odalar",
       statDirty: "Kirli",
       statClean: "Temiz",
@@ -6671,7 +6677,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "front-office": "Ön büro",
       reservations: "Rezervasyonlar",
       "room-calendar": "Oda takvimi",
-      rooms: "Odalar ve yataklar",
+      rooms: "Odalar",
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "close-day": "Günü kapat",
@@ -6729,15 +6735,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       noPermissionTitle: "Rolünüz bu sayfayı açamıyor",
       noPermissionDescription:
         "{page} için “{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
+      noPermissionAnyDescription:
+        "{page}, {permissions} yetkilerinden herhangi birine sahip bir rol için açılır; rolünüzde bunların hiçbiri yok. Gerekiyorsa Organizasyonunuzda personeli yöneten kişiden rolünüze bunlardan birini eklemesini isteyin.",
+      permissionQuoted: "“{name}”",
       openTitle: "Bu sayfa şu anda kullanılamıyor",
       openDescription:
         "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
       goToToday: "Bugün'e git",
       thisPage: "Bu sayfa",
     },
-      noPermissionAnyDescription:
-        "{page}, {permissions} yetkilerinden herhangi birine sahip bir rol için açılır; rolünüzde bunların hiçbiri yok. Gerekiyorsa Organizasyonunuzda personeli yöneten kişiden rolünüze bunlardan birini eklemesini isteyin.",
-      permissionQuoted: "“{name}”",
     notFound: {
       pageTitle: "Sayfa bulunamadı",
       title: "Böyle bir sayfa yok",
@@ -7465,7 +7471,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "A Guest booking needs a departure date. Only a Resident's may be left open-ended.",
     noBookableUnit:
       "No Unit can be booked here — every Unit is blocked, out of service, or let by the bed.",
-    openRooms: "Go to Rooms & beds",
+    openRooms: "Go to Rooms",
     quotePerNight: "{price} a night",
     quoteStay:
       "{count, plural, one {# night} other {# nights}}: {total} in total",
@@ -7817,6 +7823,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     rooms: "Rooms & beds",
     roomsSubtitle:
       "Every room and bed at this Property, and who is in each one.",
+    roomsSubtitleWholeRooms:
+      "Every room at this Property, and who is in each one.",
     noRoomsTitle: "No rooms yet",
     noRoomsDescription:
       "No rooms have been added to this Property yet. Use 'Add rooms' to create a batch.",
@@ -7946,7 +7954,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noRoomsTitle: "No rooms yet",
       noRoomsDescription:
         "Add rooms and beds, and they appear here against the days.",
-      goToRooms: "Go to Rooms & beds",
+      goToRooms: "Go to Rooms",
       noMatchTitle: "No rooms match",
       noMatchDescription:
         "Nothing on this calendar matches the floor, search or filters chosen.",
@@ -9192,6 +9200,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       statFreeHint:
         "Empty now and with no booking for tonight. The room calendar's Free row also counts rooms whose Guest leaves today.",
       roomMap: "Room map",
+      roomColumn: "Rooms",
       roomList: "Room list",
       roomDetails: "Room details",
       blockNeedsPermission:
@@ -9219,7 +9228,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       subtitle: "Every room at {property}",
       noRoomsTitle: "No rooms here yet",
       noRoomsDescription:
-        "Rooms added under Rooms & beds appear here, with whether each one needs cleaning.",
+        "Rooms added on the Rooms page appear here, with whether each one needs cleaning.",
       statRooms: "Rooms",
       statDirty: "Dirty",
       statClean: "Clean",
@@ -10295,7 +10304,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "front-office": "Front Office",
       reservations: "Reservations",
       "room-calendar": "Room calendar",
-      rooms: "Rooms & beds",
+      rooms: "Rooms",
       arrivals: "Arrivals",
       departures: "Departures",
       "close-day": "Close the day",
@@ -10353,6 +10362,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       noPermissionTitle: "Your role can't open this page",
       noPermissionDescription:
         "{page} needs “{permission}”, and your role doesn't include it. Ask whoever manages staff in your Organization to add it to your role.",
+      noPermissionAnyDescription:
+        "{page} opens for a role that holds any of {permissions}, and yours holds none of them. If you need it, ask whoever manages staff in your Organization to add one to your role.",
+      permissionQuoted: "“{name}”",
       openTitle: "This page isn't available right now",
       openDescription:
         "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
@@ -10362,9 +10374,6 @@ export const messages: Record<SupportedLocale, Messages> = {
     notFound: {
       pageTitle: "Page not found",
       title: "That page doesn't exist",
-      noPermissionAnyDescription:
-        "{page} opens for a role that holds any of {permissions}, and yours holds none of them. If you need it, ask whoever manages staff in your Organization to add one to your role.",
-      permissionQuoted: "“{name}”",
       description:
         "The address doesn't lead to a page. Check it for a typing mistake, or go back to Today.",
     },
@@ -11070,7 +11079,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "يحتاج حجز الضيف إلى تاريخ مغادرة. يمكن ترك حجز المقيم وحده مفتوح المدة.",
     noBookableUnit:
       "لا توجد وحدة يمكن حجزها هنا — كل الوحدات محجوبة أو خارج الخدمة أو تُؤجَّر بالسرير.",
-    openRooms: "انتقل إلى الغرف والأسرّة",
+    openRooms: "انتقل إلى الغرف",
     quotePerNight: "{price} لليلة",
     quoteStay:
       "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",
@@ -11405,6 +11414,7 @@ export const messages: Record<SupportedLocale, Messages> = {
 
     rooms: "الغرف والأسرّة",
     roomsSubtitle: "كل غرفة وسرير في هذا العقار، ومن يشغل كلًّا منها.",
+    roomsSubtitleWholeRooms: "كل غرفة في هذا العقار، ومن يشغل كلًّا منها.",
     noRoomsTitle: "لا توجد غرف بعد",
     noRoomsDescription:
       "لم تتم إضافة أي غرف إلى هذا العقار بعد. استخدم 'إضافة غرف' لإنشائها دفعة واحدة.",
@@ -11533,7 +11543,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       refreshFailed: "تعذّر التحديث. يُعرض التقويم كما كان في {time}.",
       noRoomsTitle: "لا غرف بعد",
       noRoomsDescription: "أضف الغرف والأسرّة لتظهر هنا مقابل الأيام.",
-      goToRooms: "الانتقال إلى الغرف والأسرّة",
+      goToRooms: "الانتقال إلى الغرف",
       noMatchTitle: "لا غرف مطابقة",
       noMatchDescription:
         "لا شيء في هذا التقويم يطابق الطابق أو البحث أو المرشحات المختارة.",
@@ -12755,6 +12765,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       statFreeHint:
         "غرف فارغة الآن وليس عليها حجز لهذه الليلة. يشمل صف «شاغرة» في تقويم الغرف أيضًا الغرف التي يغادرها ضيفها اليوم.",
       roomMap: "خريطة الغرف",
+      roomColumn: "الغرف",
       roomList: "قائمة الغرف",
       roomDetails: "تفاصيل الغرفة",
       blockNeedsPermission:
@@ -12781,7 +12792,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       subtitle: "كل الغرف في {property}",
       noRoomsTitle: "لا توجد غرف بعد",
       noRoomsDescription:
-        "تظهر هنا الغرف المضافة من شاشة الغرف والأسرّة، مع ما إذا كانت كل غرفة تحتاج إلى تنظيف.",
+        "تظهر هنا الغرف المضافة من شاشة الغرف، مع ما إذا كانت كل غرفة تحتاج إلى تنظيف.",
       statRooms: "الغرف",
       statDirty: "متسخة",
       statClean: "نظيفة",
@@ -13852,7 +13863,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "front-office": "المكتب الأمامي",
       reservations: "الحجوزات",
       "room-calendar": "تقويم الغرف",
-      rooms: "الغرف والأسرّة",
+      rooms: "الغرف",
       arrivals: "الوصول",
       departures: "المغادرة",
       "close-day": "إغلاق اليوم",
@@ -13909,6 +13920,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       noPermissionTitle: "دورك لا يتيح فتح هذه الصفحة",
       noPermissionDescription:
         "تحتاج {page} إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك أن يضيفها إلى دورك.",
+      noPermissionAnyDescription:
+        "تُفتح {page} للدور الذي يملك أيًّا من {permissions}، ودورك لا يملك أيًّا منها. إن احتجت إليها فاطلب ممن يدير الموظفين في مؤسستك أن يضيف إحداها إلى دورك.",
+      permissionQuoted: "«{name}»",
       openTitle: "هذه الصفحة غير متاحة الآن",
       openDescription:
         "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",
@@ -13920,9 +13934,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       title: "هذه الصفحة غير موجودة",
       description:
         "هذا العنوان لا يؤدي إلى صفحة. تحقّق من وجود خطأ في الكتابة، أو ارجع إلى اليوم.",
-      noPermissionAnyDescription:
-        "تُفتح {page} للدور الذي يملك أيًّا من {permissions}، ودورك لا يملك أيًّا منها. إن احتجت إليها فاطلب ممن يدير الموظفين في مؤسستك أن يضيف إحداها إلى دورك.",
-      permissionQuoted: "«{name}»",
     },
     sessionEnded: {
       title: "انتهت جلستك",

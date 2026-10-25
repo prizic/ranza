@@ -256,9 +256,10 @@ describe("what the screen says", () => {
   it("RC-S1-50: a Property with no rooms says so, and points to Rooms & beds", () => {
     renderCalendar(withUnits([]));
     expect(screen.getByText("No rooms yet")).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Go to Rooms & beds" }),
-    ).toHaveAttribute("href", `/en/rooms?property=${scope.propertyId}`);
+    expect(screen.getByRole("link", { name: "Go to Rooms" })).toHaveAttribute(
+      "href",
+      `/en/rooms?property=${scope.propertyId}`,
+    );
   });
 
   it("RC-S1-51: an empty window says nothing is booked, between its first and last day", () => {

@@ -540,6 +540,41 @@ describe("the words follow the Property, and a late arrival is not reserved toni
     ).not.toBeInTheDocument();
   });
 
+  it("heads the room list Rooms when no room is let by the bed, and Rooms & beds once one is", () => {
+    render(screenOf("en"));
+    expect(
+      screen.getByText("Every room at this Property, and who is in each one."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Room list" }));
+    expect(
+      screen.getByRole("columnheader", { name: "Rooms" }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    const shared: UnitEntry = {
+      ...unit("201", null),
+      beds: [unit("A", { kind: "free", nextArrivalOn: null })],
+    };
+    render(
+      screenOf("en", {
+        data: {
+          ...map,
+          units: [shared],
+          counts: { ...map.counts, rooms: 1, sellable: 1 },
+        },
+      }),
+    );
+    expect(
+      screen.getByText(
+        "Every room and bed at this Property, and who is in each one.",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Bed list" }));
+    expect(
+      screen.getByRole("columnheader", { name: "Rooms & beds" }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the bed map and the bed list once a room is let by the bed", () => {
     const shared: UnitEntry = {
       ...unit("201", null),
