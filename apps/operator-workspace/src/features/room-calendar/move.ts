@@ -48,10 +48,10 @@ export type MoveConflict =
       unit: string;
       status: "blocked" | "out_of_service";
     }
-  /** A confirmed booking holds some of those nights. */
-  | { kind: "booked"; guest: string | null }
-  /** Somebody in house holds some of those nights. */
-  | { kind: "occupied"; guest: string | null }
+  /** A confirmed booking holds some of those nights, from its first to the day it ends. */
+  | { kind: "booked"; guest: string | null; from: string; to: string | null }
+  /** Somebody in house holds some of those nights, from the first they hold. */
+  | { kind: "occupied"; guest: string | null; from: string; to: string | null }
   /** Leaving today is a check-out, which reviews the bill. */
   | { kind: "leavesToday" }
   /** The bar is not something a command can change. */
@@ -162,9 +162,12 @@ function aBarInTheWay(
       sharesANight(bar, startsOn, until),
   );
   if (!way) return null;
-  return way.kind === "stay"
-    ? { kind: "occupied", guest: way.guestName }
-    : { kind: "booked", guest: way.guestName };
+  return {
+    kind: way.kind === "stay" ? "occupied" : "booked",
+    guest: way.guestName,
+    from: way.startsOn,
+    to: way.heldUntil,
+  };
 }
 
 /** The Unit is out of use on a night from today on, inside `[startsOn, until)`. */

@@ -48,6 +48,9 @@ function option(
     sameKind: true,
     blocker: null,
     conflictReference: null,
+    conflictGuest: null,
+    conflictStartsOn: null,
+    conflictEndsOn: null,
     ready: true,
     ...extra,
   };
@@ -164,12 +167,68 @@ describe("the Move Guest dialog", () => {
   it("a_guest_is_not_moved_into_an_occupied_room", async () => {
     answering(preview());
     open();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Show the rooms that are taken/,
+      }),
+    );
     await chooseUnit(/Room.*Occupied/);
     await chooseReason(messages.en.moveReason.guest_request);
     expect(
       await screen.findByText(messages.en.changeBookingBlockedOccupied),
     ).toBeInTheDocument();
     expect(save()).toBeDisabled();
+  });
+
+  it("rooms somebody holds are behind one press, so a free room is not found by typing (CALENDAR-06)", async () => {
+    answering(preview());
+    open();
+    await screen.findByRole("radio", { name: /Room.*Free/ });
+    expect(screen.queryByRole("radio", { name: /Room.*Occupied/ })).toBeNull();
+    expect(screen.getByRole("radio", { name: /Room.*Not ready/ })).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Show the rooms that are taken (1)" }),
+    );
+    expect(
+      await screen.findByRole("radio", { name: /Room.*Occupied/ }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Hide the rooms that are taken" }),
+    ).toBeTruthy();
+  });
+
+  it("a room a booking holds names the guest and the dates, and the footer says what to do (CALENDAR-02)", async () => {
+    answering(
+      preview({
+        options: [
+          option("u102", "102"),
+          option("u105", "105", {
+            blocker: "booked",
+            conflictReference: "RMS0CYC",
+            conflictGuest: "Layla Hassan",
+            conflictStartsOn: "2026-09-28",
+            conflictEndsOn: "2026-09-30",
+          }),
+        ],
+      }),
+    );
+    open();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: /Show the rooms that are taken/,
+      }),
+    );
+    await chooseUnit(/Room.*Booked/);
+    await chooseReason(messages.en.moveReason.fault);
+    expect(
+      await screen.findByText(
+        /Layla Hassan has a booking in this room from Sep 28 to Sep 30 \(booking RMS0CYC\)\. Choose another room, or change that booking first\./,
+      ),
+    ).toBeInTheDocument();
+    expect(save()).toBeDisabled();
+    expect(
+      screen.getByText(messages.en.moveGuestHintTaken),
+    ).toBeInTheDocument();
   });
 
   it("a_move_needs_a_reason: another reason is said in the note", async () => {

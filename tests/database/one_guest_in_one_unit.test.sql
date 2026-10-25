@@ -8,10 +8,10 @@
 --
 -- Every assertion here was checked by breaking the thing it asserts — dropping
 -- the unique index, dropping the branch that extends an overdue Stay through
--- tonight, extending a Stay due out today as well, removing the entering-only guard, dropping the Stay-side branch —
--- and confirming it went red.
+-- tonight, extending a Stay due out today as well, removing the entering-only guard, dropping the Stay-side branch,
+-- and clipping an in-house Stay's nights to today — and confirming it went red.
 begin;
-select plan(15);
+select plan(17);
 
 insert into public.organizations (id, name, status) values
   ('a0a11111-1111-4111-8111-111111111111', 'Occupancy Organization', 'active');
@@ -203,6 +203,36 @@ select throws_ok(
             (select today from day), (select today from day) + 1)$$,
   '55006', null,
   'nobody is put in a room another confirmed booking holds tonight');
+
+-- ---------------------------------------------------------------------------
+-- A Guest who moves room is checked against the nights still to come
+-- ---------------------------------------------------------------------------
+
+insert into public.accommodation_units
+  (id, property_id, organization_id, name, unit_type, capacity)
+select ('a0c1111' || n || '-1111-4111-8111-111111111111')::uuid,
+       'a0b11111-1111-4111-8111-111111111111',
+       'a0a11111-1111-4111-8111-111111111111', 'OCC-' || n, 'room', 2
+from generate_series(8, 9) as n;
+
+-- Unit 8: a booking for nights that have passed, whose Guest never arrived.
+-- Unit 9: a booking for a night still to come. The Guest of Unit 2 has been in
+-- house for five nights.
+select pg_temp.book(8, -4, -2);
+select pg_temp.book(9, 1, 2);
+
+select lives_ok(
+  $$update public.stays
+       set accommodation_unit_id = 'a0c11118-1111-4111-8111-111111111111'
+     where id = 'a0f11112-1111-4111-8111-111111111111'$$,
+  'a Guest in house moves into a room whose booking is for nights that have passed');
+
+select throws_ok(
+  $$update public.stays
+       set accommodation_unit_id = 'a0c11119-1111-4111-8111-111111111111'
+     where id = 'a0f11112-1111-4111-8111-111111111111'$$,
+  '55006', null,
+  'but not into a room promised for a night they would still be there');
 
 select is(
   app.stay_holds('in_house', date '2026-01-01', date '2026-01-03', date '2026-01-10'),

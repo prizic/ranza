@@ -2,10 +2,11 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type { MovePreview } from "@ranza/reservations";
 import {
   ArrowButton,
+  Button,
   CancelButton,
   ChoiceGroup,
   Dialog,
@@ -177,6 +178,7 @@ export function MoveGuestDialog({
     return () => controller.abort();
   }, [open, stay.stayId, generation]);
 
+  const [showTaken, setShowTaken] = useState(false);
   const preview = read.state === "ready" ? read.preview : null;
   const chosen = preview?.options.find((option) => option.unitId === unitId);
   const noteLength = [...note.trim()].length;
@@ -185,11 +187,20 @@ export function MoveGuestDialog({
   // What the calendar knew before the database was asked. Said once: the
   // database's own words for the same nights are kept for what only it sees.
   const known = move && unitId ? move.conflictsFor(unitId) : [];
+  const day = (iso: string) =>
+    formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+      month: "short",
+      timeZone: "UTC",
+      year: undefined,
+    });
   const blocked =
     known.length > 0
       ? null
       : chosen?.blocker === "booked"
-        ? t("changeBookingBlockedBooked", {
+        ? t("moveGuestBlockedBooked", {
+            guest: chosen.conflictGuest ?? t("moveGuestSomeone"),
+            from: chosen.conflictStartsOn ? day(chosen.conflictStartsOn) : "",
+            to: chosen.conflictEndsOn ? day(chosen.conflictEndsOn) : "",
             reference: chosen.conflictReference ?? "",
           })
         : chosen?.blocker === "occupied"
@@ -249,11 +260,20 @@ export function MoveGuestDialog({
   // Until the read arrives the proposed room stands alone under its own name
   // when the caller gave it, and the list is empty when it did not: a raw id
   // is never shown (ROOMCAL-05).
+  // Rooms somebody holds are behind one press: the desk is choosing a room it
+  // can have, and finding one among taken rooms means typing (CALENDAR-06). The
+  // room the drop named stays, whatever it holds, so the refusal reads on it.
+  const taken = (preview?.options ?? []).filter(
+    (option) => option.blocker !== null && option.unitId !== unitId,
+  );
+  const offered = (preview?.options ?? []).filter(
+    (option) => showTaken || !taken.includes(option),
+  );
   const unitItems: OptionListItem[] = [
     ...(preview === null && move?.unitLabel
       ? [{ value: unitId, title: move.unitLabel }]
       : []),
-    ...(preview?.options ?? []).map((option) => ({
+    ...offered.map((option) => ({
       value: option.unitId,
       title: unitLabel(option.roomName, option.unitName),
       description: t(`unitType.${option.unitType}`),
@@ -274,11 +294,15 @@ export function MoveGuestDialog({
   const missing =
     chosen === undefined
       ? t("moveGuestHintUnit")
-      : reason === ""
-        ? t("moveGuestHintReason")
-        : noteMissing
-          ? t("moveGuestHintNote")
-          : null;
+      : known.length > 0 || chosen.blocker !== null
+        ? t("moveGuestHintTaken")
+        : !chosen.ready
+          ? t("moveGuestHintNotReady")
+          : reason === ""
+            ? t("moveGuestHintReason")
+            : noteMissing
+              ? t("moveGuestHintNote")
+              : null;
 
   return (
     <Dialog onOpenChange={onOpenChange} open={open}>
@@ -287,7 +311,7 @@ export function MoveGuestDialog({
           <DialogMasthead
             art="/illustrations/dialogs/move-guest.svg"
             eyebrow={t("moveGuest")}
-            facts={`${t("unit")} ${stay.unitLabel}`}
+            facts={t("moveGuestRoomFact", { room: stay.unitLabel })}
             heading={stay.guestName}
           />
 
@@ -333,6 +357,19 @@ export function MoveGuestDialog({
                 searchLabel={t("unitSearch")}
                 value={preview === null && !move?.unitLabel ? "" : unitId}
               />
+              {taken.length > 0 ? (
+                <Button
+                  className="justify-self-start"
+                  onClick={() => setShowTaken((shown) => !shown)}
+                  size="sm"
+                  type="button"
+                  variant="ghost"
+                >
+                  {showTaken
+                    ? t("moveGuestHideTaken")
+                    : t("moveGuestShowTaken", { count: taken.length })}
+                </Button>
+              ) : null}
               <div aria-live="polite" className="grid gap-2">
                 {read.state === "loading" ? (
                   <p className="m-0 text-step--1 text-muted-foreground">

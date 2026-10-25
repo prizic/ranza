@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { SupportedLocale } from "@ranza/i18n";
+import { formatDate, type SupportedLocale } from "@ranza/i18n";
 import {
   ArrowButton,
   CancelButton,
@@ -33,8 +33,20 @@ import {
 } from "../move";
 
 /** The words for what the calendar already knows against a move (RC-S3-04). */
-export function useConflictText(): (conflict: MoveConflict) => string {
+export function useConflictText(
+  locale: SupportedLocale,
+): (conflict: MoveConflict) => string {
   const t = useTranslations("roomCalendar");
+  const day = (iso: string) =>
+    formatDate(new Date(`${iso}T00:00:00Z`), locale, {
+      month: "short",
+      timeZone: "UTC",
+      year: undefined,
+    });
+  const span = (conflict: { from: string; to: string | null }) => ({
+    from: day(conflict.from),
+    to: conflict.to === null ? t("noEndDate") : day(conflict.to),
+  });
   return (conflict) => {
     switch (conflict.kind) {
       case "past":
@@ -51,10 +63,12 @@ export function useConflictText(): (conflict: MoveConflict) => string {
       case "booked":
         return t("moveConflict.booked", {
           guest: conflict.guest ?? t("noGuestRecorded"),
+          ...span(conflict),
         });
       case "occupied":
         return t("moveConflict.occupied", {
           guest: conflict.guest ?? t("noGuestRecorded"),
+          ...span(conflict),
         });
       case "leavesToday":
         return t("moveConflict.leavesToday");
@@ -95,7 +109,7 @@ export function MoveDialogs({
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
-  const text = useConflictText();
+  const text = useConflictText(locale);
   const place = placeOf(request.entry);
   const guest = request.entry.bar.guestName ?? t("noGuestRecorded");
   const onOpenChange = (open: boolean) => {

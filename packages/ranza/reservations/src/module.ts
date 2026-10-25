@@ -2804,8 +2804,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
    * of the Property that takes a Stay, with what would refuse the move there.
    *
    * Each blocker mirrors a refusal: `booked` is `app.unit_holds_one_occupancy`,
-   * which compares the Stay's whole plan — `app.stay_holds` from its first
-   * night — with the confirmed bookings on the new Unit; `occupied` is
+   * which compares the nights the Stay still holds — `app.stay_holds` from
+   * today on, the nights already slept were slept elsewhere — with the
+   * confirmed bookings on the new Unit; `occupied` is
    * `stays_no_double_booking`, somebody else in house there. `ready` is
    * `app.unit_is_ready`, which the command asks too. Out-of-service Units and
    * rooms let by the bed are absent, as from every other picker.
@@ -2857,7 +2858,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
         with moving as (
           select stay.id, stay.reservation_id,
                  app.stay_holds(stay.status, stay.starts_on, stay.ends_on,
-                                app.property_today(stay.property_id)) as nights
+                                app.property_today(stay.property_id))
+                   * daterange(app.property_today(stay.property_id), null, '[)')
+                   as nights
             from public.stays as stay
            where stay.id = ${stayId}::uuid
         )
@@ -2872,14 +2875,19 @@ export function createReservationsModule(deps: ReservationsDeps) {
             when conflict.reference is not null then 'booked'
           end                                      as "blocker",
           conflict.reference                       as "conflictReference",
+          conflict.guest_name                      as "conflictGuest",
+          to_char(conflict.starts_on, 'YYYY-MM-DD') as "conflictStartsOn",
+          to_char(conflict.ends_on, 'YYYY-MM-DD')   as "conflictEndsOn",
           app.unit_is_ready(unit.id)               as "ready"
         from public.accommodation_units as unit
         cross join moving
         left join public.accommodation_units as room
           on room.id = unit.parent_id
         left join lateral (
-          select other.reference
+          select other.reference, other.starts_on, other.ends_on,
+                 guest.full_name as guest_name
             from public.reservations as other
+            left join public.guests as guest on guest.id = other.guest_id
            where other.accommodation_unit_id = unit.id
              and other.status = 'confirmed'
              and other.id is distinct from moving.reservation_id
@@ -2905,8 +2913,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
             where child.parent_id = unit.id
           )
         order by
-          occupant.id is null and conflict.reference is null
-            and app.unit_is_ready(unit.id) desc,
+          -- Free and ready, then free but not ready, then promised, then
+          -- somebody in it: what the desk can use comes before what it cannot.
+          case
+            when occupant.id is not null        then 3
+            when conflict.reference is not null then 2
+            when not app.unit_is_ready(unit.id) then 1
+            else 0
+          end,
           unit.unit_type = ${stay.unitType} desc,
           coalesce(room.name, unit.name), unit.name
       `;

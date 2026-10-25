@@ -999,6 +999,10 @@ export interface MoveOption {
    */
   blocker: ChangeBlocker | null;
   conflictReference: string | null;
+  /** Who the booking that holds a night is for, and its dates, for the refusal to name. */
+  conflictGuest: string | null;
+  conflictStartsOn: string | null;
+  conflictEndsOn: string | null;
   /** Housekeeping's answer; a room that is not ready is refused (AB-S3-03). */
   ready: boolean;
 }
@@ -1017,7 +1021,10 @@ export interface MovePreview {
   nightlyRateMinor: number | null;
   rateCurrency: string | null;
   version: number;
-  /** Free and ready Units of the Guest's kind first, then the rest. */
+  /**
+   * Free and ready Units of the Guest's kind first, then free ones not yet
+   * ready, then those promised to a booking, then those with somebody in them.
+   */
   options: MoveOption[];
 }
 

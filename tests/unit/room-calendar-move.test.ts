@@ -156,7 +156,7 @@ describe("RC-S3-03: nights are half-open, so a departure day is free for an arri
         startsOn: day(1),
         endsOn: day(3),
       }),
-    ).toEqual([{ kind: "booked", guest: "Ada" }]);
+    ).toEqual([{ kind: "booked", guest: "Ada", from: day(2), to: day(5) }]);
   });
 
   it("arriving the day another booking leaves is free", () => {
@@ -220,7 +220,7 @@ describe("RC-S3-03: nights are half-open, so a departure day is free for an arri
         startsOn: day(1),
         endsOn: day(3),
       }),
-    ).toEqual([{ kind: "booked", guest: "Middle" }]);
+    ).toEqual([{ kind: "booked", guest: "Middle", from: day(2), to: day(3) }]);
   });
 
   it("a Guest in house is somebody staying, not a booking", () => {
@@ -233,7 +233,7 @@ describe("RC-S3-03: nights are half-open, so a departure day is free for an arri
         startsOn: day(1),
         endsOn: day(3),
       }),
-    ).toEqual([{ kind: "occupied", guest: "Eve" }]);
+    ).toEqual([{ kind: "occupied", guest: "Eve", from: day(-1), to: day(2) }]);
   });
 
   it("a requested booking holds nothing, and a departed Stay is history", () => {
@@ -300,7 +300,9 @@ describe("RC-S3-03: nights are half-open, so a departure day is free for an arri
         startsOn: day(20),
         endsOn: day(22),
       }),
-    ).toEqual([{ kind: "occupied", guest: "House Guest" }]);
+    ).toEqual([
+      { kind: "occupied", guest: "House Guest", from: day(-3), to: null },
+    ]);
   });
 });
 
@@ -418,7 +420,7 @@ describe("RC-S3-07: moving a Guest in house is judged for the nights from tonigh
     });
     const calendar = calendarOf(taken, changeover);
     expect(guestConflicts(calendar, stay, taken.unitId)).toEqual([
-      { kind: "booked", guest: "Ada" },
+      { kind: "booked", guest: "Ada", from: day(2), to: day(5) },
     ]);
     expect(guestConflicts(calendar, stay, changeover.unitId)).toEqual([]);
   });
@@ -487,7 +489,7 @@ describe("RC-S3-08: pulling the end of a Guest's stay", () => {
     const room = calendar.units[0]!;
     expect(departureConflicts(calendar, room, stay, day(5))).toEqual([]);
     expect(departureConflicts(calendar, room, stay, day(6))).toEqual([
-      { kind: "booked", guest: "Ada" },
+      { kind: "booked", guest: "Ada", from: day(5), to: day(7) },
     ]);
   });
 

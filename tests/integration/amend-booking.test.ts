@@ -1191,6 +1191,128 @@ describe("moving an in-house Guest", () => {
   );
 
   it(
+    "a_move_is_checked_against_the_nights_still_to_come: a booking that has passed does not refuse it",
+    async () => {
+      // In house since five days ago, due out in two.
+      const from = await aRoom(`M-F-${randomUUID().slice(0, 6)}`);
+      const [created] = await owner.$queryRawUnsafe<{ stay: string }[]>(
+        `with guest as (
+           insert into public.guests (organization_id, full_name)
+           values ($2, 'Five Nights In') returning id
+         ), booking as (
+           insert into public.reservations
+             (organization_id, property_id, accommodation_unit_id, guest_id,
+              stay_type, status, starts_on, ends_on)
+           select $2, $1, $3, guest.id, 'guest', 'checked_in',
+                  app.property_today($1::uuid) - 5, app.property_today($1::uuid) + 2
+             from guest
+           returning id
+         )
+         insert into public.stays
+           (organization_id, property_id, accommodation_unit_id,
+            reservation_id, stay_type, status, starts_on, ends_on)
+         select $2, $1, $3, booking.id, 'guest', 'in_house',
+                app.property_today($1::uuid) - 5, app.property_today($1::uuid) + 2
+           from booking
+         returning id as stay`,
+        moves,
+        ORG,
+        from,
+      );
+      const stayId = created!.stay;
+
+      // A booking on another room for nights that have gone, whose Guest never
+      // arrived and nobody marked a no-show; and one for a night still to come.
+      const passed = await aRoom(`M-G-${randomUUID().slice(0, 6)}`);
+      const ahead = await aRoom(`M-H-${randomUUID().slice(0, 6)}`);
+      const [late] = await owner.$queryRawUnsafe<{ id: string }[]>(
+        `with guest as (
+           insert into public.guests (organization_id, full_name)
+           values ($2, 'Never Arrived') returning id
+         )
+         insert into public.reservations
+           (organization_id, property_id, accommodation_unit_id, guest_id,
+            stay_type, status, starts_on, ends_on)
+         select $2, $1, $3, guest.id, 'guest', 'confirmed',
+                app.property_today($1::uuid) - 4, app.property_today($1::uuid) - 2
+           from guest
+         returning id`,
+        moves,
+        ORG,
+        passed,
+      );
+      expect(late).toBeDefined();
+      await takeBooking(ahead, 1, 2);
+
+      const preview = await reservations.previewMove(DESK, stayId);
+      expect(preview.options.find((o) => o.unitId === passed)).toMatchObject({
+        blocker: null,
+        conflictReference: null,
+        conflictGuest: null,
+      });
+      // What does refuse is named: who, and which nights.
+      expect(preview.options.find((o) => o.unitId === ahead)).toMatchObject({
+        blocker: "booked",
+        conflictGuest: "Move Guest",
+        conflictStartsOn: plusDays(today, 1),
+        conflictEndsOn: plusDays(today, 2),
+      });
+
+      await reservations.moveGuest(DESK, {
+        stayId,
+        accommodationUnitId: passed,
+        reason: "guest_request",
+        note: null,
+        version: preview.version,
+      });
+      const [now] = await owner.$queryRawUnsafe<{ unit: string }[]>(
+        `select accommodation_unit_id as unit from public.stays where id = $1::uuid`,
+        stayId,
+      );
+      expect(now?.unit).toBe(passed);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_guest_is_offered_the_rooms_they_can_have_first: free and ready, then free, then promised, then taken",
+    async () => {
+      const guestRoom = await aRoom(`M-L-${randomUUID().slice(0, 6)}`);
+      const { stayId } = await checkedIn(guestRoom);
+      const taken = await aRoom(`M-A-${randomUUID().slice(0, 6)}`);
+      await checkedIn(taken);
+      const promised = await aRoom(`M-B-${randomUUID().slice(0, 6)}`);
+      await takeBooking(promised, 1, 2);
+      const dirty = await aRoom(`M-C-${randomUUID().slice(0, 6)}`);
+      await owner.$executeRawUnsafe(
+        `insert into public.housekeeping_unit_status
+           (accommodation_unit_id, property_id, organization_id, status)
+         values ($1::uuid, $2::uuid, $3::uuid, 'dirty')`,
+        dirty,
+        moves,
+        ORG,
+      );
+
+      const preview = await reservations.previewMove(DESK, stayId);
+      const tier = (o: (typeof preview.options)[number]) =>
+        o.blocker === "occupied"
+          ? 3
+          : o.blocker === "booked"
+            ? 2
+            : o.ready
+              ? 0
+              : 1;
+      const tiers = preview.options.map(tier);
+      expect(tiers).toEqual([...tiers].sort((a, b) => a - b));
+      expect(tiers).toContain(0);
+      expect(tiers).toContain(1);
+      expect(tiers).toContain(2);
+      expect(tiers).toContain(3);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
     "a_guest_is_not_moved_into_an_occupied_room: the preview and the save agree",
     async () => {
       const { stayId } = await checkedIn(room["M-5"]!);

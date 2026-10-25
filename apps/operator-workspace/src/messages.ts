@@ -746,6 +746,13 @@ export interface Messages {
   moveGuestNotePlaceholder: string;
   moveGuestHintUnit: string;
   moveGuestHintReason: string;
+  moveGuestBlockedBooked: string;
+  moveGuestSomeone: string;
+  moveGuestHintTaken: string;
+  moveGuestHintNotReady: string;
+  moveGuestShowTaken: string;
+  moveGuestHideTaken: string;
+  moveGuestRoomFact: string;
   moveGuestHintNote: string;
 
   folios: string;
@@ -3948,7 +3955,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     extendStay: "Uzat",
     moveGuest: "Misafiri taşı",
     moveGuestSummary:
-      "Bu geceden itibaren başka bir birime taşıyın. Konaklama, folyosu ve fiyatı onunla gider; ayrılan oda temizliğe işaretlenir.",
+      "Bu geceden itibaren başka bir odaya taşıyın. Konaklama, folyosu ve fiyatı onunla gider; ayrılan oda temizliğe işaretlenir.",
     moveGuestReason: "Neden",
     moveReason: {
       fault: "Odada arıza var",
@@ -3962,12 +3969,12 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestUnpriced: "Rezervasyonun fiyatı yok; taşımak bunu değiştirmez.",
     moveGuestNoteRequired: "Başka bir neden için notta açıklayın.",
     moveGuestNotReady:
-      "O birim henüz hazır değil. Başka birini seçin ya da önce temizletin.",
+      "O oda henüz hazır değil. Başka birini seçin ya da önce temizletin.",
     moveGuestRefused: "Bu misafir taşınamıyor.",
     unitChipFree: "Boş",
     unitChipBooked: "Rezerve · {reference}",
     unitChipOccupied: "Dolu",
-    moveGuestWhichUnit: "Hangi birime taşınıyor?",
+    moveGuestWhichUnit: "Hangi odaya taşınıyor?",
     moveGuestWhy: "Neden taşınıyor?",
     unitSearch: "Birim numarası veya türüne göre ara",
     unitMore: "{count} birim daha var. Bulmak için yazın.",
@@ -3975,6 +3982,14 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestNotePlaceholder: "Sonraki vardiyanın bilmesi gereken bir şey",
     moveGuestHintUnit: "Devam etmek için bir oda seçin",
     moveGuestHintReason: "Devam etmek için nedenini seçin",
+    moveGuestBlockedBooked:
+      "{guest} bu odada {from} – {to} arası rezervasyon yapmış (rezervasyon {reference}). Başka bir oda seçin ya da önce o rezervasyonu değiştirin.",
+    moveGuestSomeone: "Başka bir misafir",
+    moveGuestHintTaken: "Devam etmek için boş bir oda seçin",
+    moveGuestHintNotReady: "Hazır bir oda seçin ya da bu odayı önce temizletin",
+    moveGuestShowTaken: "Dolu odaları göster ({count})",
+    moveGuestHideTaken: "Dolu odaları gizle",
+    moveGuestRoomFact: "Oda {room}",
     moveGuestHintNote: "Devam etmek için bir not yazın",
     folios: "Folyolar",
     foliosAt: "Folyolar —",
@@ -4353,8 +4368,10 @@ export const messages: Record<SupportedLocale, Messages> = {
           "{unit} yatak yatak kiralanıyor: yataklarından birini seçin.",
         blocked: "{unit} bu gecelerin bir kısmında kapalı.",
         outOfService: "{unit} bu gecelerin bir kısmında hizmet dışı.",
-        booked: "{guest} bu gecelerin bir kısmını rezerve etmiş.",
-        occupied: "{guest} bu gecelerin bir kısmında o birimde konaklıyor.",
+        booked:
+          "{guest} bu gecelerin bir kısmını rezerve etmiş ({from} – {to}). Başka bir oda ya da başka tarihler seçin.",
+        occupied:
+          "{guest} o odada konaklıyor ({from} – {to}). Başka bir oda seçin.",
         leavesToday:
           "Bugün ayrılmak bir çıkış işlemidir. Yarını ya da daha sonrasını seçin.",
         ended: "Sona ermiş bir konaklama taşınamaz.",
@@ -7506,7 +7523,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     extendStay: "Extend",
     moveGuest: "Move Guest",
     moveGuestSummary:
-      "Move them to another Unit from tonight. The stay, its folio and its price go with them; the room left is marked for cleaning.",
+      "Move them to another room from tonight. The stay, its folio and its price go with them; the room left is marked for cleaning.",
     moveGuestReason: "Reason",
     moveReason: {
       fault: "The room has a fault",
@@ -7520,20 +7537,29 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestUnpriced: "The booking has no price; a move does not change that.",
     moveGuestNoteRequired: "For another reason, say why in the note.",
     moveGuestNotReady:
-      "That Unit is not ready yet. Choose another, or have it cleaned first.",
+      "That room is not ready yet. Choose another, or have it cleaned first.",
     moveGuestRefused: "This Guest cannot be moved.",
     unitChipFree: "Free",
     unitChipBooked: "Booked · {reference}",
     unitChipOccupied: "Occupied",
-    moveGuestWhichUnit: "Which unit are they moving to?",
+    moveGuestWhichUnit: "Which room are they moving to?",
     moveGuestWhy: "Why are they moving?",
     unitSearch: "Search by unit number or type",
     unitMore:
       "{count, plural, one {# more unit} other {# more units}}. Type to find one.",
     unitNoMatches: "No unit matches.",
     moveGuestNotePlaceholder: "Anything the next shift should know",
-    moveGuestHintUnit: "Choose a unit to continue",
+    moveGuestHintUnit: "Choose a room to continue",
     moveGuestHintReason: "Say why to continue",
+    moveGuestBlockedBooked:
+      "{guest} has a booking in this room from {from} to {to} (booking {reference}). Choose another room, or change that booking first.",
+    moveGuestSomeone: "Another guest",
+    moveGuestHintTaken: "Choose a free room to continue",
+    moveGuestHintNotReady:
+      "Choose a room that is ready, or have this one cleaned first",
+    moveGuestShowTaken: "Show the rooms that are taken ({count})",
+    moveGuestHideTaken: "Hide the rooms that are taken",
+    moveGuestRoomFact: "Room {room}",
     moveGuestHintNote: "Add a note to continue",
     folios: "Folios",
     foliosAt: "Folios at",
@@ -7914,8 +7940,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         notSellable: "{unit} is let by the bed: choose one of its beds.",
         blocked: "{unit} is blocked for some of those nights.",
         outOfService: "{unit} is out of order for some of those nights.",
-        booked: "{guest} has booked some of those nights.",
-        occupied: "{guest} is staying in that Unit for some of those nights.",
+        booked:
+          "{guest} has booked some of those nights ({from} to {to}). Choose another room or other dates.",
+        occupied:
+          "{guest} is staying in that room ({from} to {to}). Choose another room.",
         leavesToday: "Leaving today is a check-out. Choose tomorrow or later.",
         ended: "A stay that has ended cannot be moved.",
         noBooking: "A stay with no booking cannot be moved from here.",
@@ -11042,7 +11070,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     extendStay: "تمديد",
     moveGuest: "نقل الضيف",
     moveGuestSummary:
-      "انقله إلى وحدة أخرى بدءًا من الليلة. تنتقل معه الإقامة وحسابها وسعرها؛ وتُعلَّم الغرفة التي غادرها للتنظيف.",
+      "انقله إلى غرفة أخرى بدءًا من الليلة. تنتقل معه الإقامة وحسابها وسعرها؛ وتُعلَّم الغرفة التي غادرها للتنظيف.",
     moveGuestReason: "السبب",
     moveReason: {
       fault: "في الغرفة عطل",
@@ -11054,20 +11082,28 @@ export const messages: Record<SupportedLocale, Messages> = {
     moveGuestPriceKept: "{price} لليلة، كما في الحجز: النقل لا يغيّر السعر",
     moveGuestUnpriced: "الحجز بلا سعر؛ والنقل لا يغيّر ذلك.",
     moveGuestNoteRequired: "لسبب آخر، اذكره في الملاحظة.",
-    moveGuestNotReady: "هذه الوحدة ليست جاهزة بعد. اختر غيرها أو نظّفها أولًا.",
+    moveGuestNotReady: "هذه الغرفة ليست جاهزة بعد. اختر غيرها أو نظّفها أولًا.",
     moveGuestRefused: "لا يمكن نقل هذا الضيف.",
     unitChipFree: "متاحة",
     unitChipBooked: "محجوزة · {reference}",
     unitChipOccupied: "مشغولة",
-    moveGuestWhichUnit: "إلى أي وحدة سينتقل؟",
+    moveGuestWhichUnit: "إلى أي غرفة سينتقل؟",
     moveGuestWhy: "لماذا ينتقل؟",
     unitSearch: "ابحث برقم الوحدة أو نوعها",
     unitMore:
       "{count, plural, one {وحدة أخرى} other {# وحدات أخرى}}. اكتب للعثور عليها.",
     unitNoMatches: "لا توجد وحدة مطابقة.",
     moveGuestNotePlaceholder: "أي شيء يجب أن تعرفه الوردية التالية",
-    moveGuestHintUnit: "اختر وحدة للمتابعة",
+    moveGuestHintUnit: "اختر غرفة للمتابعة",
     moveGuestHintReason: "اذكر السبب للمتابعة",
+    moveGuestBlockedBooked:
+      "لدى {guest} حجز في هذه الغرفة من {from} إلى {to} (الحجز {reference}). اختر غرفة أخرى، أو غيّر ذلك الحجز أولًا.",
+    moveGuestSomeone: "ضيف آخر",
+    moveGuestHintTaken: "اختر غرفة شاغرة للمتابعة",
+    moveGuestHintNotReady: "اختر غرفة جاهزة، أو نظّف هذه الغرفة أولًا",
+    moveGuestShowTaken: "إظهار الغرف المشغولة ({count})",
+    moveGuestHideTaken: "إخفاء الغرف المشغولة",
+    moveGuestRoomFact: "الغرفة {room}",
     moveGuestHintNote: "اكتب ملاحظة للمتابعة",
     folios: "الحسابات",
     foliosAt: "الحسابات في",
@@ -11441,8 +11477,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         notSellable: "{unit} تُؤجَّر بالسرير: اختر أحد أسرّتها.",
         blocked: "{unit} مغلقة في بعض هذه الليالي.",
         outOfService: "{unit} خارج الخدمة في بعض هذه الليالي.",
-        booked: "{guest} لديه حجز في بعض هذه الليالي.",
-        occupied: "{guest} يقيم في تلك الوحدة في بعض هذه الليالي.",
+        booked:
+          "لدى {guest} حجز في بعض هذه الليالي ({from} إلى {to}). اختر غرفة أخرى أو تواريخ أخرى.",
+        occupied:
+          "{guest} يقيم في تلك الغرفة ({from} إلى {to}). اختر غرفة أخرى.",
         leavesToday: "المغادرة اليوم هي تسجيل مغادرة. اختر الغد أو ما بعده.",
         ended: "لا يمكن نقل إقامة انتهت.",
         noBooking: "لا يمكن نقل إقامة بلا حجز من هنا.",
