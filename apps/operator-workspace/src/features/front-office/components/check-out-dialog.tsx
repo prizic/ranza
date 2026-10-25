@@ -39,6 +39,7 @@ import {
   checkOutStay,
   type CheckOutOutcome,
 } from "../../../server/front-office";
+import { owedOnFolio } from "../../../lib/owed";
 import {
   checkOutMarker,
   focusCheckOutOf,
@@ -119,7 +120,7 @@ export function CheckOutDialog({
   const name = departure.guestName || t("noGuestRecorded");
   // What the Folio will hold once check-out has charged its nights: the bill
   // the desk is deciding about.
-  const due = departure.balanceMinor + departure.pendingMinor;
+  const due = owedOnFolio(departure).netMinor;
   const owes = due !== 0;
   const inCredit = due < 0;
   const room = unitLabel(departure.roomName, departure.unitName);
