@@ -90,6 +90,13 @@ test("on a phone the board is one short row of counts, says who is in each room,
   const bar = page.locator("div.sticky", { hasText: "Clear selection" });
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.height).toBeLessThan(130);
+  // Two rows, not three, on a 360-wide phone as well: at 375 the count and
+  // "Select all 3 rooms in this filter" left eleven pixels to spare, which a
+  // narrower screen or the Linux build's text metrics (CI) used up, wrapping
+  // the sentence onto a row of its own.
+  await page.setViewportSize({ width: 360, height: 812 });
+  expect((await bar.boundingBox())!.height).toBeLessThan(130);
+  await page.setViewportSize({ width: 375, height: 812 });
   for (const name of ["Mark clean", "Mark inspected", "Mark dirty"]) {
     const button = page.getByRole("button", { name });
     const box = (await button.boundingBox())!;

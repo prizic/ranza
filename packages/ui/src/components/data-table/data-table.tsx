@@ -400,7 +400,12 @@ export function DataTable<TData, TValue>({
           </span>
           {moreInFilter ? (
             <Button
-              className="pointer-coarse:min-h-11"
+              // A link needs no padding to be found, and on a phone the count
+              // and this sentence share one line only while it has none: with
+              // its padding the pair left eleven pixels to spare at 375 wide
+              // and wrapped on any narrower screen or wider font, which made
+              // the bar three rows tall (HOUSEKEEPING-03).
+              className="pointer-coarse:min-h-11 max-sm:px-0"
               onClick={() =>
                 setRowSelection(
                   Object.fromEntries(filteredRows.map((row) => [row.id, true])),
