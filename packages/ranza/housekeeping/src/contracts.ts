@@ -98,6 +98,23 @@ export interface InspectionSettings {
    * every Property it governs.
    */
   mayConfigureDefault: boolean;
+  /**
+   * Whom a change of the default would reach. Null unless the reader may
+   * change it: it is read across the whole Organization, which only that
+   * reach can do.
+   */
+  defaultReach: DefaultReach | null;
+}
+
+/**
+ * The Properties an Organization's default governs: those that follow it, and
+ * so change with it, and those with an answer of their own, which it leaves
+ * alone.
+ */
+export interface DefaultReach {
+  following: number;
+  /** Names of the Properties that keep their own answer, in name order. */
+  keepingOwn: readonly string[];
 }
 
 /** How an audit record words a setting: a value, or "follows the default". */

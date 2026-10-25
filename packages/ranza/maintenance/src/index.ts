@@ -38,6 +38,7 @@ export type {
   MaintenanceBoard,
   MaintenanceCounts,
   MaintenanceRequestCard,
+  DefaultReach,
   MaintenanceSettings,
   Moved,
   OutOfOrderImpact,

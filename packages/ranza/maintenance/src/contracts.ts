@@ -267,6 +267,21 @@ export interface MaintenanceSettings {
   mayConfigure: boolean;
   /** Also needs reach to every Property the default governs (MT-S2-23). */
   mayConfigureDefault: boolean;
+  /**
+   * Whom a change of each Organization answer would reach. Null unless the
+   * reader may change the default: it is read across the whole Organization.
+   */
+  defaultReach: Record<keyof SettingValues, DefaultReach> | null;
+}
+
+/**
+ * The Properties one Organization answer governs: those that follow it, and so
+ * change with it, and those with an answer of their own, which it leaves alone.
+ */
+export interface DefaultReach {
+  following: number;
+  /** Names of the Properties that keep their own answer, in name order. */
+  keepingOwn: readonly string[];
 }
 
 /** The product's own answers when nobody has said anything (MT-S2-22). */

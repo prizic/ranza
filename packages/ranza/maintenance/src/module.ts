@@ -24,6 +24,7 @@ import {
   TITLE,
   UnitBlockedError,
   type BoardState,
+  type DefaultReach,
   type MaintenanceBoard,
   type MaintenanceCounts,
   type MaintenanceRequestCard,
@@ -1395,6 +1396,7 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     );
     if (!row) return null;
 
+    const mayConfigureDefault = row.mayManage && row.wideReach;
     const organizationDefault: SettingValues = {
       assigneeRequired:
         row.defaultAssignee ?? PRODUCT_DEFAULTS.assigneeRequired,
@@ -1418,7 +1420,58 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
         returnAs: propertyOverride.returnAs ?? organizationDefault.returnAs,
       },
       mayConfigure: row.mayManage,
-      mayConfigureDefault: row.mayManage && row.wideReach,
+      mayConfigureDefault,
+      defaultReach: mayConfigureDefault
+        ? await defaultReach(userId, propertyId)
+        : null,
+    };
+  }
+
+  /**
+   * Whom a change of each Organization answer would reach: the Properties
+   * where maintenance is on, split by whether each has an answer of its own to
+   * that question. Read under the reader's context, which the caller has
+   * already established reaches the whole Organization.
+   */
+  async function defaultReach(
+    userId: string,
+    propertyId: string,
+  ): Promise<Record<keyof SettingValues, DefaultReach>> {
+    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRaw<
+        {
+          name: string;
+          ownAssignee: boolean;
+          ownReturnOnDone: boolean;
+          ownReturnAs: boolean;
+        }[]
+      >`
+        select property.name as "name",
+               own.assignee_required is not null as "ownAssignee",
+               own.return_on_done is not null as "ownReturnOnDone",
+               own.return_as is not null as "ownReturnAs"
+          from public.properties as property
+          left join public.maintenance_settings as own
+            on own.property_id = property.id
+         where property.organization_id = (
+                 select organization_id from public.properties
+                  where id = ${propertyId}::uuid)
+           and property.status = 'active'
+           and app.can_use_capability(
+                 property.id,
+                 ${MAINTENANCE_CAPABILITY.moduleKey},
+                 ${MAINTENANCE_CAPABILITY.capabilityKey})
+         order by property.name
+      `,
+    );
+    const reach = (own: (row: (typeof rows)[number]) => boolean): DefaultReach => ({
+      following: rows.filter((row) => !own(row)).length,
+      keepingOwn: rows.filter(own).map((row) => row.name),
+    });
+    return {
+      assigneeRequired: reach((row) => row.ownAssignee),
+      returnOnDone: reach((row) => row.ownReturnOnDone),
+      returnAs: reach((row) => row.ownReturnAs),
     };
   }
 

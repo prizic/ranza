@@ -6,6 +6,7 @@ import {
   HousekeepingInputError,
   HousekeepingRefusedError,
   MARK_BATCH,
+  type DefaultReach,
   type HousekeepingBoard,
   type HousekeepingCounts,
   type HousekeepingRoom,
@@ -338,12 +339,51 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
       `,
     );
     if (!row) return null;
+    const mayConfigureDefault = row.hasPermission && row.wideReach;
     return {
       organizationDefault: row.organizationDefault ?? false,
       propertyOverride: row.propertyOverride,
       effective: row.effective,
       mayConfigure: row.hasPermission,
-      mayConfigureDefault: row.hasPermission && row.wideReach,
+      mayConfigureDefault,
+      defaultReach: mayConfigureDefault
+        ? await defaultReach(userId, propertyId)
+        : null,
+    };
+  }
+
+  /**
+   * Who a change of the Organization's inspection default would reach: the
+   * Properties where housekeeping is on, split by whether each has an answer
+   * of its own. Read under the reader's context, so it is only as wide as their
+   * reach, which the caller has already established is the whole Organization.
+   */
+  async function defaultReach(
+    userId: string,
+    propertyId: string,
+  ): Promise<DefaultReach> {
+    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
+      tx.$queryRaw<{ name: string; ownAnswer: boolean }[]>`
+        select property.name as "name",
+               setting.inspect_after_cleaning is not null as "ownAnswer"
+          from public.properties as property
+          left join public.housekeeping_settings as setting
+            on setting.property_id = property.id
+         where property.organization_id = (
+                 select organization_id from public.properties
+                  where id = ${propertyId}::uuid)
+           and property.status = 'active'
+           and app.can_use_capability(
+                 property.id,
+                 ${HOUSEKEEPING_CAPABILITY.moduleKey},
+                 ${HOUSEKEEPING_CAPABILITY.capabilityKey}
+               )
+         order by property.name
+      `,
+    );
+    return {
+      following: rows.filter((row) => !row.ownAnswer).length,
+      keepingOwn: rows.filter((row) => row.ownAnswer).map((row) => row.name),
     };
   }
 

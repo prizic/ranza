@@ -2,7 +2,7 @@ export { assessBrandColor, MINIMUM_CONTRAST, oklchOf } from "./color";
 export type { ColorAssessment, Foreground, Oklch } from "./color";
 export * from "./contracts";
 export * from "./errors";
-export { LOGO_MAX_BYTES, LOGO_MIN_HEIGHT } from "./image";
+export { LOGO_MAX_BYTES, LOGO_MAX_DIMENSION, LOGO_MIN_HEIGHT } from "./image";
 export type { LogoContentType } from "./image";
 export { createBrandingModule } from "./module";
 export type { BrandingModule } from "./module";

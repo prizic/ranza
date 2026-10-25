@@ -9,6 +9,7 @@ export {
   MARK_BATCH,
 } from "./contracts";
 export type {
+  DefaultReach,
   HousekeepingBoard,
   HousekeepingCounts,
   HousekeepingRoom,
