@@ -6,6 +6,7 @@ import {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
   LastAdministratorError,
+  ReachChangedMeanwhileError,
   RoleChangedMeanwhileError,
   RoleIsHeldError,
   RoleRetiredError,
@@ -591,6 +592,128 @@ export function createStaffModule(deps: StaffDeps) {
           input.userId,
         ),
     );
+  }
+
+  /**
+   * Sets which Properties somebody reaches, in one transaction (PEOPLE-01).
+   *
+   * What the roster's Properties control sends: the whole set the actor wants,
+   * and the set they were shown (`expected`). Each Property added or taken away
+   * is written and recorded exactly as `assignProperty` and `unassignProperty`
+   * do, but together — a person who ends up with half of the change, and
+   * every session they hold ended for it, is worse off than one who got
+   * neither (SP-S1-18, SP-S1-19, SP-S1-28).
+   *
+   * `expected` is compared with what is held now, inside the transaction, so
+   * two administrators editing one person end with one change and one refusal
+   * and nobody's decision is overwritten by a stale screen. Both sides are what
+   * the actor can see: a Property they do not reach is not theirs to list, to
+   * add or to take, and it is left exactly as it is.
+   *
+   * The bounds are the policies' and are not repeated here: an added Property
+   * must be one the actor reaches, and nobody acts on a superior in role or
+   * reach (SP-S1-34, SP-S1-36). Taking a Property away is never bounded by the
+   * actor's reach.
+   */
+  async function setProperties(
+    context: { userId: string },
+    input: {
+      organizationId: string;
+      userId: string;
+      expected: readonly string[];
+      properties: readonly string[];
+    },
+  ): Promise<void> {
+    const expected = new Set(input.expected);
+    const wanted = new Set(input.properties);
+    const added = [...wanted].filter((id) => !expected.has(id));
+    const removed = [...expected].filter((id) => !wanted.has(id));
+    if (added.length + removed.length === 0) {
+      throw new StaffRefusedError("nothing to change");
+    }
+
+    try {
+      await withOrganizationContext(deps.db, context, async (tx) => {
+        const [membership] = await tx.$queryRawUnsafe<{ id: string }[]>(
+          `select id from public.organization_memberships
+            where organization_id = $1::uuid and user_id = $2::uuid`,
+          input.organizationId,
+          input.userId,
+        );
+        if (!membership) {
+          throw new StaffRefusedError("nothing to change");
+        }
+
+        const held = await tx.$queryRawUnsafe<{ propertyId: string }[]>(
+          `select assignment.property_id::text as "propertyId"
+             from public.property_assignments as assignment
+             join public.properties as property
+               on property.id = assignment.property_id
+            where assignment.organization_id = $1::uuid
+              and assignment.user_id = $2::uuid
+              and assignment.status = 'active'`,
+          input.organizationId,
+          input.userId,
+        );
+        if (
+          held.length !== expected.size ||
+          held.some((row) => !expected.has(row.propertyId))
+        ) {
+          throw new ReachChangedMeanwhileError(
+            "their Properties have changed since you opened this",
+          );
+        }
+
+        for (const propertyId of added) {
+          await tx.$executeRawUnsafe(
+            `insert into public.property_assignments
+               (property_id, organization_id, user_id, status)
+             values ($1::uuid, $2::uuid, $3::uuid, 'active')
+             on conflict (property_id, user_id) do update
+               set status = 'active', revoked_at = null, updated_at = now()`,
+            propertyId,
+            input.organizationId,
+            input.userId,
+          );
+        }
+        for (const propertyId of removed) {
+          const taken = await tx.$executeRawUnsafe(
+            `update public.property_assignments
+                set status = 'revoked', revoked_at = now(), updated_at = now()
+              where property_id = $1::uuid and user_id = $2::uuid
+                and status = 'active'`,
+            propertyId,
+            input.userId,
+          );
+          if (taken === 0) throw new StaffRefusedError("nothing to change");
+        }
+
+        await announce(
+          tx as never,
+          input.organizationId,
+          input.userId,
+          "properties_changed",
+        );
+        for (const [action, propertyIds] of [
+          ["staff.property_assigned", added],
+          ["staff.property_unassigned", removed],
+        ] as const) {
+          for (const propertyId of propertyIds) {
+            await recordWithin(tx as never, {
+              organizationId: input.organizationId,
+              locationId: propertyId,
+              actorId: context.userId,
+              action,
+              subjectType: "membership",
+              subjectId: membership.id,
+              context: { propertyId, userId: input.userId },
+            });
+          }
+        }
+      });
+    } catch (error) {
+      throw translate(error, "that change was refused");
+    }
   }
 
   /**
@@ -1213,6 +1336,7 @@ export function createStaffModule(deps: StaffDeps) {
     changeRole,
     assignProperty,
     unassignProperty,
+    setProperties,
     revoke,
     undoRevoke,
     readd,

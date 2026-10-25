@@ -159,6 +159,21 @@ export class AlreadyAMemberError extends StaffRefusedError {
   }
 }
 
+/**
+ * The Properties somebody reaches are no longer the ones the actor was shown
+ * (PEOPLE-01).
+ *
+ * Its own type, like `RoleChangedMeanwhileError`, because it is the refusal a
+ * screen answers by refreshing rather than by retrying: another administrator
+ * changed this person's reach while the dialog was open.
+ */
+export class ReachChangedMeanwhileError extends StaffRefusedError {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReachChangedMeanwhileError";
+  }
+}
+
 /** A role as the grid shows it. */
 export interface Role {
   /** Its key. Unique within its scope, and what a membership names. */

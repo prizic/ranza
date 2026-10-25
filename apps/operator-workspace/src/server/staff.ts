@@ -5,6 +5,7 @@ import { isSupportedLocale } from "@ranza/i18n";
 import {
   AlreadyAMemberError,
   LastAdministratorError,
+  ReachChangedMeanwhileError,
   RoleChangedMeanwhileError,
   RoleIsHeldError,
   RoleRetiredError,
@@ -47,6 +48,7 @@ export type StaffOutcome =
   | "lastAdministrator"
   | "roleIsHeld"
   | "roleChangedMeanwhile"
+  | "reachChangedMeanwhile"
   | "roleRetired"
   | "refused";
 
@@ -70,6 +72,8 @@ function outcomeFor(error: unknown): StaffOutcome {
   if (error instanceof LastAdministratorError) return "lastAdministrator";
   if (error instanceof RoleIsHeldError) return "roleIsHeld";
   if (error instanceof RoleChangedMeanwhileError) return "roleChangedMeanwhile";
+  if (error instanceof ReachChangedMeanwhileError)
+    return "reachChangedMeanwhile";
   if (error instanceof RoleRetiredError) return "roleRetired";
   if (!(error instanceof StaffRefusedError)) {
     console.error("staff command failed", error);
@@ -184,6 +188,39 @@ export async function changeStaffRole(
         error instanceof RoleChangedMeanwhileError ||
         error instanceof RoleRetiredError
       ) {
+        revalidateRoster(locale);
+      }
+      throw error;
+    }
+    revalidateRoster(locale);
+  });
+}
+
+/**
+ * Sets the Properties somebody reaches (PEOPLE-01).
+ *
+ * The form carries the set the actor wants and the set they were shown, so a
+ * person edited by two administrators at once ends with one change and one
+ * refusal rather than the second one quietly undoing the first.
+ */
+export async function changeStaffProperties(
+  _previous: StaffOutcome,
+  form: FormData,
+): Promise<StaffOutcome> {
+  return run(form, async (staff, viewer, locale) => {
+    try {
+      await staff.setProperties(
+        { userId: viewer },
+        {
+          organizationId: String(form.get("organization") ?? ""),
+          userId: String(form.get("member") ?? ""),
+          expected: form.getAll("expected").map(String),
+          properties: form.getAll("properties").map(String),
+        },
+      );
+    } catch (error) {
+      // The screen behind the dialog is out of date; the answer refreshes it.
+      if (error instanceof ReachChangedMeanwhileError) {
         revalidateRoster(locale);
       }
       throw error;

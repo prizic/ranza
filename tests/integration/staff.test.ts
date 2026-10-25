@@ -24,6 +24,7 @@ import {
   AlreadyAMemberError,
   createStaffModule,
   LastAdministratorError,
+  ReachChangedMeanwhileError,
   RoleChangedMeanwhileError,
   RoleIsHeldError,
   RoleRetiredError,
@@ -1841,5 +1842,177 @@ describe("a role change names the role it was shown", () => {
     } finally {
       await putDeskBack();
     }
+  });
+});
+
+describe("setting the Properties somebody reaches in one change", () => {
+  async function aColleagueAt(
+    propertyIds: string[],
+    role: { roleKey: string; roleScopeId?: string } = { roleKey: "front_desk" },
+  ): Promise<{
+    userId: string;
+    membershipId: string;
+  }> {
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        ...role,
+        propertyIds,
+      },
+    );
+    return { membershipId, userId: await memberOf(membershipId) };
+  }
+
+  async function activeReach(userId: string): Promise<string[]> {
+    const rows = await owner.$queryRawUnsafe<{ propertyId: string }[]>(
+      `select property_id::text as "propertyId"
+         from public.property_assignments
+        where user_id = $1::uuid and status = 'active'
+        order by property_id`,
+      userId,
+    );
+    return rows.map((row) => row.propertyId);
+  }
+
+  async function anAdministratorAt(propertyId: string): Promise<{
+    userId: string;
+    role: { roleKey: string; roleScopeId: string };
+  }> {
+    const { key } = await staff.defineRole(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        name: `Reach keeper ${randomUUID().slice(0, 8)}`,
+        permissions: ["staff.administer"],
+      },
+    );
+    const { membershipId } = await staff.invite(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        email: anAddress(),
+        roleKey: key,
+        roleScopeId: ORG,
+        propertyIds: [propertyId],
+      },
+    );
+    return {
+      userId: await memberOf(membershipId),
+      role: { roleKey: key, roleScopeId: ORG },
+    };
+  }
+
+  it("adds and takes away together, records each, and announces the change once", async () => {
+    const { userId, membershipId } = await aColleagueAt([PROPERTY]);
+    const before = await countEvents();
+
+    await staff.setProperties(
+      { userId: OWNER },
+      {
+        organizationId: ORG,
+        userId,
+        expected: [PROPERTY],
+        properties: [SECOND_PROPERTY],
+      },
+    );
+
+    expect(await activeReach(userId)).toEqual([SECOND_PROPERTY]);
+    expect(
+      (await latestRecord(owner, "staff.property_assigned", membershipId))
+        ?.locationId,
+    ).toBe(SECOND_PROPERTY);
+    expect(
+      (await latestRecord(owner, "staff.property_unassigned", membershipId))
+        ?.locationId,
+    ).toBe(PROPERTY);
+    // One event ends their sessions once, however many Properties changed.
+    expect(await countEvents()).toBe(before + 1);
+  });
+
+  it("refuses a selection that changes nothing", async () => {
+    const { userId } = await aColleagueAt([PROPERTY]);
+    await expect(
+      staff.setProperties(
+        { userId: OWNER },
+        {
+          organizationId: ORG,
+          userId,
+          expected: [PROPERTY],
+          properties: [PROPERTY],
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+  });
+
+  it("refuses when what the actor was shown is no longer what is held, and writes nothing", async () => {
+    const { userId } = await aColleagueAt([PROPERTY]);
+    // Another administrator gets there first.
+    await staff.assignProperty(
+      { userId: SECOND_OWNER },
+      { organizationId: ORG, userId, propertyId: SECOND_PROPERTY },
+    );
+    const before = await countEvents();
+
+    await expect(
+      staff.setProperties(
+        { userId: OWNER },
+        { organizationId: ORG, userId, expected: [PROPERTY], properties: [] },
+      ),
+    ).rejects.toBeInstanceOf(ReachChangedMeanwhileError);
+
+    expect(await activeReach(userId)).toEqual([PROPERTY, SECOND_PROPERTY]);
+    expect(await countEvents()).toBe(before);
+  });
+
+  it("is one transaction: a Property the actor may not give undoes the one they may", async () => {
+    const administrator = await anAdministratorAt(PROPERTY);
+    const { userId } = await aColleagueAt([], administrator.role);
+
+    await expect(
+      staff.setProperties(
+        { userId: administrator.userId },
+        {
+          organizationId: ORG,
+          userId,
+          expected: [],
+          properties: [PROPERTY, SECOND_PROPERTY],
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+
+    expect(await activeReach(userId)).toEqual([]);
+  });
+
+  it("leaves alone a Property the actor cannot see, while changing the ones they can", async () => {
+    const administrator = await anAdministratorAt(PROPERTY);
+    const { userId } = await aColleagueAt(
+      [PROPERTY, SECOND_PROPERTY],
+      administrator.role,
+    );
+
+    await staff.setProperties(
+      { userId: administrator.userId },
+      { organizationId: ORG, userId, expected: [PROPERTY], properties: [] },
+    );
+
+    expect(await activeReach(userId)).toEqual([SECOND_PROPERTY]);
+  });
+
+  it("refuses somebody without staff authority", async () => {
+    const { userId } = await aColleagueAt([]);
+    await expect(
+      staff.setProperties(
+        { userId: DESK },
+        {
+          organizationId: ORG,
+          userId,
+          expected: [],
+          properties: [PROPERTY],
+        },
+      ),
+    ).rejects.toBeInstanceOf(StaffRefusedError);
+    expect(await activeReach(userId)).toEqual([]);
   });
 });

@@ -4,6 +4,7 @@ export {
   AlreadyAMemberError,
   INVITATION_LIFETIME_DAYS,
   LastAdministratorError,
+  ReachChangedMeanwhileError,
   RoleChangedMeanwhileError,
   RoleIsHeldError,
   RoleRetiredError,
