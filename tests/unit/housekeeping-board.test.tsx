@@ -458,7 +458,7 @@ describe("the housekeeping board", () => {
 
   it("keeps the bulk bar to icons on a phone, each button still named (HOUSEKEEPING-03)", () => {
     show(boardOf([room({})], true));
-    fireEvent.click(screen.getByRole("checkbox", { name: "Select row" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select 101" }));
     for (const name of ["Mark clean", "Mark inspected", "Mark dirty"]) {
       const button = screen.getByRole("button", { name });
       expect(button).toHaveClass("max-sm:size-11");
