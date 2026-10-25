@@ -394,7 +394,7 @@ export function DataTable<TData, TValue>({
         // while deciding, and a bar that covers them is a bar in the way. It
         // stays at the top of the screen while the rows scroll under it, so a
         // long page never takes the buttons out of reach (HK-08).
-        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5 shadow-sm">
+        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-secondary px-4 py-2.5 shadow-sm max-sm:px-3">
           <span className="text-sm font-medium tabular-nums">
             {labels.selectedCount(selectedRows.length)}
           </span>
@@ -421,7 +421,7 @@ export function DataTable<TData, TValue>({
             {bulkActions(selectedRows, () => setRowSelection({}))}
           </div>
           <Button
-            className="ms-auto"
+            className="ms-auto max-sm:px-1.5"
             onClick={() => setRowSelection({})}
             size="sm"
             variant="ghost"

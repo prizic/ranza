@@ -96,6 +96,31 @@ test("on a phone the board is one short row of counts, says who is in each room,
   // the sentence onto a row of its own.
   await page.setViewportSize({ width: 360, height: 812 });
   expect((await bar.boundingBox())!.height).toBeLessThan(130);
+  // And room to spare on both rows, because the height above only says the rows
+  // fit with this machine's text. On CI the same bar was 146 tall, the Clear
+  // button on a row of its own, where here the pair of rows had six pixels to
+  // spare: the count and the sentence on the first, the three icons and Clear
+  // on the second. Sixteen is what a few percent wider text needs.
+  await page.evaluate(() => document.fonts.ready);
+  const spare = await bar.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const room =
+      element.clientWidth -
+      parseFloat(style.paddingLeft) -
+      parseFloat(style.paddingRight);
+    const gap = parseFloat(style.columnGap);
+    const [count, sentence, actions, clear] = Array.from(
+      element.children,
+    ) as HTMLElement[];
+    return Math.min(
+      room - (count!.offsetWidth + gap + sentence!.offsetWidth),
+      room - (actions!.offsetWidth + gap + clear!.offsetWidth),
+    );
+  });
+  expect(
+    spare,
+    "room left on the tighter of the bar's two rows",
+  ).toBeGreaterThan(16);
   await page.setViewportSize({ width: 375, height: 812 });
   for (const name of ["Mark clean", "Mark inspected", "Mark dirty"]) {
     const button = page.getByRole("button", { name });
