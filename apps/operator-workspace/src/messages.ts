@@ -337,6 +337,8 @@ export interface Messages {
     passwordHint: string;
     signInHint: string;
     working: string;
+    signOutAndContinue: string;
+    signOutFailed: string;
     goToSignIn: string;
     submit: Record<"set_password" | "sign_in" | "accept", string>;
     errors: Record<
@@ -373,6 +375,12 @@ export interface Messages {
     addBack: string;
     done: string;
     chooseRole: string;
+    diffAdded: string;
+    diffRemoved: string;
+    showHolders: string;
+    holdersMore: string;
+    rolesWithheld: string;
+    reachWithheld: string;
     everyProperty: string;
     reachesNothingWarning: string;
     roleDescriptions: Record<
@@ -456,6 +464,25 @@ export interface Messages {
     revoked: string;
     revoke: string;
     undoRevoke: string;
+    changeProperties: string;
+    assignProperty: string;
+    allRoles: string;
+    allProperties: string;
+    filterByRole: string;
+    filterByProperty: string;
+    leftHr: string;
+    reach: {
+      change: string;
+      description: string;
+      sessions: string;
+      adds: string;
+      removes: string;
+      self: string;
+      selfNone: string;
+      changedMeanwhile: string;
+      hintNoChange: string;
+      save: string;
+    };
     reachesNothing: string;
     /** An organization-wide member reaches every Property, whatever is assigned. */
     reachesEverywhere: string;
@@ -470,6 +497,8 @@ export interface Messages {
     confirmRoleConfirm: string;
     confirmRoleClose: string;
     inviteHintMissing: string;
+    defineRoleTicked: string;
+    defineRoleNothingTicked: string;
     defineRoleHintName: string;
     roleChangedMeanwhile: string;
     roleRetired: string;
@@ -1384,6 +1413,7 @@ export interface Messages {
       wholeOrganization: string;
       anotherProperty: string;
       noEmployeesReadOnly: string;
+      startDateHint: string;
       startDate: string;
       /** `{property}`. */
       registersAt: string;
@@ -3342,6 +3372,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       passwordHint: "En az 8 karakter. Oturum açarken kullanacaksınız.",
       signInHint: "Bu adres için zaten bir hesabınız var.",
       working: "Bir saniye...",
+      signOutAndContinue: "Oturumu kapat ve devam et",
+      signOutFailed: "Oturum kapatılamadı. Yeniden deneyin.",
       goToSignIn: "Oturum açmaya git",
       submit: {
         set_password: "Parolayı belirle ve katıl",
@@ -3387,7 +3419,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         other_account: {
           title: "Bu davet başkası için",
           body: "Davet edilen kişiden farklı biri olarak oturum açtınız.",
-          next: "Oturumu kapatın, sonra bağlantıyı yeniden açın.",
+          next: "Oturumu kapatın; aynı bağlantı sizin için açılır.",
         },
       },
     },
@@ -3403,6 +3435,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       addBack: "Yeniden ekle",
       done: "Tamam",
       chooseRole: "Bir rol seçin",
+      diffAdded: "Eklenen izinler:",
+      diffRemoved: "Kaldırılan izinler:",
+      showHolders: "Bu role sahip kişileri göster",
+      holdersMore: "ve {count} kişi daha",
+      rolesWithheld: "Sizin rolünüzün üstündeki roller (Sahip gibi) sunulmaz.",
+      reachWithheld:
+        "“Her Tesis” sunulmaz: yalnızca ulaştığınız Tesisler listelenir.",
       everyProperty: "Bu Kuruluştaki her Tesis, sonradan eklenenler dahil",
       reachesNothingWarning:
         "Bu kişi hiçbir Tesise ulaşamayacak. Oturum açabilir ama siz bir Tesis atayana kadar hiçbir şey göremez.",
@@ -3454,8 +3493,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{role} rolünü {count} kişi tutuyor. Önce onlara başka bir rol verin, sonra sunmayı bırakın.",
       startFrom: "Şundan başla",
       startFromPlaceholder: "Boş bir rol",
-      confirmRoleGains: "Kazandıkları: {permissions}.",
-      confirmRoleLosses: "Kaybettikleri: {permissions}.",
+      confirmRoleGains: "Kazandıkları:",
+      confirmRoleLosses: "Kaybettikleri:",
       hrPointer:
         "Bu liste, kimin oturum açabildiği ve neler yapabildiğidir. Maaş, vardiya ve izinler şurada tutulur:",
       hrPointerLink: "İK ve bordro",
@@ -3528,6 +3567,28 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoked: "Erişim kaldırıldı",
       revoke: "Erişimi kaldır",
       undoRevoke: "Erişimi geri ver",
+      changeProperties: "Tesisleri değiştir",
+      assignProperty: "Tesis ata",
+      allRoles: "Tüm roller",
+      allProperties: "Tüm tesisler",
+      filterByRole: "Role göre süz",
+      filterByProperty: "Tesise göre süz",
+      leftHr: "İstihdam {date} tarihinde bitti, hâlâ erişimi var",
+      reach: {
+        change: "Tesisleri değiştir",
+        description: "{member} kişisinin çalıştığı Tesisleri seçin.",
+        sessions:
+          "Kaydettiğinizde {member} kişisinin tüm oturumları sona erer. Değişikliği görmek için yeniden oturum açması gerekir.",
+        adds: "Eklenen: {names}.",
+        removes: "Çıkarılan: {names}.",
+        self: "Bu sizin kendi erişiminiz: kaydettiğinizde oturumunuz kapanır.",
+        selfNone:
+          "Hiçbir Tesise ulaşamayacak ve bu ekranı kaybedeceksiniz. Bunu kendiniz geri alamazsınız.",
+        changedMeanwhile:
+          "Bu pencere açıkken kişinin Tesisleri değişti. Güncel listeyi görmek için kapatıp yeniden açın.",
+        hintNoChange: "Kaydetmek için seçimi değiştirin",
+        save: "Tesisleri kaydet",
+      },
       reachesNothing: "Henüz bir tesis atanmadı",
       reachesEverywhere: "Tüm tesisler",
       alreadyAMember: "Bu kişinin bu organizasyonda zaten bir üyeliği var.",
@@ -3544,6 +3605,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       confirmRoleConfirm: "Rolü değiştir",
       confirmRoleClose: "Kapat",
       inviteHintMissing: "Bir e-posta ekleyin ve rol seçin",
+      defineRoleTicked: "{total} izinden {count} tanesi işaretli",
+      defineRoleNothingTicked:
+        "Hiçbir şey işaretli değil: bu role sahip kişiler yalnızca Bugün ekranını açabilir",
       defineRoleHintName: "Devam etmek için role bir ad verin",
       roleChangedMeanwhile:
         "Bu rol siz karar verirken değiştirildi. {member} artık {role} rolünde. Hiçbir şey değişmedi.",
@@ -4924,6 +4988,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         anotherProperty: "Başka bir Tesis",
         noEmployeesReadOnly:
           "Henüz kayıtlı personel yok. İK’yı yönetenler ekleyebilir.",
+        startDateHint:
+          "Bugün veya daha önceki bir gün. Daha sonra başlayacak biri için ilk gününde kaydedin.",
         startDate: "Başlangıç tarihi",
         registersAt: "{property} için kaydedilir.",
         edit: "Düzenle",
@@ -4980,7 +5046,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Personel kayıtları giriş yetkisinden ayrı tutulur; bu yüzden Ekip ekranından eklenen kişiler siz kaydedene kadar burada görünmez.",
         unregisteredTitle: "Personel kaydı olmayan ekip üyeleri",
         unregisteredDescription:
-          "Bu kişiler sisteme girebilir, ancak personel olarak kaydedilene kadar vardiya listesinde ve bordroda yer almazlar.",
+          "Bu kişiler sisteme girebilir, ancak personel olarak kaydedilene kadar vardiya listesinde ve bordroda yer almazlar. “Personel olarak kaydet” kaydı kişinin girişine bağlar; “Personel ekle” girişi olmayan bir kayıt oluşturur.",
         registerAsEmployee: "Personel olarak kaydet",
         registerForLogin: "{email} girişine bağlanacak.",
         submit: "Kaydet",
@@ -6376,7 +6442,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Organizasyonunuzda var, ancak bu tesiste açılmamış. Üstteki menüden başka bir tesis seçin veya bu tesis için açtırmak üzere organizasyonunuzun Sahibi ile görüşün.",
       noPermissionTitle: "Rolünüz bu sayfayı açamıyor",
       noPermissionDescription:
-        "“{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten birinden — Sahipler ve Müdürler yapabilir — bunu rolünüze eklemesini isteyin.",
+        "“{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
       openTitle: "Bu sayfa şu anda kullanılamıyor",
       openDescription:
         "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
@@ -6758,6 +6824,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       passwordHint: "At least 8 characters. You will use it to sign in.",
       signInHint: "You already have an account for this address.",
       working: "One moment...",
+      signOutAndContinue: "Sign out and continue",
+      signOutFailed: "Could not sign out. Try again.",
       goToSignIn: "Go to sign in",
       submit: {
         set_password: "Set password and join",
@@ -6804,7 +6872,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         other_account: {
           title: "This invitation is for someone else",
           body: "You are signed in as a different person than the one invited.",
-          next: "Sign out, then open the link again.",
+          next: "Sign out and this same link opens for you.",
         },
       },
     },
@@ -6821,6 +6889,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       addBack: "Add back",
       done: "Done",
       chooseRole: "Choose a role",
+      diffAdded: "Permissions added:",
+      diffRemoved: "Permissions removed:",
+      showHolders: "Show the people who hold it",
+      holdersMore: "and {count} more",
+      rolesWithheld: "Roles above your own, such as Owner, are not offered.",
+      reachWithheld:
+        "“Every Property” is not offered: only the Properties you reach are listed.",
       everyProperty:
         "Every Property in this Organization, including ones added later",
       reachesNothingWarning:
@@ -6872,8 +6947,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {1 person holds} other {# people hold}} {role}. Give them another role first, then stop offering it.",
       startFrom: "Start from",
       startFromPlaceholder: "A blank role",
-      confirmRoleGains: "They gain: {permissions}.",
-      confirmRoleLosses: "They lose: {permissions}.",
+      confirmRoleGains: "They gain:",
+      confirmRoleLosses: "They lose:",
       hrPointer:
         "This list is who can sign in and what they may do. Pay, rota and leave are kept in",
       hrPointerLink: "HR & payroll",
@@ -6945,6 +7020,28 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoked: "Access removed",
       revoke: "Remove access",
       undoRevoke: "Restore access",
+      changeProperties: "Change Properties",
+      assignProperty: "Assign a Property",
+      allRoles: "All roles",
+      allProperties: "All Properties",
+      filterByRole: "Filter by role",
+      filterByProperty: "Filter by Property",
+      leftHr: "Employment ended {date}, still has access",
+      reach: {
+        change: "Change Properties",
+        description: "Choose the Properties {member} works at.",
+        sessions:
+          "Saving ends every session {member} holds. They must sign in again before the change shows.",
+        adds: "Adds: {names}.",
+        removes: "Removes: {names}.",
+        self: "This is your own reach: your session ends when you save.",
+        selfNone:
+          "You would reach no Property and lose this screen. You could not undo that yourself.",
+        changedMeanwhile:
+          "Their Properties changed while this was open. Close it and open it again to see the current list.",
+        hintNoChange: "Change the selection to save",
+        save: "Save Properties",
+      },
       reachesNothing: "No Property yet",
       reachesEverywhere: "Every Property",
       alreadyAMember:
@@ -6962,6 +7059,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       confirmRoleConfirm: "Change role",
       confirmRoleClose: "Close",
       inviteHintMissing: "Add an email and choose a role",
+      defineRoleTicked: "{count} of {total} permissions ticked",
+      defineRoleNothingTicked:
+        "Nothing ticked: people with this role will open only Today",
       defineRoleHintName: "Name the role to continue",
       roleChangedMeanwhile:
         "Somebody changed this role while you were deciding. {member} now holds {role}. Nothing was changed.",
@@ -8359,6 +8459,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         anotherProperty: "Another Property",
         noEmployeesReadOnly:
           "No employees are registered yet. People who manage HR can add them.",
+        startDateHint:
+          "Today or earlier. For someone who starts later, register them on their first day.",
         startDate: "Start date",
         registersAt: "Registers at {property}.",
         edit: "Edit",
@@ -8415,7 +8517,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Employment records are kept apart from sign-in access, so people added under People do not appear here until you register them.",
         unregisteredTitle: "Staff without an employment record",
         unregisteredDescription:
-          "These people can sign in, but they are not on the rota or in payroll until you register them as employees.",
+          "These people can sign in, but they are not on the rota or in payroll until you register them as employees. “Register as employee” links the record to their sign-in; “Add employee” creates a record with no sign-in.",
         registerAsEmployee: "Register as employee",
         registerForLogin: "Linked to the sign-in {email}.",
         submit: "Save employee",
@@ -9802,7 +9904,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Your Organization has it, but this Property doesn't. Choose another Property from the menu at the top, or ask your Organization's Owner to request it for this Property.",
       noPermissionTitle: "Your role can't open this page",
       noPermissionDescription:
-        "It needs the permission “{permission}”, and your role doesn't include it. Ask someone who manages staff in your Organization — Owners and Managers can — to add it to your role.",
+        "It needs the permission “{permission}”, and your role doesn't include it. Ask whoever manages staff in your Organization to add it to your role.",
       openTitle: "This page isn't available right now",
       openDescription:
         "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
@@ -10175,6 +10277,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       passwordHint: "8 أحرف على الأقل. ستستخدمها لتسجيل الدخول.",
       signInHint: "لديك حساب بالفعل لهذا العنوان.",
       working: "لحظة...",
+      signOutAndContinue: "سجّل الخروج وتابع",
+      signOutFailed: "تعذّر تسجيل الخروج. حاول مرة أخرى.",
       goToSignIn: "الذهاب إلى تسجيل الدخول",
       submit: {
         set_password: "تعيين كلمة المرور والانضمام",
@@ -10219,7 +10323,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         other_account: {
           title: "هذه الدعوة لشخص آخر",
           body: "سجّلت الدخول بصفة شخص غير المدعو.",
-          next: "سجّل الخروج ثم افتح الرابط مرة أخرى.",
+          next: "سجّل الخروج وسيُفتح هذا الرابط نفسه لك.",
         },
       },
     },
@@ -10235,6 +10339,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       addBack: "إعادة الإضافة",
       done: "تم",
       chooseRole: "اختر دورًا",
+      diffAdded: "الأذونات المضافة:",
+      diffRemoved: "الأذونات المزالة:",
+      showHolders: "اعرض من يحملون هذا الدور",
+      holdersMore: "و{count} آخرين",
+      rolesWithheld: "الأدوار الأعلى من دورك، مثل المالك، لا تُعرض.",
+      reachWithheld:
+        "خيار «كل المنشآت» غير معروض: تُعرض المنشآت التي تصل إليها فقط.",
       everyProperty: "كل منشأة في هذه المؤسسة، بما فيها ما يُضاف لاحقًا",
       reachesNothingWarning:
         "لن يصل هذا الشخص إلى أي منشأة. يمكنه تسجيل الدخول لكنه لن يرى شيئًا حتى تعيّن له منشأة.",
@@ -10284,8 +10395,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "يحمل {role} {count, plural, one {شخص واحد} two {شخصان} few {# أشخاص} many {# شخصًا} other {# شخص}}. أعطهم دورًا آخر أولًا ثم أوقف عرضه.",
       startFrom: "ابدأ من",
       startFromPlaceholder: "دور فارغ",
-      confirmRoleGains: "يكتسب: {permissions}.",
-      confirmRoleLosses: "يفقد: {permissions}.",
+      confirmRoleGains: "يكتسب:",
+      confirmRoleLosses: "يفقد:",
       hrPointer:
         "هذه القائمة هي من يستطيع تسجيل الدخول وما يحق له فعله. الرواتب والمناوبات والإجازات في",
       hrPointerLink: "الموارد البشرية والرواتب",
@@ -10356,6 +10467,28 @@ export const messages: Record<SupportedLocale, Messages> = {
       revoked: "أُزيل الوصول",
       revoke: "إزالة الوصول",
       undoRevoke: "استعادة الوصول",
+      changeProperties: "تغيير المنشآت",
+      assignProperty: "تعيين منشأة",
+      allRoles: "كل الأدوار",
+      allProperties: "كل المنشآت",
+      filterByRole: "تصفية حسب الدور",
+      filterByProperty: "تصفية حسب المنشأة",
+      leftHr: "انتهى التوظيف في {date}، ولا يزال لديه وصول",
+      reach: {
+        change: "تغيير المنشآت",
+        description: "اختر المنشآت التي يعمل فيها {member}.",
+        sessions:
+          "عند الحفظ تنتهي كل جلسات {member}. عليه تسجيل الدخول من جديد حتى يظهر التغيير.",
+        adds: "المُضافة: {names}.",
+        removes: "المُزالة: {names}.",
+        self: "هذا نطاق وصولك أنت: تنتهي جلستك عند الحفظ.",
+        selfNone:
+          "لن تصل إلى أي منشأة وستفقد هذه الشاشة، ولا يمكنك التراجع عن ذلك بنفسك.",
+        changedMeanwhile:
+          "تغيّرت منشآت هذا الشخص أثناء فتح النافذة. أغلقها وافتحها من جديد لترى القائمة الحالية.",
+        hintNoChange: "غيّر الاختيار لتتمكن من الحفظ",
+        save: "حفظ المنشآت",
+      },
       reachesNothing: "لا منشأة بعد",
       reachesEverywhere: "كل المنشآت",
       alreadyAMember: "لهذا الشخص عضوية في هذه المؤسسة بالفعل.",
@@ -10372,6 +10505,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       confirmRoleConfirm: "تغيير الدور",
       confirmRoleClose: "إغلاق",
       inviteHintMissing: "أضف بريدًا إلكترونيًا واختر دورًا",
+      defineRoleTicked: "تم تحديد {count} من {total} صلاحية",
+      defineRoleNothingTicked:
+        "لا شيء محدد: من يحمل هذا الدور سيفتح شاشة اليوم فقط",
       defineRoleHintName: "سمِّ الدور للمتابعة",
       roleChangedMeanwhile:
         "غُيّر هذا الدور أثناء اتخاذك القرار. يحمل {member} الآن دور {role}. لم يتغير شيء.",
@@ -11735,6 +11871,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         anotherProperty: "منشأة أخرى",
         noEmployeesReadOnly:
           "لا موظفين مسجلين بعد. يستطيع من يدير الموارد البشرية إضافتهم.",
+        startDateHint: "اليوم أو قبله. لمن سيبدأ لاحقًا، سجّله في يومه الأول.",
         startDate: "تاريخ البدء",
         registersAt: "يُسجَّل في {property}.",
         edit: "تعديل",
@@ -11790,7 +11927,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "تُحفظ سجلات التوظيف بمعزل عن صلاحية الدخول، لذلك لا يظهر هنا من أُضيفوا من شاشة الفريق حتى تسجّلهم.",
         unregisteredTitle: "أعضاء الفريق بلا سجل توظيف",
         unregisteredDescription:
-          "يستطيع هؤلاء تسجيل الدخول، لكنهم لا يظهرون في جدول المناوبات ولا في الرواتب حتى تسجّلهم موظفين.",
+          "يستطيع هؤلاء تسجيل الدخول، لكنهم لا يظهرون في جدول المناوبات ولا في الرواتب حتى تسجّلهم موظفين. «تسجيل كموظف» يربط السجل بحساب دخولهم، و«إضافة موظف» ينشئ سجلًا بلا حساب دخول.",
         registerAsEmployee: "تسجيل كموظف",
         registerForLogin: "سيُربط بحساب الدخول {email}.",
         submit: "حفظ الموظف",
@@ -13165,7 +13302,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. اختر منشأة أخرى من القائمة في الأعلى، أو اطلب من مالك مؤسستك طلب تفعيلها هنا.",
       noPermissionTitle: "دورك لا يتيح فتح هذه الصفحة",
       noPermissionDescription:
-        "تحتاج إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك — يستطيع ذلك المالك والمدير — أن يضيفها إلى دورك.",
+        "تحتاج إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك أن يضيفها إلى دورك.",
       openTitle: "هذه الصفحة غير متاحة الآن",
       openDescription:
         "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",

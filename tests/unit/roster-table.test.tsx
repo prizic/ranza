@@ -79,11 +79,24 @@ function renderRoster(
     mayAdminister = true,
     locale = "en" as "en" | "tr",
     above = [] as string[],
+    employment = {} as Record<
+      string,
+      {
+        name: string;
+        status: "active" | "terminated";
+        terminatedOn: string | null;
+      }
+    >,
+    roleFilter = "all",
   } = {},
 ) {
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RosterTable
+        employment={employment}
+        onRoleFilterChange={() => undefined}
+        propertyChoices={[]}
+        roleFilter={roleFilter}
         locale={locale}
         mayAdminister={mayAdminister}
         membersAboveViewer={above}
@@ -127,7 +140,8 @@ describe("the roster's role picker", () => {
 describe("the roster for a viewer who may not administer staff", () => {
   it("offers neither a role picker nor row actions", () => {
     renderRoster([member({})], { mayAdminister: false });
-    expect(screen.queryByRole("combobox")).toBeNull();
+    // The filters are reading, not changing, so they stay; a row's role is a word.
+    expect(screen.queryByRole("combobox", { name: /^Role: / })).toBeNull();
     expect(
       screen.queryByRole("button", {
         name: `${messages.en.staff.actions}: former@example.test`,
@@ -265,6 +279,10 @@ describe("the staff screen, for an administrator narrower than Owner", () => {
     render(
       <NextIntlClientProvider locale="en" messages={messages.en}>
         <StaffScreen
+          employment={{}}
+          onRoleFilterChange={() => undefined}
+          propertyChoices={[]}
+          roleFilter="all"
           locale="en"
           mayAdminister
           mayDefineRoles={false}
@@ -344,5 +362,74 @@ describe("the staff screen, for an administrator narrower than Owner", () => {
         name: `${messages.en.staff.actions}: me@example.test`,
       }),
     ).toBeVisible();
+  });
+});
+
+// PEOPLE-07 and PEOPLE-08: who a row is, and whether they still work here.
+describe("the roster identifies people and flags leavers", () => {
+  it("PEOPLE-07: shows the name HR holds with the address beneath it", () => {
+    renderRoster([member({ userId: "u-ada" })], {
+      employment: {
+        "u-ada": { name: "Ada Yilmaz", status: "active", terminatedOn: null },
+      },
+    });
+    const row = screen.getByRole("row", { name: /Ada Yilmaz/ });
+    expect(row).toHaveTextContent("former@example.test");
+    expect(row).toHaveTextContent("AY");
+    expect(screen.queryByText(/still has access/)).not.toBeInTheDocument();
+  });
+
+  it("PEOPLE-07: a login HR does not know is identified by its address, as before", () => {
+    renderRoster([member({})], { employment: {} });
+    expect(
+      screen.getByRole("row", { name: /former@example.test/ }),
+    ).toHaveTextContent("FO");
+  });
+
+  it("PEOPLE-07: a role filter narrows the roster to those who hold it", () => {
+    renderRoster(
+      [
+        member({}),
+        member({
+          membershipId: "m-2",
+          userId: "u-2",
+          email: "other@example.test",
+          roleId: "front_desk",
+          roleScopeId: "00000000-0000-0000-0000-000000000000",
+          roleName: "Front desk",
+        }),
+      ],
+      { roleFilter: `${ORGANIZATION}:night_auditor` },
+    );
+    expect(screen.getByText("former@example.test")).toBeInTheDocument();
+    expect(screen.queryByText("other@example.test")).not.toBeInTheDocument();
+  });
+
+  it("PEOPLE-08: an active login whose employment ended says so, with the date", () => {
+    renderRoster([member({ userId: "u-gone" })], {
+      employment: {
+        "u-gone": {
+          name: "Gone Person",
+          status: "terminated",
+          terminatedOn: "2026-10-12",
+        },
+      },
+    });
+    expect(
+      screen.getByText("Employment ended Oct 12, 2026, still has access"),
+    ).toBeInTheDocument();
+  });
+
+  it("PEOPLE-08: somebody whose access is already revoked is not flagged", () => {
+    renderRoster([member({ userId: "u-gone", status: "revoked" })], {
+      employment: {
+        "u-gone": {
+          name: "Gone Person",
+          status: "terminated",
+          terminatedOn: "2026-10-12",
+        },
+      },
+    });
+    expect(screen.queryByText(/still has access/)).not.toBeInTheDocument();
   });
 });

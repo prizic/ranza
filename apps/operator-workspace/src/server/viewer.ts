@@ -176,6 +176,7 @@ import {
 import { weekToShow } from "../lib/hr-week";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
+import type { StaffEmployment } from "../features/staff/employment";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
 import {
@@ -1558,6 +1559,44 @@ async function unregisteredStaffOf(
   } catch (error: unknown) {
     console.error("hr.unregistered_staff_failed", { organizationId }, error);
     return [];
+  }
+}
+
+/**
+ * What the HR record of a login says about them: their name, and whether they
+ * still work here (PEOPLE-07, PEOPLE-08).
+ *
+ * Keyed by Ranza user id. Only the two facts the People roster shows are
+ * returned: the record also holds pay and bank details, which never leave the
+ * server for this screen. A viewer who may not read employee records, or a
+ * record that cannot be read, gets none — the roster then falls back to the
+ * address — and the failure is reported rather than shown.
+ */
+export async function employmentOfLogins(
+  organizationId: string,
+): Promise<Record<string, StaffEmployment>> {
+  const viewer = await currentViewer();
+  if (!viewer) return {};
+  try {
+    const employees = await getComposition().hr.employees(
+      viewer.userId,
+      organizationId,
+    );
+    const byLogin: Record<string, StaffEmployment> = {};
+    for (const employee of employees) {
+      if (!employee.userId) continue;
+      byLogin[employee.userId] = {
+        name: employee.fullName,
+        status: employee.status,
+        terminatedOn: employee.terminatedOn
+          ? employee.terminatedOn.toISOString().slice(0, 10)
+          : null,
+      };
+    }
+    return byLogin;
+  } catch (error: unknown) {
+    console.error("people.employment_read_failed", { organizationId }, error);
+    return {};
   }
 }
 

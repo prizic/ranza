@@ -124,6 +124,10 @@ function tree(roster: StaffMember[], locale: Locale = "en") {
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RosterTable
+        employment={{}}
+        onRoleFilterChange={() => undefined}
+        propertyChoices={[]}
+        roleFilter="all"
         locale={locale}
         mayAdminister
         membersAboveViewer={[]}

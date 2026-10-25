@@ -110,3 +110,40 @@ export function leavesNoAdministrator(
     !others.some((other) => other.accessScope === "organization_wide")
   );
 }
+
+/**
+ * What saving a Properties selection would change: the Properties added to
+ * what the member holds now, and the ones taken away (PEOPLE-01). Both lists
+ * keep the order of the options so the dialog can name them the way the picker
+ * does.
+ */
+export function reachChange(
+  held: readonly string[],
+  selected: readonly string[],
+): { added: string[]; removed: string[] } {
+  const now = new Set(held);
+  const next = new Set(selected);
+  return {
+    added: selected.filter((id) => !now.has(id)),
+    removed: held.filter((id) => !next.has(id)),
+  };
+}
+
+/**
+ * The Properties a Properties dialog lists: those the viewer may give (every
+ * one they reach, SP-S1-36) and those the member already holds as the viewer
+ * sees them, so a held one is never dropped from the picker for want of being
+ * on the first list.
+ */
+export function propertiesToOffer(
+  reachable: readonly { propertyId: string; propertyName: string }[],
+  held: readonly { propertyId: string; propertyName: string }[],
+): { propertyId: string; propertyName: string }[] {
+  const seen = new Map<string, string>();
+  for (const property of [...reachable, ...held]) {
+    seen.set(property.propertyId, property.propertyName);
+  }
+  return [...seen]
+    .map(([propertyId, propertyName]) => ({ propertyId, propertyName }))
+    .sort((a, b) => a.propertyName.localeCompare(b.propertyName));
+}

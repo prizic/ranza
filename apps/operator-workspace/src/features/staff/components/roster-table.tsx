@@ -7,10 +7,13 @@ import {
   CircleSlash,
   Clock,
   Link2,
+  MapPin,
+  Pencil,
   RotateCcw,
   Search,
   UserMinus,
   UserPlus,
+  UserX,
 } from "lucide-react";
 import type { Role, StaffMember } from "@ranza/staff";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
@@ -21,6 +24,11 @@ import {
   Combobox,
   DataTableRowActions,
   Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   StatusBadge,
   Table,
   TableBody,
@@ -32,7 +40,12 @@ import {
 } from "@ranza/ui";
 import { shippedRoleOf, UNDO_WINDOW_HOURS } from "../labels";
 import { leavesNoAdministrator } from "../acts-on";
+import type { StaffEmployment } from "../employment";
 import { usePickerLabels } from "../../../lib/picker-labels";
+import {
+  ChangePropertiesDialog,
+  type PropertyChoice,
+} from "./change-properties-dialog";
 import {
   ConfirmRoleChange,
   type RoleChangeProposal,
@@ -68,19 +81,30 @@ import {
  * member is above them in role or reach, and the row says why (SP-S1-35).
  */
 export function RosterTable({
+  employment,
   locale,
   mayAdminister,
   membersAboveViewer,
+  onRoleFilterChange,
   organizationId,
+  propertyChoices,
+  roleFilter,
   roles,
   roster,
   viewerUserId,
 }: {
+  /** HR's name and employment for a login, when the viewer may read HR. */
+  employment: Readonly<Record<string, StaffEmployment>>;
   locale: SupportedLocale;
   mayAdminister: boolean;
   /** Membership ids the policies would refuse the viewer acting on. */
   membersAboveViewer: readonly string[];
+  onRoleFilterChange: (value: string) => void;
   organizationId: string;
+  /** The Properties of this Organization the viewer reaches (SP-S1-36). */
+  propertyChoices: readonly PropertyChoice[];
+  /** A role's picker value, or "all". Lives above so another tab can set it. */
+  roleFilter: string;
   /** Only the roles the viewer may hand out (SP-S1-34). */
   roles: readonly Role[];
   roster: readonly StaffMember[];
@@ -92,7 +116,10 @@ export function RosterTable({
   const [confirming, setConfirming] = useState(false);
   const [membership, setMembership] = useState<MembershipProposal | null>(null);
   const [membershipOpen, setMembershipOpen] = useState(false);
+  const [reach, setReach] = useState<StaffMember | null>(null);
+  const [reachOpen, setReachOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [propertyFilter, setPropertyFilter] = useState(ALL);
   const [showAllRevoked, setShowAllRevoked] = useState(false);
   // Each pick is its own decision, so it starts a dialog with nothing left over
   // from the last: a refusal read once must not block a retry.
@@ -156,6 +183,12 @@ export function RosterTable({
     setMembershipOpen(true);
   }
 
+  function proposeReach(member: StaffMember): void {
+    setReach(member);
+    setAttempt((count) => count + 1);
+    setReachOpen(true);
+  }
+
   // A revoke stays on the list while it can still be undone, and for as long as
   // somebody asks to see it afterwards: a roster that dropped it at once would
   // make the undo invisible, and one that keeps every leaver forever buries the
@@ -167,7 +200,28 @@ export function RosterTable({
     (member) => member.status === "revoked" && !lingering(member),
   ).length;
   const needle = query.trim().toLowerCase();
+  const nameOf = (member: StaffMember): string | null =>
+    employment[member.userId]?.name ?? null;
+  const roleChoices = distinctRoles(roster, t);
+  const propertyOptions = distinctProperties(roster, propertyChoices);
+  const reachesNothingSomewhere = roster.some(reachesNothing);
   const visible = roster.filter((member) => {
+    if (roleFilter !== ALL && heldRoleValue(member) !== roleFilter) {
+      return false;
+    }
+    if (propertyFilter === NO_PROPERTY && !reachesNothing(member)) {
+      return false;
+    }
+    if (
+      propertyFilter !== ALL &&
+      propertyFilter !== NO_PROPERTY &&
+      member.accessScope !== "organization_wide" &&
+      !member.properties.some(
+        (property) => property.propertyId === propertyFilter,
+      )
+    ) {
+      return false;
+    }
     if (
       member.status === "revoked" &&
       !showAllRevoked &&
@@ -180,6 +234,7 @@ export function RosterTable({
       needle === "" ||
       [
         member.email,
+        nameOf(member) ?? "",
         roleNameOf(member, t),
         ...member.properties.map((property) => property.propertyName),
       ].some((text) => text.toLowerCase().includes(needle))
@@ -202,6 +257,29 @@ export function RosterTable({
             placeholder={t("staff.search")}
             type="search"
             value={query}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <RosterFilter
+            allLabel={t("staff.allRoles")}
+            label={t("staff.filterByRole")}
+            onChange={onRoleFilterChange}
+            options={roleChoices}
+            testId="staff-role-filter"
+            value={roleFilter}
+          />
+          <RosterFilter
+            allLabel={t("staff.allProperties")}
+            label={t("staff.filterByProperty")}
+            onChange={setPropertyFilter}
+            options={[
+              ...propertyOptions,
+              ...(reachesNothingSomewhere
+                ? [{ value: NO_PROPERTY, label: t("staff.reachesNothing") }]
+                : []),
+            ]}
+            testId="staff-property-filter"
+            value={propertyFilter}
           />
         </div>
         {hiddenRevoked > 0 ? (
@@ -228,6 +306,8 @@ export function RosterTable({
           <Button
             onClick={() => {
               setQuery("");
+              onRoleFilterChange(ALL);
+              setPropertyFilter(ALL);
               setShowAllRevoked(true);
             }}
             type="button"
@@ -265,13 +345,18 @@ export function RosterTable({
                     <span className="flex items-center gap-3">
                       <Avatar className="size-8">
                         <AvatarFallback className="text-xs">
-                          {initials(member.email)}
+                          {initials(nameOf(member) ?? member.email)}
                         </AvatarFallback>
                       </Avatar>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate font-medium">
-                          {member.email}
+                          {nameOf(member) ?? member.email}
                         </span>
+                        {nameOf(member) ? (
+                          <span className="truncate text-xs text-muted-foreground">
+                            {member.email}
+                          </span>
+                        ) : null}
                         {/* Awaiting a password only when a link is actually
                           outstanding. Whoever created the Organization arrived
                           through sign-up and has no invitation at all, so
@@ -312,16 +397,45 @@ export function RosterTable({
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground max-md:col-span-2 max-md:p-0 max-md:whitespace-normal">
-                    {member.accessScope === "organization_wide"
-                      ? t("staff.reachesEverywhere")
-                      : member.properties.length === 0
-                        ? t("staff.reachesNothing")
-                        : member.properties
-                            .map((property) => property.propertyName)
-                            .join(", ")}
+                    {member.accessScope === "organization_wide" ? (
+                      t("staff.reachesEverywhere")
+                    ) : actsOn && member.status === "active" ? (
+                      <PropertiesButton
+                        member={member}
+                        onPropose={proposeReach}
+                      />
+                    ) : member.properties.length === 0 ? (
+                      t("staff.reachesNothing")
+                    ) : (
+                      member.properties
+                        .map((property) => property.propertyName)
+                        .join(", ")
+                    )}
                   </TableCell>
                   <TableCell className="max-md:p-0">
-                    <StatusBadge {...statusOf(member, t)} />
+                    <span className="flex flex-col items-start gap-1.5">
+                      <StatusBadge {...statusOf(member, t)} />
+                      {member.status === "active" &&
+                      employment[member.userId]?.terminatedOn ? (
+                        <StatusBadge
+                          icon={UserX}
+                          label={t("staff.leftHr", {
+                            date: formatDate(
+                              new Date(
+                                `${employment[member.userId]?.terminatedOn}T00:00:00Z`,
+                              ),
+                              locale,
+                              {
+                                day: "numeric",
+                                month: "short",
+                                timeZone: "UTC",
+                              },
+                            ),
+                          })}
+                          tone="warning"
+                        />
+                      ) : null}
+                    </span>
                   </TableCell>
                   {mayAdminister ? (
                     <TableCell className="text-end max-md:p-0">
@@ -329,6 +443,7 @@ export function RosterTable({
                         <MembershipActions
                           member={member}
                           onPropose={proposeMembership}
+                          onProposeReach={proposeReach}
                           undoable={until !== null}
                         />
                       ) : (
@@ -353,6 +468,21 @@ export function RosterTable({
           open={confirming}
           organizationId={organizationId}
           proposal={proposal}
+        />
+      ) : null}
+      {reach ? (
+        <ChangePropertiesDialog
+          key={`reach-${attempt}`}
+          locale={locale}
+          member={
+            roster.find((candidate) => candidate.userId === reach.userId) ??
+            reach
+          }
+          onClose={() => setReachOpen(false)}
+          open={reachOpen}
+          organizationId={organizationId}
+          reachable={propertyChoices}
+          self={reach.userId === viewerUserId}
         />
       ) : null}
       {membership ? (
@@ -432,7 +562,7 @@ function statusOf(
  */
 function initials(email: string): string {
   const local = email.split("@")[0] ?? email;
-  const parts = local.split(/[._-]+/).filter(Boolean);
+  const parts = local.split(/[\s._-]+/).filter(Boolean);
   const letters =
     parts.length > 1
       ? `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`
@@ -498,10 +628,12 @@ function RolePicker({
 function MembershipActions({
   member,
   onPropose,
+  onProposeReach,
   undoable,
 }: {
   member: StaffMember;
   onPropose: (kind: MembershipProposal["kind"], member: StaffMember) => void;
+  onProposeReach: (member: StaffMember) => void;
   undoable: boolean;
 }) {
   const t = useTranslations();
@@ -515,6 +647,15 @@ function MembershipActions({
                   label: t("staff.renewLink"),
                   icon: Link2,
                   onSelect: () => onPropose("renew", member),
+                },
+              ]
+            : []),
+          ...(member.accessScope === "assigned_properties"
+            ? [
+                {
+                  label: t("staff.changeProperties"),
+                  icon: MapPin,
+                  onSelect: () => onProposeReach(member),
                 },
               ]
             : []),
@@ -546,5 +687,126 @@ function MembershipActions({
       actions={actions}
       label={`${t("staff.actions")}: ${member.email}`}
     />
+  );
+}
+
+export const ALL = "all";
+const NO_PROPERTY = "none";
+
+/** Active, bound to Properties, and bound to none: signed in to nothing. */
+function reachesNothing(member: StaffMember): boolean {
+  return (
+    member.status === "active" &&
+    member.accessScope === "assigned_properties" &&
+    member.properties.length === 0
+  );
+}
+
+/** The roles somebody on the roster holds, once each, as the filter lists them. */
+function distinctRoles(
+  roster: readonly StaffMember[],
+  t: ReturnType<typeof useTranslations>,
+): { value: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const member of roster) {
+    const value = heldRoleValue(member);
+    if (!seen.has(value)) seen.set(value, roleNameOf(member, t));
+  }
+  return [...seen].map(([value, label]) => ({ value, label }));
+}
+
+/** The Properties the viewer reaches and the ones anybody on the roster holds. */
+function distinctProperties(
+  roster: readonly StaffMember[],
+  choices: readonly PropertyChoice[],
+): { value: string; label: string }[] {
+  const seen = new Map<string, string>();
+  for (const choice of choices)
+    seen.set(choice.propertyId, choice.propertyName);
+  for (const member of roster) {
+    for (const property of member.properties) {
+      seen.set(property.propertyId, property.propertyName);
+    }
+  }
+  return [...seen]
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** A short fixed list a roster can be narrowed by, with "all" as its first row. */
+function RosterFilter({
+  allLabel,
+  label,
+  onChange,
+  options,
+  testId,
+  value,
+}: {
+  allLabel: string;
+  label: string;
+  onChange: (next: string) => void;
+  options: readonly { value: string; label: string }[];
+  testId: string;
+  value: string;
+}) {
+  return (
+    <Select onValueChange={onChange} value={value}>
+      <SelectTrigger aria-label={label} className="w-44" data-testid={testId}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{allLabel}</SelectItem>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+/**
+ * Where somebody works, as the control that changes it (PEOPLE-01).
+ *
+ * The cell is the thing to press: the names are the label and the pencil says
+ * so before a hand gets near it. A person who reaches nothing gets the call to
+ * action in the warning colour, because that is the state the invitation
+ * promised "until you assign one" for.
+ */
+function PropertiesButton({
+  member,
+  onPropose,
+}: {
+  member: StaffMember;
+  onPropose: (member: StaffMember) => void;
+}) {
+  const t = useTranslations();
+  const none = member.properties.length === 0;
+  return (
+    <Button
+      className={
+        none
+          ? "h-auto max-w-full justify-start gap-1.5 whitespace-normal px-2 py-1 text-start text-warning"
+          : "h-auto max-w-full justify-start gap-1.5 whitespace-normal px-2 py-1 text-start font-normal text-muted-foreground"
+      }
+      data-testid="staff-properties"
+      id={`staff-properties-${member.membershipId}`}
+      onClick={() => onPropose(member)}
+      type="button"
+      variant="ghost"
+    >
+      <span>
+        {none
+          ? t("staff.assignProperty")
+          : member.properties
+              .map((property) => property.propertyName)
+              .join(", ")}
+      </span>
+      <span className="sr-only">
+        {t("staff.changeProperties")}: {member.email}
+      </span>
+      <Pencil aria-hidden="true" className="size-3.5 shrink-0" />
+    </Button>
   );
 }

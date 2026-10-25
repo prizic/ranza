@@ -114,6 +114,10 @@ function show(roster: StaffMember[], viewerUserId = "u-viewer") {
   return render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <RosterTable
+        employment={{}}
+        onRoleFilterChange={() => undefined}
+        propertyChoices={[]}
+        roleFilter="all"
         locale="en"
         mayAdminister
         membersAboveViewer={[]}
@@ -375,6 +379,15 @@ describe("a role change says what is gained and lost", () => {
     expect(gains.textContent).toContain(en.permissions.viewHr);
     expect(gains.textContent).toContain(en.permissions.viewLedger);
     expect(gains.textContent).toContain(en.permissions.administerStaff);
+    // Under the grid's own section headings, money and people first, rather
+    // than one run-on sentence in catalogue order (PEOPLE-04).
+    const headings = within(gains)
+      .getAllByRole("listitem")
+      .map((item) => item.textContent?.split(":")[0]);
+    expect(headings.slice(0, 2)).toEqual([
+      en.sections.money,
+      en.sections.people,
+    ]);
     // Held by both, so neither gained nor lost.
     expect(gains.textContent).not.toContain(en.permissions.updateHousekeeping);
     expect(screen.queryByTestId("role-losses")).toBeNull();

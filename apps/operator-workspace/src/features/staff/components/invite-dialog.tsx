@@ -56,6 +56,7 @@ export function InviteDialog({
   organizationWide,
   properties,
   roles,
+  rolesWithheld,
 }: {
   locale: SupportedLocale;
   organizationId: string;
@@ -63,6 +64,8 @@ export function InviteDialog({
   organizationWide: boolean;
   properties: readonly { propertyId: string; propertyName: string }[];
   roles: readonly RoleOption[];
+  /** Some active roles are above the viewer's own and so are not in `roles`. */
+  rolesWithheld: boolean;
 }) {
   const t = useTranslations();
 
@@ -81,6 +84,7 @@ export function InviteDialog({
           organizationWide={organizationWide}
           properties={properties}
           roles={roles}
+          rolesWithheld={rolesWithheld}
         />
       </DialogContent>
     </Dialog>
@@ -97,12 +101,14 @@ function InviteBody({
   organizationWide,
   properties,
   roles,
+  rolesWithheld,
 }: {
   locale: SupportedLocale;
   organizationId: string;
   organizationWide: boolean;
   properties: readonly { propertyId: string; propertyName: string }[];
   roles: readonly RoleOption[];
+  rolesWithheld: boolean;
 }) {
   const t = useTranslations();
   const [outcome, act, pending] = useActionState<InviteOutcome, FormData>(
@@ -189,7 +195,16 @@ function InviteBody({
         </DialogSection>
 
         <DialogSection
-          hint={shipped ? t(`staff.roleDescriptions.${shipped}`) : null}
+          hint={
+            <>
+              {shipped ? t(`staff.roleDescriptions.${shipped}`) : null}
+              {rolesWithheld ? (
+                <span className="block" data-testid="roles-withheld">
+                  {t("staff.rolesWithheld")}
+                </span>
+              ) : null}
+            </>
+          }
           labelFor="invite-role"
           tag={{ label: t("dialogTagRequired"), required: true }}
           title={t("staff.role")}
@@ -207,6 +222,7 @@ function InviteBody({
         </DialogSection>
 
         <DialogSection
+          hint={organizationWide ? null : t("staff.reachWithheld")}
           labelFor="invite-properties"
           tag={{ label: t("dialogTagOptional"), required: false }}
           title={t("staff.properties")}

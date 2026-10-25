@@ -31,6 +31,7 @@ import {
   cn,
 } from "@ranza/ui";
 import { editRole, reinstateRole, retireRole } from "../../../server/staff";
+import { PermissionGroups } from "./permission-groups";
 import {
   asPermission,
   PERMISSION_SECTIONS,
@@ -68,14 +69,20 @@ type Pending = { kind: "save" } | { kind: "retire"; role: Role } | null;
  * the rule that guards privilege escalation. A refused role comes back by name.
  */
 export function PermissionMatrix({
+  holdersOf,
   locale,
   mayDefineRoles,
+  onShowHolders,
   organizationId,
   roles,
 }: {
+  /** Who holds a role right now, by address, for the refusal to retire one. */
+  holdersOf: (role: Role) => readonly string[];
   locale: string;
   /** Without staff.define_roles the grid is read, not edited (#80). */
   mayDefineRoles: boolean;
+  /** Opens the roster narrowed to the people who hold this role. */
+  onShowHolders: (role: Role) => void;
   organizationId: string;
   roles: readonly Role[];
 }) {
@@ -441,6 +448,43 @@ export function PermissionMatrix({
                         roles: dirty.map(roleName).join(", "),
                       })}
                     </p>
+                    {dirty.map((role) => {
+                      const was = baseline[roleId(role)] ?? [];
+                      const now = draft[roleId(role)] ?? [];
+                      const added = now.filter((key) => !was.includes(key));
+                      const removed = was.filter((key) => !now.includes(key));
+                      return (
+                        <div
+                          className="grid gap-2"
+                          data-testid="role-diff"
+                          key={roleId(role)}
+                        >
+                          <p className="m-0 font-medium">{roleName(role)}</p>
+                          {added.length > 0 ? (
+                            <div
+                              className="grid gap-0.5"
+                              data-testid="role-diff-added"
+                            >
+                              <p className="m-0 text-muted-foreground">
+                                {t("staff.diffAdded")}
+                              </p>
+                              <PermissionGroups keys={added} />
+                            </div>
+                          ) : null}
+                          {removed.length > 0 ? (
+                            <div
+                              className="grid gap-0.5"
+                              data-testid="role-diff-removed"
+                            >
+                              <p className="m-0 text-muted-foreground">
+                                {t("staff.diffRemoved")}
+                              </p>
+                              <PermissionGroups keys={removed} />
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                     <p className="m-0">
                       {affectedPeople === 0
                         ? t("staff.confirmSaveNobody")
@@ -487,6 +531,15 @@ export function PermissionMatrix({
                       })
                     : t("staff.retireBody", { role: roleName(pending.role) })}
                 </DialogDescription>
+                {pending.role.heldBy > 0 ? (
+                  <HoldersOf
+                    holders={holdersOf(pending.role)}
+                    onShow={() => {
+                      setPending(null);
+                      onShowHolders(pending.role);
+                    }}
+                  />
+                ) : null}
               </DialogBody>
               <DialogActions>
                 <CancelButton
@@ -516,3 +569,44 @@ export function PermissionMatrix({
     </>
   );
 }
+
+/**
+ * Who stands in the way of retiring a role, and the way to them: the addresses,
+ * and the roster narrowed to exactly these people (PEOPLE-14).
+ */
+function HoldersOf({
+  holders,
+  onShow,
+}: {
+  holders: readonly string[];
+  onShow: () => void;
+}) {
+  const t = useTranslations();
+  const shown = holders.slice(0, HOLDERS_SHOWN);
+  return (
+    <div className="grid gap-2 text-sm" data-testid="role-holders">
+      <ul className="m-0 grid list-none gap-1 p-0">
+        {shown.map((address) => (
+          <li key={address}>
+            <bdi>{address}</bdi>
+          </li>
+        ))}
+        {holders.length > shown.length ? (
+          <li className="text-muted-foreground">
+            {t("staff.holdersMore", { count: holders.length - shown.length })}
+          </li>
+        ) : null}
+      </ul>
+      <Button
+        className="justify-self-start"
+        onClick={onShow}
+        type="button"
+        variant="outline"
+      >
+        {t("staff.showHolders")}
+      </Button>
+    </div>
+  );
+}
+
+const HOLDERS_SHOWN = 5;

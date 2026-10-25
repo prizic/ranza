@@ -59,6 +59,24 @@ export const fieldClassName =
 export const textareaClassName =
   "min-h-24 rounded-2xl border-[1.5px] border-foreground/25 bg-background px-4 py-3.5 text-[0.95rem] shadow-none focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15";
 
+/**
+ * An address in a heading breaks before its "@" rather than in the middle of a
+ * word: a column too narrow for the whole of it wraps to "name" and
+ * "@example.test", which reads, where `wrap-anywhere` alone cut it at whatever
+ * character the line ran out on (PEOPLE-04).
+ */
+function breakBeforeAt(text: string): ReactNode {
+  const at = text.indexOf("@");
+  if (at <= 0 || /\s/.test(text)) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <wbr />
+      {text.slice(at)}
+    </>
+  );
+}
+
 export function DialogMasthead({
   art,
   eyebrow,
@@ -88,7 +106,7 @@ export function DialogMasthead({
           large ? "text-step-3 leading-tight" : "text-5xl",
         )}
       >
-        <bdi>{heading}</bdi>
+        <bdi>{breakBeforeAt(heading)}</bdi>
       </p>
       {facts ? (
         <p className={cn(MONO, "mt-3 max-w-[62%] text-foreground/70")}>

@@ -6,8 +6,11 @@ import type { SupportedLocale } from "@ranza/i18n";
 import { Card, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import type { Role, StaffMember } from "@ranza/staff";
 import { membersAboveViewer, rolesWithinViewer } from "../acts-on";
+import type { StaffEmployment } from "../employment";
+import type { PropertyChoice } from "./change-properties-dialog";
 import { PermissionMatrix } from "./permission-matrix";
-import { RosterTable } from "./roster-table";
+import { heldRoleValue, roleOptionValue } from "./role-options";
+import { ALL, RosterTable } from "./roster-table";
 
 /**
  * Staff and permissions, as one card with two tabs.
@@ -23,26 +26,46 @@ import { RosterTable } from "./roster-table";
  * not a thing to restore for them.
  */
 export function StaffScreen({
+  employment,
   locale,
   mayAdminister,
   mayDefineRoles,
   organizationId,
+  propertyChoices,
   roles,
   roster,
   viewerUserId,
 }: {
+  /** What HR says about each login, for a viewer who reads it; else empty. */
+  employment: Readonly<Record<string, StaffEmployment>>;
   locale: SupportedLocale;
   /** Holds staff.administer: may change a role, revoke, or undo a revoke. */
   mayAdminister: boolean;
   /** Holds staff.define_roles: may edit, retire or reinstate a role. */
   mayDefineRoles: boolean;
   organizationId: string;
+  /** The Properties of this Organization the viewer reaches. */
+  propertyChoices: readonly PropertyChoice[];
   roles: readonly Role[];
   roster: readonly StaffMember[];
   viewerUserId: string;
 }) {
   const t = useTranslations();
   const [tab, setTab] = useState("people");
+  const [roleFilter, setRoleFilter] = useState(ALL);
+
+  const holdersOf = (role: Role): string[] =>
+    roster
+      .filter(
+        (member) =>
+          member.status === "active" &&
+          heldRoleValue(member) === roleOptionValue(role),
+      )
+      .map((member) => member.email);
+  const showHolders = (role: Role): void => {
+    setRoleFilter(roleOptionValue(role));
+    setTab("people");
+  };
 
   // `flex-none` because the primitive's trigger is `flex-1`, which is right for
   // a segmented control and wrong for a tab strip: two tabs would each take
@@ -64,10 +87,14 @@ export function StaffScreen({
 
         <TabsContent className="min-w-0" value="people">
           <RosterTable
+            employment={employment}
             locale={locale}
             mayAdminister={mayAdminister}
             membersAboveViewer={membersAboveViewer(roster, viewerUserId)}
+            onRoleFilterChange={setRoleFilter}
             organizationId={organizationId}
+            propertyChoices={propertyChoices}
+            roleFilter={roleFilter}
             roles={rolesWithinViewer(
               roles.filter((role) => role.status === "active"),
               roster,
@@ -86,8 +113,10 @@ export function StaffScreen({
                   `${role.organizationId}:${role.key}:${role.status}:${role.permissions.join(",")}`,
               )
               .join("|")}
+            holdersOf={holdersOf}
             locale={locale}
             mayDefineRoles={mayDefineRoles}
+            onShowHolders={showHolders}
             organizationId={organizationId}
             roles={roles}
           />

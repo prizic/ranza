@@ -13,6 +13,7 @@ import { shippedRoleOf } from "../../../../features/staff/labels";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { readRoles, readRoster } from "../../../../server/staff";
 import {
+  employmentOfLogins,
   permittedProperties,
   requireViewer,
   screenProperties,
@@ -89,6 +90,7 @@ export default async function PeoplePage({
   // would only race to be the one that validates it.
   const roster = await readRoster(organizationId);
   const roles = await readRoles(organizationId);
+  const employment = mayViewHr ? await employmentOfLogins(organizationId) : {};
   // An invitation is bounded like a change (SP-S1-34): only a role within the
   // viewer's own. With none to offer, the dialog could only be refused.
   const invitableRoles = rolesWithinViewer(
@@ -127,6 +129,10 @@ export default async function PeoplePage({
                     propertyId: property.propertyId,
                     propertyName: property.propertyName,
                   }))}
+                rolesWithheld={
+                  invitableRoles.length <
+                  roles.filter((role) => role.status === "active").length
+                }
                 roles={invitableRoles.map((role) => {
                   const shipped = shippedRoleOf(role);
                   return {
@@ -171,10 +177,17 @@ export default async function PeoplePage({
         />
       ) : (
         <StaffScreen
+          employment={employment}
           locale={locale}
           mayAdminister={mayAdminister}
           mayDefineRoles={mayDefineRoles}
           organizationId={organizationId}
+          propertyChoices={properties
+            .filter((property) => property.organizationId === organizationId)
+            .map((property) => ({
+              propertyId: property.propertyId,
+              propertyName: property.propertyName,
+            }))}
           roles={roles}
           roster={roster}
           viewerUserId={viewer.userId}

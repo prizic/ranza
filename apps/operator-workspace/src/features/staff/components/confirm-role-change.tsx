@@ -15,7 +15,8 @@ import {
   dialogFrameClassName,
 } from "@ranza/ui";
 import { changeStaffRole, type StaffOutcome } from "../../../server/staff";
-import { asPermission } from "../labels";
+
+import { PermissionGroups } from "./permission-groups";
 import { heldRoleValue, roleNameOf } from "./role-options";
 
 /** A role change somebody has picked and has not yet confirmed. */
@@ -218,11 +219,14 @@ export function ConfirmRoleChange({
 }
 
 /**
- * What a role change gives and takes, in the words of the roles grid.
+ * What a role change gives and takes, under the section headings the roles
+ * grid uses.
  *
  * Going from Housekeeping to Manager reads as "a different job" until it is
- * listed as payroll and the ledger. The money and staff items come first
- * because they are the ones a person would want to have been told about.
+ * listed as payroll and the ledger — and as one unbroken run of twenty-five
+ * items it is not read at all. Grouped, "Money" and "People and HR" are the
+ * first two lines, which is the question an owner has: does this hand over
+ * money, people or payroll powers?
  */
 function PermissionDifference({
   gained,
@@ -232,36 +236,20 @@ function PermissionDifference({
   lost: readonly string[];
 }) {
   const t = useTranslations();
-  const named = (keys: readonly string[]): string =>
-    [...keys]
-      .sort((a, b) => weight(b) - weight(a))
-      .map((key) => {
-        const known = asPermission(key);
-        return known ? t(`staff.permissions.${known}`) : key;
-      })
-      .join(", ");
-
   return (
     <>
       {gained.length > 0 ? (
-        <p className="m-0" data-testid="role-gains">
-          {t("staff.confirmRoleGains", { permissions: named(gained) })}
-        </p>
+        <div data-testid="role-gains">
+          <p className="m-0 font-medium">{t("staff.confirmRoleGains")}</p>
+          <PermissionGroups keys={gained} />
+        </div>
       ) : null}
       {lost.length > 0 ? (
-        <p className="m-0" data-testid="role-losses">
-          {t("staff.confirmRoleLosses", { permissions: named(lost) })}
-        </p>
+        <div data-testid="role-losses">
+          <p className="m-0 font-medium">{t("staff.confirmRoleLosses")}</p>
+          <PermissionGroups keys={lost} />
+        </div>
       ) : null}
     </>
   );
-}
-
-/** Money and staff first: 1 for those, 0 for the rest. */
-function weight(permission: string): number {
-  return permission.startsWith("finance.") ||
-    permission.startsWith("staff.") ||
-    permission.startsWith("hr.")
-    ? 1
-    : 0;
 }

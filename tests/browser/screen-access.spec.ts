@@ -208,7 +208,9 @@ test("a typed address a role may not open says why, in English", async ({
   await expect(page.locator("main")).toContainText(
     "“See and download data exports”",
   );
-  await expect(page.locator("main")).toContainText("Owners and Managers can");
+  await expect(page.locator("main")).toContainText(
+    "Ask whoever manages staff in your Organization",
+  );
   await expect(
     page.locator("main"),
     "the Subscription is not why",

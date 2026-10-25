@@ -75,6 +75,11 @@ export function DefineRoleDialog({
     setTicked([]);
   }
 
+  const total = PERMISSION_SECTIONS.reduce(
+    (sum, section) => sum + section.permissions.length,
+    0,
+  );
+
   function roleName(role: Role): string {
     const shipped = shippedRoleOf(role);
     return shipped ? t(`staff.roles.${shipped}`) : role.name;
@@ -193,7 +198,16 @@ export function DefineRoleDialog({
           </DialogBody>
 
           <DialogActions
-            hint={name.trim() === "" ? t("staff.defineRoleHintName") : null}
+            hint={
+              name.trim() === ""
+                ? t("staff.defineRoleHintName")
+                : ticked.length === 0
+                  ? t("staff.defineRoleNothingTicked", { total })
+                  : t("staff.defineRoleTicked", {
+                      count: ticked.length,
+                      total,
+                    })
+            }
           >
             <DialogClose asChild>
               <CancelButton type="button">{t("staff.cancel")}</CancelButton>
