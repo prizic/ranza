@@ -57,7 +57,9 @@ export function useScrollEdges(
         ? null
         : new ResizeObserver(measure);
     observer?.observe(element);
-    for (const child of element.children) observer?.observe(child);
+    for (const child of Array.from(element.children)) {
+      observer?.observe(child);
+    }
     return () => {
       element.removeEventListener("scroll", measure);
       observer?.disconnect();

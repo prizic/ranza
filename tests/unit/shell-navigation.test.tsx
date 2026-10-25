@@ -11,7 +11,11 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { useQuery } from "@tanstack/react-query";
+// The workspace is the only package that depends on TanStack Query, and the
+// provider under test reaches it through that package. Named by file so this
+// test and the provider share one copy: through the folder Vite loads a second,
+// and the hook then finds no client.
+import { useQuery } from "../../apps/operator-workspace/node_modules/@tanstack/react-query/build/modern/index.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AppBottomNav,
