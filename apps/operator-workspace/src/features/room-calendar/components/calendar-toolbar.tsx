@@ -217,7 +217,11 @@ export function CalendarToolbar({
           {t("search")}
         </Label>
         <Input
-          className="h-8 w-full sm:w-48"
+          // Grows to 12 rem and gives way before the Filters button wraps onto
+          // a row of its own: with a fixed 12 rem the toolbar fitted one row at
+          // 1280 px by under 20 px, and a build whose text is a little wider
+          // (CI's) made it two, which put the grid 40 px lower (CALENDAR-12).
+          className="h-8 w-full sm:w-auto sm:max-w-48 sm:min-w-32 sm:flex-1 sm:basis-32"
           id="room-calendar-search"
           onChange={(event) => onChange({ search: event.target.value })}
           placeholder={t("search")}

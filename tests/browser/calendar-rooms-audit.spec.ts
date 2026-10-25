@@ -233,6 +233,11 @@ for (const locale of LOCALES) {
       // laptop's first screen, as it did not at 371 px.
       const grid = page.getByRole("table").first();
       expect((await grid.boundingBox())!.y).toBeLessThan(260);
+      // And with forty pixels less to work in: CI's text is wider than a
+      // laptop's, and the toolbar sat under twenty pixels from a second row.
+      await page.setViewportSize({ width: 1240, height: 860 });
+      expect((await grid.boundingBox())!.y).toBeLessThan(260);
+      await page.setViewportSize({ width: 1280, height: 860 });
       await page.screenshot({
         path: `docs/evidence/ux-audit-2026-10-24/calendar-rooms/calendar-top-${locale}.png`,
       });
