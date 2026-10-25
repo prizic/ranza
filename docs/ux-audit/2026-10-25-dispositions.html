@@ -1,0 +1,2134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>UX audit 2026-10-24: what happened to each finding</title>
+    <style>
+      :root {
+        --bg: #fafaf7;
+        --fg: #16231d;
+        --mut: #5b6b63;
+        --line: #dfe3dc;
+        --acc: #0f5a43;
+        --warn: #8a5a00;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.5 system-ui,
+          sans-serif;
+        padding: 2rem 1.25rem 4rem;
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 2rem;
+        margin: 0.2rem 0 0.4rem;
+      }
+      h2 {
+        margin-top: 2.2rem;
+        font-size: 1.15rem;
+      }
+      .eyebrow {
+        font:
+          600 0.75rem/1 ui-monospace,
+          monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .nums {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 1rem 0;
+      }
+      .n {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.6rem 0.9rem;
+        background: #fff;
+        min-width: 7rem;
+      }
+      .n b {
+        display: block;
+        font-size: 1.9rem;
+        font-weight: 300;
+      }
+      .n span {
+        color: var(--mut);
+        font-size: 0.8rem;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        background: #fff;
+        border: 1px solid var(--line);
+      }
+      th,
+      td {
+        text-align: start;
+        padding: 0.45rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+        font-size: 0.85rem;
+      }
+      th {
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .wrap {
+        overflow-x: auto;
+      }
+      .t {
+        white-space: nowrap;
+        font:
+          0.78rem ui-monospace,
+          monospace;
+      }
+      .c {
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .c.fixed,
+      .c.already-fixed {
+        color: var(--acc);
+      }
+      .c.owner-decision,
+      .c.partly-fixed {
+        color: var(--warn);
+      }
+      p.m {
+        color: var(--mut);
+        max-width: 70ch;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">Ranza · 2026-10-25</div>
+      <h1>UX audit 2026-10-24: what happened to each finding</h1>
+      <p class="m">
+        184 findings from the all-pages, all-roles audit of staging at 3e5ab65.
+        Each is closed by one of the dispositions below, taken from its lane
+        agent's report and reconciled against the handoffs between lanes. The
+        lane reports are in <code>2026-10-25-fix-reports/</code>. A fix counts
+        only with a test that failed before it; the lanes state which; this page
+        does not re-prove them. The audit's own screenshots (about 200 MB) are
+        not committed; <code>2026-10-24/findings.json</code> names the file each
+        finding cites.
+      </p>
+      <div class="nums">
+        <div class="n"><b>137</b><span>fixed</span></div>
+        <div class="n"><b>20</b><span>partly fixed</span></div>
+        <div class="n"><b>3</b><span>already fixed</span></div>
+        <div class="n"><b>14</b><span>proposed</span></div>
+        <div class="n"><b>7</b><span>owner decision</span></div>
+        <div class="n"><b>3</b><span>not built</span></div>
+        <div class="n"><b>0</b><span>not reproducible</span></div>
+      </div>
+      <h2>By severity</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>Severity</th>
+            <th>fixed</th>
+            <th>partly fixed</th>
+            <th>already fixed</th>
+            <th>proposed</th>
+            <th>owner decision</th>
+            <th>not built</th>
+            <th>not reproducible</th>
+          </tr>
+          <tr>
+            <td>blocks work</td>
+            <td>1</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>causes errors</td>
+            <td>24</td>
+            <td>2</td>
+            <td>0</td>
+            <td>0</td>
+            <td>1</td>
+            <td>0</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>slows me down</td>
+            <td>53</td>
+            <td>13</td>
+            <td>2</td>
+            <td>10</td>
+            <td>2</td>
+            <td>2</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>polish</td>
+            <td>59</td>
+            <td>5</td>
+            <td>1</td>
+            <td>4</td>
+            <td>4</td>
+            <td>1</td>
+            <td>0</td>
+          </tr>
+        </table>
+      </div>
+      <h2>Needs a decision from Seif</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Page</th>
+            <th>The decision</th>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-05</td>
+            <td>People and HR &amp; Payroll</td>
+            <td>
+              owner decision. The decision: may a payroll run on placeholder
+              deductions be locked before a correction path exists? The dialog
+              already repeats the placeholder warning and requires a tick
+              (HR-S1-82). Related rows: HR-DEF-10, HR-DEF-03.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-01</td>
+            <td>portal-placeholders</td>
+            <td>
+              owner decision. Decision needed: keep or hide the unbuilt Food and
+              Beverage and Inventory rail entries, which ADR 0056 offers on
+              purpose. I hid nothing. As a tweak, the sidebar (dc1f69f) and the
+              chips layout mark those two &quot;Soon&quot; (tr
+              &quot;Yakında&quot;, ar &quot;قريبًا&quot;). The phone bottom dock
+              is not marked: a ti
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-11</td>
+            <td>shell-access</td>
+            <td>
+              owner decision. No support contact or staff password-reset flow
+              exists in the repo (OA-NB-02). Telling someone to &quot;ask your
+              Owner&quot; would be false.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-16</td>
+            <td>Room calendar and Rooms</td>
+            <td>
+              part fixed, rest owner decision. &quot;Unit&quot; is now
+              &quot;room&quot; on my keys, including the block-reason hint.
+              &quot;Guest&quot; capitalised mid-sentence is the house style
+              across messages.ts; whether to change it is the owner&#x27;s call.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-07</td>
+            <td>Data export and Audit log</td>
+            <td>
+              owner decision | No column added, no rendering change. Names live
+              only in auth_user, which ranza_app cannot read, AL-S1-10 is
+              approved as &quot;address&quot;, TL-S3-03 is open. Closed in
+              handoffs.md under from 10 to 02.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-14</td>
+            <td>shell-access</td>
+            <td>
+              owner decision. Verified against migration 20260916011100: only
+              the Owner holds branding.manage. I corrected the sentence in ADR
+              0056, which is Proposed, and it now carries a dated Correction
+              note. Whether a Manager should reach Branding is Seif&#x27;s call.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-18</td>
+            <td>Today</td>
+            <td>
+              owner decision | public.users has no display name column and
+              AL-S1-10 names actors by address. Open row TL-S3-03, handoff from
+              02 to 10
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>Arrivals, Departures, Close the day</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-01</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2, c3e2902 and 57551c5; row-actions-reachable at 4
+              widths, EN and AR)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-02</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (07c07c2; guest cell clamps at 375px)</td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-03</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2; &quot;did not arrive&quot; said once,
+              ArrivalLateness)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-04</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2; reach-gated name and balance links, Finance-less
+              reader test a46c9bd)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-05</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2, 23c6ce8; menu hidden when empty, &quot;Open
+              reservation&quot; first; front-desk-rows)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-06</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed: CO-S1-41, record a payment in the check-out dialog
+              (Mews, Cloudbeds)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-07</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed (07c07c2; Change departure opens on one more night, priced;
+              unit test plus amend-booking). The +1/+2 night chips are proposed.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-08</td>
+            <td>slows me down</td>
+            <td class="c not-built">not built</td>
+            <td>
+              not built (CO-NB-04). The message already tells the desk what to
+              do, and &quot;Open reservation&quot; is the way there.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-09</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (07c07c2; check-out dialog says once it is final)</td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-10</td>
+            <td>causes errors</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed on Arrivals (missed bookings listed, flagged, no check-in,
+              mark no-show or cancel). The Today attention-list half is lane
+              02&#x27;s. Integration test lists a booking whose nights have all
+              passed only when asked.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-11</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              partly fixed (&quot;only&quot; shown only beside Close all, all
+              waiting days listed). proposed: CD-S4-09, close all under one
+              reason, which reverses CD-S4-02, so the owner decides.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (07c07c2; warning first, separate charges notice)</td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2; &quot;Room&quot; wording across the dialogs;
+              move-guest took upstream&#x27;s moveGuestRoomFact on conflict)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (07c07c2; one filter row, no-match hint)</td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-15</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2; focus goes to the next row&#x27;s Check out after
+              one is done)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-16</td>
+            <td>polish</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              lane 01 (arrow chip contrast fixed in dialog-frame.tsx; copy and
+              phone-table handoff written)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-17</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (07c07c2; nothing-charged and nothing-owed wording)</td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-18</td>
+            <td>slows me down</td>
+            <td class="c already-fixed">already fixed</td>
+            <td>
+              already fixed on main (Copy reference out of tab order); the focus
+              half is done under 15
+            </td>
+          </tr>
+          <tr>
+            <td class="t">ARRIVALS-19</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (07c07c2; &quot;Room&quot; wording and empty-menu handling)
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>Data export and Audit log</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">DATA-01</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; audit-reading.test.tsx DATA-01 (3 tests);
+              audit-writers.test.ts now strips comment lines and went red on
+              nightsCharged before the fix. The check-out balanceMinor is now
+              written as a number.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-02</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; audit-reading.test.tsx DATA-02 in en/tr/ar; a
+              reversal keeps its sign.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-03</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; stretched-link unit test; data-audit-ux.spec.ts
+              presses the Why cell.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-04</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; ordinary empty reason is a dash with sr-only
+              words. A required reason that is missing says &quot;No reason
+              recorded&quot;.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-05</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; becomes &quot;The Guest asked: …&quot;, only when
+              the record&#x27;s own reasonKind says so.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; one card per record, no sideways scroll. Spec and
+              audit-list-375.png.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-07</td>
+            <td>polish</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision | No column added, no rendering change. Names live
+              only in auth_user, which ranza_app cannot read, AL-S1-10 is
+              approved as &quot;address&quot;, TL-S3-03 is open. Closed in
+              handoffs.md under from 10 to 02.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-08</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 8c099fa; header reads &quot;When (Property time)&quot;,
+              record names the Property under the time; AL-S2-09 tests.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-09</td>
+            <td>polish</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed | Row AL-S2-21 (Mews and Opera Cloud audit trails page
+              both ways).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-10</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 119e7ba; the list carries the download right, so a refused
+              file shows its reason instead of a button. Integration test
+              EXP-S1-64 covers allowed, not_requester and role_lacks_datasets;
+              it went red under sabotage. Unit tests and spec cover the screen.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-11</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 119e7ba; last run time, outcome and a &quot;Show in
+              History&quot; link. Integration EXP-S1-65, unit tests for never
+              run, ready, failed, processing, expired and
+              paused-without-duplicate.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 119e7ba; the reason sits beside the button on both forms,
+              tested at 375 px in the spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-13</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed in the screen, proposed for the file name | Form names the
+              Property&#x27;s clock and today&#x27;s UTC offset for any range
+              that cuts data. The file name is made by a DB function from the
+              UTC date, so naming the zone there needs a migration: row
+              EXP-S1-70, proposed.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | 119e7ba; a unit test scans every Arabic data-export and
+              audit string.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">DATA-15</td>
+            <td>polish</td>
+            <td class="c proposed">proposed</td>
+            <td>proposed | Row EXP-S1-69 (Mews, Cloudbeds).</td>
+          </tr>
+        </table>
+      </div>
+      <h2>Finance, Analytics, Portfolio</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-01</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, f605033. One function, owedOnFolio, in
+              apps/operator-workspace/src/lib/owed.ts. Today, Departures, the
+              Finance list, the folio panel and the Finance summary all use it.
+              Test the_open_folios_tile_owes_what_the_finance_list_adds_up
+              failed before and passes after. Browser test
+              today_departures_and_finance_give_one_answer... also passes.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-02</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 24fbb06. A unit now counts from the earliest Stay it holds.
+              Two integration tests failed before and pass after.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-03</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 24fbb06. The previous-month note names the days compared,
+              and the incomplete badge says &quot;since August 22, 2026&quot;.
+              Month-report unit tests cover it.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-04</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, f605033. Post is disabled until the charge is valid, the
+              amount error shows while typing, and Post opens a confirm showing
+              Guest, room and amount. There is no timed undo, because reversal
+              already exists.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-05</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              (list state in the address): proposed. It is the same need as
+              HK-S1-38 and the deferred row FO-DEF-14, so it needs an approved
+              row and I added none.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The folio lines table now shows Posted under the
+              description on a phone. The Finance list already fit at 375px,
+              which an existing test confirms. Screenshots 06 and 07.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-07</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              (chips on a phone): fixed. Centring the current chip already
+              existed (SHELL-15). I added the edge fade (NavChips now uses the
+              existing useScrollEdges hook). Tested at 375 px in en and ar
+              (start and end edges in RTL).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-08</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. A role without reservations access is told who to ask about
+              an unpriced booking.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-09</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 24fbb06. A day&#x27;s Stay opens its Folio (&quot;Open
+              Folio&quot;) for a viewer who reads money. The folio id is
+              withheld from viewers who don&#x27;t. Integration test and
+              screenshot 09.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-10</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed, row FO-DEF-13 (Record payment on the Owing row).
+              Comparable: Mews, Cloudbeds.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-11</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The payment dialog starts from what is owed, and a role
+              that lacks other actions gets a note saying so.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. A folio that cannot be opened now shows a notice. The id
+              stays in the address on purpose, so the link can be shared and
+              checked.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. RevPAR with nothing closed now says &quot;No day has closed
+              yet, so there is nothing to divide.&quot;
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-14</td>
+            <td>polish</td>
+            <td class="c not-built">not built</td>
+            <td>
+              not built. Already deferred as AN-DEF-08. A shared formatter
+              change would break about 90 assertions.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 72aecc7. An Owner with one Property gets an &quot;Open
+              People&quot; link. A role that cannot give access is still told to
+              ask an Owner.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">FINANCE-16</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 72aecc7. The permission label now reads &quot;Read the
+              ledger and revenue reports&quot; in en, tr and ar. The Accounting
+              page shares that label.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>People and HR &amp; Payroll</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-01</td>
+            <td>blocks work</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (ddda6a4, 619bb27). The roster&#x27;s Properties cell and a
+              &quot;Change Properties&quot; menu item open one dialog backed by
+              an atomic setProperties.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-02</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (c37483e). &quot;Sign out and continue&quot; ends the other
+              session and returns to the invitation&#x27;s password form. The
+              Playwright test (English and Arabic) was seen red with the button
+              disabled.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-03</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              partly fixed, rest proposed. The role editor&#x27;s action bar
+              counts ticks and says what none ticked means (Playwright). The
+              pages-opened summary, high-impact flags, permission search and
+              Escape guard are SP-DEF-01.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-04</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Gains and losses are grouped under the grid&#x27;s section
+              headings, money and people first. Email headings in dialog
+              mastheads break before &quot;@&quot;. Unit-tested.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-05</td>
+            <td>causes errors</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision. The decision: may a payroll run on placeholder
+              deductions be locked before a correction path exists? The dialog
+              already repeats the placeholder warning and requires a tick
+              (HR-S1-82). Related rows: HR-DEF-10, HR-DEF-03.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-06</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>partly fixed (fba20df), rest proposed.</td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-07</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              partly fixed. Role and Property filters (including &quot;No
+              Property yet&quot;) are Playwright-tested; the name display is
+              unit-tested.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-08</td>
+            <td>causes errors</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>partly fixed (619bb27), rest proposed.</td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-09</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (fba20df). With sign-ins awaiting a record, the generic
+              empty state is no longer stacked under them. The card says which
+              button links a login, and &quot;Add employee&quot; stays in the
+              header. Unit test updated.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-10</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed (fba20df, 1afe942).</td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-11</td>
+            <td>polish</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed. A decline reason is the existing HR-DEF-13. A reopen
+              window is the new HR-DEF-15.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The Invite dialog says which roles and which &quot;Every
+              Property&quot; option are withheld and why. Playwright covers a
+              Manager (shown) and an Owner (nothing to explain).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-13</td>
+            <td>polish</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              partly fixed, rest lane 01. The refusal copy no longer names
+              Owners and Managers (en, tr, ar). The chips-layout breadcrumb and
+              the HTTP 200 on refused pages are lane 01&#x27;s files and are in
+              the handoff below.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PEOPLE-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The save confirm lists per-role added and removed
+              permissions. The retire dialog names the role&#x27;s holders, with
+              a button that opens the roster filtered to them. Playwright covers
+              both.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>Room calendar and Rooms</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-01</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              (causes errors): fixed, 0183333. I could not reproduce overflow
+              (scrollWidth equals clientWidth). The real defect was drawer
+              width: 384px on a laptop and 281px on a phone. It is now at least
+              500px wide, and 375px on a phone. Tests:
+              calendar-rooms-audit.spec.ts (an overdue Guest&#x27;s details; on
+              a phone the drawer is as wide as the screen), en and ar. Both were
+              red with only sheetFrameClassName.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-02</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              (causes errors): fixed, fd8fd82. The move trigger now compares an
+              in-house Stay on the nights from today, not the nights already
+              slept. The picker names the Guest, dates and reference of a
+              booking that holds a room.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-03</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 0183333 and daaa92c. Drawer, bar label, hover card, Rooms
+              tile and tile dialog now read &quot;Not arrived · due …&quot;
+              instead of plain Confirmed or &quot;reserved tonight&quot;. Tests:
+              room-calendar-late.test.ts (5) and the audit spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-04</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed by labelling, 4231ae8. The free row and the Rooms figure
+              measure different things on purpose. The free-row header and hint
+              now say what each counts.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-05</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 0183333. An overdue Guest&#x27;s Change departure opens on
+              tomorrow. Test:
+              an_overdue_guest_opens_on_tomorrow_so_the_price_line_is_the_confirm,
+              seen failing first.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, fd8fd82. The picker lists free and ready rooms first, then
+              free but not ready, then promised, then occupied; taken rooms sit
+              behind one press. Test: amend-booking.test.ts
+              (a_guest_is_offered_the_rooms_they_can_have_first).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-07</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 0183333. The drawer&#x27;s reference opens the booking by
+              id (reservations?open=). Arrivals and Departures have no
+              per-booking address parameter, so those two links stay plain. Lane
+              05 confirmed nothing in bar-drawer.tsx needs to move.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-08</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, daaa92c. Each tile shows what a press opens (Room details,
+              Report or block, or Unblock) with a chevron. The whole tile was
+              already the hit area.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-09</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, daaa92c. A Front desk viewer, or anyone looking at an
+              occupied room, gets details with the permission named and no block
+              form. I sabotaged the gate in both the unit and browser tests;
+              both went red, and I restored it.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-10</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              (ux_proposal): split. The &quot;Show on the room calendar&quot;
+              link in the room dialog is built as a tweak. A Guest&#x27;s name
+              on a tile opening their booking, and a per-row &quot;See on
+              calendar&quot;, are the proposed row RB-S2-23.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-11</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed, daaa92c. Add rooms now:</td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-12</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 4231ae8 and 8709f3c. The grid now starts at about 241px at
+              1280x860, where it was 373px, because the filters are folded into
+              one Filters button. The audit spec asserts less than 260px.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, daaa92c. The digits error shows beside the field in the
+              screen&#x27;s language; there is no native pattern bubble.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, daaa92c. Escape on a typed batch opens an in-app discard
+              dialog instead of window.confirm; a browser dialog fails the test.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              (04→01 addendum): fixed. I picked a rule, not a per-Property
+              label.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-16</td>
+            <td>polish</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              part fixed, rest owner decision. &quot;Unit&quot; is now
+              &quot;room&quot; on my keys, including the block-reason hint.
+              &quot;Guest&quot; capitalised mid-sentence is the house style
+              across messages.ts; whether to change it is the owner&#x27;s call.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-17</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 4231ae8. A touch screen is told to tap a bar, not drag it.
+              The touch test went red when the hint was disabled.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-18</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>(04→01): fixed.</td>
+          </tr>
+          <tr>
+            <td class="t">CALENDAR-19</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, daaa92c. Free and reserved rooms carry a Ready / Dirty /
+              awaiting-inspection mark, and a &quot;Ready&quot; chip filters to
+              rooms that can be let now. Both appear only when the housekeeping
+              board is readable.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>Today</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">TODAY-01</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (bffc5ff, 05770c6) | Spec test 1, plus unit tests on the
+              tonight figure
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-02</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 1;
+              checked_out_is_of_the_guests_due_today_with_the_overdue_ones_counted_apart
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-03</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 1;
+              a_room_with_a_guest_in_it_is_in_house_and_in_neither_list
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-04</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 1;
+              the_rooms_headline_counts_vacant_rooms_the_way_its_list_does
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-05</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 2;
+              to_clean_says_how_many_more_rooms_wait_on_a_guest_leaving
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 14;
+              finance_starts_with_the_money_and_a_repair_never_leads_it
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-07</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 3</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-08</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 3</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-09</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (check-in anyway asks in place on every layout) | Spec test
+              3;
+              a_room_that_is_not_ready_is_asked_about_in_place_with_check_in_anyway
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-10</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 10;
+              the_hand_over_names_the_overdue_guest_who_has_waited_longest
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-11</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 9</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-12</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>proposed | Row TL-S3-01, comparables Mews and Opera Cloud</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-13</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>Same finding as ARRIVALS-04, fixed by lane 05.</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed | Spec test 12;
+              the_queue_folds_at_five_and_the_arrows_sit_beside_the_title
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 13</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-16</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 11</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-17</td>
+            <td>polish</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed (label and merged tile; the open-Folios definition is
+              untouched, FINANCE-01 stays lane 07&#x27;s) |
+              open_folios_and_their_balance_are_one_tile_not_two_that_open_the_same_list
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-18</td>
+            <td>polish</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision | public.users has no display name column and
+              AL-S1-10 names actors by address. Open row TL-S3-03, handoff from
+              02 to 10
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-19</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed, with a copy tweak done now | Row TL-S3-02, comparables
+              Apaleo and Cloudbeds. The per-device cookie stays (TL-DEF-04)
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-20</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in the page, not in the server | The departures read now
+              seeds the page&#x27;s first HTML, so the Check out buttons are in
+              it. Spec test 16 goes red without the fix. The sequential
+              /api/today reads are unchanged, and I did not measure the 2.7 s
+              against staging
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-21</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              Lane 13: arrival card badge no longer wider than its card; the
+              test no longer depends on the hour.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-22</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 4</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-23</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 15</td>
+          </tr>
+          <tr>
+            <td class="t">TODAY-24</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed | Spec test 11</td>
+          </tr>
+        </table>
+      </div>
+      <h2>configuration-branding-integrations-security</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-01</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed be83411. Logo judged on selection with the module&#x27;s own
+              limits. Failing-before tests: branding-view.test.tsx BR-S1-43, and
+              configuration-audit.spec.ts in en and ar (300x64). Sabotage:
+              imageProblem disabled turned the unit test red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-02</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed be83411. Unsaved-changes guard. Tests:
+              branding-view.test.tsx BR-S1-44 and the Back-arrow spec. Sabotage:
+              guard disarmed turned the unit test red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-03</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The preview is a mini Portal under the colour card, drawn
+              with a logo only when one exists. Tests:
+              configuration-audit.spec.ts BR-S1-46 and BR-S1-47.
+              Screenshot-backed.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-04</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed be83411. Reset opens a confirm that names the logo, colour
+              and draft that go. Tests: branding-view.test.tsx BR-S1-45 and the
+              spec. Sabotage: direct reset() turned the unit test red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-05</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Unset colour well is dashed theme green. Tests: unit test
+              plus spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-06</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Plain-words verdict with the ratios folded under
+              &quot;Contrast details&quot;. Tests: spec, and branding.spec.ts
+              updated.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-07</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. On a 375 px screen the preview is fully in view while the
+              colour field is at the top. Test: spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-08</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Styled picker with file name, size and pixels, in Arabic
+              too. Test: spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-09</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. denied.notEnabledDescription is now conditional on having
+              more than one Property. Test: the integrations.spec.ts INT-S1-79
+              assertion.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-10</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. A first setup hides the four zero tiles and leads with the
+              endpoints section. Tests: unit and integrations.spec.ts INT-S1-51.
+              Sabotage: firstSetup = false turned the unit test red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-11</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed be83411, 38e9cea. The confirm gives counts and names the
+              Properties that keep their own answer. Tests: 3
+              inspection-settings.test.tsx cases, 2 integration tests on a real
+              database (archived Property excluded, null for a reader without
+              default reach), and the spec. Sabotage: DefaultReachLines
+              returning null turned 3 unit tests red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-12</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. One sentence everywhere (en, tr, ar). Tests:
+              configuration.test.tsx and the specs.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. WRAPPING_TRIGGER on the housekeeping and maintenance
+              selects. Test: spec asserts no clipping at 375 px.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, partially. A curated city table (about 110 zones) in ar and
+              tr, with Arabic comma. A zone outside the table keeps its Latin
+              city. Tests: time-zone-labels.test.ts, CF-S3-16. Sabotage:
+              dropping the table lookup turned 3 tests red.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. One Arabic word for Property (المنشأة). Test: spec checks
+              the page has no &quot;العقار&quot;.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-16</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The People link keeps ?property=. Tests: unit and spec.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-17</td>
+            <td>polish</td>
+            <td class="c proposed">proposed</td>
+            <td>(09→01): proposed.</td>
+          </tr>
+          <tr>
+            <td class="t">CONFIGURATION-18</td>
+            <td>polish</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed in part. The &quot;not available yet&quot; line is mine
+              (securityMissing). The grammatical sentence is lane 01&#x27;s: it
+              already landed as &quot;Manage how you sign in.&quot;
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>housekeeping-maintenance-guest-experience</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-01</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              lane 01 closed the handoff: page-bar chips take their own row
+              below 1280 px (shell-access.spec).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-02</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>proposed, row HK-S1-36 (Mews, Opera Cloud)</td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-03</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              Partly fixed in 6c7ce1d: the bar is icon-only and 106 px tall,
+              down from about 210. Test: &quot;keeps the bulk bar to
+              icons…&quot;. The list still shifts when the bar appears, which is
+              the data table&#x27;s: lane 01, handoff item 2. Row HK-S1-34.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-04</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              Occupancy under the room is fixed in 6c7ce1d. Test: &quot;says on
+              a phone whether anybody is in the room…&quot;. The card layout is
+              proposed, row HK-S1-39.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-05</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in 6c7ce1d. The Dirty, Clean and Inspected tiles are hidden
+              on a phone because the chips already show them. Spec:
+              housekeeping-services-ux.spec.ts.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-06</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in 6c7ce1d. It is now a row-menu item; the inline link stays
+              on desktop and for viewers without a menu. Test: &quot;reaches
+              Report a problem from the row menu…&quot;.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-07</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              Filters in the address and back to the origin: proposed row
+              HK-S1-38 (needs a decision on the address shape).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-08</td>
+            <td>slows me down</td>
+            <td class="c already-fixed">already fixed</td>
+            <td>
+              already fixed by PR #97 (e156cb2, migration 012200). With 42 rooms
+              on my local build the page took 0.49 to 0.75 s over four fetches,
+              against 2.0 to 2.5 s on staging in the audit. This is a dev server
+              on a loaded machine, not staging, so it supports the claim but
+              does not prove it.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-09</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in 8ba4f2c. The drawing is dropped below sm and the heading
+              wraps whole. The side drawer was 75% wide on phones because
+              data-[side=end]:w-3/4 outranked w-full; it is now full width. Row
+              MT-S1-41. Spec screenshots checked.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-10</td>
+            <td>slows me down</td>
+            <td class="c not-built">not built</td>
+            <td>
+              not built (deferred rows GX-DEF-02, MT-DEF-15), plus lane 01,
+              handoff item 4.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-11</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              proposed, rows MT-S1-42 and GX-S1-30. Approved rows MT-S1-12 and
+              GX-S1-12 say non-managers cannot move a request, so this needs a
+              policy change and the owner.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in af1f160. Tabs share the width; Open, Resolved, All. Spec
+              at 375 px in English and Arabic. Row GX-S1-28 edited.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in af1f160. Start, In progress and New request are
+              consistent, in sentence case, in English and Turkish. Resolved is
+              kept because it is the stored status. Test:
+              guest-experience-copy.test.ts. Row GX-S1-29.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in d6d8bf5. Assignee and priority show as text, with one
+              notice at the top. Test: maintenance-request-sheet.test.tsx. Row
+              MT-S1-40.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in d6d8bf5. The drawer now reads the existing
+              outOfOrderImpact, which nothing used before, through a new
+              loadOutOfOrderImpact server action. The guest and departure day
+              show before the first press, and that press goes ahead. Row
+              MT-S2-37.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-16</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>proposed, row HK-S1-37 (Mews, Cloudbeds).</td>
+          </tr>
+          <tr>
+            <td class="t">HOUSEKEEPING-17</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              lane 01 closed the handoff: DataTable rowLabel gives each tick its
+              room name; useTableLabels returns one object.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>portal-placeholders</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-01</td>
+            <td>slows me down</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision. Decision needed: keep or hide the unbuilt Food and
+              Beverage and Inventory rail entries, which ADR 0056 offers on
+              purpose. I hid nothing. As a tweak, the sidebar (dc1f69f) and the
+              chips layout mark those two &quot;Soon&quot; (tr
+              &quot;Yakında&quot;, ar &quot;قريبًا&quot;). The phone bottom dock
+              is not marked: a tile has no room for a third line. Handed to lane
+              01.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-02</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (dc1f69f). PlannedScreen now reads &quot;Coming later&quot;,
+              then &quot;Not available yet.&quot;, then what comes first, then a
+              &quot;Go to Today&quot; button that keeps ?property=. Wording is
+              in en/tr/ar. F&amp;B says it comes after Inventory is in use and a
+              Guest&#x27;s Folio can take charges. Inventory says it is built in
+              a later release and needs no setup on your side. Test:
+              screen-icons.test.tsx &quot;PORTAL-02&quot; plus the
+              Planned-screen browser test.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-03</td>
+            <td>polish</td>
+            <td class="c already-fixed">already fixed</td>
+            <td>
+              already fixed by lane 01 (SHELL-08, OA-S5-19): no handover link,
+              no &quot;Blueprint 5.x&quot;. I reproduced it as gone on the real
+              Planned screen, with no github link in main.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-04</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (dc1f69f), with a better line than suggested. A line under
+              Sign in says &quot;Forgot your password, or can&#x27;t sign in?
+              Contact Prizic support.&quot; The audit&#x27;s &quot;Ask your
+              Property&#x27;s administrator&quot; would be false: no
+              password-recovery flow exists (OA-NB-02), and the refusal copy
+              already says Prizic support (OA-S5-06).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-05</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (1fb8e1f). Language menu items are max-md:min-h-11 (they
+              were 32 px under a mouse at 375 px; touch devices already got 44).
+              The 404 button is 44 px or more. The &quot;Forgot your
+              password?&quot; link is removed (see PORTAL-08).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-06</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (1fb8e1f). The 404 is drawn in the same auth frame
+              (wordmark, language menu). The tab reads &quot;This page
+              doesn&#x27;t exist · Ranza&quot;; a &lt;title&gt; element in the
+              page does this, because Next ignores not-found metadata (the tab
+              stayed &quot;Ranza&quot;). The button is &quot;Sign in&quot; when
+              signed out and &quot;Go to my stay&quot; when signed in.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-07</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (1fb8e1f). Help is told its route, and the reset page
+              carries its encoded query. /reset-password?token=… switches to
+              /tr/reset-password?token=… with the token intact.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-08</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (1fb8e1f), taking the audit&#x27;s first option. The link is
+              dropped and the one line now reads &quot;No account, or forgot
+              your password? Ask the front desk at your property.&quot; The
+              /forgot-password and /reset-password routes stay for bookmarks.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">PORTAL-09</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed (1fb8e1f). I seeded a Resident login and reproduced it. The
+              Portal viewer now carries name, which is the account&#x27;s name,
+              else the part of the email before the @. The email sits beneath it
+              and is never printed twice. The Stay has no name, and ADR 0009
+              keeps Guest rows away from a Resident, so the account name is the
+              best source.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>reservations</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-01</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, b6c9efa. Found at the module: suggestions fold accents and
+              case, match the last 10 digits, and also run from the phone field.
+              Booking now takes existingGuestId, which is refused for another
+              Organization&#x27;s Guest. Integration tests: 4 of 5 fail on
+              origin/main&#x27;s module.ts and pass now.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-02</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed in part, b6c9efa. The form shows the night count, &quot;N of
+              M units free for these nights&quot;, and a nightly price on each
+              unit row. Unit-type chips are proposed (RG-DEF-12).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-03</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, b6c9efa. The price quote is in the sticky footer beside the
+              button.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-04</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, b6c9efa. Email and telephone each have their own hint.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-05</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. Focus returns to the row&#x27;s menu button.
+              Playwright goes red without the effect.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. A late booking opens Change booking with a
+              &quot;was due&quot; notice and a Mark as no-show button, not a red
+              error.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-07</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. New Overdue tab holds overdue stays and bookings
+              whose arrival passed, and the chip reads &quot;Did not arrive · N
+              days&quot; with the due date. Unit tests.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-08</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. A requested booking says to cancel it and book
+              again. The in-house row menu gains &quot;Check out (opens
+              Departures)&quot;.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-09</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. The note is three lines at most, the year is
+              dropped when it is the Property&#x27;s own, and the chip is whole
+              at 1440 px.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-10</td>
+            <td>slows me down</td>
+            <td class="c proposed">proposed</td>
+            <td>
+              Card layout below 768 px is a new interaction: proposed row
+              OA-S5-22; the table keeps its edge fade.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-11</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, b6c9efa. The footer actions wrap and the form is
+              grid-cols-1. Playwright at 375 px goes red without the wrap fix.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-12</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. Departing today is strictly due today; overdue
+              stays are under Overdue.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-13</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed in part. The Check out link to Departures is built. In-place
+              check-out and a balance on the row are proposed (RG-DEF-13), and
+              the balance waits on lane 07&#x27;s &quot;owed&quot; function and
+              RANZ-56. Handoff to 07 written.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-14</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, 7cac0d0/c2cc9d5. rulerLabelStep gives equal gaps and a
+              label on the last day. Unit test goes red without it, plus a
+              screenshot.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-15</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed in part, e4282e4. The list opens in attention order.
+              Remembering the last tab and page size is proposed (RG-DEF-14).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-16</td>
+            <td>polish</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed at desktop widths, e4282e4. The placeholder is &quot;Name,
+              room, phone, date&quot; and reads whole at 1280 px. The 375 px
+              remainder is lane 01.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-17</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              lane 01 closed the handoff: ScreenDenied has one shape naming the
+              page and the permission.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">RESERVATIONS-18</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed, e4282e4. Turkish uses &quot;birim&quot; throughout and the
+              Arabic guest-name label is corrected.
+            </td>
+          </tr>
+        </table>
+      </div>
+      <h2>shell-access</h2>
+      <div class="wrap">
+        <table>
+          <tr>
+            <th>ID</th>
+            <th>Severity</th>
+            <th>Disposition</th>
+            <th>What was done</th>
+          </tr>
+          <tr>
+            <td class="t">SHELL-01</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Rows are tighter at 960 px height or less, and a fade plus
+              chevron shows when more is below. A short Owner screen still
+              scrolls but now says so. shell-navigation.test.tsx,
+              shell-access.spec.ts at 878 px.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-02</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              split. The cue and the active item scrolled into view are fixed.
+              The &quot;More&quot; sheet is proposed (OA-S5-20).
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-03</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. An unknown path opens inside the shell with a back button
+              and Go to Today. A locale-less path redirects, and /front-office
+              opens its first page. The HTTP status stays 200 because pages
+              stream.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-04</td>
+            <td>slows me down</td>
+            <td class="c partly-fixed">partly fixed</td>
+            <td>
+              fixed. Go to Today button, names the page, and says &quot;Ask
+              whoever manages staff in your Organization&quot;. I adopted lane
+              08&#x27;s wording for the tail.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-05</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. All refusals, including Finance and the audit log, share
+              one shape.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-06</td>
+            <td>slows me down</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Groups start open and a closed group is remembered per
+              device.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-07</td>
+            <td>causes errors</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. A 401 on any read opens a non-dismissable &quot;signed
+              out&quot; dialog that signs in and returns to the address.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-08</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Planned screens say &quot;Coming later&quot; with no link
+              to a handover note or the blueprint.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-09</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. HR gets Briefcase and Inventory gets Warehouse. A unit test
+              asserts every icon is unique.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-10</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. The wait counts down and the button stays disabled. Screen
+              readers hear the refusal once.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-11</td>
+            <td>slows me down</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision. No support contact or staff password-reset flow
+              exists in the repo (OA-NB-02). Telling someone to &quot;ask your
+              Owner&quot; would be false.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-12</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. One account control per layout, and the Security subtitle
+              reads as a sentence.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-13</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>
+              fixed. Numeric keypad by default, with a switch to a backup code
+              and back.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-14</td>
+            <td>polish</td>
+            <td class="c owner-decision">owner decision</td>
+            <td>
+              owner decision. Verified against migration 20260916011100: only
+              the Owner holds branding.manage. I corrected the sentence in ADR
+              0056, which is Proposed, and it now carries a dated Correction
+              note. Whether a Manager should reach Branding is Seif&#x27;s call.
+            </td>
+          </tr>
+          <tr>
+            <td class="t">SHELL-15</td>
+            <td>polish</td>
+            <td class="c fixed">fixed</td>
+            <td>fixed. The current chip is scrolled into view.</td>
+          </tr>
+        </table>
+      </div>
+    </main>
+  </body>
+</html>

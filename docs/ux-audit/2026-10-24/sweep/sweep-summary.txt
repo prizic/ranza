@@ -1,0 +1,10 @@
+Owner: admitted 21/23; unexpectedly admitted: none; unexpectedly refused: none
+Manager: admitted 20/23; unexpectedly admitted: none; unexpectedly refused: none
+Front desk: admitted 12/23; unexpectedly admitted: none; unexpectedly refused: none
+Finance: admitted 7/23; unexpectedly admitted: none; unexpectedly refused: none
+Housekeeping: admitted 5/23; unexpectedly admitted: none; unexpectedly refused: none
+pages loaded 690, admitted 390, 4xx/5xx 0
+horizontal overflow on 0 admitted pages: none
+console errors on 3 admitted pages: guest-experience: Failed to load resource: net::ERR_NETWORK_CHANGED | departures: Failed to load resource: net::ERR_NETWORK_CHANGED | today: Failed to load resource: net::ERR_NETWORK_CHANGED
+admitted English pages with no Back link (not Today): none
+admitted pages slower than 4 s: 64
