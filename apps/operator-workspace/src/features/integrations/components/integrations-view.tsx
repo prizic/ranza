@@ -48,26 +48,40 @@ export function IntegrationsView({
   const count = (health: "delivering" | "failing") =>
     endpoints.endpoints.filter((endpoint) => endpoint.health === health).length;
 
+  // Nothing connected and nothing failed: four tiles of zero would sit between
+  // the person and the one thing this screen is for, so it leads with that
+  // (CONFIGURATION-10). The sections keep their places in the tree, and only
+  // their order on the page changes, because the dialog that adds an endpoint
+  // holds the new secret in its state and cannot be moved or remounted.
+  const firstSetup =
+    endpoints.endpoints.length === 0 && openTotal === 0 && failures.total === 0;
+
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-        <Stat
-          icon={Network}
-          label={t("endpointsCount")}
-          value={endpoints.endpoints.length}
-        />
-        <Stat
-          icon={CheckCircle2}
-          label={t("deliveringCount")}
-          value={count("delivering")}
-        />
-        <Stat
-          icon={AlertTriangle}
-          label={t("failingCount")}
-          value={count("failing")}
-        />
-        <Stat icon={XCircle} label={t("openFailuresCount")} value={openTotal} />
-      </div>
+    <div className="flex flex-col gap-8">
+      {firstSetup ? null : (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+          <Stat
+            icon={Network}
+            label={t("endpointsCount")}
+            value={endpoints.endpoints.length}
+          />
+          <Stat
+            icon={CheckCircle2}
+            label={t("deliveringCount")}
+            value={count("delivering")}
+          />
+          <Stat
+            icon={AlertTriangle}
+            label={t("failingCount")}
+            value={count("failing")}
+          />
+          <Stat
+            icon={XCircle}
+            label={t("openFailuresCount")}
+            value={openTotal}
+          />
+        </div>
+      )}
 
       <section
         aria-labelledby="failed-operations-heading"
@@ -111,7 +125,10 @@ export function IntegrationsView({
         />
       </section>
 
-      <section aria-labelledby="endpoints-heading" className="space-y-4">
+      <section
+        aria-labelledby="endpoints-heading"
+        className={`space-y-4 ${firstSetup ? "order-first" : ""}`}
+      >
         {/* One dialog, in one place, whether or not there are endpoints yet: the
             signing secret of a new one lives in its state, and moving it in the
             tree when the first endpoint appears would drop the only copy. */}

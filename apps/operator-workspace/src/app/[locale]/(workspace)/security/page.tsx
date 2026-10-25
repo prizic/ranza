@@ -29,6 +29,8 @@ export default async function SecurityPage({
       <p className="text-sm text-muted-foreground">{t("securitySummary")}</p>
 
       <TwoFactorPanel enabled={viewer.twoFactorEnabled} />
+
+      <p className="text-sm text-muted-foreground">{t("securityMissing")}</p>
     </>
   );
 }

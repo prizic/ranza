@@ -4,6 +4,7 @@ import {
   type SupportedLocale,
 } from "@ranza/i18n";
 import type { PickerOption } from "./components/searchable-picker";
+import { TIME_ZONE_CITIES } from "./time-zone-cities";
 import { TIME_ZONE_COUNTRY } from "./time-zone-countries";
 
 /**
@@ -15,9 +16,29 @@ import { TIME_ZONE_COUNTRY } from "./time-zone-countries";
  * to three capital letters. These only turn a code into words.
  */
 
+/**
+ * A select whose closed value wraps rather than being cut with an ellipsis, for
+ * the choices whose words are long ("Use the Organization's (When its request
+ * is done)") and are read on a phone without opening the list.
+ */
+export const WRAPPING_TRIGGER =
+  "h-auto min-h-9 max-w-full py-2 text-start whitespace-normal data-[size=default]:h-auto *:data-[slot=select-value]:line-clamp-none";
+
 /** `Europe/Istanbul` → `Istanbul`, the part a person recognises. */
 export function zoneCity(zone: string): string {
   return (zone.split("/").at(-1) ?? zone).replaceAll("_", " ");
+}
+
+/**
+ * The same city in the reader's language where there is one to give (Arabic and
+ * Turkish), so the country beside it is not the only word in their script.
+ */
+export function localizedZoneCity(
+  zone: string,
+  locale: SupportedLocale,
+): string {
+  if (locale === "en") return zoneCity(zone);
+  return TIME_ZONE_CITIES[zone]?.[locale] ?? zoneCity(zone);
 }
 
 /** The country a zone is in, named in the reader's language, or nothing. */
@@ -56,7 +77,9 @@ const COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
 export function timezoneLabel(zone: string, locale: SupportedLocale): string {
   if (zone === "UTC") return "UTC";
   const country = countryOf(zone, locale);
-  return country ? `${zoneCity(zone)}, ${country}` : zone.replaceAll("_", " ");
+  if (!country) return zone.replaceAll("_", " ");
+  const comma = locale === "ar" ? "، " : ", ";
+  return `${localizedZoneCity(zone, locale)}${comma}${country}`;
 }
 
 /**
@@ -70,6 +93,7 @@ function timezoneKeywords(zone: string, locale: SupportedLocale): string[] {
     zone,
     zone.replaceAll("_", " "),
     zoneCity(zone),
+    localizedZoneCity(zone, locale),
     ...(code
       ? [
           code,

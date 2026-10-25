@@ -38,6 +38,8 @@ import {
   setInspection,
   type InspectionOutcome,
 } from "../../../server/housekeeping";
+import { WRAPPING_TRIGGER } from "../../configuration/options";
+import { DefaultReachLines } from "../../configuration/components/default-reach-lines";
 import { HousekeepingStatusBadge } from "./status";
 
 type PropertyChoice = "default" | "on" | "off";
@@ -202,7 +204,10 @@ export function InspectionSettings({
             onValueChange={(value) => setOrganizationDraft(value === "on")}
             value={organizationValue ? "on" : "off"}
           >
-            <SelectTrigger id="inspection-organization">
+            <SelectTrigger
+              className={WRAPPING_TRIGGER}
+              id="inspection-organization"
+            >
               <SelectValue>{onOff(organizationValue)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -228,7 +233,10 @@ export function InspectionSettings({
             onValueChange={(value) => setPropertyDraft(value as PropertyChoice)}
             value={propertyValue}
           >
-            <SelectTrigger id="inspection-property">
+            <SelectTrigger
+              className={WRAPPING_TRIGGER}
+              id="inspection-property"
+            >
               {/* Named here rather than left to the closed Select to find:
                   on first render it has no mounted item to read a label
                   from, and would show nothing. */}
@@ -339,6 +347,7 @@ export function InspectionSettings({
                 to: onOff(organizationValue),
               })}
             </DialogDescription>
+            <DefaultReachLines reach={settings.defaultReach} />
           </DialogBody>
           <DialogActions>
             <CancelButton onClick={() => setConfirming(false)} type="button">

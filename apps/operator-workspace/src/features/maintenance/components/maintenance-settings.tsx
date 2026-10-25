@@ -26,9 +26,12 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  cn,
   dialogFrameClassName,
 } from "@ranza/ui";
 import { saveMaintenanceSettings } from "../../../server/maintenance";
+import { WRAPPING_TRIGGER } from "../../configuration/options";
+import { DefaultReachLines } from "../../configuration/components/default-reach-lines";
 import { OutcomeMessage } from "./outcome-message";
 import { useCommand } from "./use-command";
 
@@ -172,14 +175,10 @@ export function MaintenanceSettingsCard({
                   value={encode(inherited)}
                 >
                   <SelectTrigger
-                    className="w-full min-w-0"
+                    className={cn("w-full min-w-0", WRAPPING_TRIGGER)}
                     id={`${question}-organization`}
                   >
-                    <SelectValue>
-                      <span className="truncate">
-                        {word(question, inherited)}
-                      </span>
-                    </SelectValue>
+                    <SelectValue>{word(question, inherited)}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {choices(question).map((choice) => (
@@ -206,13 +205,11 @@ export function MaintenanceSettingsCard({
                   value={encode(own)}
                 >
                   <SelectTrigger
-                    className="w-full min-w-0"
+                    className={cn("w-full min-w-0", WRAPPING_TRIGGER)}
                     id={`${question}-property`}
                   >
                     <SelectValue>
-                      <span className="truncate">
-                        {own === null ? inheritLabel : word(question, own)}
-                      </span>
+                      {own === null ? inheritLabel : word(question, own)}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -290,15 +287,20 @@ export function MaintenanceSettingsCard({
             </DialogDescription>
             <ul className="m-0 grid list-none gap-2 p-0 text-sm">
               {changedForOrganization.map((question) => (
-                <li key={question}>
-                  {t("orgChangeLine", {
-                    setting: labels[question],
-                    from: word(
-                      question,
-                      settings.organizationDefault[question],
-                    ),
-                    to: word(question, organizationDraft[question]),
-                  })}
+                <li className="grid gap-1" key={question}>
+                  <p className="m-0">
+                    {t("orgChangeLine", {
+                      setting: labels[question],
+                      from: word(
+                        question,
+                        settings.organizationDefault[question],
+                      ),
+                      to: word(question, organizationDraft[question]),
+                    })}
+                  </p>
+                  <DefaultReachLines
+                    reach={settings.defaultReach?.[question] ?? null}
+                  />
                 </li>
               ))}
             </ul>

@@ -85,7 +85,7 @@ export function ElsewhereCard({
       : null,
     showPeople
       ? {
-          href: localizeHref(locale, "people"),
+          href: `${localizeHref(locale, "people")}?property=${propertyId}`,
           title: t("navigation.people"),
           hint: t("configuration.peopleHint"),
         }

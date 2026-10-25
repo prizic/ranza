@@ -86,6 +86,8 @@ export interface Messages {
   twoFactorOn: string;
   twoFactorOff: string;
   twoFactorSummary: string;
+  /** What this page does not hold yet, and whom to ask. */
+  securityMissing: string;
   enable: string;
   disable: string;
   confirmWithPassword: string;
@@ -976,6 +978,12 @@ export interface Messages {
     confirmOrgTitle: string;
     /** `{setting}`, `{from}`, `{to}`: what changes for every Property. */
     orgChangeLine: string;
+    /** `{count}` Properties that follow the Organization's answer and will change. */
+    reachFollowing: string;
+    /** `{count}` Properties with an answer of their own, named in `{names}`. */
+    reachKeeping: string;
+    /** `{names}` listed, and `{count}` more. */
+    reachMore: string;
     confirmOrgChange: string;
     keepEditing: string;
     saving: string;
@@ -1179,18 +1187,36 @@ export interface Messages {
     /** What a record names a colour or a logo that was not set. */
     defaultTheme: string;
     colorInvalid: string;
-    /** `{foreground}`: the word below for the text on the colour; `{ratio}` its contrast. */
+    /** `{foreground}`: the word below for the text on the colour. */
     colorReadable: string;
-    /** `{ratio}`: the colour's own contrast against white, where it reads. */
     colorTextSame: string;
-    /** `{shade}`, a hex value, and `{ratio}`: the shade's contrast against white. */
+    /** `{shade}`, a hex value. */
     colorTextDarker: string;
+    colorDetails: string;
+    /** `{foreground}`, `{ratio}`: the text on the colour and its contrast. */
+    colorDetailsFill: string;
+    /** `{ratio}`: the text shade's contrast against white. */
+    colorDetailsText: string;
     swatchFill: string;
     swatchText: string;
     foreground: Record<"white" | "black", string>;
     logoTitle: string;
     logoHint: string;
     logoLabel: string;
+    logoChoose: string;
+    logoChange: string;
+    logoNoFile: string;
+    logoReading: string;
+    /** `{name}`, `{width}`, `{height}`, `{size}`: what was chosen, as read from the file. */
+    logoFacts: string;
+    logoUsable: string;
+    /** Why Save is off while a chosen file cannot be used. */
+    logoBlocksSave: string;
+    /** `{size}`, `{maximum}`; `{height}`, `{minimum}`; `{width}`, `{height}`, `{maximum}`: the number that broke the rule. */
+    logoChosenErrors: Record<
+      "too_large" | "too_small" | "dimensions_too_large",
+      string
+    >;
     logoCurrent: string;
     logoNone: string;
     logoRemove: string;
@@ -1208,16 +1234,25 @@ export interface Messages {
     >;
     previewTitle: string;
     previewHint: string;
-    previewHeader: string;
+    previewStay: string;
+    /** Where the colour and the logo appear in the Portal, and where they do not. */
+    previewWhere: string;
     previewButton: string;
     previewLink: string;
-    previewActive: string;
     save: string;
     discard: string;
     saving: string;
     saved: string;
     reset: string;
     resetDone: string;
+    resetTitle: string;
+    resetConsequence: string;
+    resetLogoLine: string;
+    /** `{color}`: the saved colour that goes. */
+    resetColorLine: string;
+    resetConfirm: string;
+    resetKeep: string;
+    resetDraftLine: string;
     refused: string;
     error: string;
     needsReachTitle: string;
@@ -3135,6 +3170,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     twoFactorOff: "Kapalı",
     twoFactorSummary:
       "Açıkken parolanızın yanında kimlik doğrulama uygulamanızdan bir kod istenir.",
+    securityMissing:
+      "Parola değiştirme ve diğer cihazlardaki oturumları kapatma henüz kullanılamıyor. Parolanızı sıfırlatmak için Prizic desteğiyle iletişime geçin.",
     enable: "Aç",
     disable: "Kapat",
     confirmWithPassword: "Parolanızla onaylayın",
@@ -4517,7 +4554,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Ekibinizin gördüğü ad. Organizasyonunuzun tüm tesisleri için geçerlidir.",
       organizationName: "Organizasyon adı",
       organizationNeedsReach:
-        "Organizasyonu yalnızca tüm tesislere erişimi olan biri yeniden adlandırabilir.",
+        "Bu, tüm tesisler için geçerlidir; bu yüzden yalnızca Sahip veya tüm tesislere erişimi olan bir rol değiştirebilir.",
       propertyTitle: "Tesis",
       propertyHint: "Bu tesisin adı ve hesap tuttuğu para birimi.",
       propertyName: "Tesis adı",
@@ -4556,10 +4593,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "Tüm tesisler için kaydet",
       discardChanges: "Değişiklikleri at",
       draftNote: "Henüz kaydedilmedi.",
-      confirmOrgTitle: "Bu, tüm tesisler için değiştirilsin mi?",
+      confirmOrgTitle: "Organizasyon varsayılanı değiştirilsin mi?",
       orgChangeLine:
-        "Bu, {setting} ayarını tüm tesisler için değiştirir: “{from}” iken “{to}” olur.",
-      confirmOrgChange: "Tüm tesisler için değiştir",
+        "{setting} için Organizasyon varsayılanı “{from}” iken “{to}” olur.",
+      reachFollowing:
+        "{count, plural, =0 {Varsayılanı izleyen tesis yok; hiçbiri değişmez.} other {Varsayılanı izleyen # tesis değişecek.}}",
+      reachKeeping:
+        "{count, plural, other {Kendi yanıtı olan # tesis değişmez: {names}.}}",
+      reachMore: "{names} ve {count} tesis daha",
+      confirmOrgChange: "Varsayılanı değiştir",
       keepEditing: "Düzenlemeye devam et",
       saving: "Kaydediliyor…",
       saved: "Kaydedildi",
@@ -4795,11 +4837,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       defaultTheme: "Varsayılan tema",
       colorInvalid: "Rengi #0f5132 gibi, # ile ve altı hanede yazın.",
       colorReadable:
-        "Renkli yüzeylerdeki yazı {foreground}; karşıtlığı {ratio} : 1.",
-      colorTextSame:
-        "Bağlantılar ve yazılar rengin kendisiyle çizilir; beyaz zeminde karşıtlığı {ratio} : 1.",
+        "Düğmeler ve dolgulu alanlar bu rengi {foreground} yazıyla kullanır.",
+      colorTextSame: "Bağlantılar ve yazılar rengin kendisini kullanır.",
       colorTextDarker:
-        "Bağlantılar ve yazılar beyaz zeminde okunabilsin diye aynı tonun daha koyu bir gölgesiyle çizilir: {shade} ({ratio} : 1).",
+        "Bağlantılar ve yazılar, beyaz zeminde okunabilsin diye biraz daha koyu bir tonu ({shade}) kullanır.",
+      colorDetails: "Karşıtlık ayrıntıları",
+      colorDetailsFill:
+        "Dolgulu alanlardaki yazı {foreground}, karşıtlık {ratio} : 1.",
+      colorDetailsText: "Beyaz zeminde bağlantı ve yazı: {ratio} : 1.",
       swatchFill: "Düğmeler ve dolgular",
       swatchText: "Bağlantılar ve yazı",
       foreground: { white: "beyaz", black: "siyah" },
@@ -4807,6 +4852,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       logoHint:
         "PNG, JPEG veya WebP; en fazla 512 KB, en az 128 piksel yüksekliğinde. SVG kabul edilmez, çünkü kod taşıyabilir.",
       logoLabel: "Logo dosyası",
+      logoChoose: "Dosya seç",
+      logoChange: "Başka dosya seç",
+      logoNoFile: "Dosya seçilmedi",
+      logoReading: "Görsel denetleniyor…",
+      logoFacts: "{name}, {width} × {height} piksel, {size}",
+      logoUsable: "Bu görsel kullanılabilir.",
+      logoBlocksSave:
+        "Kaydetmek için başka bir logo seçin veya seçtiğiniz dosyadan vazgeçin.",
+      logoChosenErrors: {
+        too_large: "Bu dosya {size}; logo en fazla {maximum} olabilir.",
+        too_small:
+          "Bu görsel {height} piksel yüksekliğinde; logo en az {minimum} piksel yüksekliğinde olmalı.",
+        dimensions_too_large:
+          "Bu görsel {width} × {height} piksel; hiçbir kenarı {maximum} pikseli geçemez.",
+      },
       logoCurrent: "Geçerli logo",
       logoNone: "Logo yok: Ranza'nın işareti gösterilir.",
       logoRemove: "Logoyu kaldır",
@@ -4824,18 +4884,27 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Görselin genişliği ve yüksekliği 4096 pikseli geçemez.",
       },
       previewTitle: "Önizleme",
-      previewHint:
-        "Misafir portalının üst çubuğu ve denetimleri böyle görünür.",
-      previewHeader: "Portal üst çubuğu",
+      previewHint: "Misafir portalı misafirlerinize böyle görünür.",
+      previewStay: "Konaklamam",
+      previewWhere:
+        "Renginiz yan menüyü ve düğmeleri boyar, logonuz üst çubukta durur. Yan menünün başındaki işaret Ranza'nın kalır. Misafirler değişikliği portalı bir sonraki açışlarında görür; portalın giriş sayfası Ranza'nın kalır.",
       previewButton: "Birincil düğme",
       previewLink: "Bir bağlantı",
-      previewActive: "Etkin öğe",
       save: "Kaydet",
       discard: "Vazgeç",
       saving: "Kaydediliyor…",
       saved: "Kaydedildi. Misafirler sayfayı bir sonraki açışlarında görür.",
       reset: "Varsayılana döndür",
       resetDone: "Varsayılan tema geri geldi.",
+      resetTitle: "Ranza temasına dönülsün mü?",
+      resetConsequence:
+        "Tüm tesislerdeki misafirler, portalı bir sonraki açışlarında Ranza'nın işaretini ve yeşil temasını görür.",
+      resetLogoLine:
+        "Kayıtlı logo kaldırılır; yeniden kullanmak için tekrar yüklemeniz gerekir.",
+      resetColorLine: "Kayıtlı renk {color} kaldırılır.",
+      resetConfirm: "Markayı sıfırla",
+      resetKeep: "Markayı koru",
+      resetDraftLine: "Kaydedilmemiş değişiklikler de silinir.",
       refused:
         "Bu değişiklik yapılamadı. Yetkiniz değişmiş olabilir; sayfayı yenileyin.",
       error: "Bir şeyler ters gitti. Yeniden deneyin.",
@@ -5442,7 +5511,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       settingRefused:
         "Bu ayar değiştirilemedi. Şu an gördüğünüz, geçerli olandır.",
       defaultNeedsReach:
-        "Organizasyon ayarını yalnızca tüm tesislere erişimi olan biri değiştirebilir.",
+        "Bu, tüm tesisler için geçerlidir; bu yüzden yalnızca Sahip veya tüm tesislere erişimi olan bir rol değiştirebilir.",
       awaitingInspection: "Kontrol bekliyor",
       inspectionReadOnlyOn:
         "Bu tesiste temizlenen bir oda, satışa hazır sayılmadan önce kontrol bekler. Bunu bir yönetici değiştirebilir.",
@@ -5547,12 +5616,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "Tüm tesisler için kaydet",
       unsavedChanges: "Henüz kaydedilmemiş değişiklikleriniz var.",
       discardChanges: "Değişiklikleri at",
-      confirmOrgTitle: "Bunu tüm tesisler için değiştirelim mi?",
+      confirmOrgTitle: "Organizasyon varsayılanı değiştirilsin mi?",
       orgChangeLine:
-        "Bu, {setting} ayarını tüm tesisler için değiştirir: “{from}” yerine “{to}”.",
+        "{setting} için Organizasyon varsayılanı “{from}” yerine “{to}” olur.",
       orgChangeNote:
-        "Kendi yanıtı olan bir tesis onu korur. Değişiklik bir sonraki harekete uygulanır; zaten hizmet dışı olan odalara asla uygulanmaz.",
-      confirmOrgChange: "Tüm tesisler için değiştir",
+        "Değişiklik bir sonraki harekete uygulanır; zaten hizmet dışı olan odalara asla uygulanmaz.",
+      confirmOrgChange: "Varsayılanı değiştir",
       keepEditing: "Düzenlemeye devam et",
       whatIsWrong: "Sorun ne?",
       whatPlaceholder: "Duş gideri tıkalı",
@@ -5612,7 +5681,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       no: "Hayır",
       settingRefused: "Ayar kaydedilmedi.",
       defaultNeedsReach:
-        "Varsayılanı değiştirmek için tüm tesislere erişim gerekir.",
+        "Bu, tüm tesisler için geçerlidir; bu yüzden yalnızca Sahip veya tüm tesislere erişimi olan bir rol değiştirebilir.",
       settingReadOnly: "Bunu değiştirmek için bakım yönetme yetkisi gerekir.",
       reportProblem: "Sorun bildir",
       equipmentTab: "Ekipman",
@@ -6527,7 +6596,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Organizasyonunuzun aboneliği bunu içermiyor, bu yüzden organizasyonda kimse açamaz. Organizasyonunuzun bir Sahibi, eklenmesi için Prizic ile görüşebilir.",
       notEnabledTitle: "Bu modül bu tesiste açık değil",
       notEnabledDescription:
-        "Organizasyonunuzda var, ancak bu tesiste açılmamış. Üstteki menüden başka bir tesis seçin. Organizasyonunuzun bir Sahibi, bu tesiste açılması için Prizic'ten isteyebilir.",
+        "Organizasyonunuzda var, ancak bu tesiste açılmamış. Birden fazla tesiste çalışıyorsanız üstteki menüden başka bir tesis seçin. Organizasyonunuzun bir Sahibi, bu tesiste açılması için Prizic'ten isteyebilir.",
       noPermissionTitle: "Rolünüz bu sayfayı açamıyor",
       noPermissionDescription:
         "{page} için “{permission}” yetkisi gerekiyor ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
@@ -6641,6 +6710,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     twoFactorOff: "Off",
     twoFactorSummary:
       "When on, signing in asks for a code from your authenticator app as well as your password.",
+    securityMissing:
+      "Changing your password and signing out other devices are not available yet. To have a password reset, contact Prizic support.",
     enable: "Turn on",
     disable: "Turn off",
     confirmWithPassword: "Confirm with your password",
@@ -8040,7 +8111,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "The name your team sees. It applies to every Property in your Organization.",
       organizationName: "Organization name",
       organizationNeedsReach:
-        "Only someone who reaches every Property can rename the Organization.",
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
       propertyTitle: "Property",
       propertyHint:
         "What this Property is called and the currency it trades in.",
@@ -8080,10 +8151,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "Save for every Property",
       discardChanges: "Discard changes",
       draftNote: "Not saved yet.",
-      confirmOrgTitle: "Change this for every Property?",
+      confirmOrgTitle: "Change the Organization's default?",
       orgChangeLine:
-        "This changes {setting} for every Property: from “{from}” to “{to}”.",
-      confirmOrgChange: "Change for every Property",
+        "The Organization's default for {setting} changes from “{from}” to “{to}”.",
+      reachFollowing:
+        "{count, plural, =0 {No Property follows the default, so none of them changes.} one {# Property follows the default and will change.} other {# Properties follow the default and will change.}}",
+      reachKeeping:
+        "{count, plural, one {# Property keeps its own answer and does not change: {names}.} other {# Properties keep their own answer and do not change: {names}.}}",
+      reachMore: "{names} and {count} more",
+      confirmOrgChange: "Change the default",
       keepEditing: "Keep editing",
       saving: "Saving…",
       saved: "Saved",
@@ -8324,11 +8400,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       colorEmpty: "No colour set: Ranza's own theme is used.",
       defaultTheme: "Default theme",
       colorInvalid: "Write the colour like #0f5132, with the # and six digits.",
-      colorReadable: "Text on filled surfaces is {foreground}, at {ratio} : 1.",
-      colorTextSame:
-        "Links and text use the colour itself, which reads on white at {ratio} : 1.",
+      colorReadable:
+        "Buttons and filled areas use this colour with {foreground} text.",
+      colorTextSame: "Links and text use the colour itself.",
       colorTextDarker:
-        "Links and text use a darker shade of the same hue so they stay readable on white: {shade} ({ratio} : 1).",
+        "Links and text use a slightly darker shade ({shade}) so they stay readable on white.",
+      colorDetails: "Contrast details",
+      colorDetailsFill: "Text on filled areas is {foreground}, at {ratio} : 1.",
+      colorDetailsText: "Links and text on white: {ratio} : 1.",
       swatchFill: "Buttons and fills",
       swatchText: "Links and text",
       foreground: { white: "white", black: "black" },
@@ -8336,6 +8415,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       logoHint:
         "PNG, JPEG or WebP, up to 512 KB and at least 128 px tall. SVG is not accepted because it can carry code.",
       logoLabel: "Logo file",
+      logoChoose: "Choose a file",
+      logoChange: "Choose another file",
+      logoNoFile: "No file chosen",
+      logoReading: "Checking the image…",
+      logoFacts: "{name}, {width} × {height} px, {size}",
+      logoUsable: "This image can be used.",
+      logoBlocksSave:
+        "To save, choose a different logo or discard the one you chose.",
+      logoChosenErrors: {
+        too_large: "This file is {size}; a logo can be at most {maximum}.",
+        too_small:
+          "This image is {height} px tall; a logo must be at least {minimum} px tall.",
+        dimensions_too_large:
+          "This image is {width} × {height} px; neither side can be over {maximum} px.",
+      },
       logoCurrent: "Current logo",
       logoNone: "No logo: Ranza's mark is shown.",
       logoRemove: "Remove the logo",
@@ -8353,17 +8447,27 @@ export const messages: Record<SupportedLocale, Messages> = {
           "The image cannot be wider or taller than 4096 px.",
       },
       previewTitle: "Preview",
-      previewHint: "How the Guest Portal's header and controls look.",
-      previewHeader: "Portal header",
+      previewHint: "How the Guest Portal looks to your guests.",
+      previewStay: "My stay",
+      previewWhere:
+        "Your colour paints the side menu and the buttons, and your logo sits in the top bar. The mark at the top of the side menu stays Ranza's. Guests see a change the next time they open the Portal; its sign-in page stays Ranza's.",
       previewButton: "Primary button",
       previewLink: "A link",
-      previewActive: "Active item",
       save: "Save",
       discard: "Discard",
       saving: "Saving…",
       saved: "Saved. Guests see it the next time they open a page.",
       reset: "Reset to default",
       resetDone: "Back to the default theme.",
+      resetTitle: "Go back to Ranza's theme?",
+      resetConsequence:
+        "Guests at every Property will see Ranza's mark and green theme the next time they open the Portal.",
+      resetLogoLine:
+        "The saved logo is removed. To use it again you would have to upload it again.",
+      resetColorLine: "The saved colour {color} is removed.",
+      resetConfirm: "Reset the brand",
+      resetKeep: "Keep the brand",
+      resetDraftLine: "Changes you have not saved are discarded too.",
       refused:
         "That change could not be made. Your access may have changed; refresh the page.",
       error: "Something went wrong. Try again.",
@@ -8965,7 +9069,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       settingRefused:
         "That setting couldn't be changed. What you see now is what applies.",
       defaultNeedsReach:
-        "Only someone who reaches every Property can change the Organization's setting.",
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
       awaitingInspection: "Awaiting inspection",
       inspectionReadOnlyOn:
         "A cleaned room at this Property waits for an inspection before it is ready to let. A manager can change this.",
@@ -9070,12 +9174,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "Save for every Property",
       unsavedChanges: "You have changes that are not saved yet.",
       discardChanges: "Discard changes",
-      confirmOrgTitle: "Change this for every Property?",
+      confirmOrgTitle: "Change the Organization's default?",
       orgChangeLine:
-        "This changes {setting} for every Property: from “{from}” to “{to}”.",
+        "The Organization's default for {setting} changes from “{from}” to “{to}”.",
       orgChangeNote:
-        "A Property that has its own answer keeps it. A change applies to the next move, never to a room already out of order.",
-      confirmOrgChange: "Change for every Property",
+        "A change applies to the next move, never to a room already out of order.",
+      confirmOrgChange: "Change the default",
       keepEditing: "Keep editing",
       whatIsWrong: "What is wrong?",
       whatPlaceholder: "The shower drain is blocked",
@@ -9133,7 +9237,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       yes: "Yes",
       no: "No",
       settingRefused: "The setting was not saved.",
-      defaultNeedsReach: "Changing the default needs access to every Property.",
+      defaultNeedsReach:
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
       settingReadOnly:
         "Changing this needs the permission to manage maintenance.",
       reportProblem: "Report a problem",
@@ -10042,7 +10147,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Your Organization's Subscription doesn't include it, so nobody in the Organization can open it. An Owner of your Organization can ask Prizic about adding it.",
       notEnabledTitle: "This module isn't switched on at this Property",
       notEnabledDescription:
-        "Your Organization has it, but this Property doesn't. Choose another Property from the menu at the top. An Owner of your Organization can ask Prizic to switch it on for this Property.",
+        "Your Organization has it, but it isn't switched on at this Property. If you work at more than one Property, choose another from the menu at the top. An Owner of your Organization can ask Prizic to switch it on for this Property.",
       noPermissionTitle: "Your role can't open this page",
       noPermissionDescription:
         "{page} needs “{permission}”, and your role doesn't include it. Ask whoever manages staff in your Organization to add it to your role.",
@@ -10156,6 +10261,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     twoFactorOff: "غير مفعّل",
     twoFactorSummary:
       "عند تفعيله يُطلب رمز من تطبيق المصادقة إلى جانب كلمة المرور.",
+    securityMissing:
+      "تغيير كلمة المرور وإنهاء الجلسات على الأجهزة الأخرى غير متاحين بعد. لإعادة تعيين كلمة المرور تواصل مع دعم Prizic.",
     enable: "تفعيل",
     disable: "إيقاف",
     confirmWithPassword: "أكّد بكلمة المرور",
@@ -11518,7 +11625,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organizationHint: "الاسم الذي يراه فريقك. ينطبق على جميع منشآت مؤسستك.",
       organizationName: "اسم المؤسسة",
       organizationNeedsReach:
-        "لا يستطيع إعادة تسمية المؤسسة إلا من يصل إلى جميع المنشآت.",
+        "ينطبق هذا على جميع المنشآت، لذا لا يغيّره إلا المالك أو دور يصل إلى جميع المنشآت.",
       propertyTitle: "المنشأة",
       propertyHint: "اسم هذه المنشأة والعملة التي تتعامل بها.",
       propertyName: "اسم المنشأة",
@@ -11556,9 +11663,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "حفظ لكل المنشآت",
       discardChanges: "تجاهل التغييرات",
       draftNote: "لم يُحفظ بعد.",
-      confirmOrgTitle: "تغيير هذا لكل المنشآت؟",
-      orgChangeLine: "يغيّر هذا {setting} لكل المنشآت: من «{from}» إلى «{to}».",
-      confirmOrgChange: "التغيير لكل المنشآت",
+      confirmOrgTitle: "هل تريد تغيير الإعداد الافتراضي للمؤسسة؟",
+      orgChangeLine:
+        "يتغيّر الإعداد الافتراضي للمؤسسة في {setting} من «{from}» إلى «{to}».",
+      reachFollowing:
+        "{count, plural, =0 {لا توجد منشأة تتبع الإعداد الافتراضي، فلن تتغيّر أي منشأة.} one {منشأة واحدة تتبع الإعداد الافتراضي وستتغيّر.} two {منشأتان تتبعان الإعداد الافتراضي وستتغيّران.} few {# منشآت تتبع الإعداد الافتراضي وستتغيّر.} many {# منشأة تتبع الإعداد الافتراضي وستتغيّر.} other {# منشأة تتبع الإعداد الافتراضي وستتغيّر.}}",
+      reachKeeping:
+        "{count, plural, one {منشأة واحدة لها إجابتها الخاصة ولن تتغيّر: {names}.} two {منشأتان لهما إجابتهما الخاصة ولن تتغيّرا: {names}.} few {# منشآت لها إجابتها الخاصة ولن تتغيّر: {names}.} many {# منشأة لها إجابتها الخاصة ولن تتغيّر: {names}.} other {# منشأة لها إجابتها الخاصة ولن تتغيّر: {names}.}}",
+      reachMore: "{names} و{count} أخرى",
+      confirmOrgChange: "تغيير الإعداد الافتراضي",
       keepEditing: "متابعة التحرير",
       saving: "جارٍ الحفظ…",
       saved: "تم الحفظ",
@@ -11789,11 +11902,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       defaultTheme: "السمة الافتراضية",
       colorInvalid: "اكتب اللون بالشكل #0f5132، مع # وستة أرقام.",
       colorReadable:
-        "النص على الأسطح الملوّنة {foreground}، بتباين \u2066{ratio} : 1\u2069.",
-      colorTextSame:
-        "تُرسم الروابط والنصوص باللون نفسه، ويُقرأ على الأبيض بتباين \u2066{ratio} : 1\u2069.",
+        "تستخدم الأزرار والمساحات الملوّنة هذا اللون مع نص {foreground}.",
+      colorTextSame: "تستخدم الروابط والنصوص اللون نفسه.",
       colorTextDarker:
-        "تُرسم الروابط والنصوص بظلّ أغمق من اللون نفسه ليبقى مقروءًا على الأبيض: \u2066{shade}\u2069 (\u2066{ratio} : 1\u2069).",
+        "تستخدم الروابط والنصوص ظلًّا أغمق قليلًا (\u2066{shade}\u2069) ليبقى مقروءًا على الأبيض.",
+      colorDetails: "تفاصيل التباين",
+      colorDetailsFill:
+        "النص على المساحات الملوّنة {foreground}، بتباين \u2066{ratio} : 1\u2069.",
+      colorDetailsText: "الروابط والنصوص على الأبيض: \u2066{ratio} : 1\u2069.",
       swatchFill: "الأزرار والتعبئة",
       swatchText: "الروابط والنص",
       foreground: { white: "أبيض", black: "أسود" },
@@ -11801,6 +11917,20 @@ export const messages: Record<SupportedLocale, Messages> = {
       logoHint:
         "PNG أو JPEG أو WebP، بحجم أقصاه 512 كيلوبايت وارتفاع لا يقل عن 128 بكسل. لا يُقبل SVG لأنه قد يحمل شيفرة.",
       logoLabel: "ملف الشعار",
+      logoChoose: "اختر ملفًا",
+      logoChange: "اختر ملفًا آخر",
+      logoNoFile: "لم يُختر ملف",
+      logoReading: "جارٍ فحص الصورة…",
+      logoFacts: "{name}، \u2066{width} × {height}\u2069 بكسل، {size}",
+      logoUsable: "يمكن استخدام هذه الصورة.",
+      logoBlocksSave: "للحفظ، اختر شعارًا آخر أو تجاهل الملف الذي اخترته.",
+      logoChosenErrors: {
+        too_large: "حجم هذا الملف {size}، والحد الأقصى للشعار {maximum}.",
+        too_small:
+          "ارتفاع هذه الصورة \u2066{height}\u2069 بكسل، ويجب ألا يقل ارتفاع الشعار عن \u2066{minimum}\u2069 بكسل.",
+        dimensions_too_large:
+          "أبعاد هذه الصورة \u2066{width} × {height}\u2069 بكسل، ولا يجوز أن يتجاوز أي بُعد \u2066{maximum}\u2069 بكسل.",
+      },
       logoCurrent: "الشعار الحالي",
       logoNone: "لا شعار: تظهر علامة Ranza.",
       logoRemove: "إزالة الشعار",
@@ -11818,17 +11948,27 @@ export const messages: Record<SupportedLocale, Messages> = {
           "لا يجوز أن يتجاوز عرض الصورة أو ارتفاعها 4096 بكسل.",
       },
       previewTitle: "معاينة",
-      previewHint: "هكذا يظهر الشريط العلوي وعناصر التحكم في بوابة الضيوف.",
-      previewHeader: "الشريط العلوي للبوابة",
+      previewHint: "هكذا تظهر بوابة الضيوف لضيوفك.",
+      previewStay: "إقامتي",
+      previewWhere:
+        "يلوّن لونك القائمة الجانبية والأزرار، ويظهر شعارك في الشريط العلوي. وتبقى العلامة في رأس القائمة الجانبية علامة Ranza. يرى الضيوف أي تغيير عند فتحهم البوابة في المرة القادمة، وتبقى صفحة تسجيل الدخول بهوية Ranza.",
       previewButton: "زر رئيسي",
       previewLink: "رابط",
-      previewActive: "عنصر نشط",
       save: "حفظ",
       discard: "تجاهل",
       saving: "جارٍ الحفظ…",
       saved: "تم الحفظ. يراه الضيوف عند فتحهم الصفحة في المرة القادمة.",
       reset: "إعادة إلى الافتراضي",
       resetDone: "عادت السمة الافتراضية.",
+      resetTitle: "العودة إلى سمة Ranza؟",
+      resetConsequence:
+        "سيرى الضيوف في جميع المنشآت علامة Ranza وسمتها الخضراء عند فتحهم البوابة في المرة القادمة.",
+      resetLogoLine:
+        "يُزال الشعار المحفوظ، وعليك رفعه من جديد إن أردت استخدامه مرة أخرى.",
+      resetColorLine: "يُزال اللون المحفوظ \u2066{color}\u2069.",
+      resetConfirm: "إعادة الهوية إلى الافتراضي",
+      resetKeep: "الإبقاء على الهوية",
+      resetDraftLine: "وتُتجاهل أيضًا التغييرات التي لم تحفظها.",
       refused: "تعذّر إجراء هذا التغيير. ربما تغيّرت صلاحياتك؛ حدّث الصفحة.",
       error: "حدث خطأ ما. حاول مرة أخرى.",
       needsReachTitle: "لا يغيّر الهوية البصرية إلا من يصل إلى جميع المنشآت",
@@ -12411,7 +12551,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       inspectionHint:
         "عند التفعيل، تنتظر الغرفة المنظَّفة حتى يعلّمها أحدهم كمفحوصة قبل تأجيرها مجددًا. تغيير هذا الإعداد لا يغيّر حالة أي غرفة.",
       organizationDefault: "للمؤسسة بأكملها",
-      thisProperty: "لهذا العقار",
+      thisProperty: "لهذه المنشأة",
       useDefault: "استخدام إعداد المؤسسة ({value})",
       on: "مفعّل",
       off: "معطّل",
@@ -12420,12 +12560,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       saved: "تم الحفظ",
       settingRefused: "تعذّر تغيير هذا الإعداد. ما تراه الآن هو المطبَّق.",
       defaultNeedsReach:
-        "لا يمكن تغيير إعداد المؤسسة إلا لمن يصل إلى جميع العقارات.",
+        "ينطبق هذا على جميع المنشآت، لذا لا يغيّره إلا المالك أو دور يصل إلى جميع المنشآت.",
       awaitingInspection: "بانتظار الفحص",
       inspectionReadOnlyOn:
-        "الغرفة المنظَّفة في هذا العقار تنتظر الفحص قبل أن تصبح جاهزة للتأجير. يمكن للمدير تغيير هذا.",
+        "الغرفة المنظَّفة في هذه المنشأة تنتظر الفحص قبل أن تصبح جاهزة للتأجير. يمكن للمدير تغيير هذا.",
       inspectionReadOnlyOff:
-        "الغرفة المنظَّفة في هذا العقار جاهزة للتأجير دون فحص. يمكن للمدير تغيير هذا.",
+        "الغرفة المنظَّفة في هذه المنشأة جاهزة للتأجير دون فحص. يمكن للمدير تغيير هذا.",
       todayColumn: "اليوم",
       priorityArrival: "وصول اليوم",
       priorityInspect: "وصول · فحص",
@@ -12524,11 +12664,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       saveForOrganization: "حفظ لكل المنشآت",
       unsavedChanges: "لديك تغييرات لم تُحفظ بعد.",
       discardChanges: "تجاهل التغييرات",
-      confirmOrgTitle: "هل تريد تغيير هذا لكل المنشآت؟",
-      orgChangeLine: "هذا يغيّر {setting} لكل المنشآت: من «{from}» إلى «{to}».",
+      confirmOrgTitle: "هل تريد تغيير الإعداد الافتراضي للمؤسسة؟",
+      orgChangeLine:
+        "يتغيّر الإعداد الافتراضي للمؤسسة في {setting} من «{from}» إلى «{to}».",
       orgChangeNote:
-        "المنشأة التي لها إجابتها الخاصة تحتفظ بها. يسري التغيير على الإجراء التالي فقط، ولا يسري أبدًا على غرفة خارج الخدمة بالفعل.",
-      confirmOrgChange: "تغيير لكل المنشآت",
+        "يسري التغيير على الإجراء التالي فقط، ولا يسري أبدًا على غرفة خارج الخدمة بالفعل.",
+      confirmOrgChange: "تغيير الإعداد الافتراضي",
       keepEditing: "متابعة التعديل",
       whatIsWrong: "ما المشكلة؟",
       whatPlaceholder: "مصرف الدش مسدود",
@@ -12579,13 +12720,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       onConfirmation: "فقط عندما يؤكد أحدهم",
       returnsAs: "تعود بحالة",
       organizationDefault: "الإعداد الافتراضي للمؤسسة",
-      thisProperty: "هذا العقار",
+      thisProperty: "هذه المنشأة",
       useDefault: "استخدام إعداد المؤسسة ({value})",
       yes: "نعم",
       no: "لا",
       settingRefused: "لم يُحفظ الإعداد.",
       defaultNeedsReach:
-        "تغيير الإعداد الافتراضي يتطلب الوصول إلى كل العقارات.",
+        "ينطبق هذا على جميع المنشآت، لذا لا يغيّره إلا المالك أو دور يصل إلى جميع المنشآت.",
       settingReadOnly: "تغيير هذا يتطلب صلاحية إدارة الصيانة.",
       reportProblem: "الإبلاغ عن مشكلة",
       equipmentTab: "المعدات",
@@ -13492,7 +13633,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "اشتراك مؤسستك لا يتضمنها، لذلك لا يستطيع أحد في المؤسسة فتحها. يستطيع أحد مالكي مؤسستك أن يسأل Prizic عن إضافتها.",
       notEnabledTitle: "هذه الوحدة غير مفعّلة في هذه المنشأة",
       notEnabledDescription:
-        "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. اختر منشأة أخرى من القائمة في الأعلى. يستطيع أحد مالكي مؤسستك أن يطلب من Prizic تفعيلها في هذه المنشأة.",
+        "مؤسستك تملكها لكنها غير مفعّلة في هذه المنشأة. إن كنت تعمل في أكثر من منشأة فاختر منشأة أخرى من القائمة في الأعلى. يستطيع أحد مالكي مؤسستك أن يطلب من Prizic تفعيلها في هذه المنشأة.",
       noPermissionTitle: "دورك لا يتيح فتح هذه الصفحة",
       noPermissionDescription:
         "تحتاج {page} إلى صلاحية «{permission}» وليست ضمن دورك. اطلب ممن يدير الموظفين في مؤسستك أن يضيفها إلى دورك.",
