@@ -65,7 +65,12 @@ test("a front desk colleague is not offered Add rooms, and a manager sees what a
     path: path.join(EVIDENCE, "add-rooms-says-what-it-creates.png"),
   });
 
+  // CALENDAR-11: forty at once is asked about once, naming the range.
   await dialog.getByRole("button", { name: "Add 40 rooms" }).click();
+  await expect(dialog.getByTestId("add-rooms-preview")).toContainText(
+    "301 to 340",
+  );
+  await dialog.getByRole("button", { name: "Yes, add 40 rooms" }).click();
   await expect(dialog).toBeHidden();
   // ROOMS-05: success says what was written, naming the range.
   await expect(page.getByRole("status")).toContainText(
@@ -109,15 +114,20 @@ for (const language of [
     await page.getByTestId("add-rooms-open").click();
     const dialog = page.getByRole("dialog");
 
-    // ROOMS-04: the browser's own bubble for "4O1" says this screen's words.
+    // ROOMS-04, CALENDAR-13: "4O1" is refused beside the field in this
+    // screen's words, as soon as it is typed and before any press, with no
+    // native bubble ("Please match the requested format") behind it.
     await dialog.locator("#firstNumber").fill("4O1");
-    await dialog.locator("form").evaluate((form: HTMLFormElement) => {
-      form.requestSubmit();
-    });
-    const bubble = await dialog
-      .locator("#firstNumber")
-      .evaluate((input: HTMLInputElement) => input.validationMessage);
-    expect(bubble).toBe(language.digits);
+    await expect(dialog.getByRole("alert")).toContainText(language.digits);
+    await expect(dialog.locator("#firstNumber")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(
+      await dialog
+        .locator("#firstNumber")
+        .evaluate((input: HTMLInputElement) => input.validationMessage),
+    ).toBe("");
 
     // ROOMS-03: a name already taken is named, in the screen's language, and
     // nothing typed is lost.
@@ -145,40 +155,44 @@ test("Escape on a half-typed batch asks first, and the view survives a reload", 
   await signIn(page);
   await page.goto(`/en/rooms?property=${propertyId}`);
 
-  const asked: string[] = [];
-  let accept = false;
-  page.on("dialog", async (dialog) => {
-    asked.push(dialog.message());
-    await (accept ? dialog.accept() : dialog.dismiss());
+  let browserAsked = false;
+  page.on("dialog", async (native) => {
+    browserAsked = true;
+    await native.dismiss();
   });
 
   await page.getByRole("button", { name: "Add rooms" }).click();
   const dialog = page.getByRole("dialog", { name: "Add rooms" });
   await dialog.getByLabel("First room number").fill("301");
   await page.keyboard.press("Escape");
-  await expect.poll(() => asked.length).toBe(1);
-  expect(asked[0]).toBe("Discard the rooms you were about to add?");
-  await expect(dialog).toBeVisible();
+  // CALENDAR-14: the question is the app's own dialog, not the browser's.
+  const asking = page
+    .getByRole("dialog")
+    .filter({ hasText: "Discard the rooms you were about to add?" });
+  await expect(asking).toBeVisible();
+  await asking.getByRole("button", { name: "Keep editing" }).click();
+  await expect(asking).toBeHidden();
   await expect(dialog.getByLabel("First room number")).toHaveValue("301");
 
-  accept = true;
   await page.keyboard.press("Escape");
+  await asking.getByRole("button", { name: "Discard" }).click();
   await expect(dialog).toBeHidden();
+  expect(browserAsked).toBe(false);
 
   // ROOMS-13: the list is in the URL, so a reload and a link keep it.
-  await page.getByRole("button", { name: "Bed list" }).click();
+  await page.getByRole("button", { name: "Room list" }).click();
   await expect(page).toHaveURL(/view=list/);
   await page.reload();
   await expect(
     page.getByRole("columnheader", { name: "Tonight" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Bed list" })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: "Room list" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
 
   // ROOMS-13: a Property with no floors does not head its rooms "No floor set".
-  await page.getByRole("button", { name: "Bed map" }).click();
+  await page.getByRole("button", { name: "Room map" }).click();
   await expect(page.getByText("No floor set")).toHaveCount(0);
 
   // Rule 5: a search that finds nothing says so and offers every room back.

@@ -538,6 +538,43 @@ function readinessOf(room: HousekeepingRoom): RoomReadiness {
   return room.ready ? "ready" : "awaiting_inspection";
 }
 
+/** Each room the board holds, by Unit; a room out of order is no one's to ready. */
+function readinessByRoom(
+  rooms: readonly HousekeepingRoom[],
+): Readonly<Record<string, RoomReadiness>> {
+  return Object.fromEntries(
+    rooms
+      .filter((room) => !room.outOfService)
+      .map((room) => [room.unitId, readinessOf(room)]),
+  );
+}
+
+/**
+ * Which rooms housekeeping says can be let now, for the Rooms page to mark
+ * (CALENDAR-19). Null when the Property has no board or it could not be read:
+ * the page is whole without it, and a mark it cannot vouch for is not drawn.
+ */
+export async function roomsReadiness(
+  propertyId: string,
+): Promise<Readonly<Record<string, RoomReadiness>> | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  try {
+    const board = await getComposition().housekeeping.board(
+      viewer.userId,
+      propertyId,
+    );
+    return board.rooms.length === 0 ? null : readinessByRoom(board.rooms);
+  } catch (error: unknown) {
+    console.error("rooms.readiness_failed", {
+      propertyId,
+      userId: viewer.userId,
+      error,
+    });
+    return null;
+  }
+}
+
 /**
  * The room calendar for one Property over one window (RANZ-25).
  *
@@ -572,11 +609,7 @@ export async function roomCalendar(
     const board = await housekeeping.board(viewer.userId, propertyId);
     return {
       ...withHolds,
-      readiness: Object.fromEntries(
-        board.rooms
-          .filter((room) => !room.outOfService)
-          .map((room) => [room.unitId, readinessOf(room)]),
-      ),
+      readiness: readinessByRoom(board.rooms),
     };
   } catch (error: unknown) {
     // The calendar is whole without it; the drawer just does not say.

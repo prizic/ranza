@@ -2112,7 +2112,6 @@ export interface Messages {
     addWhatTitle: string;
     addNumbersTitle: string;
     addWhereTitle: string;
-    addHintFirstNumber: string;
     addCount: string;
     firstNumberInvalid: string;
     countInvalid: string;
@@ -2125,9 +2124,24 @@ export interface Messages {
     bedsOnlyRoom: string;
     invalidGeneric: string;
     discardDraft: string;
+    discardDraftHint: string;
+    discardConfirm: string;
+    discardKeep: string;
+    alreadyInUse: string;
+    addLargeConfirm: string;
+    addCountSure: string;
     added: string;
     statFree: string;
     statFreeHint: string;
+    roomMap: string;
+    roomList: string;
+    roomDetails: string;
+    blockNeedsPermission: string;
+    reportStillOpen: string;
+    occupiedCannotBlock: string;
+    showOnCalendar: string;
+    unitStateReservedLate: string;
+    reservedLateBadge: string;
     findRoom: string;
     showStates: string;
     showAll: string;
@@ -5504,7 +5518,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       addWhatTitle: "Bunlar nedir?",
       addNumbersTitle: "Hangi numaralar?",
       addWhereTitle: "Neredeler?",
-      addHintFirstNumber: "İlk oda numarasını girin",
       addCount: "{count, plural, other {# oda ekle}}",
       firstNumberInvalid:
         "Yalnızca rakam kullanın (en çok 8 hane), örneğin 101. Harf ve tire kabul edilmez.",
@@ -5522,11 +5535,32 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Yalnızca bir oda yatak yatak kiralanabilir. Tür olarak Oda seçin.",
       invalidGeneric: "Sayıları kontrol edip yeniden deneyin.",
       discardDraft: "Eklemek üzere olduğunuz odalardan vazgeçilsin mi?",
+      discardDraftHint:
+        "Henüz hiçbir oda oluşturulmadı. Yazdığınız numaralar kaybolur.",
+      discardConfirm: "Vazgeç",
+      discardKeep: "Düzenlemeye devam et",
+      alreadyInUse: "Zaten kullanımda: {names}",
+      addLargeConfirm:
+        "Bu {count, number} oda, {first} ile {last} arası; eklendikten sonra bir oda yeniden adlandırılamaz ya da kaldırılamaz. Eklemek için bir kez daha basın.",
+      addCountSure: "Evet, {count, number} oda ekle",
       added:
         "{count, plural, one {{first} numaralı oda eklendi.} other {# oda eklendi: {first} – {last}.}}",
       statFree: "Bu gece boş",
       statFreeHint:
         "Şu an boş olan ve bu gece için rezervasyonu bulunmayan odalar. Oda takviminin Boş satırı, misafiri bugün çıkacak odaları da sayar.",
+      roomMap: "Oda haritası",
+      roomList: "Oda listesi",
+      roomDetails: "Oda ayrıntıları",
+      blockNeedsPermission:
+        "Bir odayı kapatmak ya da açmak “{permission}” iznini gerektirir ve rolünüzde yok. Organizasyonunuzda personeli yöneten kişiden bunu rolünüze eklemesini isteyin.",
+      reportStillOpen:
+        "Yine de sorun bildirebilirsiniz; bakım ekibine haber verir.",
+      occupiedCannotBlock:
+        "Odada bir misafir var, bu yüzden kapatılamaz. Önce misafiri oda takviminden taşıyın ya da çıkışını yapın.",
+      showOnCalendar: "Oda takviminde göster",
+      unitStateReservedLate:
+        "Burada {date} tarihinde gelmesi beklenen bir rezervasyon var ve kimse giriş yapmadı. Giriş yaptırın ya da Rezervasyonlar sayfasında gelmedi olarak işaretleyin.",
+      reservedLateBadge: "Gelmedi · {date} tarihinde gelecekti",
       findRoom: "Oda veya misafir bul",
       showStates: "Şu durumdaki odaları göster",
       showAll: "Tüm odaları göster",
@@ -7789,7 +7823,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockingBed: "Unblocking...",
     blockReason: "Reason for block",
     blockReasonHint:
-      "A brief reason (at least 3 characters) why this unit is unavailable.",
+      "A brief reason (at least 3 characters) why this room or bed is unavailable.",
     blockRoom: "Block room",
     unblockRoom: "Unblock room",
     manageUnit: "Report or block",
@@ -9107,7 +9141,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       addWhatTitle: "What are they?",
       addNumbersTitle: "Which numbers?",
       addWhereTitle: "Where are they?",
-      addHintFirstNumber: "Enter the first room number",
       addCount: "{count, plural, one {Add # room} other {Add # rooms}}",
       firstNumberInvalid:
         "Use digits only, 1 to 8 of them, for example 101. Letters and dashes are not accepted.",
@@ -9125,11 +9158,32 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Only a room can be let by the bed. Choose Room as the type.",
       invalidGeneric: "Check the numbers and try again.",
       discardDraft: "Discard the rooms you were about to add?",
+      discardDraftHint:
+        "Nothing has been created yet. The numbers you typed will be lost.",
+      discardConfirm: "Discard",
+      discardKeep: "Keep editing",
+      alreadyInUse: "Already in use: {names}",
+      addLargeConfirm:
+        "That is {count, number} rooms, {first} to {last}, and a room cannot be renamed or removed afterwards. Press again to add them.",
+      addCountSure: "Yes, add {count, number} rooms",
       added:
         "{count, plural, one {Added room {first}.} other {Added # rooms: {first} to {last}.}}",
       statFree: "Free tonight",
       statFreeHint:
         "Empty now and with no booking for tonight. The room calendar's Free row also counts rooms whose Guest leaves today.",
+      roomMap: "Room map",
+      roomList: "Room list",
+      roomDetails: "Room details",
+      blockNeedsPermission:
+        "Blocking or unblocking a room needs “{permission}”, which your role doesn't include. Ask whoever manages staff in your Organization to add it to your role.",
+      reportStillOpen:
+        "You can still report a problem, which tells maintenance.",
+      occupiedCannotBlock:
+        "A Guest is in this room, so it can't be blocked. Move the Guest from the room calendar, or check them out, first.",
+      showOnCalendar: "Show on the room calendar",
+      unitStateReservedLate:
+        "A booking here was due on {date} and nobody has checked in. Check them in, or mark it a no-show in Reservations.",
+      reservedLateBadge: "Not arrived · due {date}",
       findRoom: "Find a room or a guest",
       showStates: "Show rooms that are",
       showAll: "Show all rooms",
@@ -11349,7 +11403,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockBed: "فتح السرير",
     unblockingBed: "جارٍ الفتح...",
     blockReason: "سبب الإغلاق",
-    blockReasonHint: "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الوحدة.",
+    blockReasonHint:
+      "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الغرفة أو هذا السرير.",
     blockRoom: "إغلاق الغرفة",
     unblockRoom: "فتح الغرفة",
     manageUnit: "إبلاغ أو إغلاق",
@@ -12642,7 +12697,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       addWhatTitle: "ما هي؟",
       addNumbersTitle: "أي أرقام؟",
       addWhereTitle: "أين توجد؟",
-      addHintFirstNumber: "أدخل رقم أول غرفة",
       addCount:
         "{count, plural, one {إضافة غرفة} two {إضافة غرفتين} few {إضافة # غرف} many {إضافة # غرفة} other {إضافة # غرفة}}",
       firstNumberInvalid:
@@ -12660,11 +12714,30 @@ export const messages: Record<SupportedLocale, Messages> = {
       bedsOnlyRoom: "الغرفة وحدها هي ما يُؤجَّر بالسرير. اختر «غرفة» نوعًا.",
       invalidGeneric: "تحقق من الأرقام وحاول مجددًا.",
       discardDraft: "هل تريد تجاهل الغرف التي كنت على وشك إضافتها؟",
+      discardDraftHint: "لم يُنشأ شيء بعد. ستضيع الأرقام التي كتبتها.",
+      discardConfirm: "تجاهل",
+      discardKeep: "متابعة التعديل",
+      alreadyInUse: "مستخدمة بالفعل: {names}",
+      addLargeConfirm:
+        "هذه {count, number} غرفة، من {first} إلى {last}، ولا يمكن إعادة تسمية الغرفة أو إزالتها بعد ذلك. اضغط مرة أخرى لإضافتها.",
+      addCountSure: "نعم، أضف {count, number} غرفة",
       added:
         "{count, plural, one {أُضيفت الغرفة {first}.} two {أُضيفت غرفتان: {first} إلى {last}.} few {أُضيفت # غرف: {first} إلى {last}.} many {أُضيفت # غرفة: {first} إلى {last}.} other {أُضيفت # غرفة: {first} إلى {last}.}}",
       statFree: "شاغرة الليلة",
       statFreeHint:
         "غرف فارغة الآن وليس عليها حجز لهذه الليلة. يشمل صف «شاغرة» في تقويم الغرف أيضًا الغرف التي يغادرها ضيفها اليوم.",
+      roomMap: "خريطة الغرف",
+      roomList: "قائمة الغرف",
+      roomDetails: "تفاصيل الغرفة",
+      blockNeedsPermission:
+        "إغلاق الغرفة أو إعادة فتحها يتطلب الإذن «{permission}» وليس في دورك. اطلب ممن يدير الموظفين في منظمتك إضافته إلى دورك.",
+      reportStillOpen: "ما زال بإمكانك الإبلاغ عن مشكلة، فهذا يُعلم الصيانة.",
+      occupiedCannotBlock:
+        "يوجد ضيف في هذه الغرفة، لذا لا يمكن إغلاقها. انقل الضيف من تقويم الغرف أو سجّل مغادرته أولًا.",
+      showOnCalendar: "عرض في تقويم الغرف",
+      unitStateReservedLate:
+        "كان هنا حجز موعد وصوله {date} ولم يسجّل أحد دخوله. سجّل دخوله، أو سجّل الحجز «عدم حضور» من صفحة الحجوزات.",
+      reservedLateBadge: "لم يصل · موعده {date}",
       findRoom: "ابحث عن غرفة أو نزيل",
       showStates: "أظهر الغرف التي حالتها",
       showAll: "إظهار كل الغرف",

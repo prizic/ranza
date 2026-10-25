@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { Wrench } from "lucide-react";
+import { CalendarRange, Wrench } from "lucide-react";
 import { formatDate, isSupportedLocale } from "@ranza/i18n";
 import {
   ArrowButton,
@@ -42,7 +42,9 @@ import { submitWithoutReset } from "../../../lib/submit-without-reset";
  * (MT-S2-08).
  */
 export function BlockUnitDialog({
+  calendarHref,
   locale,
+  mayBlock,
   open,
   onOpenChange,
   unit,
@@ -50,8 +52,13 @@ export function BlockUnitDialog({
   hold,
   maintenanceHref,
   reportHref,
+  today,
 }: {
+  /** The room calendar of this Property, which a `q` narrows to one room. */
+  calendarHref: string;
   locale: string;
+  /** Whether the viewer holds `accommodation.configure` here (RB-S3-09). */
+  mayBlock: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   unit: UnitEntry | null;
@@ -62,8 +69,11 @@ export function BlockUnitDialog({
   maintenanceHref: string;
   /** Null when the viewer may not report, or the Property has no maintenance. */
   reportHref: string | null;
+  /** The Property's business date, which tells a late arrival from a coming one. */
+  today: string;
 }) {
   const t = useTranslations();
+  const rp = useTranslations("roomsPage");
 
   const [blockOutcome, blockAct, blockPending] = useActionState<
     BlockOutcome,
@@ -91,6 +101,11 @@ export function BlockUnitDialog({
   const isBlocked = unit.status === "blocked";
   const isOutOfOrder = unit.state?.kind === "out_of_service";
   const state = unit.state;
+  // A room with a Guest in it is refused a block by the database, and a viewer
+  // without `accommodation.configure` is refused either way: neither is offered
+  // a form that fails after the reason is typed (CALENDAR-09, RB-S3-09).
+  const occupied = state?.kind === "in_house";
+  const readOnly = !isOutOfOrder && (occupied || !mayBlock);
   const bed = roomName !== null;
   const refusal = (
     outcome: BlockOutcome,
@@ -110,7 +125,9 @@ export function BlockUnitDialog({
       case "in_house":
         return t("unitStateInHouse", { guest: state.guestName });
       case "reserved":
-        return t("unitStateReserved", { date: day(state.arrivesOn) });
+        return state.arrivesOn < today
+          ? rp("unitStateReservedLate", { date: day(state.arrivesOn) })
+          : t("unitStateReserved", { date: day(state.arrivesOn) });
       case "free":
         return t("unitStateFree");
       default:
@@ -143,6 +160,17 @@ export function BlockUnitDialog({
       {t("maintenance.reportProblem")}
     </Link>
   ) : null;
+
+  const calendarLink = (
+    <Link
+      className="inline-flex items-center gap-1.5 justify-self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+      href={`${calendarHref}&q=${encodeURIComponent(roomName ?? unit.name)}`}
+      prefetch={false}
+    >
+      <CalendarRange aria-hidden="true" className="size-4" />
+      {rp("showOnCalendar")}
+    </Link>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -182,6 +210,7 @@ export function BlockUnitDialog({
                     : null}
                 </p>
               </div>
+              {calendarLink}
             </DialogBody>
             <DialogActions>
               <DialogClose asChild>
@@ -198,6 +227,45 @@ export function BlockUnitDialog({
               >
                 {t("navigation.maintenance")}
               </Link>
+            </DialogActions>
+          </>
+        ) : readOnly ? (
+          <>
+            <DialogMasthead
+              art="/illustrations/dialogs/lock-room.svg"
+              eyebrow={rp("roomDetails")}
+              facts={facts}
+              heading={heading}
+            />
+            <DialogBody simple>
+              <DialogDescription className="sr-only">
+                {rp("roomDetails")}
+              </DialogDescription>
+              {tonight ? <DialogNotice>{tonight}</DialogNotice> : null}
+              {isBlocked ? (
+                <DialogSection title={t("blockReason")}>
+                  <p className="m-0 text-sm">
+                    {state?.kind === "blocked" ? state.reason : ""}
+                  </p>
+                </DialogSection>
+              ) : null}
+              <p className="m-0 text-sm text-muted-foreground">
+                {occupied
+                  ? rp("occupiedCannotBlock")
+                  : rp("blockNeedsPermission", {
+                      permission: t("staff.permissions.configureAccommodation"),
+                    })}
+                {reportHref ? ` ${rp("reportStillOpen")}` : null}
+              </p>
+              {reportLink}
+              {calendarLink}
+            </DialogBody>
+            <DialogActions>
+              <DialogClose asChild>
+                <CancelButton type="button">
+                  {t("maintenance.close")}
+                </CancelButton>
+              </DialogClose>
             </DialogActions>
           </>
         ) : isBlocked ? (
@@ -221,6 +289,7 @@ export function BlockUnitDialog({
                 </p>
               </DialogSection>
               {reportLink}
+              {calendarLink}
 
               {unblockOutcome.status !== "idle" &&
                 unblockOutcome.status !== "done" && (
@@ -266,6 +335,7 @@ export function BlockUnitDialog({
                   {reportLink}
                 </div>
               ) : null}
+              {calendarLink}
 
               <DialogSection
                 hint={`${t("blockReasonHint")} ${t("blockNotifiesNobody")}`}

@@ -16,11 +16,15 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  ChevronRight,
+  ClipboardCheck,
   DoorOpen,
   LayoutGrid,
   List,
   RefreshCw,
   Search,
+  Sparkles,
+  SprayCan,
   Users,
   Wrench,
   X,
@@ -46,6 +50,7 @@ import {
 } from "@ranza/ui";
 import type { AddRoomsOutcome } from "../../../server/accommodation";
 import type {
+  RoomReadiness,
   RoomsMaintenance,
   UnitEntry,
   UnitHold,
@@ -78,6 +83,7 @@ export function RoomsView({
   initialView,
   maintenance,
   mayConfigure,
+  readiness,
   targetUnitId,
 }: {
   locale: string;
@@ -89,6 +95,12 @@ export function RoomsView({
   maintenance: RoomsMaintenance;
   /** Whether the viewer holds `accommodation.configure` at this Property. */
   mayConfigure: boolean;
+  /**
+   * What housekeeping says of each room, so a room that can be let now is
+   * marked and can be asked for. Null when the Property has no board, or the
+   * viewer cannot read it.
+   */
+  readiness: Readonly<Record<string, RoomReadiness>> | null;
   targetUnitId?: string | null | undefined;
 }) {
   const t = useTranslations();
@@ -99,6 +111,7 @@ export function RoomsView({
   const [viewMode, setViewMode] = useState<"map" | "list">(initialView);
   const [query, setQuery] = useState("");
   const [kinds, setKinds] = useState<ReadonlySet<StateKind>>(new Set());
+  const [readyOnly, setReadyOnly] = useState(false);
   const [added, setAdded] = useState<AddedRooms | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
@@ -162,8 +175,30 @@ export function RoomsView({
           })
         : day,
     });
+  const shortDay = (day: string) =>
+    isSupportedLocale(locale)
+      ? formatDate(new Date(`${day}T12:00:00Z`), locale, {
+          timeZone: "UTC",
+          year: undefined,
+        })
+      : day;
+  // A booking whose arrival has passed is not "reserved tonight": nobody is
+  // coming at the time it was made for (CALENDAR-03).
+  const reservedLabel = (arrivesOn: string) =>
+    arrivesOn < data.today
+      ? rp("reservedLateBadge", { date: shortDay(arrivesOn) })
+      : t("reservedTonight");
   const stateBadge = (unit: UnitEntry, outOfOrder: string) =>
-    renderUnitStateBadge(unit, t, outOfOrder, nextArrivalLabel);
+    renderUnitStateBadge(unit, t, outOfOrder, nextArrivalLabel, reservedLabel);
+  // What pressing a Unit opens, in words: the block form only for somebody who
+  // may block and a room nobody is in, the details otherwise (CALENDAR-08).
+  const actionLabel = (unit: UnitEntry) => {
+    const kind = unit.state?.kind;
+    if (!mayConfigure || kind === "in_house" || kind === "out_of_service") {
+      return rp("roomDetails");
+    }
+    return unit.status === "blocked" ? t("unblockUnit") : t("manageUnit");
+  };
 
   function handleSelectUnit(unit: UnitEntry, roomId: string | null = null) {
     setSelectedUnit(unit);
@@ -199,7 +234,7 @@ export function RoomsView({
   }
 
   const needle = query.trim().toLowerCase();
-  const filtered = needle !== "" || kinds.size > 0;
+  const filtered = needle !== "" || kinds.size > 0 || readyOnly;
   const visibleUnits = data.units.filter((room) => {
     const leaves = room.beds.length > 0 ? room.beds : [room];
     const named =
@@ -213,12 +248,14 @@ export function RoomsView({
     const inState =
       kinds.size === 0 ||
       leaves.some((leaf) => leaf.state && kinds.has(leaf.state.kind));
-    return named && inState;
+    const isReady = !readyOnly || readiness?.[room.unitId] === "ready";
+    return named && inState && isReady;
   });
 
   function clearFilters() {
     setQuery("");
     setKinds(new Set());
+    setReadyOnly(false);
   }
 
   function toggleKind(kind: StateKind) {
@@ -251,6 +288,7 @@ export function RoomsView({
 
   const addRooms = mayConfigure ? (
     <AddRoomsDialog
+      existingNames={data.units.map((unit) => unit.name)}
       locale={locale}
       onAdded={setAdded}
       propertyId={propertyId}
@@ -285,7 +323,7 @@ export function RoomsView({
                 onClick={() => chooseView("map")}
               >
                 <LayoutGrid aria-hidden="true" />
-                {t("bedMap")}
+                {hasBeds ? t("bedMap") : rp("roomMap")}
               </Button>
               <Button
                 aria-pressed={viewMode === "list"}
@@ -294,7 +332,7 @@ export function RoomsView({
                 onClick={() => chooseView("list")}
               >
                 <List aria-hidden="true" />
-                {t("bedList")}
+                {hasBeds ? t("bedList") : rp("roomList")}
               </Button>
             </div>
           ) : null}
@@ -355,6 +393,7 @@ export function RoomsView({
               {data.counts.reserved}
             </StatTile>
             <StatTile
+              hint={hasBeds ? undefined : rp("statFreeHint")}
               icon={CheckCircle2}
               label={hasBeds ? t("statEmpty") : rp("statFree")}
               note={
@@ -403,6 +442,18 @@ export function RoomsView({
                   {kindLabel[kind]}
                 </Button>
               ))}
+              {readiness ? (
+                <Button
+                  aria-pressed={readyOnly}
+                  className="min-h-11 shrink-0 md:min-h-0"
+                  onClick={() => setReadyOnly((on) => !on)}
+                  size="sm"
+                  variant={readyOnly ? "default" : "outline"}
+                >
+                  <Sparkles aria-hidden="true" />
+                  {t("roomCalendar.roomReadiness.ready")}
+                </Button>
+              ) : null}
             </div>
             {filtered && visibleUnits.length > 0 ? (
               <Button onClick={clearFilters} size="sm" variant="ghost">
@@ -579,13 +630,26 @@ export function RoomsView({
                                         "ring-2 ring-primary ring-offset-2",
                                     )}
                                   >
-                                    {stateBadge(
-                                      room,
-                                      outOfOrderLabel(
-                                        holdByUnit.get(room.unitId),
-                                      ),
-                                    )}
+                                    <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      {stateBadge(
+                                        room,
+                                        outOfOrderLabel(
+                                          holdByUnit.get(room.unitId),
+                                        ),
+                                      )}
+                                      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
+                                        {actionLabel(room)}
+                                        <ChevronRight
+                                          aria-hidden="true"
+                                          className="size-3.5 rtl:rotate-180"
+                                        />
+                                      </span>
+                                    </span>
                                   </button>
+                                  <ReadinessMark
+                                    readiness={readiness?.[room.unitId]}
+                                    state={room.state}
+                                  />
                                 </div>
                               )}
                             </CardContent>
@@ -655,7 +719,7 @@ export function RoomsView({
                           size="sm"
                           onClick={() => handleSelectUnit(bed, room.unitId)}
                         >
-                          {unitActionLabel(bed, t)}
+                          {actionLabel(bed)}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -685,10 +749,16 @@ export function RoomsView({
                     </TableCell>
                     <TableCell>{room.capacity}</TableCell>
                     <TableCell>
-                      {stateBadge(
-                        room,
-                        outOfOrderLabel(holdByUnit.get(room.unitId)),
-                      )}
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        {stateBadge(
+                          room,
+                          outOfOrderLabel(holdByUnit.get(room.unitId)),
+                        )}
+                        <ReadinessMark
+                          readiness={readiness?.[room.unitId]}
+                          state={room.state}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="text-end">
                       <Button
@@ -696,7 +766,7 @@ export function RoomsView({
                         size="sm"
                         onClick={() => handleSelectUnit(room)}
                       >
-                        {unitActionLabel(room, t)}
+                        {actionLabel(room)}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -708,6 +778,7 @@ export function RoomsView({
       )}
 
       <BlockUnitDialog
+        calendarHref={`/${locale}/room-calendar?property=${propertyId}`}
         hold={
           selectedUnit
             ? (holdFor(selectedUnit.unitId, selectedRoomId) ?? null)
@@ -715,9 +786,11 @@ export function RoomsView({
         }
         locale={locale}
         maintenanceHref={maintenanceHref}
+        mayBlock={mayConfigure}
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}
         reportHref={selectedUnit ? reportHref(selectedUnit.unitId) : null}
+        today={data.today}
         roomName={
           data.units.find((room) => room.unitId === selectedRoomId)?.name ??
           null
@@ -726,18 +799,6 @@ export function RoomsView({
       />
     </div>
   );
-}
-
-/**
- * What pressing a Unit opens: its block, or — out of order — its request.
- */
-function unitActionLabel(
-  unit: UnitEntry,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  if (unit.status === "blocked") return t("unblockUnit");
-  if (unit.state?.kind === "out_of_service") return t("maintenance.outOfOrder");
-  return t("manageUnit");
 }
 
 // A badge is one line by default. These carry a request number, an arrival and
@@ -750,6 +811,7 @@ function renderUnitStateBadge(
   t: ReturnType<typeof useTranslations>,
   outOfOrderLabel: string,
   nextArrivalLabel: (day: string) => string,
+  reservedLabel: (arrivesOn: string) => string,
 ) {
   const state = unit.state;
   if (!state) return null;
@@ -775,9 +837,10 @@ function renderUnitStateBadge(
     case "reserved":
       return (
         <StatusBadge
+          className={WRAPPING_BADGE}
           icon={CalendarDays}
           tone="warning"
-          label={t("reservedTonight")}
+          label={reservedLabel(state.arrivesOn)}
         />
       );
     case "out_of_service":
@@ -821,19 +884,25 @@ const TILE_TONE = {
  */
 function StatTile({
   children,
+  hint,
   icon: Icon,
   label,
   note,
   tone,
 }: {
   children: ReactNode;
+  /** How the figure is counted, where another screen counts it differently. */
+  hint?: string | undefined;
   icon: LucideIcon;
   label: string;
   note?: string | undefined;
   tone: keyof typeof TILE_TONE;
 }) {
   return (
-    <div className="flex flex-col justify-between rounded-3xl border border-slate-100 bg-card p-3 sm:rounded-[2rem] sm:p-5">
+    <div
+      className="flex flex-col justify-between rounded-3xl border border-slate-100 bg-card p-3 sm:rounded-[2rem] sm:p-5"
+      title={hint}
+    >
       <span
         className={cn(
           "hidden size-10 items-center justify-center rounded-2xl sm:inline-flex",
@@ -856,5 +925,46 @@ function StatTile({
         </p>
       </div>
     </div>
+  );
+}
+
+const READINESS_ICON = {
+  ready: Sparkles,
+  awaiting_inspection: ClipboardCheck,
+  dirty: SprayCan,
+} as const;
+
+/**
+ * Whether a room nobody is in can be given to a Guest now, from housekeeping:
+ * the question the desk asks of every free or reserved tile (CALENDAR-19).
+ * Drawn for those two states only; a Guest's room, a blocked one and one out
+ * of order have a different question.
+ */
+function ReadinessMark({
+  readiness,
+  state,
+}: {
+  readiness: RoomReadiness | undefined;
+  state: UnitState | null;
+}) {
+  const t = useTranslations("roomCalendar");
+  if (
+    !readiness ||
+    readiness === "occupied" ||
+    (state?.kind !== "free" && state?.kind !== "reserved")
+  ) {
+    return null;
+  }
+  const Icon = READINESS_ICON[readiness];
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 text-xs font-medium",
+        readiness === "ready" ? "text-success" : "text-warning",
+      )}
+    >
+      <Icon aria-hidden="true" className="size-3.5" />
+      {t(`roomReadiness.${readiness}`)}
+    </span>
   );
 }

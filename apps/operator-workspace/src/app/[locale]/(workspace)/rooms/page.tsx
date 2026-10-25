@@ -7,6 +7,7 @@ import {
   requireViewer,
   rooms,
   roomsMaintenance,
+  roomsReadiness,
   screenProperties,
   whyDenied,
 } from "../../../../server/viewer";
@@ -53,12 +54,14 @@ export default async function RoomsPage({
     );
   }
 
-  const [data, maintenance, mayConfigure, housekeeping] = await Promise.all([
-    rooms(property.propertyId),
-    roomsMaintenance(property.propertyId),
-    mayConfigureRooms(property.propertyId),
-    screenProperties(gateOf("housekeeping")),
-  ]);
+  const [data, maintenance, mayConfigure, housekeeping, readiness] =
+    await Promise.all([
+      rooms(property.propertyId),
+      roomsMaintenance(property.propertyId),
+      mayConfigureRooms(property.propertyId),
+      screenProperties(gateOf("housekeeping")),
+      roomsReadiness(property.propertyId),
+    ]);
   const hasHousekeeping = housekeeping.some(
     (candidate) => candidate.propertyId === property.propertyId,
   );
@@ -76,6 +79,7 @@ export default async function RoomsPage({
       maintenance={maintenance}
       mayConfigure={mayConfigure}
       propertyId={property.propertyId}
+      readiness={readiness}
       targetUnitId={search.unit ?? null}
     />
   );

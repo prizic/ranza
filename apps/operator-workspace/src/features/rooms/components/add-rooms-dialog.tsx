@@ -22,7 +22,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogMasthead,
-  DialogNotice,
   DialogSection,
   DialogTrigger,
   Field,
@@ -41,6 +40,10 @@ const BEDS_MAX = 26;
 const FLOOR_RANGE = { min: -20, max: 200 } as const;
 const BUILDING_MAX = 60;
 const NUMBER_PATTERN = /^[0-9]{1,8}$/;
+/** A batch above this asks once more, with its first and last number. */
+const LARGE_BATCH = 20;
+/** How many numbers already in use the footer names before it says "…". */
+const CLASHES_SHOWN = 5;
 
 type Added = Extract<AddRoomsOutcome, { status: "done" }>;
 
@@ -73,10 +76,13 @@ const BLANK: Draft = {
  * still names the permission for anyone who reaches the form another way.
  */
 export function AddRoomsDialog({
+  existingNames,
   locale,
   propertyId,
   onAdded,
 }: {
+  /** The rooms the Property already has, so a number in use is said before the press. */
+  existingNames: readonly string[];
   locale: string;
   propertyId: string;
   /** The batch just created, for the screen to say so once the dialog closes. */
@@ -87,6 +93,7 @@ export function AddRoomsDialog({
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft>(BLANK);
   const [pending, setPending] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
 
   const dirty = (Object.keys(BLANK) as (keyof Draft)[]).some(
     (key) => draft[key] !== BLANK[key],
@@ -94,8 +101,10 @@ export function AddRoomsDialog({
 
   function requestOpenChange(next: boolean) {
     // Escape and a click outside close a dialog without asking, and a form
-    // with a batch typed into it is worth a question (ROOMS-05).
-    if (!next && dirty && !pending && !window.confirm(t("discardDraft"))) {
+    // with a batch typed into it is worth a question (ROOMS-05), asked in the
+    // app's own dialog rather than the browser's (CALENDAR-14).
+    if (!next && dirty && !pending) {
+      setDiscarding(true);
       return;
     }
     if (!next) setDraft(BLANK);
@@ -119,6 +128,7 @@ export function AddRoomsDialog({
       <DialogContent className={dialogFrameClassName("medium")}>
         <AddRoomsForm
           draft={draft}
+          existingNames={existingNames}
           locale={locale}
           onAdded={added}
           onCancel={() => {
@@ -129,6 +139,36 @@ export function AddRoomsDialog({
           onPending={setPending}
           propertyId={propertyId}
         />
+        <Dialog onOpenChange={setDiscarding} open={discarding}>
+          <DialogContent className={dialogFrameClassName("small")}>
+            <DialogMasthead
+              art="/illustrations/dialogs/add-rooms.svg"
+              eyebrow={all("addRooms")}
+              heading={t("discardDraft")}
+            />
+            <DialogBody simple>
+              <DialogDescription className="m-0 text-sm text-muted-foreground">
+                {t("discardDraftHint")}
+              </DialogDescription>
+            </DialogBody>
+            <DialogActions>
+              <CancelButton onClick={() => setDiscarding(false)} type="button">
+                {t("discardKeep")}
+              </CancelButton>
+              <ArrowButton
+                onClick={() => {
+                  setDiscarding(false);
+                  setDraft(BLANK);
+                  setOpen(false);
+                }}
+                tone="danger"
+                type="button"
+              >
+                {t("discardConfirm")}
+              </ArrowButton>
+            </DialogActions>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
@@ -136,6 +176,7 @@ export function AddRoomsDialog({
 
 function AddRoomsForm({
   draft,
+  existingNames,
   locale,
   onAdded,
   onCancel,
@@ -144,6 +185,7 @@ function AddRoomsForm({
   propertyId,
 }: {
   draft: Draft;
+  existingNames: readonly string[];
   locale: string;
   onAdded: (added: Added) => void;
   onCancel: () => void;
@@ -172,9 +214,21 @@ function AddRoomsForm({
     if (outcome.status === "done") announce.current(outcome);
   }, [outcome]);
 
-  const set = (patch: Partial<Draft>) => onDraft({ ...draft, ...patch });
+  // A large batch is asked about once; any change to the form asks again.
+  const [confirmedLarge, setConfirmedLarge] = useState(false);
+  const set = (patch: Partial<Draft>) => {
+    setConfirmedLarge(false);
+    onDraft({ ...draft, ...patch });
+  };
   const capacityMax = draft.letByTheBed ? BEDS_MAX : CAPACITY_MAX;
   const preview = previewOf(draft);
+  const inUse = new Set(existingNames.map((name) => name.trim().toLowerCase()));
+  const clashes = preview
+    ? preview.names.filter((name) => inUse.has(name.toLowerCase()))
+    : [];
+  const asksAgain = preview !== null && preview.count > LARGE_BATCH;
+  const firstNumberBad =
+    draft.firstNumber !== "" && !NUMBER_PATTERN.test(draft.firstNumber);
 
   return (
     <form action={act} className="grid">
@@ -245,17 +299,24 @@ function AddRoomsForm({
           <div className="grid grid-cols-2 items-start gap-4">
             <Field htmlFor="firstNumber" label={all("firstNumber")}>
               <Input
+                aria-describedby={
+                  firstNumberBad ? "firstNumber-error" : undefined
+                }
+                aria-invalid={firstNumberBad || undefined}
                 className={fieldClassName}
                 id="firstNumber"
                 inputMode="numeric"
                 name="firstNumber"
                 onChange={(event) => set({ firstNumber: event.target.value })}
-                pattern={NUMBER_PATTERN.source}
                 placeholder="101"
                 required
                 value={draft.firstNumber}
-                {...saysInOwnWords(t("firstNumberInvalid"))}
               />
+              {firstNumberBad ? (
+                <div id="firstNumber-error">
+                  <FormError>{t("firstNumberInvalid")}</FormError>
+                </div>
+              ) : null}
             </Field>
             <Field htmlFor="count" label={all("roomCount")}>
               <Input
@@ -307,34 +368,64 @@ function AddRoomsForm({
           </div>
         </DialogSection>
 
-        <div className="py-5">
-          <div aria-live="polite" data-testid="add-rooms-preview">
-            <DialogNotice>
-              {preview ? (
-                <PreviewLine draft={draft} preview={preview} />
-              ) : (
-                t("previewIncomplete")
-              )}
-            </DialogNotice>
+        {outcome.status !== "idle" && outcome.status !== "done" ? (
+          <div className="py-5">
+            <OutcomeError
+              capacityMax={capacityMax}
+              outcome={outcome}
+              permission={all("staff.permissions.configureAccommodation")}
+              t={t}
+            />
           </div>
-          <OutcomeError
-            capacityMax={capacityMax}
-            outcome={outcome}
-            permission={all("staff.permissions.configureAccommodation")}
-            t={t}
-          />
-        </div>
+        ) : null}
       </DialogBody>
 
-      <DialogActions hint={preview ? null : t("addHintFirstNumber")}>
+      <DialogActions
+        hint={
+          <div aria-live="polite" data-testid="add-rooms-preview">
+            {!preview ? (
+              t("previewIncomplete")
+            ) : clashes.length > 0 ? (
+              <span className="font-medium text-destructive">
+                {t("alreadyInUse", {
+                  names:
+                    clashes.slice(0, CLASHES_SHOWN).join(", ") +
+                    (clashes.length > CLASHES_SHOWN ? " …" : ""),
+                })}
+              </span>
+            ) : asksAgain && confirmedLarge ? (
+              <span className="font-medium text-foreground">
+                {t("addLargeConfirm", {
+                  count: preview.count,
+                  first: preview.names[0] ?? "",
+                  last: preview.names.at(-1) ?? "",
+                })}
+              </span>
+            ) : (
+              <PreviewLine draft={draft} preview={preview} />
+            )}
+          </div>
+        }
+      >
         <CancelButton disabled={pending} onClick={onCancel} type="button">
           {all("discardBooking")}
         </CancelButton>
-        <ArrowButton disabled={pending || !preview} type="submit">
+        <ArrowButton
+          disabled={pending || !preview || clashes.length > 0}
+          onClick={(event) => {
+            if (asksAgain && !confirmedLarge) {
+              event.preventDefault();
+              setConfirmedLarge(true);
+            }
+          }}
+          type="submit"
+        >
           {pending
             ? all("addingRooms")
             : preview
-              ? t("addCount", { count: preview.count })
+              ? t(asksAgain && confirmedLarge ? "addCountSure" : "addCount", {
+                  count: preview.count,
+                })
               : all("addRooms")}
         </ArrowButton>
       </DialogActions>

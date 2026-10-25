@@ -968,6 +968,40 @@ test("RC-S3-07: a Guest in house dragged to another room is moved, with a reason
   ).toBeVisible();
 });
 
+test("CALENDAR-02: a Guest in house moves into a room whose booking never arrived and has passed", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const guest = `Past ${tag}`;
+  const stayId = anInHouseGuestIn(rooms.A!, guest);
+  // Due three days ago, every night of it behind us: nobody can arrive into
+  // those nights, so they do not stand between the Guest and the room.
+  aBookingOn(rooms.B!, `Never came ${tag}`, { from: -3, to: 0 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await dragBar(
+    page,
+    { room: rooms.A!, day: propertyDay(propertyId, 1) },
+    { room: rooms.B!, day: propertyDay(propertyId, 2) },
+  );
+  const dialog = page.getByRole("dialog", { name: "Move Guest" });
+  const confirm = dialog.getByRole("button", { name: "Move Guest" });
+  await dialog.getByText("An upgrade", { exact: true }).click();
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(dialog).toBeHidden();
+
+  expect(
+    psql(
+      `select unit.name
+         from public.stays as stay
+         join public.accommodation_units as unit on unit.id = stay.accommodation_unit_id
+        where stay.id = '${stayId}'`,
+    ),
+  ).toBe(rooms.B!.name);
+});
+
 test("RC-S3-08: pulling the end of a Guest in house previews the new departure, and a booking in the way blocks it", async ({
   page,
 }) => {
