@@ -40,7 +40,7 @@ extra steps — and handing any role or any reach out is bounded the same way, a
 Staff Member holds, through the product's first real outbox handler and a
 single function across the credential boundary
 ([ADR 0027](adr/0027-the-worker-ends-a-session-through-one-function-and-no-grant.md))
-— `ranza_worker` still holds no grant on any credential table. **An invited colleague can now get in** (proposed, [ADR 0053](adr/0053-an-invited-person-gets-a-login-through-the-link-and-it-is-tied-to-the-user-the-invitation-made.md)): the invitation link opens a page that creates their login through the sign-up route and ties it to the user the invitation made; a lost link is renewed and somebody revoked past the undo window is added back. Email delivery of the link waits for Notifications.
+— `ranza_worker` still holds no grant on any credential table. **An invited colleague can now get in** (proposed, [ADR 0053](adr/0053-an-invited-person-gets-a-login-through-the-link-and-it-is-tied-to-the-user-the-invitation-made.md)): the invitation link opens a page that creates their login through the sign-up route and ties it to the user the invitation made; a lost link is renewed and somebody revoked past the undo window is added back. Email delivery of the link waits for Notifications. **Where somebody works can now be changed from the roster** (proposed, SP-S1-74 to SP-S1-77): one dialog adds and takes away Properties together, says that every session ends, and refuses a view that went stale; an administrator changes only the Properties they can see.
 
 **A night now has a price** ([ADR 0038](adr/0038-a-night-is-priced-by-its-unit-type-and-fixed-when-booked.md),
 `packages/ranza/rates`): a Property sets a nightly price per unit type on the
