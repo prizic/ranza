@@ -446,15 +446,37 @@ test.describe("the first paint and the phone", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 375, height: 812 });
+    // The arrival that sits at the right-hand end of the line whatever the hour
+    // of the run: its card is anchored to the edge, and a room that is awaiting
+    // inspection gives it its longest state badge, which was wider than the card
+    // and pushed the page sideways by twenty pixels.
+    anArrivalToday(audit.day.propertyId, LATE_IN_THE_DAY);
     await openToday(page, "front_desk", "timeline");
-    const flow = await page
-      .getByRole("region", { name: "Today's flow" })
-      .boundingBox();
+    const region = page.getByRole("region", { name: "Today's flow" });
+    const flow = await region.boundingBox();
     expect(flow?.y ?? 9999).toBeLessThan(420);
-    const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
-    );
-    expect(overflow).toBeLessThanOrEqual(0);
+    const sideways = () =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      );
+    expect(await sideways()).toBeLessThanOrEqual(0);
+    await region.getByRole("button", { name: "Whole day" }).click();
+    await expect(
+      region.getByText("23:55", { exact: true }).first(),
+    ).toBeVisible();
+    expect(await sideways()).toBeLessThanOrEqual(0);
+    // The hour labels on the axis do not touch one another.
+    const labels = await region
+      .locator("div.h-12 > span.font-mono")
+      .evaluateAll((nodes) =>
+        nodes
+          .map((node) => node.getBoundingClientRect())
+          .map((box) => ({ left: box.left, right: box.right })),
+      );
+    expect(labels.length).toBeGreaterThan(3);
+    for (const [index, label] of labels.slice(1).entries()) {
+      expect(label.left).toBeGreaterThanOrEqual(labels[index]!.right);
+    }
     await shoot(page, "timeline-phone");
   });
 });

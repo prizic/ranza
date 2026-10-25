@@ -55,6 +55,26 @@ function windowFor(range: Range, nowMinutes: number) {
     : { from: 0, to: 24 * 60 };
 }
 
+/** The room an hour label needs along the axis, in pixels. */
+const HOUR_LABEL_SPACE = 44;
+
+/**
+ * Hours between two labels on the axis: every hour for a few hours, every
+ * second hour for a day (24 labels are too close to read), and as many more as
+ * it takes for the labels not to touch in the width the lane has. A phone's
+ * lane is a third of a desk's, and every second hour set the "00:00" of one
+ * label over the "02:00" of the next.
+ */
+export function hourStepFor(spanHours: number, width: number): number {
+  const fits = width > 0 ? Math.floor(width / HOUR_LABEL_SPACE) : spanHours;
+  const wanted = spanHours > 12 ? 2 : 1;
+  return (
+    [wanted, 2, 3, 4, 6, 12].find(
+      (step) => step >= wanted && spanHours / step + 1 <= fits,
+    ) ?? 12
+  );
+}
+
 const CHIP_WIDTH = 208;
 const ROW_HEIGHT = 104;
 
@@ -308,8 +328,7 @@ function FlowPanel({
     });
 
   const hours: number[] = [];
-  // A day is 24 labels across one lane, too close to read: every second hour.
-  const hourStep = window.to - window.from > 12 * 60 ? 2 : 1;
+  const hourStep = hourStepFor((window.to - window.from) / 60, width);
   for (
     let h = Math.ceil(window.from / 60);
     h * 60 <= window.to;
@@ -677,7 +696,7 @@ function ArrivalChip({
       ) : null}
       <div
         className={cn(
-          "absolute z-10 flex flex-col gap-1.5 rounded-xl border border-border border-s-4 bg-card px-3 py-2 shadow-xs",
+          "absolute z-10 flex flex-col gap-1.5 overflow-hidden rounded-xl border border-border border-s-4 bg-card px-3 py-2 shadow-xs",
           tone,
         )}
         style={{ ...position, top, width: CHIP_WIDTH }}
@@ -693,8 +712,16 @@ function ArrivalChip({
           </span>
         </span>
         <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-          <bdi>{unitLabel(arrival.unit.roomName, arrival.unit.unitName)}</bdi>
-          <StateBadge state={done ? "in_house" : readiness} />
+          <bdi className="max-w-20 shrink-0 truncate">
+            {unitLabel(arrival.unit.roomName, arrival.unit.unitName)}
+          </bdi>
+          {/* The longest state, "Clean, awaiting inspection", is wider than the
+              card's inside: it gives way here, and the line under it says it
+              whole, rather than push the page sideways. */}
+          <StateBadge
+            className="min-w-0 shrink justify-start"
+            state={done ? "in_house" : readiness}
+          />
         </span>
         {late ? (
           <span className="text-xs font-semibold text-danger">

@@ -36,6 +36,7 @@ import {
   type TodayLayout,
 } from "../../apps/operator-workspace/src/features/today/layouts/model";
 import { LayoutSwitcher } from "../../apps/operator-workspace/src/features/today/layouts/layout-switcher";
+import { hourStepFor } from "../../apps/operator-workspace/src/features/today/layouts/timeline-layout";
 import { mergeSummary } from "../../apps/operator-workspace/src/features/today/merge";
 import { todayKeys } from "../../apps/operator-workspace/src/features/today/query-keys";
 
@@ -555,6 +556,17 @@ describe("the timeline", () => {
     expect(
       screen.getByRole("button", { name: "Whole day", pressed: true }),
     ).toBeInTheDocument();
+  });
+
+  it("the_hour_labels_are_spaced_for_the_width_of_the_line", () => {
+    // A phone's lane is about 310 px: a label every second hour put the 00:00
+    // of one over the 02:00 of the next.
+    expect(hourStepFor(24, 1100)).toBe(2);
+    expect(hourStepFor(24, 310)).toBe(4);
+    expect(hourStepFor(5, 310)).toBe(1);
+    expect(hourStepFor(5, 200)).toBe(2);
+    // Before the line has been measured nothing is thinned.
+    expect(hourStepFor(24, 0)).toBe(2);
   });
 
   it("the_whole_day_starts_at_midnight_so_an_early_flight_still_to_come_is_on_the_line", () => {
