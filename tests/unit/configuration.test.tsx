@@ -266,7 +266,7 @@ describe("who may change what", () => {
     expect(screen.getByLabelText("Organization name")).toBeDisabled();
     expect(
       within(card("organization")).getByText(
-        "Only someone who reaches every Property can rename the Organization.",
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
       ),
     ).toBeVisible();
     expect(screen.getByLabelText("Property name")).toBeEnabled();
@@ -343,7 +343,7 @@ describe("what the page holds", () => {
     const links = within(card("elsewhere")).getAllByRole("link");
     expect(links.map((link) => link.getAttribute("href"))).toEqual([
       `/en/rooms?property=${PROPERTY}`,
-      "/en/people",
+      `/en/people?property=${PROPERTY}`,
     ]);
   });
 
@@ -920,8 +920,8 @@ describe("finding a time zone, and what it is called (RANZ-73)", () => {
 
   for (const [as, expected] of [
     ["en", "Istanbul, Türkiye"],
-    ["tr", "Istanbul, Türkiye"],
-    ["ar", "Istanbul, تركيا"],
+    ["tr", "İstanbul, Türkiye"],
+    ["ar", "إسطنبول، تركيا"],
   ] as const) {
     it(`CF-S3-16: names the zone with its country in the reader's language, in ${as}`, async () => {
       await show(MANAGER, { as });

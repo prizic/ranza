@@ -152,7 +152,7 @@ test("BR-S1-01: the Owner brands the Organization and the Resident's Portal carr
 
   await page.getByLabel("Colour (#rrggbb)").fill(BURGUNDY);
   await expect(
-    page.getByText(/Text on filled surfaces is white/),
+    page.getByText(/Buttons and filled areas use this colour with white text/),
   ).toBeVisible();
   await chooseLogo(page, aLogo());
 
@@ -218,6 +218,10 @@ test("BR-S1-12: reset returns the Portal to the default theme", async ({
   await page.goto(`/en/branding?property=${testProperty()}`);
   await expect(page.getByLabel("Colour (#rrggbb)")).toHaveValue(BURGUNDY);
   await page.getByRole("button", { name: "Reset to default" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Reset the brand" })
+    .click();
   await expect(page.getByText("Back to the default theme.")).toBeVisible();
   await expect(page.getByLabel("Colour (#rrggbb)")).toHaveValue("");
 
@@ -238,7 +242,7 @@ test("BR-S1-04: a light colour is accepted and the screen shows the darker shade
   // A yellow: a fine button and an unreadable link.
   await field.fill("#ffeb3b");
   await expect(
-    page.getByText(/Links and text use a darker shade of the same hue/),
+    page.getByText(/Links and text use a slightly darker shade/),
   ).toBeVisible();
   await expect(page.getByText("Buttons and fills")).toBeVisible();
   await expect(page.getByText("Links and text", { exact: true })).toBeVisible();
@@ -379,7 +383,7 @@ test("BR-S1-33: the Branding screen reads right to left in Arabic with the colou
   await expect(page.getByText("لون العلامة")).toBeVisible();
   // The server's verdict on the saved colour, which is drawn under it.
   await expect(
-    page.getByText(/تُرسم الروابط والنصوص باللون نفسه/),
+    page.getByText(/تستخدم الروابط والنصوص اللون نفسه/),
   ).toBeVisible();
   await expect(page.getByTestId("brand-preview").getByRole("button")).toHaveCSS(
     "background-color",
@@ -546,20 +550,31 @@ test("BR-S1-40: the Workspace's logo route answers 401 without a session and 404
   }
 });
 
-test("BR-S1-42: a logo of 600 KB and one of 2 MB are each told they are too large", async ({
+test("BR-S1-42: a logo of 600 KB and one of 2 MB are each told they are too large the moment they are chosen", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
   await page.goto(`/en/branding?property=${testProperty()}`);
 
-  for (const size of [600 * 1024, 2 * 1024 * 1024]) {
-    await chooseLogo(page, png(320, 160, size));
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+  for (const [size, said] of [
+    [600 * 1024, "This file is 600 kB; a logo can be at most 512 kB."],
+    [2 * 1024 * 1024, "This file is 2,048 kB; a logo can be at most 512 kB."],
+  ] as const) {
+    // Chosen again until the page has taken it: the first choice a page that
+    // has not hydrated yet receives is lost.
+    await expect(async () => {
+      await page.getByLabel("Logo file").setInputFiles({
+        name: "logo.png",
+        mimeType: "image/png",
+        buffer: png(320, 160, size),
+      });
+      await expect(page.getByText(said)).toBeVisible({ timeout: 1_500 });
+    }).toPass({ timeout: 30_000 });
+    // Said before any save, and nothing to press.
     await expect(
-      page.getByText("The file is larger than 512 KB."),
-    ).toBeVisible();
+      page.getByRole("button", { name: "Save", exact: true }),
+    ).toBeDisabled();
   }
-  // Told, and nothing saved.
   expect(
     psql(
       `select count(*) from public.organization_brand_logos

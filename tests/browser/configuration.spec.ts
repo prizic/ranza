@@ -97,7 +97,7 @@ test("says why the Organization cannot be renamed from here", async ({
   await expect(page.getByLabel("Organization name")).toBeDisabled();
   await expect(
     page.getByText(
-      "Only someone who reaches every Property can rename the Organization.",
+      "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
     ),
   ).toBeVisible();
 });
@@ -181,9 +181,9 @@ test("a choice about every Property is asked about first, and nothing is saved u
     .getByRole("button", { name: "Save for every Property" })
     .click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText("Change this for every Property?");
+  await expect(dialog).toContainText("Change the Organization's default?");
   await expect(dialog).toContainText(
-    "This changes Check rooms after cleaning for every Property: from “Off” to “On”.",
+    "The Organization's default for Check rooms after cleaning changes from “Off” to “On”.",
   );
   await page.screenshot({
     path: path.join(SCREENSHOTS, "every-property-confirm.png"),

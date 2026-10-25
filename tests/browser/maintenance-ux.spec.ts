@@ -342,10 +342,10 @@ test("a setting is saved when somebody says so, and the Organization's names eve
   await page.getByRole("option", { name: "Yes", exact: true }).click();
   await saveOrganization.click();
   const confirm = page.getByRole("dialog", {
-    name: "Change this for every Property?",
+    name: "Change the Organization's default?",
   });
   await expect(confirm).toContainText(
-    "This changes Somebody is assigned before work starts for every Property",
+    "The Organization's default for Somebody is assigned before work starts changes",
   );
   await page.screenshot({
     path: path.join(EVIDENCE, "organization-confirm.png"),

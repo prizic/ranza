@@ -1516,6 +1516,84 @@ describe("coming back", { timeout: DATABASE_BUDGET_MS }, () => {
   });
 });
 
+describe(
+  "whom a change of the Organization's answers reaches (CONFIGURATION-11)",
+  { timeout: DATABASE_BUDGET_MS },
+  () => {
+    it("counts the active Properties with maintenance, per question, and names the ones that keep their own", async () => {
+      const before = (await maintenance.settings(MANAGER, PROPERTY))
+        ?.defaultReach;
+      expect(before).not.toBeNull();
+      const keeping = randomUUID();
+      const archived = randomUUID();
+      await owner.$executeRawUnsafe(
+        `insert into public.properties (id, organization_id, name, timezone, status) values
+           ($1, $3, 'Reach Keeper', 'Europe/Istanbul', 'active'),
+           ($2, $3, 'Reach Archived', 'Europe/Istanbul', 'archived')`,
+        keeping,
+        archived,
+        ORG,
+      );
+      await owner.$executeRawUnsafe(
+        `insert into public.property_capabilities
+           (property_id, organization_id, capability_key, enabled)
+         select id, $3::uuid, 'maintenance', true
+           from public.properties where id in ($1::uuid, $2::uuid)`,
+        keeping,
+        archived,
+        ORG,
+      );
+      try {
+        await maintenance.setPropertySettings(MANAGER, keeping, {
+          assigneeRequired: null,
+          returnOnDone: null,
+          returnAs: "inspected",
+        });
+        const after = (await maintenance.settings(MANAGER, PROPERTY))
+          ?.defaultReach;
+        // The new Property follows two questions and keeps its answer to one;
+        // the archived one is in neither count.
+        expect(after?.assigneeRequired.following).toBe(
+          (before?.assigneeRequired.following ?? 0) + 1,
+        );
+        expect(after?.returnOnDone.following).toBe(
+          (before?.returnOnDone.following ?? 0) + 1,
+        );
+        expect(after?.returnAs.following).toBe(before?.returnAs.following ?? 0);
+        expect(after?.returnAs.keepingOwn).toContain("Reach Keeper");
+        expect(after?.assigneeRequired.keepingOwn).not.toContain(
+          "Reach Keeper",
+        );
+        expect(JSON.stringify(after)).not.toContain("Reach Archived");
+      } finally {
+        await owner.$executeRawUnsafe(
+          `delete from public.maintenance_settings where property_id = $1::uuid`,
+          keeping,
+        );
+        await owner.$executeRawUnsafe(
+          `delete from public.property_capabilities where property_id in ($1::uuid, $2::uuid)`,
+          keeping,
+          archived,
+        );
+        await owner.$executeRawUnsafe(
+          `delete from public.properties where id in ($1::uuid, $2::uuid)`,
+          keeping,
+          archived,
+        );
+      }
+    });
+
+    it("is not read for somebody who cannot change the default", async () => {
+      const settings = await maintenance.settings(DESK, PROPERTY);
+      expect(settings).not.toBeNull();
+      expect(settings).toMatchObject({
+        mayConfigureDefault: false,
+        defaultReach: null,
+      });
+    });
+  },
+);
+
 describe("where each record is filed", { timeout: DATABASE_BUDGET_MS }, () => {
   // ADR 0031: a record names the Property it happened at, or none when it is
   // about the whole Organization. audit.records is append-only, so a writer

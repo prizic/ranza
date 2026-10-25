@@ -8,6 +8,7 @@ import { expect } from "@playwright/test";
 import { test } from "./hydration";
 import { verifyDelivery } from "../../packages/ranza/integrations/src/signing";
 import { PASSWORD, signIn } from "./front-desk";
+import { messages } from "../../apps/operator-workspace/src/messages";
 import { psql } from "./local-database";
 import { startWorker, WORKER_BUDGET_MS, whileWorking } from "./worker";
 
@@ -178,6 +179,19 @@ test("INT-S1-51: an Owner adds an endpoint, sees the secret once, sends a test e
   await expect(
     page.getByText("Nothing has failed at this Property."),
   ).toBeVisible();
+  // A first setup leads with the one thing to do (CONFIGURATION-10): no tiles
+  // of zero, and the Add endpoint button above the empty failures list.
+  await expect(
+    page.getByText(messages.en.integrations.openFailuresCount),
+  ).toHaveCount(0);
+  const addAt = await page
+    .getByRole("button", { name: "Add endpoint" })
+    .first()
+    .boundingBox();
+  const failuresAt = await page
+    .getByText("Nothing has failed at this Property.")
+    .boundingBox();
+  expect(addAt!.y).toBeLessThan(failuresAt!.y);
   // And says what can be connected here, and what cannot yet: no fake providers.
   await expect(page.getByTestId("integrations-availability")).toContainText(
     "A webhook is the only integration available today. Channel managers, KBS reporting, e-invoicing and payment providers are not available yet.",
@@ -676,6 +690,19 @@ test("INT-S1-79: someone with no integrations permission is told so, and a Prope
   await expect(
     page.getByRole("heading", { name: "Your role can't open this page" }),
   ).toHaveCount(0);
+  // And does not send the reader to a menu that is not there, or to the Owner
+  // they may be (CONFIGURATION-09).
+  await expect(
+    page.getByText(messages.en.denied.notEnabledDescription),
+  ).toBeVisible();
+  await expect(page.getByText(/menu at the top/)).toHaveCount(0);
+  await page.screenshot({
+    path: path.join(
+      __dirname,
+      "../../docs/evidence/ux-audit-2026-10-24/configuration",
+      "integrations-not-switched-on.png",
+    ),
+  });
 });
 
 test("INT-S1-67: someone who can only view reads an address without its query string, and the manager reads it whole", async ({

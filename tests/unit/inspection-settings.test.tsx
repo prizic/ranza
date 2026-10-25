@@ -49,6 +49,7 @@ const manager: Settings = {
   effective: true,
   mayConfigure: true,
   mayConfigureDefault: true,
+  defaultReach: { following: 3, keepingOwn: ["Demo Otel"] },
 };
 
 beforeAll(() => {
@@ -90,12 +91,14 @@ describe("the inspection setting", () => {
   });
 
   it("tells a manager of one Property why the default is not theirs", () => {
-    show({ ...manager, mayConfigureDefault: false });
+    show({ ...manager, mayConfigureDefault: false, defaultReach: null });
     expect(
       screen.getByRole("combobox", { name: "For the whole Organization" }),
     ).toBeDisabled();
     expect(
-      screen.getByText(/reaches every Property can change/),
+      screen.getByText(
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
+      ),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("combobox", { name: "For this Property" }),
@@ -103,7 +106,12 @@ describe("the inspection setting", () => {
   });
 
   it("tells a reader without the permission what applies in a sentence, with no control to try (HK-S3-12)", () => {
-    show({ ...manager, mayConfigure: false, mayConfigureDefault: false });
+    show({
+      ...manager,
+      mayConfigure: false,
+      mayConfigureDefault: false,
+      defaultReach: null,
+    });
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(
       screen.getByText(/waits for an inspection before it is ready to let/),
@@ -116,6 +124,7 @@ describe("the inspection setting", () => {
       effective: false,
       mayConfigure: false,
       mayConfigureDefault: false,
+      defaultReach: null,
     });
     expect(
       screen.getByText(/is ready to let without an inspection/),
@@ -221,7 +230,7 @@ describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
     expect(screen.queryByText("Not saved yet.")).toBeNull();
   });
 
-  it("CF-S3-22: saving the Organization's default asks first and names every Property, and does nothing until it is confirmed", async () => {
+  it("CF-S3-22: saving the Organization's default asks first and says whom it reaches, and does nothing until it is confirmed", async () => {
     setInspection.mockResolvedValue({ status: "done" });
     show(manager);
     await choose("For the whole Organization", "Off");
@@ -231,11 +240,11 @@ describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Change this for every Property?"),
+      within(dialog).getByText("Change the Organization's default?"),
     ).toBeVisible();
     expect(
       within(dialog).getByText(
-        "This changes Check rooms after cleaning for every Property: from “On” to “Off”.",
+        "The Organization's default for Check rooms after cleaning changes from “On” to “Off”.",
       ),
     ).toBeVisible();
     expect(setInspection).not.toHaveBeenCalled();
@@ -251,7 +260,7 @@ describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
     await act(async () => {
       fireEvent.click(
         within(await screen.findByRole("dialog")).getByRole("button", {
-          name: "Change for every Property",
+          name: "Change the default",
         }),
       );
     });
@@ -259,6 +268,62 @@ describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
     const form = setInspection.mock.calls[0]![1] as FormData;
     expect(form.get("scope")).toBe("organization");
     expect(form.get("value")).toBe("off");
+  });
+
+  it("CONFIGURATION-11: the confirm says how many Properties change and which keep their own answer", async () => {
+    show(manager);
+    await choose("For the whole Organization", "Off");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText("3 Properties follow the default and will change."),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByText(
+        /1 Property keeps its own answer and does not change: .*Demo Otel.*\./,
+      ),
+    ).toBeVisible();
+    expect(dialog).not.toHaveTextContent("for every Property");
+  });
+
+  it("CONFIGURATION-11: when every Property has its own answer, nothing changes and the confirm says so", async () => {
+    show({
+      ...manager,
+      defaultReach: { following: 0, keepingOwn: ["Demo Otel", "Demo Plaj"] },
+    });
+    await choose("For the whole Organization", "Off");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(
+        "No Property follows the default, so none of them changes.",
+      ),
+    ).toBeVisible();
+    expect(dialog).toHaveTextContent(
+      "2 Properties keep their own answer and do not change",
+    );
+  });
+
+  it("CONFIGURATION-11: a long list of Properties that keep their own answer is counted past the fourth", async () => {
+    show({
+      ...manager,
+      defaultReach: {
+        following: 1,
+        keepingOwn: ["A", "B", "C", "D", "E", "F"],
+      },
+    });
+    await choose("For the whole Organization", "Off");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save for every Property" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent(/6 Properties keep their own answer/);
+    expect(dialog).toHaveTextContent(/and 2 more/);
+    expect(dialog.textContent).not.toMatch(/\bE\b|\bF\b/);
   });
 
   it("CF-S3-23: asks before the tab is closed while a choice is unsaved, and not before", async () => {

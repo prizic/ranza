@@ -174,8 +174,11 @@ function chunk(type: string, data: Buffer): Buffer {
  * alone does not draw, and a screenshot of a broken image proves nothing.
  */
 export function aLogo(): Buffer {
-  const width = 320;
-  const height = 160;
+  return aLogoOf(320, 160);
+}
+
+/** The same orange disc at any size, for a screen that judges the image it is given. */
+export function aLogoOf(width: number, height: number): Buffer {
   const rows: Buffer[] = [];
   for (let y = 0; y < height; y += 1) {
     const row = Buffer.alloc(1 + width * 4);

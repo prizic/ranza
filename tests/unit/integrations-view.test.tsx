@@ -327,6 +327,35 @@ describe("IntegrationsView", () => {
     expect(screen.queryByRole("button", { name: "Add endpoint" })).toBeNull();
   });
 
+  it("CONFIGURATION-10: a first setup leads with the endpoints section and no tiles of zero, and any activity brings the tiles back", () => {
+    renderView("en", {
+      view: { endpoints: [], mayManage: true },
+      failedOperations: [],
+      openTotal: 0,
+    });
+    const endpointsSection = document.querySelector(
+      '[aria-labelledby="endpoints-heading"]',
+    );
+    expect(endpointsSection).toHaveClass("order-first");
+    expect(
+      screen.queryByText(messages.en.integrations.openFailuresCount),
+    ).toBeNull();
+    expect(
+      within(endpointsSection as HTMLElement).getByRole("button", {
+        name: "Add endpoint",
+      }),
+    ).toBeInTheDocument();
+    cleanup();
+
+    renderView("en");
+    expect(
+      document.querySelector('[aria-labelledby="endpoints-heading"]'),
+    ).not.toHaveClass("order-first");
+    expect(
+      screen.getByText(messages.en.integrations.openFailuresCount),
+    ).toBeVisible();
+  });
+
   it("INT-S1-14: renders in Turkish", () => {
     renderView("tr");
 

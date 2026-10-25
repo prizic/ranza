@@ -758,13 +758,78 @@ describe(
         effective: false,
         mayConfigure: true,
         mayConfigureDefault: true,
+        defaultReach: { following: 1, keepingOwn: [] },
       });
       expect(
         await housekeeping.inspectionSettings(FINANCE, PROPERTY),
-      ).toMatchObject({ mayConfigure: false, mayConfigureDefault: false });
+      ).toMatchObject({
+        mayConfigure: false,
+        mayConfigureDefault: false,
+        defaultReach: null,
+      });
       expect(
         await housekeeping.inspectionSettings(MEMBER, NO_HOUSEKEEPING),
       ).toBeNull();
+    });
+
+    it("says how many Properties a change of the default reaches, and which keep their own answer (CONFIGURATION-11)", async () => {
+      const following = randomUUID();
+      const keeping = randomUUID();
+      const archived = randomUUID();
+      await owner.$executeRawUnsafe(
+        `insert into public.properties (id, organization_id, name, timezone, status) values
+           ($1, $4, 'Reach Follower', 'Europe/Istanbul', 'active'),
+           ($2, $4, 'Reach Keeper', 'Europe/Istanbul', 'active'),
+           ($3, $4, 'Reach Archived', 'Europe/Istanbul', 'archived')`,
+        following,
+        keeping,
+        archived,
+        ORG,
+      );
+      await owner.$executeRawUnsafe(
+        `insert into public.property_capabilities
+           (property_id, organization_id, capability_key, enabled)
+         select id, $4::uuid, 'housekeeping', true
+           from public.properties where id in ($1::uuid, $2::uuid, $3::uuid)`,
+        following,
+        keeping,
+        archived,
+        ORG,
+      );
+      try {
+        await housekeeping.setPropertyInspection(MEMBER, keeping, true);
+        // From a Property that has no answer of its own, and the same from any
+        // other: the reach is the Organization's, not the page's Property.
+        const reach = {
+          following: 2,
+          keepingOwn: ["Reach Keeper"],
+        };
+        expect(
+          (await housekeeping.inspectionSettings(MEMBER, PROPERTY))
+            ?.defaultReach,
+        ).toEqual(reach);
+        expect(
+          (await housekeeping.inspectionSettings(MEMBER, keeping))
+            ?.defaultReach,
+        ).toEqual(reach);
+      } finally {
+        await owner.$executeRawUnsafe(
+          `delete from public.housekeeping_settings where property_id = $1::uuid`,
+          keeping,
+        );
+        await owner.$executeRawUnsafe(
+          `delete from public.property_capabilities where property_id in ($1::uuid, $2::uuid, $3::uuid)`,
+          following,
+          keeping,
+          archived,
+        );
+        await owner.$executeRawUnsafe(
+          `delete from public.properties where id in ($1::uuid, $2::uuid, $3::uuid)`,
+          following,
+          keeping,
+          archived,
+        );
+      }
     });
 
     it("switching it on changes what ready means and no room's status (HK-S3-01, HK-S3-06, HK-S3-08)", async () => {
