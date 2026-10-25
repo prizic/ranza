@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { centerInScroller } from "../lib/center-in-scroller";
+import { useScrollEdges } from "../lib/use-scroll-edges";
 import { hrefPath, type NavLeaf } from "./nav";
 import { cn } from "../lib/utils";
 
@@ -16,7 +17,9 @@ import { cn } from "../lib/utils";
  * URL. Scrolls sideways when the row is wider than the room it has, and the
  * scrollbar is hidden because the chips are the affordance. It opens scrolled
  * to the chip of the page the person is on, so that chip is never the one cut
- * off at the edge of a phone (SHELL-15).
+ * off at the edge of a phone (SHELL-15), and each edge that has more chips
+ * beyond it fades out, because chips cut off with nothing to say so are pages
+ * nobody finds (FINANCE-07).
  */
 export function NavChips({
   entries,
@@ -28,6 +31,7 @@ export function NavChips({
 }) {
   const pathname = usePathname();
   const row = useRef<HTMLUListElement>(null);
+  const edges = useScrollEdges(row, "x", entries.length);
 
   useEffect(() => {
     const current = row.current?.querySelector<HTMLElement>(
@@ -39,10 +43,21 @@ export function NavChips({
   if (entries.length === 0) return null;
 
   return (
-    <nav aria-label={label} className="min-w-0">
+    <nav
+      aria-label={label}
+      className="min-w-0"
+      data-fade-end={edges.end}
+      data-fade-start={edges.start}
+    >
       <ul
-        className="flex items-center gap-1.5 overflow-x-auto scrollbar-none"
+        className="flex items-center gap-1.5 overflow-x-auto scrollbar-none [mask-image:linear-gradient(to_right,transparent,#000_var(--fade-start),#000_calc(100%-var(--fade-end)),transparent)] rtl:[mask-image:linear-gradient(to_left,transparent,#000_var(--fade-start),#000_calc(100%-var(--fade-end)),transparent)]"
         ref={row}
+        style={
+          {
+            "--fade-end": edges.end ? "2rem" : "0px",
+            "--fade-start": edges.start ? "2rem" : "0px",
+          } as CSSProperties
+        }
       >
         {entries.map(({ badge, href, icon: Icon, label: entryLabel }) => {
           const path = hrefPath(href);
