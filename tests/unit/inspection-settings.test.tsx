@@ -278,7 +278,9 @@ describe("saving the inspection setting (RANZ-73, CONFIG-02)", () => {
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("3 Properties follow the default and will change."),
+      within(dialog).getByText(
+        "3 Properties follow the default and will change.",
+      ),
     ).toBeVisible();
     expect(
       within(dialog).getByText(

@@ -1437,15 +1437,18 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     userId: string,
     propertyId: string,
   ): Promise<Record<keyof SettingValues, DefaultReach>> {
-    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
-      tx.$queryRaw<
-        {
-          name: string;
-          ownAssignee: boolean;
-          ownReturnOnDone: boolean;
-          ownReturnAs: boolean;
-        }[]
-      >`
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<
+          {
+            name: string;
+            ownAssignee: boolean;
+            ownReturnOnDone: boolean;
+            ownReturnAs: boolean;
+          }[]
+        >`
         select property.name as "name",
                own.assignee_required is not null as "ownAssignee",
                own.return_on_done is not null as "ownReturnOnDone",
@@ -1464,7 +1467,9 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
          order by property.name
       `,
     );
-    const reach = (own: (row: (typeof rows)[number]) => boolean): DefaultReach => ({
+    const reach = (
+      own: (row: (typeof rows)[number]) => boolean,
+    ): DefaultReach => ({
       following: rows.filter((row) => !own(row)).length,
       keepingOwn: rows.filter(own).map((row) => row.name),
     });

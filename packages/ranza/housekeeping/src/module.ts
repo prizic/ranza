@@ -362,8 +362,11 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
     userId: string,
     propertyId: string,
   ): Promise<DefaultReach> {
-    const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
-      tx.$queryRaw<{ name: string; ownAnswer: boolean }[]>`
+    const rows = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ name: string; ownAnswer: boolean }[]>`
         select property.name as "name",
                setting.inspect_after_cleaning is not null as "ownAnswer"
           from public.properties as property

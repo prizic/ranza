@@ -265,8 +265,7 @@ export function BrandingView({
   const ratio = (contrast: number) => numbers.format(contrast);
   const foregroundWord = (foreground: string) =>
     t(`foreground.${foreground === "#ffffff" ? "white" : "black"}`);
-  const wellColor =
-    verdict?.status === "ok" ? verdict.color : "var(--accent)";
+  const wellColor = verdict?.status === "ok" ? verdict.color : "var(--accent)";
 
   return (
     <div className="flex flex-col gap-8">
@@ -590,9 +589,7 @@ export function BrandingView({
             <ul className="m-0 grid list-none gap-2 p-0 text-sm">
               {brand.logo ? <li>{t("resetLogoLine")}</li> : null}
               {brand.primaryColor ? (
-                <li>
-                  {t("resetColorLine", { color: brand.primaryColor })}
-                </li>
+                <li>{t("resetColorLine", { color: brand.primaryColor })}</li>
               ) : null}
               {dirty ? <li>{t("resetDraftLine")}</li> : null}
             </ul>
