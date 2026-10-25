@@ -328,6 +328,12 @@ test("on a phone the figures come straight after what needs attention", async ({
   await signInAs(page, "front_desk");
   const region = page.getByRole("region", { name: "Needs attention" });
   await expect(region.getByRole("listitem").first()).toBeVisible();
+  // The layout switcher says its name and nothing else. Left to Radix it filled
+  // in the name and the hint under it once the page was up, which grew the
+  // header by a line after the list had been measured (CI saw 56px too many).
+  await expect(page.getByRole("combobox", { name: "Layout" })).toHaveText(
+    "Overview",
+  );
   // Folded, so the figures are not two thousand pixels down: four rooms
   // before "more", and the one card for days waiting to be closed, which no
   // fold hides.

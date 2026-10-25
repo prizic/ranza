@@ -12,6 +12,7 @@ import {
   within,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryProvider } from "../../apps/operator-workspace/src/app/providers/query-provider";
 import {
@@ -34,6 +35,7 @@ import {
   TODAY_LAYOUTS,
   type TodayLayout,
 } from "../../apps/operator-workspace/src/features/today/layouts/model";
+import { LayoutSwitcher } from "../../apps/operator-workspace/src/features/today/layouts/layout-switcher";
 import { mergeSummary } from "../../apps/operator-workspace/src/features/today/merge";
 import { todayKeys } from "../../apps/operator-workspace/src/features/today/query-keys";
 
@@ -266,6 +268,26 @@ describe("the choice of layout", () => {
     expect(document.cookie).toContain(`${layoutCookieName("u-1")}=house`);
     // And only this Staff Member's: nobody else's key was written.
     expect(document.cookie).not.toContain(layoutCookieName("u-2"));
+  });
+
+  it("the_switcher_names_the_layout_on_one_line_before_the_page_is_hydrated", () => {
+    // Radix fills the trigger from the chosen item once the page is up, hint
+    // and all, which grew the header by a line under the figures' feet on a
+    // phone. Rendered on the server, nothing has run yet: the name is there
+    // or the trigger is empty.
+    for (const locale of ["en", "tr", "ar"] as const) {
+      const html = renderToString(
+        <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+          <LayoutSwitcher onChange={() => {}} value="overview" />
+        </NextIntlClientProvider>,
+      );
+      const trigger = html.match(
+        /<button[^>]*role="combobox"[^>]*>.*?<\/button>/,
+      );
+      const names = messages[locale].todayLayouts.switcher;
+      expect(trigger?.[0]).toContain(names.names.overview);
+      expect(trigger?.[0]).not.toContain(names.hints.overview);
+    }
   });
 
   it("describes_each_layout_by_what_it_is_for_and_says_where_the_choice_is_kept", () => {

@@ -37,7 +37,10 @@ export function LayoutSwitcher({
         className="h-10 min-w-44 gap-2 rounded-full bg-card"
       >
         <LayoutDashboard aria-hidden="true" className="size-4" />
-        <SelectValue />
+        {/* The name, written out: left to the item it would be filled in
+            after the page is up, with the hint under it, and the header
+            above the figures would grow a line while somebody read them. */}
+        <SelectValue>{t(`switcher.names.${value}`)}</SelectValue>
       </SelectTrigger>
       <SelectContent>
         {TODAY_LAYOUTS.map((layout) => (
