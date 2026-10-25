@@ -35,16 +35,30 @@ export function PeriodStatus({
       closed: formatNumber(report.daysClosed, locale),
       total: counted,
     };
+    const one = report.daysCounted === 1;
     return (
       <StatusBadge
         className="w-fit"
         icon={CalendarClock}
-        label={windowed ? t("closedOf", days) : t("monthToDate", days)}
+        label={
+          windowed
+            ? one
+              ? t("closedOfOne", days)
+              : t("closedOf", days)
+            : one
+              ? t("monthToDateOne", days)
+              : t("monthToDate", days)
+        }
         tone="info"
       />
     );
   }
   if (report.state === "incomplete") {
+    // The denominator is the days since the Property had a unit, so the badge
+    // names the day they start from (FINANCE-03).
+    const since = report.days.find(
+      (day) => !day.beforeOpening && day.state !== "future",
+    )?.date;
     return (
       <StatusBadge
         className="w-fit"
@@ -55,6 +69,7 @@ export function PeriodStatus({
             locale,
           ),
           total: counted,
+          since: since ? formatLongDate(since, locale) : "",
         })}
         tone="warning"
       />

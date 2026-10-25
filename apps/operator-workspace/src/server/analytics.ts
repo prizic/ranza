@@ -264,6 +264,13 @@ export interface PriorMonth {
   figures: Figures | null;
   /** True when the month is not over, so the prior covers only the same elapsed days. */
   sameElapsedDays: boolean;
+  /**
+   * How many days of the prior month were compared, when only its first days
+   * were (the month is not over); null when the whole prior month was. It is
+   * what "had no activity" is true of, since a prior month can have nights
+   * after the days compared.
+   */
+  comparedDays: number | null;
   changes: FigureChanges | null;
 }
 
@@ -693,6 +700,7 @@ function priorMonthOf(input: {
     month: input.month,
     figures,
     sameElapsedDays: input.open,
+    comparedDays: input.open ? comparedNights.length : null,
     changes: figures ? changesOf(input.figures, figures) : null,
   };
 }
@@ -703,11 +711,16 @@ function priorMonthOf(input: {
 
 /**
  * One Stay on the day opened. `chargeMinor` is a key only for a viewer who may
- * read money, and only on a night that was charged: for anyone else it is not
- * in the response at all (AN-S3-05).
+ * read money, and only on a night that was charged; `folioId` only for one who
+ * may read money, on a Stay that has a Folio: for anyone else neither is in the
+ * response at all (AN-S3-05).
  */
-export interface DayDetailStay extends Omit<DayStayRow, "chargeMinor"> {
+export interface DayDetailStay extends Omit<
+  DayStayRow,
+  "chargeMinor" | "folioId"
+> {
   chargeMinor?: number;
+  folioId?: string;
 }
 
 /** A correction to one of the day's room nights. Money, so only for those who may read it. */
@@ -778,11 +791,11 @@ export async function buildDayDetail(
     state: night.state,
     occupiedNights: stays.length,
     chargedNights: stays.filter((stay) => stay.night === "charged").length,
-    stays: stays.map(({ chargeMinor, ...stay }) =>
-      context.mayReadMoney && chargeMinor !== null
-        ? { ...stay, chargeMinor }
-        : stay,
-    ),
+    stays: stays.map(({ chargeMinor, folioId, ...stay }) => ({
+      ...stay,
+      ...(context.mayReadMoney && chargeMinor !== null ? { chargeMinor } : {}),
+      ...(context.mayReadMoney && folioId !== null ? { folioId } : {}),
+    })),
   };
   if (!context.mayReadMoney) return detail;
 

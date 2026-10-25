@@ -201,7 +201,8 @@ interface NightsRow {
  * before `ends_on`, the check-out date; one still in house through today and no
  * further, whatever departure was planned. Only leaf units are inventory — a
  * room divided into beds is its beds (ADR 0025) — and a unit is inventory from
- * the business date it was created. Dates after today have no nights and no
+ * the business date it was created, or from its first Stay's first night when
+ * that is earlier. Dates after today have no nights and no
  * inventory: they have not happened.
  */
 export async function readNights(
@@ -223,7 +224,17 @@ export async function readNights(
     ),
     leaf as (
       select unit.id,
-             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since,
+             -- Inventory from the day the unit was created, or from the first
+             -- night a Stay held it when that is earlier: a night cannot be
+             -- slept in a unit that was not there, so occupancy never exceeds
+             -- the nights available (FINANCE-02).
+             least(
+               app.business_date(unit.created_at, prop.timezone, prop.cutoff),
+               (select min(held_first.starts_on)
+                  from public.stays as held_first
+                 where held_first.accommodation_unit_id = unit.id
+                   and held_first.status in ('in_house', 'departed'))
+             ) as since,
              -- Blocked or out of order tonight, with nobody in it: the room
              -- is not one that can be let, as the Rooms read counts it (a
              -- Guest in a blocked room still holds it, and a room out of

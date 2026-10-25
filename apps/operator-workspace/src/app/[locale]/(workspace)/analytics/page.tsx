@@ -104,9 +104,17 @@ export default async function AnalyticsPage({
     const reachesReservations = (
       await screenProperties(gateOf("reservations"))
     ).some((reachable) => reachable.propertyId === property.propertyId);
+    const reachesFinance = (await screenProperties(gateOf("finance"))).some(
+      (reachable) => reachable.propertyId === property.propertyId,
+    );
     return (
       <MonthReportView
         detail={detail}
+        financeHref={
+          reachesFinance
+            ? `${localizeHref(locale as SupportedLocale, "finance")}?property=${property.propertyId}`
+            : null
+        }
         locale={locale as SupportedLocale}
         propertyName={property.propertyName}
         report={report}

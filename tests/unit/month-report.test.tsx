@@ -28,6 +28,7 @@ import {
   supportedLocales,
   type SupportedLocale,
 } from "../../packages/i18n/src";
+import { formatLongDate } from "../../apps/operator-workspace/src/features/analytics/format";
 import type {
   DayDetail,
   DayRow,
@@ -177,6 +178,7 @@ const PRIOR_MONTH: PriorMonth = {
   month: "2026-08",
   figures: PRIOR,
   sameElapsedDays: true,
+  comparedDays: null,
   changes: {
     occupancyPoints: 5,
     roomRevenuePercent: 11.3,
@@ -559,6 +561,7 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
         month: "2026-07",
         figures: null,
         sameElapsedDays: false,
+        comparedDays: null,
         changes: null,
       },
     });
@@ -568,6 +571,25 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
       ),
     ).toBeVisible();
     expect(document.body.textContent).not.toMatch(/\+5\.0 points/);
+  });
+
+  it("FINANCE-03: says which days it compared when the earlier month was only read as far as this one has run", () => {
+    show({
+      ...OPEN,
+      prior: {
+        month: "2026-09",
+        figures: null,
+        sameElapsedDays: true,
+        comparedDays: 10,
+        changes: null,
+      },
+    });
+    expect(
+      screen.getByText(
+        "September 2026 had no activity in its first 10 days, the days that match this month so far, so there is nothing to compare with.",
+      ),
+    ).toBeVisible();
+    expect(screen.queryByText(/September 2026 had no activity, so/)).toBeNull();
   });
 
   it("gives every day of the month a row, quiet days included", () => {
@@ -1093,6 +1115,18 @@ const INCOMPLETE: MonthReport = {
   daysCounted: 10,
   daysClosed: 6,
   daysBeforeOpening: 21,
+  days: days("2026-08", 31, 31).map((day, index) =>
+    index < 21
+      ? {
+          ...day,
+          beforeOpening: true,
+          occupiedNights: 0,
+          availableNights: 0,
+          occupancyPercent: null,
+          roomRevenueMinor: null,
+        }
+      : day,
+  ),
   prior: { ...PRIOR_MONTH, month: "2026-07", sameElapsedDays: false },
 };
 
@@ -1100,7 +1134,9 @@ describe("how settled a period is, said where it can be read (ANALYTICS-03, 04)"
   it("says a month that is over with unclosed days is incomplete, and counts only the days since the Property opened", () => {
     show(INCOMPLETE);
     expect(
-      screen.getByText("Incomplete · 4 of 10 days were never closed"),
+      screen.getByText(
+        "Incomplete · 4 of 10 days since August 22, 2026 were never closed",
+      ),
     ).toBeVisible();
     expect(
       screen.getByText(/Occupancy counts every day\. Revenue and the rates/),
@@ -1182,7 +1218,8 @@ describe("how settled a period is, said where it can be read (ANALYTICS-03, 04)"
         screen.getByText(
           m.incompleteBadge
             .replace("{unclosed}", count(4, locale))
-            .replace("{total}", count(10, locale)),
+            .replace("{total}", count(10, locale))
+            .replace("{since}", formatLongDate("2026-08-22", locale)),
         ),
       ).toBeVisible();
       cleanup();
@@ -1308,6 +1345,27 @@ describe("a figure that cannot be known is not a zero (ANALYTICS-02)", () => {
     expect(document.body.textContent).not.toContain(money(0));
     // Occupancy needs no charge, and is still the figure of the days so far.
     expect(figure("Occupancy")).toHaveTextContent("75.0%");
+  });
+
+  it("FINANCE-13: RevPAR says no day has closed, not that there are no available nights", () => {
+    const nothing: Figures = {
+      ...CURRENT,
+      closedAvailableNights: 0,
+      roomRevenue: null,
+      revParMinor: null,
+    };
+    show({ ...OPEN, daysClosed: 0, figures: nothing });
+    expect(figure("Revenue per available night (RevPAR)")).toHaveTextContent(
+      "No day has closed yet, so there is nothing to divide.",
+    );
+    expect(
+      figure("Revenue per available night (RevPAR)"),
+    ).not.toHaveTextContent(/available nights/i);
+  });
+
+  it("FINANCE-13: a month with one day counted says 1 day, not 1 days", () => {
+    show({ ...OPEN, daysCounted: 1, daysClosed: 0 });
+    expect(screen.getByText("Month to date · 0 of 1 day closed")).toBeVisible();
   });
 });
 
@@ -1500,6 +1558,58 @@ describe("a day can be opened where it is read (ANALYTICS-11, 12, 14)", () => {
       "href",
       `/en/reservations?property=${PROPERTY}&open=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`,
     );
+  });
+
+  it("FINANCE-09: a Stay with a Folio opens it in Finance for a viewer who reaches Finance", () => {
+    const folioId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MonthReportView
+          detail={{
+            ...DAY,
+            stays: [{ ...DAY.stays[0]!, folioId }, ...DAY.stays.slice(1)],
+          }}
+          financeHref={`/en/finance?property=${PROPERTY}`}
+          locale="en"
+          propertyName={NAME}
+          report={OPEN}
+        />
+      </NextIntlClientProvider>,
+    );
+    const links = screen
+      .getByRole("dialog")
+      .querySelectorAll("[data-folio-link]");
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveTextContent("Open Folio");
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/en/finance?property=${PROPERTY}&folio=${folioId}`,
+    );
+  });
+
+  it("FINANCE-09: no Folio link without a Folio, or for a viewer who does not reach Finance", () => {
+    show(OPEN, "en", {
+      ...DAY,
+      stays: [{ ...DAY.stays[0]!, folioId: "x" }, ...DAY.stays.slice(1)],
+    });
+    expect(
+      screen.getByRole("dialog").querySelector("[data-folio-link]"),
+    ).toBeNull();
+    cleanup();
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <MonthReportView
+          detail={DAY}
+          financeHref={`/en/finance?property=${PROPERTY}`}
+          locale="en"
+          propertyName={NAME}
+          report={OPEN}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(
+      screen.getByRole("dialog").querySelector("[data-folio-link]"),
+    ).toBeNull();
   });
 
   it("offers no booking link to a viewer who does not reach Reservations", () => {

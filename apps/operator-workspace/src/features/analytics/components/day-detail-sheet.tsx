@@ -42,6 +42,7 @@ export function DayDetailSheet({
   nextDay,
   previousDay,
   reservationsHref = null,
+  financeHref = null,
 }: {
   detail: DayDetail;
   locale: SupportedLocale;
@@ -54,6 +55,14 @@ export function DayDetailSheet({
    * is sent to a screen that would turn them away.
    */
   reservationsHref?: string | null;
+  /**
+   * The Finance screen at this Property, ending where `&folio=` opens a
+   * Folio. Null for a viewer who does not reach it. A Stay is opened at its
+   * booking where the viewer may, and at its Folio where they may not, so a
+   * night with no price always leads somewhere a role can act or read why
+   * (FINANCE-09).
+   */
+  financeHref?: string | null;
 }) {
   const t = useTranslations("analytics.month");
   const root = useTranslations();
@@ -223,6 +232,16 @@ export function DayDetailSheet({
                           {t("openBooking", {
                             reference: stay.reference ?? "",
                           })}
+                        </Link>
+                      ) : null}
+                      {financeHref && stay.folioId ? (
+                        <Link
+                          className="mt-1 block text-sm font-medium text-primary-text underline"
+                          data-folio-link
+                          href={`${financeHref}&folio=${stay.folioId}`}
+                          prefetch={false}
+                        >
+                          {t("openFolio")}
                         </Link>
                       ) : null}
                     </div>

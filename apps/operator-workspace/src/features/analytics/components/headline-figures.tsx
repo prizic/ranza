@@ -188,7 +188,12 @@ export function HeadlineFigures({
       </div>
       {prior && !priorFigures ? (
         <p className="text-sm text-muted-foreground">
-          {t("noPrior", { month: priorMonth })}
+          {prior.comparedDays === null
+            ? t("noPrior", { month: priorMonth })
+            : t("noPriorWithin", {
+                month: priorMonth,
+                days: prior.comparedDays,
+              })}
         </p>
       ) : null}
       {prior?.sameElapsedDays && priorFigures ? (

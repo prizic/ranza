@@ -69,7 +69,8 @@ export interface TypeNightsRow {
 
 /**
  * Every business date in [start, end] by unit type: inventory from the day
- * each unit was created, and the nights Stays held in it. The same inventory
+ * each unit was created (or was first slept in, if earlier), and the nights
+ * Stays held in it. The same inventory
  * and the same nights as `readNights`, which is what makes the rows sum to it.
  */
 export async function readTypeNights(
@@ -91,7 +92,17 @@ export async function readTypeNights(
     ),
     leaf as (
       select unit.id, unit.unit_type,
-             app.business_date(unit.created_at, prop.timezone, prop.cutoff) as since,
+             -- Inventory from the day the unit was created, or from the first
+             -- night a Stay held it when that is earlier: a night cannot be
+             -- slept in a unit that was not there, so occupancy never exceeds
+             -- the nights available (FINANCE-02).
+             least(
+               app.business_date(unit.created_at, prop.timezone, prop.cutoff),
+               (select min(held_first.starts_on)
+                  from public.stays as held_first
+                 where held_first.accommodation_unit_id = unit.id
+                   and held_first.status in ('in_house', 'departed'))
+             ) as since,
              -- As in the engine: tonight, a room nobody is in that is blocked
              -- or out of order is not one that can be let.
              (
@@ -445,6 +456,11 @@ export interface DayStayRow {
   night: NightOutcome;
   /** Null for a viewer who may not read money, and for a night not charged. */
   chargeMinor: number | null;
+  /**
+   * The Stay's Folio, where a night with no price is looked into; null for a
+   * viewer who may not read money, as for a Stay that has none.
+   */
+  folioId: string | null;
 }
 
 interface DayStayQueryRow extends Omit<DayStayRow, "chargeMinor"> {
@@ -479,7 +495,13 @@ export async function readDayStays(
              when charge.line_id is not null then 'charged'
              else coalesce(due.reason, 'not_yet_charged')
            end as "night",
-           case when ${mayReadMoney}::boolean then charge.amount_minor::text end as "chargeMinor"
+           case when ${mayReadMoney}::boolean then charge.amount_minor::text end as "chargeMinor",
+           case when ${mayReadMoney}::boolean
+                then (select folio.id::text from public.folios as folio
+                       where folio.stay_id = stay.id
+                       order by folio.status = 'open' desc, folio.created_at
+                       limit 1)
+           end as "folioId"
       from public.stays as stay
       left join lateral (
         select segment.accommodation_unit_id as unit_id

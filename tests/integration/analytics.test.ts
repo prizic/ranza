@@ -2972,3 +2972,108 @@ describe("a Stay in the day names its booking (ANALYTICS-11)", () => {
     BUDGET_MS,
   );
 });
+
+describe("a Folio opens from the day it was slept (FINANCE-09)", () => {
+  it(
+    "the_day_carries_the_folio_of_a_stay_for_a_viewer_who_reads_money_and_not_for_one_who_does_not",
+    async () => {
+      const full = await dayOf(FINANCE_USER, expl, d(5));
+      const stay = full.stays.find((row) => row.displayName === "Ada Guest")!;
+      expect(stay.folioId).toMatch(/^[0-9a-f-]{36}$/);
+
+      const [folio] = await owner.$queryRawUnsafe<{ stay_id: string }[]>(
+        `select stay_id::text as stay_id from public.folios where id = $1::uuid`,
+        stay.folioId,
+      );
+      expect(folio?.stay_id).toBe(stay.stayId);
+
+      const masked = await dayOf(HOUSEKEEPER, expl, d(5));
+      expect(masked.stays.length).toBeGreaterThan(0);
+      for (const row of masked.stays) {
+        expect("folioId" in row).toBe(false);
+      }
+      expect(JSON.stringify(masked)).not.toContain(stay.folioId!);
+    },
+    BUDGET_MS,
+  );
+});
+
+describe("occupied nights never exceed the nights on offer (FINANCE-02)", () => {
+  it(
+    "a_stay_dated_before_its_units_creation_still_has_its_night_on_offer",
+    async () => {
+      // The audit's staging Property showed 133% because stays were dated
+      // before the unit they sleep in was created, and a unit counted only
+      // from the day it was created. L1 was created 5 days ago, and a Stay in
+      // it started 12 days ago: those nights were slept, so they were on offer.
+      const property = await newProperty();
+      await closeBefore(property, 20);
+      const late = await addUnit(property, "L1", addDays(property.today, -5));
+      const early = await addUnit(
+        property,
+        "L2",
+        addDays(property.today, -100),
+      );
+      await inReplica(async (tx) => {
+        for (const unitId of [late, early]) {
+          await addStay(tx, property, unitId, {
+            status: "departed",
+            from: addDays(property.today, -12),
+            to: addDays(property.today, -8),
+          });
+        }
+      });
+
+      const report = await trailing(FINANCE_USER, property, "30d");
+      for (const day of report.days) {
+        expect(day.occupiedNights).toBeLessThanOrEqual(day.availableNights);
+      }
+      const slept = report.days.filter(
+        (day) =>
+          day.date >= addDays(property.today, -12) &&
+          day.date < addDays(property.today, -8),
+      );
+      expect(slept.map((day) => day.occupiedNights)).toEqual([2, 2, 2, 2]);
+      expect(slept.every((day) => day.availableNights === 2)).toBe(true);
+
+      const headline = figures(report);
+      expect(headline.occupiedNights).toBeLessThanOrEqual(
+        headline.availableNights,
+      );
+      expect(headline.occupancyPercent).toBeLessThanOrEqual(100);
+
+      const sum = (pick: (row: (typeof report.byUnitType)[number]) => number) =>
+        report.byUnitType.reduce((total, row) => total + pick(row), 0);
+      expect(sum((row) => row.availableNights)).toBe(headline.availableNights);
+      expect(sum((row) => row.occupiedNights)).toBe(headline.occupiedNights);
+    },
+    BUDGET_MS,
+  );
+
+  it(
+    "a_unit_created_after_the_nights_slept_in_it_does_not_count_the_days_it_did_not_exist_unslept",
+    async () => {
+      // The control: C1 was created 5 days ago and nobody slept in it before
+      // then, so it is on offer for 5 days and not 30: the fix did not make
+      // every unit exist from the beginning.
+      const property = await newProperty();
+      await closeBefore(property, 20);
+      const old = await addUnit(property, "C0");
+      await addUnit(property, "C1", addDays(property.today, -5));
+      await inReplica((tx) =>
+        addStay(tx, property, old, {
+          status: "departed",
+          from: addDays(property.today, -12),
+          to: addDays(property.today, -10),
+        }),
+      );
+      const report = await trailing(FINANCE_USER, property, "30d");
+      const offered = (date: string) =>
+        report.days.find((day) => day.date === date)?.availableNights;
+      expect(offered(addDays(property.today, -6))).toBe(1);
+      expect(offered(addDays(property.today, -5))).toBe(2);
+      expect(offered(addDays(property.today, -1))).toBe(2);
+    },
+    BUDGET_MS,
+  );
+});

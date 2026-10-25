@@ -20,6 +20,7 @@ export function MonthReportView({
   detail = null,
   locale,
   propertyName,
+  financeHref = null,
   reservationsHref = null,
   report,
 }: {
@@ -32,6 +33,8 @@ export function MonthReportView({
    * Stay can be opened where its price is fixed (ANALYTICS-11).
    */
   reservationsHref?: string | null;
+  /** The Finance screen at this Property, when the viewer reaches it (FINANCE-09). */
+  financeHref?: string | null;
   report: MonthReport;
 }) {
   const t = useTranslations("analytics");
@@ -68,6 +71,7 @@ export function MonthReportView({
           locale={locale}
           nextDay={nextDay}
           previousDay={previousDay}
+          financeHref={financeHref}
           reservationsHref={reservationsHref}
         />
       ) : null}
