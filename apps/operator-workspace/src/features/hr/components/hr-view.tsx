@@ -70,11 +70,15 @@ export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
 
       <Tabs value={activeTab} onValueChange={choose} className="space-y-4">
         {/* Scrolls rather than pushing the page sideways (HR-13), and below the
-            small breakpoint drops the icons so all four labels fit a 375 px
-            phone without the last one, Payroll, hiding off the edge. */}
+            small breakpoint drops the icons and tightens the padding so all four
+            labels fit a 375 px phone, with a two-digit count and a pending
+            badge, without Payroll hiding off the edge. */}
         <div className="-mx-1 overflow-x-auto px-1 pb-1">
           <TabsList className="w-max border border-border bg-muted/60 p-1">
-            <TabsTrigger value="employees" className="gap-2 text-step--1">
+            <TabsTrigger
+              value="employees"
+              className="gap-2 text-step--1 max-sm:gap-1.5 max-sm:px-2"
+            >
               <Users aria-hidden="true" className="size-4 max-sm:hidden" />
               <span>{t("tabs.employees")}</span>
               <span className="font-mono text-step--2 text-muted-foreground">
@@ -82,12 +86,18 @@ export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
               </span>
             </TabsTrigger>
 
-            <TabsTrigger value="rota" className="gap-2 text-step--1">
+            <TabsTrigger
+              value="rota"
+              className="gap-2 text-step--1 max-sm:gap-1.5 max-sm:px-2"
+            >
               <Calendar aria-hidden="true" className="size-4 max-sm:hidden" />
               <span>{t("tabs.rota")}</span>
             </TabsTrigger>
 
-            <TabsTrigger value="leave" className="gap-2 text-step--1">
+            <TabsTrigger
+              value="leave"
+              className="gap-2 text-step--1 max-sm:gap-1.5 max-sm:px-2"
+            >
               <Palmtree aria-hidden="true" className="size-4 max-sm:hidden" />
               <span>{t("tabs.leave")}</span>
               {pendingLeaveCount > 0 && (
@@ -100,7 +110,10 @@ export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
               )}
             </TabsTrigger>
 
-            <TabsTrigger value="payroll" className="gap-2 text-step--1">
+            <TabsTrigger
+              value="payroll"
+              className="gap-2 text-step--1 max-sm:gap-1.5 max-sm:px-2"
+            >
               <Banknote aria-hidden="true" className="size-4 max-sm:hidden" />
               <span>{t("tabs.payroll")}</span>
             </TabsTrigger>
