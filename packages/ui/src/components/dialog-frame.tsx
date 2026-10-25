@@ -49,7 +49,11 @@ export function dialogFrameClassName(
  * footer stays on screen, and its close control sits on the masthead.
  */
 export const sheetFrameClassName = cn(
-  "grid w-full grid-rows-[auto_1fr_auto] gap-0 overflow-y-auto p-0 sm:max-w-[32.5rem]",
+  // The sheet's own `data-[side=end]:w-3/4` outranks a plain `w-full`, so the
+  // width is set through the same variant: a drawer is the whole screen on a
+  // phone, where three quarters of it left the title 216 px to wrap in
+  // (HOUSEKEEPING-09).
+  "grid w-full grid-rows-[auto_1fr_auto] gap-0 overflow-y-auto p-0 data-[side=end]:w-full sm:max-w-[32.5rem] data-[side=end]:sm:max-w-[32.5rem]",
   "[&>button:last-child]:end-6 [&>button:last-child]:top-5 [&>button:last-child]:bg-background/60 [&>button:last-child]:hover:bg-background",
 );
 
@@ -96,20 +100,27 @@ export function DialogMasthead({
   large?: boolean;
 }) {
   return (
-    <header className="relative min-h-44 overflow-hidden bg-primary/15 px-8 pt-6 pb-7">
+    // On a phone the drawing is dropped and the heading takes the whole width:
+    // the subject is what says which request this is, and it was cut off
+    // behind the drawing mid-word (HOUSEKEEPING-09). `overflow-clip` and not
+    // `hidden`: a hidden one is a scroll container, which a sheet's grid
+    // squeezes to nothing when its body is long.
+    <header className="relative overflow-clip bg-primary/15 px-8 pt-6 pb-6 sm:min-h-44 sm:pb-7">
       <DialogTitle className={cn(MONO, "text-primary-text")}>
         {eyebrow}
       </DialogTitle>
       <p
         className={cn(
-          "mt-9 max-w-[62%] font-display leading-none font-normal tracking-tight text-balance wrap-anywhere italic rtl:not-italic",
-          large ? "text-step-3 leading-tight" : "text-5xl",
+          "mt-5 font-display leading-none font-normal tracking-tight text-balance wrap-anywhere italic sm:mt-9 sm:max-w-[62%] rtl:not-italic",
+          large
+            ? "text-step-2 leading-tight sm:text-step-3"
+            : "text-4xl sm:text-5xl",
         )}
       >
         <bdi>{breakBeforeAt(heading)}</bdi>
       </p>
       {facts ? (
-        <p className={cn(MONO, "mt-3 max-w-[62%] text-foreground/70")}>
+        <p className={cn(MONO, "mt-3 text-foreground/70 sm:max-w-[62%]")}>
           <bdi>{facts}</bdi>
         </p>
       ) : null}
@@ -117,7 +128,7 @@ export function DialogMasthead({
         <img
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute -bottom-7 end-8 size-36 -rotate-6 object-contain select-none rtl:rotate-6"
+          className="pointer-events-none absolute -bottom-7 end-8 hidden size-36 -rotate-6 object-contain select-none sm:block rtl:rotate-6"
           draggable={false}
           src={art}
         />
