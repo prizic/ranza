@@ -1920,6 +1920,12 @@ export interface Messages {
     resizeHint: string;
     /** On the outline a drag draws where the bar cannot go. */
     dropBlocked: string;
+    /** Beneath the subtitle, for a viewer who may book (RC-S5-02). */
+    bookHint: string;
+    /** The one-press confirm for a pulled end (RC-S5-04); `{nights}` is the whole stay. */
+    quickDeparture: string;
+    quickMore: string;
+    quickSave: string;
     /** The drawer's way to move a booking without a mouse. */
     moveAction: string;
     moveBooking: string;
@@ -4437,6 +4443,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Açmak için dokunun, ardından ayrıntılarındaki Taşı… düğmesini kullanın.",
       resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
       dropBlocked: "Buraya taşınamaz",
+      bookHint: "Rezervasyon almak için boş gecelerin üzerinden sürükleyin.",
+      quickDeparture: "Çıkış {to} (önceden {from}) · toplam {nights}",
+      quickMore: "Diğer seçenekler",
+      quickSave: "Kaydet",
       moveAction: "Taşı…",
       moveBooking: "Rezervasyonu taşı",
       moveBookingSummary:
@@ -8073,6 +8083,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       dragHintTouch: "Tap to open it, then use Move… in its details.",
       resizeHint: "Drag to change the departure",
       dropBlocked: "It cannot go here",
+      bookHint: "Drag across free nights to book them.",
+      quickDeparture: "Leaves {to} (was {from}) · {nights} in all",
+      quickMore: "More options",
+      quickSave: "Save",
       moveAction: "Move…",
       moveBooking: "Move booking",
       moveBookingSummary:
@@ -11670,6 +11684,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       dragHintTouch: "المسه لفتحه، ثم استخدم «نقل…» في تفاصيله.",
       resizeHint: "اسحب لتغيير موعد المغادرة",
       dropBlocked: "لا يمكن نقله إلى هنا",
+      bookHint: "اسحب عبر الليالي الشاغرة لحجزها.",
+      quickDeparture: "المغادرة {to} (كانت {from}) · {nights} إجمالًا",
+      quickMore: "خيارات أخرى",
+      quickSave: "حفظ",
       moveAction: "نقل…",
       moveBooking: "نقل الحجز",
       moveBookingSummary:

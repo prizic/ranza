@@ -11,6 +11,9 @@ import {
 } from "../../../../features/room-calendar/view";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
+  bookableUnits,
+  bookingDay,
+  permittedProperties,
   requireViewer,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
@@ -26,11 +29,12 @@ import { frontDeskProperty } from "../../../../server/front-desk";
  * The room calendar (RANZ-25): rooms and beds against days, bookings and
  * Stays as bars.
  *
- * It writes nothing of its own. Most commands a bar points at have one home —
- * Arrivals, Departures, Reservations — so the drawer links there rather than
- * repeating them (RC-DEF-04). Moving is the exception: a drag only proposes,
- * and the dialogs of ADR 0039 save it through their commands, which check the
- * caller and refuse a conflict (RC-S3-01).
+ * It writes nothing of its own. A drag only proposes: a bar moved opens the
+ * dialogs of ADR 0039, or a one-press confirm for a pulled end (RC-S5-04), and
+ * nights dragged across open New reservation (RC-S5-02); each saves through
+ * its command, which checks the caller and refuses a conflict (RC-S3-01). The
+ * drawer offers Check in and Check out by the same components Arrivals and
+ * Departures use (RC-S5-03).
  *
  * Live, like Arrivals (ADR 0019 names the room rack): prefetched here so it
  * paints with bars, then polled. The window in the URL is the one prefetched;
@@ -83,6 +87,14 @@ export default async function RoomCalendarPage({
   };
   const calendarWindow = { from: view.from, days: view.days };
 
+  // Offering New reservation is the screen's half and refusing a booking stays
+  // the policies', as on Reservations (RG-S3-05).
+  const mayBook = (await permittedProperties("front_desk.book")).some(
+    (permitted) => permitted.propertyId === property.propertyId,
+  );
+  const units = mayBook ? await bookableUnits(property.propertyId) : [];
+  const today = units.length > 0 ? await bookingDay(property.propertyId) : null;
+
   // Per request, never module scope: one tenant's calendar must not be
   // dehydrated into another's HTML.
   const client = requestQueryClient();
@@ -94,6 +106,7 @@ export default async function RoomCalendarPage({
   return (
     <Hydrated client={client}>
       <LiveRoomCalendar
+        booking={today ? { units, today } : null}
         defaultLength={ROOM_CALENDAR_DEFAULT_LENGTH}
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}

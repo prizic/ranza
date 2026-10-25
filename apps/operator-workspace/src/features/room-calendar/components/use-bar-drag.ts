@@ -5,7 +5,13 @@ import { daysBetween, type PlacedEntry } from "../layout";
 import { proposeMove, type DragMode, type MoveRequest } from "../move";
 
 /** A press that travels less than this is a click, not a drag. */
-const DRAG_THRESHOLD_PX = 5;
+export const DRAG_THRESHOLD_PX = 5;
+
+/** How a drop was made: by carrying the bar or pulling its end, and where it let go. */
+export interface BarDrop {
+  mode: DragMode;
+  at: { x: number; y: number };
+}
 
 interface Session {
   mode: DragMode;
@@ -24,7 +30,7 @@ interface Session {
  * the right-to-left grid and a scrolled one need no arithmetic of their own:
  * a row carries its Unit and a day cell its date.
  */
-function hitAt(
+export function hitAt(
   x: number,
   y: number,
 ): { unitId: string | null; day: string | null } {
@@ -55,7 +61,8 @@ export function useBarDrag({
 }: {
   enabled: boolean;
   entry: PlacedEntry;
-  onDrop: (request: MoveRequest) => void;
+  /** `at` is where the pointer let go, for a confirm drawn beside it. */
+  onDrop: (request: MoveRequest, drop: BarDrop) => void;
   onPreview: (request: MoveRequest | null) => void;
 }) {
   const session = useRef<Session | null>(null);
@@ -135,7 +142,12 @@ export function useBarDrag({
         if (!current || event.pointerId !== current.pointerId) return;
         const request = current.travelled ? proposal(current) : null;
         finish();
-        if (request) onDrop(request);
+        if (request) {
+          onDrop(request, {
+            mode: current.mode,
+            at: { x: event.clientX, y: event.clientY },
+          });
+        }
       },
       onPointerCancel(event: PointerEvent<HTMLElement>) {
         if (session.current?.pointerId === event.pointerId) finish();

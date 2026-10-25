@@ -149,15 +149,16 @@ function sharesANight(
   );
 }
 
+/** `mover` is the bar being changed, which is never in its own way; null for a new booking. */
 function aBarInTheWay(
   unit: RoomCalendarUnit,
-  mover: RoomCalendarBar,
+  mover: RoomCalendarBar | null,
   startsOn: string,
   until: string | null,
 ): MoveConflict | null {
   const way = unit.bars.find(
     (bar) =>
-      barKey(bar) !== barKey(mover) &&
+      (mover === null || barKey(bar) !== barKey(mover)) &&
       occupies(bar) &&
       sharesANight(bar, startsOn, until),
   );
@@ -186,10 +187,13 @@ function outOfUseConflict(
   return { kind: "outOfUse", unit: unit.name, status: unit.status };
 }
 
-/** What stands in the way of putting a booking on these nights of this Unit. */
+/**
+ * What stands in the way of putting a booking on these nights of this Unit:
+ * `bar` when an existing one is moved, null when a new one is taken.
+ */
 export function bookingConflicts(
   calendar: RoomCalendar,
-  bar: RoomCalendarReservationBar,
+  bar: RoomCalendarReservationBar | null,
   target: BookingTarget,
 ): MoveConflict[] {
   const unit = unitById(calendar.units, target.unitId);
@@ -332,6 +336,43 @@ export function proposeMove(
     : { kind: "guest", entry: guest, unitId: targetUnitId };
 }
 
+/**
+ * The nights a drag across a row's free days asks to book (RC-S5-02): from the
+ * earlier of the two days pressed and released to the morning after the later,
+ * so a drag back to the left books the same nights as one to the right. Nothing
+ * before today is offered.
+ */
+export function nightsDragged(
+  unitId: string,
+  first: string,
+  last: string,
+  today: string,
+): BookingTarget & { endsOn: string } {
+  const [earlier, later] = first <= last ? [first, last] : [last, first];
+  const startsOn = earlier < today ? today : earlier;
+  const lastNight = later < startsOn ? startsOn : later;
+  return { unitId, startsOn, endsOn: shiftDay(lastNight, 1) };
+}
+
+/**
+ * Whether a drop is plain enough to confirm beside the bar rather than in the
+ * full dialog (RC-S5-04): an end pulled along its own row, which keeps the room
+ * and so the price of a night and asks for no reason, and which the calendar
+ * already knows nothing against. A bar carried to another room or other days,
+ * and anything with a conflict, still opens its dialog.
+ */
+export function confirmsInPlace(
+  calendar: RoomCalendar,
+  request: MoveRequest,
+  mode: DragMode,
+): request is Extract<MoveRequest, { kind: "booking" | "departure" }> {
+  return (
+    mode === "resize" &&
+    (request.kind === "booking" || request.kind === "departure") &&
+    conflictsOf(calendar, request).length === 0
+  );
+}
+
 /** What the calendar already knows against a proposal. */
 export function conflictsOf(
   calendar: RoomCalendar,
@@ -359,6 +400,18 @@ export interface Ghost {
   unitId: string;
   span: Span;
   blocked: boolean;
+}
+
+/** The outline of a new booking a drag across free nights would take. */
+export function bookingGhost(
+  calendar: RoomCalendar,
+  target: BookingTarget,
+): Ghost {
+  return {
+    unitId: target.unitId,
+    span: spanOf(target.startsOn, target.endsOn, calendar.from, calendar.days),
+    blocked: bookingConflicts(calendar, null, target).length > 0,
+  };
 }
 
 export function ghostOf(calendar: RoomCalendar, request: MoveRequest): Ghost {

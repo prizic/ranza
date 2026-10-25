@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
@@ -10,8 +10,10 @@ import {
   localizeHref,
   type SupportedLocale,
 } from "@ranza/i18n";
+import type { BookableUnit } from "@ranza/reservations";
 import { Button, EmptyState, Skeleton } from "@ranza/ui";
 import type { RoomCalendar } from "../../../server/viewer";
+import { NewReservationDialog } from "../../front-office/components/new-reservation-dialog";
 import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
 import { barKey, barsByKey, calendarRows, shiftDay } from "../layout";
 import {
@@ -20,11 +22,18 @@ import {
   viewSearch,
   type RoomCalendarView,
 } from "../view";
-import type { MoveRequest } from "../move";
+import {
+  bookingConflicts,
+  confirmsInPlace,
+  type BookingTarget,
+  type MoveRequest,
+} from "../move";
 import { BarDrawer } from "./bar-drawer";
 import { CalendarGrid } from "./calendar-grid";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MoveDialogs } from "./move-dialogs";
+import { QuickConfirm, type PlainDrop } from "./quick-confirm";
+import type { BarDrop } from "./use-bar-drag";
 import { useCoarsePointer } from "./use-coarse-pointer";
 
 async function fetchCalendar(
@@ -69,12 +78,18 @@ function calendarDate(day: string, locale: SupportedLocale): string {
  * last one with the time it was read (RC-S1-53).
  */
 export function LiveRoomCalendar({
+  booking,
   defaultLength,
   initialView,
   lengths,
   locale,
   scope,
 }: {
+  /**
+   * What New reservation needs, for a viewer holding `front_desk.book` at a
+   * Property with a Unit to sell; null otherwise, and nothing is offered.
+   */
+  booking: { units: readonly BookableUnit[]; today: string } | null;
   defaultLength: number;
   initialView: RoomCalendarView;
   lengths: number[];
@@ -95,6 +110,21 @@ export function LiveRoomCalendar({
   const [drawerOpen, setDrawerOpen] = useState(false);
   // What a drop asked for. Nothing is written until the dialog it opens saves.
   const [moving, setMoving] = useState<MoveRequest | null>(null);
+  // A pulled end waiting on its one-press confirm beside the pointer (RC-S5-04).
+  const [held, setHeld] = useState<{
+    drop: PlainDrop;
+    at: BarDrop["at"];
+  } | null>(null);
+  const openFull = useCallback((drop: MoveRequest) => {
+    setHeld(null);
+    setMoving(drop);
+  }, []);
+  // Nights dragged across to book, which New reservation opens on (RC-S5-02).
+  const [newBooking, setNewBooking] = useState<{
+    unitId: string | null;
+    from: string;
+    to: string;
+  } | null>(null);
 
   const query = useQuery({
     queryKey: frontOfficeKeys.roomCalendar(scope, {
@@ -174,6 +204,10 @@ export function LiveRoomCalendar({
     () => (calendar ? barsByKey(calendar) : new Map()),
     [calendar],
   );
+  const bookable = useMemo(
+    () => (booking ? new Set(booking.units.map((unit) => unit.unitId)) : null),
+    [booking],
+  );
 
   if (!calendar) {
     return query.isError ? (
@@ -203,16 +237,54 @@ export function LiveRoomCalendar({
     !view.showDeparted;
   const opened = selected ? (bars.get(selected.key) ?? null) : null;
 
+  function dropped(request: MoveRequest, drop: BarDrop) {
+    if (calendar && confirmsInPlace(calendar, request, drop.mode)) {
+      setHeld({ drop: request, at: drop.at });
+    } else {
+      setMoving(request);
+    }
+  }
+
+  // A Unit something already holds on those nights is left for the desk to
+  // choose again; the nights stand either way.
+  function book(target: BookingTarget & { endsOn: string }) {
+    if (!calendar) return;
+    setNewBooking({
+      unitId:
+        bookingConflicts(calendar, null, target).length === 0
+          ? target.unitId
+          : null,
+      from: target.startsOn,
+      to: target.endsOn,
+    });
+  }
+
   return (
     <div className="space-y-5">
-      {/* The page bar already names the page and the Property; what is left
-          to say is how to use it, and a phone has no room to say it. */}
-      <p className="hidden text-sm text-muted-foreground md:block">
-        {t("subtitle")}
-        {calendar.mayAmend
-          ? ` ${t(coarsePointer ? "moveHintTouch" : "moveHint")}`
-          : null}
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* The page bar already names the page and the Property; what is
+            left to say is how to use it, and a phone has no room to say it. */}
+        <p className="hidden min-w-0 flex-1 text-sm text-muted-foreground md:block">
+          {t("subtitle")}
+          {calendar.mayAmend
+            ? ` ${t(coarsePointer ? "moveHintTouch" : "moveHint")}`
+            : null}
+          {booking && !coarsePointer ? ` ${t("bookHint")}` : null}
+        </p>
+        {/* The way to book without a mouse, and on a phone, where a drag
+            across the row scrolls it. */}
+        {booking ? (
+          <div className="ms-auto">
+            <NewReservationDialog
+              locale={locale}
+              onClose={() => void query.refetch()}
+              propertyId={scope.propertyId}
+              today={booking.today}
+              units={booking.units}
+            />
+          </div>
+        ) : null}
+      </div>
 
       <CalendarToolbar
         calendar={calendar}
@@ -277,11 +349,14 @@ export function LiveRoomCalendar({
       ) : (
         <>
           <CalendarGrid
+            bookable={bookable}
             calendar={calendar}
+            held={held?.drop ?? null}
             locale={locale}
             markedDay={markedDay}
             mayAmend={calendar.mayAmend}
-            onDrop={setMoving}
+            onBook={book}
+            onDrop={dropped}
             onOpen={(bar) => {
               setSelected({ key: barKey(bar), status: bar.status });
               setDrawerOpen(true);
@@ -311,6 +386,35 @@ export function LiveRoomCalendar({
         </>
       )}
 
+      {held ? (
+        <QuickConfirm
+          at={held.at}
+          drop={held.drop}
+          locale={locale}
+          onClose={() => setHeld(null)}
+          onFull={openFull}
+          onSaved={() => {
+            setHeld(null);
+            void query.refetch();
+          }}
+        />
+      ) : null}
+
+      {booking && newBooking ? (
+        <NewReservationDialog
+          key={`${newBooking.unitId}:${newBooking.from}:${newBooking.to}`}
+          locale={locale}
+          onClose={() => {
+            setNewBooking(null);
+            void query.refetch();
+          }}
+          propertyId={scope.propertyId}
+          start={newBooking}
+          today={booking.today}
+          units={booking.units}
+        />
+      ) : null}
+
       {moving ? (
         <MoveDialogs
           calendar={calendar}
@@ -333,7 +437,7 @@ export function LiveRoomCalendar({
         onChanged={() => void query.refetch()}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}
-        propertyId={scope.propertyId}
+        scope={scope}
         today={calendar.today}
       />
     </div>

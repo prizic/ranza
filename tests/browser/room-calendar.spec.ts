@@ -534,6 +534,23 @@ async function dragBar(
   if (release) await page.mouse.up();
 }
 
+/** A real pointer drag across a row's free nights, from one day's cell to another's. */
+async function dragAcross(
+  page: Page,
+  room: Room,
+  fromDay: string,
+  toDay: string,
+  release = true,
+): Promise<void> {
+  const from = await cellCentre(page, room, fromDay);
+  const to = await cellCentre(page, room, toDay);
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  await page.mouse.move(from.x + 8, from.y, { steps: 3 });
+  await page.mouse.move(to.x, to.y, { steps: 12 });
+  if (release) await page.mouse.up();
+}
+
 /**
  * Takes hold of the grip at the end of the Stay's or booking's bar in `room`,
  * and pulls it to `toDay`.
@@ -1010,14 +1027,14 @@ test("RC-S3-08: pulling the end of a Guest in house previews the new departure, 
   await signIn(page);
   await openRooms(page, "en", { propertyId, tag, rooms });
 
+  // One more night with nothing in the way is confirmed beside the bar
+  // (RC-S5-04); the rest of this test is the full dialog's.
   await pullEnd(page, rooms.A!, propertyDay(propertyId, 4), "stay");
-  const dialog = page.getByRole("dialog", { name: "Change departure" });
-  await expect(dialog.locator("[data-move-summary]")).toContainText("5 nights");
+  const confirm = page.locator('[data-quick-confirm="departure"]');
+  await expect(confirm).toContainText("5 nights in all");
   expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 3));
-  const save = dialog.getByRole("button", { name: "Save departure" });
-  await expect(save).toBeEnabled();
-  await save.click();
-  await expect(dialog).toBeHidden();
+  await confirm.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(confirm).toBeHidden();
   expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 4));
 
   // The next booking now begins where they leave: pulling further runs into it.
@@ -1068,9 +1085,10 @@ test("RC-S3-15: pulling the end of a booking shortens it", async ({ page }) => {
   await openRooms(page, "en", { propertyId, tag, rooms });
 
   await pullEnd(page, rooms.A!, propertyDay(propertyId, 4));
-  const dialog = page.getByRole("dialog", { name: "Move booking" });
-  await dialog.getByRole("button", { name: "Move booking" }).click();
-  await expect(dialog).toBeHidden();
+  const confirm = page.locator('[data-quick-confirm="booking"]');
+  await expect(confirm).toContainText("1 night fewer");
+  await confirm.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(confirm).toBeHidden();
   expect(bookingRow(reservationId)).toBe(
     `${rooms.A!.id}|${propertyDay(propertyId, 2)}|${propertyDay(propertyId, 4)}`,
   );
@@ -1211,6 +1229,19 @@ test("RC-S3-10: without front_desk.amend a bar has no grip, no end handle, no Mo
   await expect(bar).not.toHaveAttribute("title", /drag/i);
   await expect(page.locator("[data-end-handle]")).toHaveCount(0);
   await expect(page.getByText(/Drag a booking to another room/)).toHaveCount(0);
+  // Without front_desk.book there is no New reservation, by button or by a
+  // drag across free nights (RC-S5-02).
+  await expect(
+    page.getByRole("button", { name: "New reservation" }),
+  ).toHaveCount(0);
+  await dragAcross(
+    page,
+    rooms.A!,
+    propertyDay(propertyId, 5),
+    propertyDay(propertyId, 7),
+  );
+  await expect(page.locator("[data-drop-ghost]")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await dragBar(
     page,
@@ -1258,4 +1289,189 @@ test("RC-S3-14: the calendar is filtered by the type and the state of its Units"
   // A shared link opens the same filter.
   await page.reload();
   await expect(rowHeaders).toHaveCount(1);
+});
+
+test("RC-S5-02: dragging across free nights opens New reservation on that room and those nights, and nothing is written until it is taken", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  aBookingOn(rooms.B!, `Holder ${tag}`, { from: 2, to: 4 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+  await expect(
+    page.getByText("Drag across free nights to book them."),
+  ).toBeVisible();
+
+  // Over a night already held, the outline is marked while the button is down
+  // and the dialog opens on the nights with the room left to choose.
+  await dragAcross(
+    page,
+    rooms.B!,
+    propertyDay(propertyId, 1),
+    propertyDay(propertyId, 3),
+    false,
+  );
+  await expect(page.locator("[data-drop-ghost]")).toHaveAttribute(
+    "data-blocked",
+    "true",
+  );
+  await page.mouse.up();
+  const held = page.getByRole("dialog", { name: /New reservation/ });
+  await expect(held.getByText("3 nights", { exact: true })).toBeVisible();
+  // The list always shows the room chosen, so none checked is none chosen.
+  await expect(
+    held
+      .getByRole("radiogroup")
+      .filter({ has: page.getByRole("searchbox") })
+      .getByRole("radio", { checked: true }),
+  ).toHaveCount(0);
+  // Only the gesture filled it in, so closing it asks nothing.
+  await page.keyboard.press("Escape");
+  await expect(held).toBeHidden();
+
+  // Dragged right to left over free nights: the same nights, and the room.
+  await dragAcross(
+    page,
+    rooms.A!,
+    propertyDay(propertyId, 3),
+    propertyDay(propertyId, 1),
+  );
+  const dialog = page.getByRole("dialog", { name: /New reservation/ });
+  await expect(dialog.getByText("3 nights", { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByRole("radio", { name: new RegExp(rooms.A!.name) }),
+  ).toBeChecked();
+  await evidence(page, "drag-to-book");
+  expect(
+    psql(
+      `select count(*) from public.reservations where accommodation_unit_id = '${rooms.A!.id}'`,
+    ),
+  ).toBe("0");
+
+  const guest = `Walk-in ${tag}`;
+  await dialog.getByLabel("Guest name").fill(guest);
+  await dialog.getByRole("button", { name: "Create reservation" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(
+    page
+      .locator(`[data-unit-id="${rooms.A!.id}"]`)
+      .getByRole("button", { name: new RegExp(`^${guest}, Confirmed`) }),
+  ).toBeVisible();
+  expect(
+    psql(
+      `select to_char(starts_on, 'YYYY-MM-DD') || '|' || to_char(ends_on, 'YYYY-MM-DD')
+         from public.reservations where accommodation_unit_id = '${rooms.A!.id}'`,
+    ),
+  ).toBe(`${propertyDay(propertyId, 1)}|${propertyDay(propertyId, 4)}`);
+});
+
+test("RC-S5-03: an arriving booking is checked in, and a Guest leaving today checked out, from the bar's details", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const arriving = `Arriving ${tag}`;
+  const leaving = `Leaving ${tag}`;
+  const reservationId = aBookingOn(rooms.A!, arriving, { from: 0, to: 2 });
+  const stayId = anInHouseGuestIn(rooms.B!, leaving, { from: -2, to: 0 });
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await page
+    .getByRole("button", { name: new RegExp(`^${arriving}, Confirmed`) })
+    .click();
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
+  await expect(
+    drawer.getByRole("link", { name: "Open in Arrivals" }),
+  ).toBeVisible();
+  await evidence(page, "drawer-check-in");
+  await drawer.getByRole("button", { name: `Check in ${arriving}` }).click();
+  // A room housekeeping has not passed is asked about, as on Arrivals.
+  const anyway = drawer.getByRole("button", { name: "Check in anyway" });
+  await expect(anyway.or(drawer).last()).toBeVisible();
+  if (await anyway.isVisible()) await anyway.click();
+  await expect(drawer).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${arriving}, In house`) }),
+  ).toBeVisible();
+  expect(
+    psql(
+      `select status from public.reservations where id = '${reservationId}'`,
+    ),
+  ).toBe("checked_in");
+
+  await page
+    .getByRole("button", { name: new RegExp(`^${leaving}, In house`) })
+    .click();
+  // The name is isolated in the label, so it reads in either direction.
+  await drawer
+    .getByRole("button", { name: new RegExp(`^Check .${leaving}. out$`) })
+    .click();
+  const review = page.getByRole("button", { name: "Check out", exact: true });
+  await expect(review).toBeEnabled();
+  await review.click();
+  await expect(drawer).toBeHidden();
+  expect(psql(`select status from public.stays where id = '${stayId}'`)).toBe(
+    "departed",
+  );
+});
+
+test("RC-S5-03: a booking not arriving today and a Guest not leaving today offer neither command", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A", "B"]);
+  const later = `Later ${tag}`;
+  const staying = `Staying ${tag}`;
+  aBookingOn(rooms.A!, later, { from: 2, to: 4 });
+  anInHouseGuestIn(rooms.B!, staying);
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await page
+    .getByRole("button", { name: new RegExp(`^${later}, Confirmed`) })
+    .click();
+  const drawer = page.getByRole("dialog", { name: "Reservation details" });
+  await expect(drawer.getByRole("button", { name: /^Check in/ })).toHaveCount(
+    0,
+  );
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+
+  await page
+    .getByRole("button", { name: new RegExp(`^${staying}, In house`) })
+    .click();
+  await expect(
+    drawer.getByRole("button", { name: "Change departure" }),
+  ).toBeVisible();
+  await expect(
+    drawer.getByRole("button", { name: /^Check .* out$/ }),
+  ).toHaveCount(0);
+});
+
+test("RC-S5-04: the in-place confirm keeps it as it was, or hands it to the full dialog", async ({
+  page,
+}) => {
+  const { propertyId, tag, rooms } = aSetOfRooms(["A"]);
+  const stayId = anInHouseGuestIn(rooms.A!, `Longer ${tag}`);
+  await signIn(page);
+  await openRooms(page, "en", { propertyId, tag, rooms });
+
+  await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
+  const confirm = page.locator('[data-quick-confirm="departure"]');
+  await expect(confirm).toContainText("2 more nights");
+  await evidence(page, "quick-confirm", { tall: false });
+  // Escape is Keep as it was, and Save had the focus to make Enter a save.
+  await expect(
+    confirm.getByRole("button", { name: "Save", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(confirm).toBeHidden();
+  expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 3));
+
+  await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
+  await confirm.getByRole("button", { name: "More options" }).click();
+  const dialog = page.getByRole("dialog", { name: "Change departure" });
+  await expect(dialog.locator("[data-move-summary]")).toContainText("6 nights");
+  await dialog.getByRole("button", { name: "Keep as it was" }).click();
+  await expect(dialog).toBeHidden();
+  expect(stayEnd(stayId)).toBe(propertyDay(propertyId, 3));
 });

@@ -26,12 +26,15 @@ import {
  * form around the table: two rows must be able to fail differently.
  */
 export function CheckInAction({
+  className,
   guestName,
   locale,
   onDone,
   reservationId,
   room,
 }: {
+  /** For the button, where it stands among larger ones (the calendar's drawer). */
+  className?: string;
   /** Names the button, so a screen reader hears whom it checks in. */
   guestName?: string | undefined;
   locale: string;
@@ -149,6 +152,7 @@ export function CheckInAction({
           {...(guestName
             ? { "aria-label": t("checkInFor", { guest: guestName }) }
             : {})}
+          className={className}
           disabled={pending}
           ref={button}
           size="sm"

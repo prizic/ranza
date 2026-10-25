@@ -27,10 +27,18 @@ import {
   type PlacedEntry,
 } from "../layout";
 import { lateArrival } from "../late";
-import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
+import {
+  bookingGhost,
+  ghostOf,
+  hasEndHandle,
+  type BookingTarget,
+  type Ghost,
+  type MoveRequest,
+} from "../move";
 import { useHoldText } from "./hold-text";
-import { useBarDrag } from "./use-bar-drag";
+import { useBarDrag, type BarDrop } from "./use-bar-drag";
 import { useCoarsePointer } from "./use-coarse-pointer";
+import { useNightDrag } from "./use-night-drag";
 import {
   BAR_GRIP,
   BAR_ICON,
@@ -185,24 +193,36 @@ interface BarCard {
 }
 
 export function CalendarGrid({
+  bookable,
   calendar,
+  held,
   locale,
   markedDay,
   mayAmend,
+  onBook,
   onDrop,
   onOpen,
   onToggleBeds,
   rows,
   updating,
 }: {
+  /**
+   * The Units the viewer may book, whose free nights a drag across books
+   * (RC-S5-02); null for a viewer without `front_desk.book`.
+   */
+  bookable: ReadonlySet<string> | null;
   calendar: RoomCalendar;
+  /** A drop waiting on its confirm, drawn where it would go until answered. */
+  held: MoveRequest | null;
   locale: SupportedLocale;
   /** The date the reader jumped to, which the window opens three days before. */
   markedDay: string | null;
   /** Whether a bar can be dragged: the viewer holds `front_desk.amend` (RC-S3-10). */
   mayAmend: boolean;
+  /** Free nights were dragged across; nothing has been written (RC-S5-02). */
+  onBook: (target: BookingTarget & { endsOn: string }) => void;
   /** A bar was dropped somewhere; nothing has been written (RC-S3-01). */
-  onDrop: (request: MoveRequest) => void;
+  onDrop: (request: MoveRequest, drop: BarDrop) => void;
   onOpen: (bar: RoomCalendarBar) => void;
   onToggleBeds: (roomId: string) => void;
   rows: CalendarRow[];
@@ -223,6 +243,15 @@ export function CalendarGrid({
       setDrag(request ? { key, ghost: ghostOf(calendar, request) } : null),
     [calendar],
   );
+  // A new booking has no bar of its own to fade, so it is dragged under no key.
+  const previewNights = useCallback(
+    (target: BookingTarget | null) =>
+      setDrag(
+        target ? { key: "", ghost: bookingGhost(calendar, target) } : null,
+      ),
+    [calendar],
+  );
+  const ghost = drag?.ghost ?? (held ? ghostOf(calendar, held) : null);
 
   // One bar is in the tab order and the arrow keys move between the rest, so
   // the grid is one stop on the page and not forty (a bar per tab stop put the
@@ -412,24 +441,25 @@ export function CalendarGrid({
               }
               return (
                 <UnitRow
+                  bookable={bookable?.has(row.unit.unitId) ?? false}
                   calendar={calendar}
                   collapsed={row.collapsed}
                   draggingKey={drag?.key ?? null}
                   dragHint={dragHint}
-                  ghost={
-                    drag?.ghost.unitId === row.unit.unitId ? drag.ghost : null
-                  }
+                  ghost={ghost?.unitId === row.unit.unitId ? ghost : null}
                   key={row.key}
                   lastDay={lastDay}
                   locale={locale}
                   mayAmend={mayAmend}
                   nested={row.nested}
                   nights={nights}
+                  onBook={onBook}
                   onCard={showCard}
                   onDrop={onDrop}
                   onFocusBar={setActiveKey}
                   onOpen={onOpen}
                   onPreview={preview}
+                  onPreviewNights={previewNights}
                   onToggleBeds={onToggleBeds}
                   room={row.room}
                   tabStop={tabStop}
@@ -480,6 +510,7 @@ function BarCardView({ card }: { card: BarCard }) {
 }
 
 function UnitRow({
+  bookable,
   calendar,
   collapsed,
   dragHint,
@@ -490,16 +521,20 @@ function UnitRow({
   mayAmend,
   nested,
   nights,
+  onBook,
   onCard,
   onDrop,
   onFocusBar,
   onOpen,
   onPreview,
+  onPreviewNights,
   onToggleBeds,
   room,
   tabStop,
   unit,
 }: {
+  /** Whether the viewer may book this Unit, so a drag across its free nights does. */
+  bookable: boolean;
   calendar: RoomCalendar;
   collapsed: boolean;
   /** What a bar says about moving it, for the pointer in use. */
@@ -513,11 +548,13 @@ function UnitRow({
   mayAmend: boolean;
   nested: boolean;
   nights: string[];
+  onBook: (target: BookingTarget & { endsOn: string }) => void;
   onCard: (card: BarCard | null) => void;
-  onDrop: (request: MoveRequest) => void;
+  onDrop: (request: MoveRequest, drop: BarDrop) => void;
   onFocusBar: (key: string) => void;
   onOpen: (bar: RoomCalendarBar) => void;
   onPreview: (key: string, request: MoveRequest | null) => void;
+  onPreviewNights: (target: BookingTarget | null) => void;
   onToggleBeds: (roomId: string) => void;
   room: RoomCalendarUnit | null;
   /** The one bar in the tab order. */
@@ -537,6 +574,16 @@ function UnitRow({
       : undefined;
   const heldBy = hold ? holdText(hold) : null;
   const taken = collapsed ? bedsTaken(unit, nights) : null;
+  // A room let by the bed is booked through its beds, and a collapsed room
+  // shows counts rather than nights to choose from.
+  const books = bookable && unit.sellable && !collapsed;
+  const nightDrag = useNightDrag({
+    enabled: books,
+    onBook,
+    onPreview: onPreviewNights,
+    today: calendar.today,
+    unitId: unit.unitId,
+  });
 
   return (
     <div
@@ -544,6 +591,7 @@ function UnitRow({
       data-unit-id={unit.unitId}
       role="row"
       style={vars({ "--lanes": lanes })}
+      {...(books ? nightDrag : {})}
     >
       <div
         className={cn(
@@ -605,6 +653,7 @@ function UnitRow({
               ? "bg-primary/5"
               : isWeekend(day) && "bg-muted/40",
             outOfUseOn(unit, day, calendar.today) && OUT_OF_USE,
+            books && day >= calendar.today && "cursor-cell",
           )}
           data-day={day}
           key={day}
@@ -720,7 +769,7 @@ function BarButton({
   locale: SupportedLocale;
   mayAmend: boolean;
   onCard: (card: BarCard | null) => void;
-  onDrop: (request: MoveRequest) => void;
+  onDrop: (request: MoveRequest, drop: BarDrop) => void;
   onFocusBar: (key: string) => void;
   onOpen: (bar: RoomCalendarBar) => void;
   onPreview: (key: string, request: MoveRequest | null) => void;
