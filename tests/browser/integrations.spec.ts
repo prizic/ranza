@@ -690,12 +690,14 @@ test("INT-S1-79: someone with no integrations permission is told so, and a Prope
   await expect(
     page.getByRole("heading", { name: "Your role can't open this page" }),
   ).toHaveCount(0);
-  // And does not send the reader to a menu that is not there, or to the Owner
-  // they may be (CONFIGURATION-09).
+  // And sends the reader to a Property menu only if they have more than one
+  // Property, not to one that may not be there (CONFIGURATION-09).
   await expect(
     page.getByText(messages.en.denied.notEnabledDescription),
   ).toBeVisible();
-  await expect(page.getByText(/menu at the top/)).toHaveCount(0);
+  await expect(
+    page.getByText(/If you work at more than one Property/),
+  ).toBeVisible();
   await page.screenshot({
     path: path.join(
       __dirname,
