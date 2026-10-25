@@ -23,6 +23,7 @@ export function RecordPanel({
   entry,
   locale,
   names,
+  openedPropertyName,
   propertyId,
   reach,
   viewerId,
@@ -30,6 +31,8 @@ export function RecordPanel({
   entry: AuditEntry;
   locale: SupportedLocale;
   names: AuditNames;
+  /** The Property the log is opened from: its clock reads a record about the whole Organization. */
+  openedPropertyName: string;
   /** The Property the log is opened from, which every link keeps. */
   propertyId: string;
   /** Which of the screens a subject opens in the viewer may open. */
@@ -39,6 +42,7 @@ export function RecordPanel({
   const t = useTranslations();
   const words = useAuditWords(names, viewerId);
   const subject = words.name(entry.subjectId);
+  const reason = words.reason(entry);
   const opens = subjectHref(
     locale,
     propertyId,
@@ -90,10 +94,15 @@ export function RecordPanel({
           >
             {whenLabel(entry.occurredAt, locale, entry.timeZone)}
           </time>
+          {/* Whose clock it is: a record opened from a link has no column
+              heading to say so (DATA-08). */}
+          <span className="block text-step--1 text-muted-foreground">
+            {words.clockOf(entry.propertyName ?? openedPropertyName)}
+          </span>
         </Fact>
         <Fact label={t("why")}>
-          {entry.reason ? (
-            <span className="whitespace-pre-wrap">{entry.reason}</span>
+          {reason ? (
+            <span className="whitespace-pre-wrap">{reason}</span>
           ) : (
             <span className="text-muted-foreground">{t("noReason")}</span>
           )}

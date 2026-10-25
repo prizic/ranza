@@ -7,7 +7,20 @@ import { formatDate, type SupportedLocale } from "@ranza/i18n";
 // roster does. By ADR 0013 a second caller moves it to `src/lib/`; that waits
 // for the branches editing it in flight to land, rather than conflicting them.
 import { asShippedRole } from "../staff/labels";
-import { isKnownAction, isKnownSubject, readAs, shortId } from "./actions";
+import {
+  isKnownAction,
+  isKnownSubject,
+  isMoveReasonKind,
+  readAs,
+  shortId,
+} from "./actions";
+
+/** The year an instant falls in on a clock, as `YYYY`. */
+function yearOf(at: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en", { year: "numeric", timeZone }).format(
+    at,
+  );
+}
 
 /**
  * An instant, shown as a Property's wall clock.
@@ -21,14 +34,34 @@ export function whenLabel(
   at: Date,
   locale: SupportedLocale,
   timeZone: string,
+  /** The year the reader is in: a time in it needs no year (DATA-06). */
+  currentYear?: string,
 ): string {
   return formatDate(at, locale, {
+    ...(currentYear !== undefined && yearOf(at, timeZone) === currentYear
+      ? { year: undefined }
+      : {}),
     hour: "2-digit",
     // 24-hour in every language, as everywhere else in the product.
     hourCycle: "h23",
     minute: "2-digit",
     timeZone,
   });
+}
+
+/**
+ * What a zone is called when no Property is a good name for its clock: "Turkey
+ * Time", in the reader's language and script, where the zone's id would put
+ * "Europe/Istanbul" inside an Arabic header (DATA-08).
+ */
+export function zoneName(locale: SupportedLocale, timeZone: string): string {
+  const named = new Intl.DateTimeFormat(locale, {
+    timeZone,
+    timeZoneName: "longGeneric",
+  })
+    .formatToParts(new Date())
+    .find((part) => part.type === "timeZoneName");
+  return named?.value ?? timeZone;
 }
 
 /**
@@ -55,9 +88,34 @@ export function useAuditWords(names: AuditNames, viewerId: string) {
   const actor = (actorId: string) =>
     actorId === viewerId ? t("you") : name(actorId);
 
+  /** "Demo Hotel time": whose clock a time is on, in words (DATA-08). */
+  const clockOf = (place: string) => t("auditClockOf", { place });
+
   const where = (entry: Pick<AuditEntry, "propertyName" | "locationId">) =>
     entry.propertyName ??
     (entry.locationId ? shortId(entry.locationId) : t("auditOrganizationWide"));
+
+  /**
+   * The reason a record carries, in words. A Guest's move is recorded as
+   * `guest_request: <note>`, the kind in front of the note, and records are
+   * never rewritten, so the kind is turned into the words the move dialog gave
+   * it here (DATA-05). The kind is also a fact of the record (`reasonKind`),
+   * and only a prefix that is that fact is read as one: a note that happens to
+   * begin with a word is the note.
+   */
+  const reason = (
+    entry: Pick<AuditEntry, "action" | "subjectType" | "reason" | "context">,
+  ): string | null => {
+    const text = entry.reason;
+    if (!text) return null;
+    const kind = entry.context?.reasonKind;
+    if (readAs(entry.action, entry.subjectType) !== "stay.moved") return text;
+    if (!isMoveReasonKind(kind)) return text;
+    if (text === kind) return t(`moveReason.${kind}`);
+    if (!text.startsWith(`${kind}: `)) return text;
+    const note = text.slice(kind.length + 2);
+    return kind === "other" ? note : `${t(`moveReason.${kind}`)}: ${note}`;
+  };
 
   /**
    * A role, by name. `authored` is what the record says the key was — an
@@ -70,7 +128,7 @@ export function useAuditWords(names: AuditNames, viewerId: string) {
     return shipped ? t(`staff.roles.${shipped}`) : (names.roles[key] ?? key);
   };
 
-  return { action, actor, name, role, subjectType, where };
+  return { action, actor, clockOf, name, reason, role, subjectType, where };
 }
 
 export type AuditWords = ReturnType<typeof useAuditWords>;

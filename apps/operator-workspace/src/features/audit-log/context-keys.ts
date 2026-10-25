@@ -35,9 +35,6 @@ export const CONTEXT_KEYS = [
   "fields",
   "description",
   "paymentMethod",
-  "lineId",
-  "reversedLineId",
-  "reversalLineId",
   "stayId",
   "reservationId",
   "folioId",
@@ -59,7 +56,10 @@ export const CONTEXT_KEYS = [
   "reasonKind",
   "earlyDeparture",
   "folioClosed",
+  "nightsCharged",
+  "roomNightsCharged",
   "roomNightsNotCharged",
+  "roomWasNotReady",
   "businessDate",
   "from",
   "to",
@@ -114,6 +114,8 @@ export function isContextKey(key: string): key is ContextKey {
  * names: `currency` is the unit of an amount, a role's `Authored` flag is part
  * of how the role is named, `changeId` is the database's own handle on an
  * amendment and `requestId` is the subject of the maintenance record it is on.
+ * The ids of Folio lines are no screen's address: a reader cannot look one up,
+ * and the Folio the record is about is its subject (DATA-01).
  */
 export const HIDDEN_CONTEXT_KEYS: ReadonlySet<string> = new Set([
   "currency",
@@ -122,6 +124,9 @@ export const HIDDEN_CONTEXT_KEYS: ReadonlySet<string> = new Set([
   "toAuthored",
   "changeId",
   "requestId",
+  "lineId",
+  "reversedLineId",
+  "reversalLineId",
 ]);
 
 /**

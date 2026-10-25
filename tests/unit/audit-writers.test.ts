@@ -119,7 +119,10 @@ describe("the modules and the screen agree on what is written", () => {
  * facts of the record.
  */
 function contextKeysWrittenBy(file: string): string[] {
-  const text = readFileSync(file, "utf8");
+  // A comment between two facts has commas of its own, which would split the
+  // fact after it into a sentence and hide its key: `nightsCharged` was
+  // unlabelled on the record screen for that reason.
+  const text = readFileSync(file, "utf8").replace(/^\s*\/\/.*$/gm, "");
   const keys: string[] = [];
   for (const start of text.matchAll(/context: \{/g)) {
     const open = start.index + start[0].length - 1;

@@ -18,10 +18,10 @@ import {
   TableRow,
 } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
-import { isCorrection, readAs } from "../actions";
+import { expectsReason, isCorrection, readAs } from "../actions";
 import { historyHref, subjectHref, type SubjectReach } from "../links";
 import { useAuditSummary } from "../summary";
-import { useAuditWords, whenLabel, type AuditWords } from "../words";
+import { useAuditWords, whenLabel, zoneName, type AuditWords } from "../words";
 
 /**
  * One page of the log, newest first.
@@ -38,17 +38,31 @@ import { useAuditWords, whenLabel, type AuditWords } from "../words";
  *
  * Opening a row is a link rather than a click handler, so a record can be
  * bookmarked and sent to a colleague — and since it is read by id, the link
- * keeps working however many records are written after it.
+ * keeps working however many records are written after it. The link is
+ * stretched over its whole row, because a row that lights up under the pointer
+ * is read as a target and only its title was one (DATA-03); the row's other
+ * links sit above it and stay their own.
+ *
+ * Below `sm` a row is a block of its own: what happened, when, who did it and,
+ * when there is one, why. Five columns do not fit a phone, and the reason is
+ * the cell a manager opens the log on a phone to read (DATA-06).
  */
+const STACKED_ROW = "max-sm:grid max-sm:gap-1 max-sm:p-3";
+const STACKED_CELL = "max-sm:block max-sm:p-0 max-sm:whitespace-normal";
+const LABELLED_CELL =
+  "max-sm:before:me-1 max-sm:before:text-muted-foreground max-sm:before:content-[attr(data-label)]";
+
 export function AuditTable({
   filtered,
   locale,
   newestHref,
   olderHref,
+  opened,
   page,
   propertyId,
   reach,
   recordHref,
+  today,
   viewerId,
 }: {
   /** Whether any filter narrowed this page — the empty state says which. */
@@ -58,6 +72,8 @@ export function AuditTable({
   newestHref: string | null;
   /** The next page, when there is one. */
   olderHref: string | null;
+  /** The Property the log is opened from: its clock reads the records about the whole Organization. */
+  opened: { name: string; timezone: string };
   page: AuditPage;
   /** The Property the log is opened from, which every link keeps. */
   propertyId: string;
@@ -65,6 +81,8 @@ export function AuditTable({
   reach: SubjectReach;
   /** The list URL that a row's link extends with `&record=`. */
   recordHref: string;
+  /** The opened Property's day, `YYYY-MM-DD`: a time this year needs no year. */
+  today: string;
   viewerId: string;
 }) {
   const t = useTranslations();
@@ -74,6 +92,8 @@ export function AuditTable({
   // that spans Properties in two zones says each time's own instead (AUDIT-10).
   const zones = [...new Set(page.entries.map((entry) => entry.timeZone))];
   const [onlyZone] = zones;
+  const clock = oneClock(page.entries, onlyZone, opened, locale, words);
+  const year = today.slice(0, 4);
 
   if (page.entries.length === 0 && !newestHref) {
     return (
@@ -102,11 +122,11 @@ export function AuditTable({
       <ScrollCue className="overflow-hidden rounded-lg border">
         <Table>
           <TableCaption className="sr-only">{t("auditLog")}</TableCaption>
-          <TableHeader>
+          <TableHeader className="max-sm:hidden">
             <TableRow>
               <TableHead>
-                {zones.length === 1 && onlyZone
-                  ? t("auditWhenIn", { timezone: onlyZone })
+                {clock
+                  ? t("auditWhenIn", { clock })
                   : zones.length > 1
                     ? t("auditWhenEach")
                     : t("when")}
@@ -119,21 +139,23 @@ export function AuditTable({
           </TableHeader>
           <TableBody>
             {page.entries.map((entry) => (
-              <TableRow key={entry.id}>
-                <TableCell className="align-top">
+              <TableRow className={`relative ${STACKED_ROW}`} key={entry.id}>
+                <TableCell className={`align-top ${STACKED_CELL}`}>
                   <time
                     className="whitespace-nowrap text-step--1 tabular-nums"
                     dateTime={entry.occurredAt.toISOString()}
                   >
-                    {whenLabel(entry.occurredAt, locale, entry.timeZone)}
+                    {whenLabel(entry.occurredAt, locale, entry.timeZone, year)}
                   </time>
                 </TableCell>
-                <TableCell className="align-top whitespace-normal">
+                <TableCell
+                  className={`align-top whitespace-normal ${STACKED_CELL}`}
+                >
                   {/* Not prefetched: one row is one request, and all it would
                       fetch is the loading boundary — the row's own data is
                       read on the click. */}
                   <Link
-                    className="block hover:underline"
+                    className="block after:absolute after:inset-0 hover:underline"
                     href={`${recordHref}&record=${entry.id}`}
                     prefetch={false}
                   >
@@ -170,17 +192,19 @@ export function AuditTable({
                     reach={reach}
                     words={words}
                   />
-                  {/* Who is the column a phone scrolls past before it is
-                      ever in view, and a log that says what happened and not
-                      who did it is half a log (AUDIT-06). */}
-                  <span className="block text-step--1 text-muted-foreground sm:hidden">
-                    {t("who")}: {words.actor(entry.actorId)}
-                  </span>
                 </TableCell>
-                <TableCell className="align-top whitespace-normal text-step--1">
+                <TableCell
+                  className={`align-top whitespace-normal text-step--1 ${STACKED_CELL} ${LABELLED_CELL}`}
+                  data-label={t("auditWhere")}
+                >
                   {words.where(entry)}
                 </TableCell>
-                <TableCell className="align-top">
+                {/* A log that says what happened and not who did it is half a
+                    log, so who stays on a phone (AUDIT-06). */}
+                <TableCell
+                  className={`align-top ${STACKED_CELL} ${LABELLED_CELL}`}
+                  data-label={t("who")}
+                >
                   <span
                     className={
                       entry.actorId === viewerId
@@ -192,23 +216,7 @@ export function AuditTable({
                     {words.actor(entry.actorId)}
                   </span>
                 </TableCell>
-                <TableCell className="align-top whitespace-normal">
-                  {entry.reason ? (
-                    // A width of its own: `max-w-prose` is 65 characters, which
-                    // made the column wider than a laptop and cut the reason
-                    // mid-word at the edge of the table (AUDIT-05).
-                    <span className="line-clamp-2 max-w-72 min-w-40 break-words">
-                      {entry.reason}
-                    </span>
-                  ) : (
-                    // Most actions require no reason and the column must say
-                    // so, or an empty cell reads as a reason somebody failed
-                    // to give.
-                    <span className="text-step--1 text-muted-foreground">
-                      {t("noReason")}
-                    </span>
-                  )}
-                </TableCell>
+                <ReasonCell entry={entry} words={words} />
               </TableRow>
             ))}
           </TableBody>
@@ -272,7 +280,7 @@ function SubjectLine({
       : null);
   return opens ? (
     <Link
-      className="block text-step--1 text-muted-foreground hover:text-foreground hover:underline"
+      className="relative z-10 block w-fit text-step--1 text-muted-foreground hover:text-foreground hover:underline"
       href={opens}
       prefetch={false}
       title={entry.subjectId}
@@ -287,4 +295,79 @@ function SubjectLine({
       {label}
     </span>
   );
+}
+
+/**
+ * Why a record was made. Most actions need none and the cell keeps quiet about
+ * it, so the few rows that carry a reason are the ones that stand out; an
+ * action that cannot be recorded without one and has none says so in words
+ * (DATA-04). On a phone a cell with nothing to say takes no room.
+ */
+function ReasonCell({
+  entry,
+  words,
+}: {
+  entry: AuditEntry;
+  words: AuditWords;
+}) {
+  const t = useTranslations();
+  const reason = words.reason(entry);
+  const expected = expectsReason(readAs(entry.action, entry.subjectType));
+
+  if (reason) {
+    return (
+      <TableCell
+        className={`align-top whitespace-normal ${STACKED_CELL} ${LABELLED_CELL}`}
+        data-label={t("why")}
+      >
+        {/* A width of its own: `max-w-prose` is 65 characters, which made the
+            column wider than a laptop and cut the reason mid-word at the edge
+            of the table (AUDIT-05). */}
+        <span className="line-clamp-2 max-w-72 min-w-40 break-words max-sm:inline max-sm:max-w-none">
+          {reason}
+        </span>
+      </TableCell>
+    );
+  }
+  return (
+    <TableCell
+      className={`align-top whitespace-normal ${expected ? `${STACKED_CELL} ${LABELLED_CELL}` : "max-sm:hidden"}`}
+      data-label={t("why")}
+    >
+      {expected ? (
+        <span className="text-step--1 text-warning">
+          {t("auditReasonMissing")}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">
+          <span aria-hidden="true">—</span>
+          <span className="sr-only">{t("noReason")}</span>
+        </span>
+      )}
+    </TableCell>
+  );
+}
+
+/**
+ * The one name for the clock every time in a list is on, when they share one:
+ * the Property whose clock it is, or the zone in words when several Properties
+ * share it. Null when the list spans clocks, which says each place's own.
+ */
+function oneClock(
+  entries: readonly AuditEntry[],
+  zone: string | undefined,
+  opened: { name: string; timezone: string },
+  locale: SupportedLocale,
+  words: AuditWords,
+): string | null {
+  if (entries.some((entry) => entry.timeZone !== zone) || !zone) return null;
+  const places = [
+    ...new Set(entries.flatMap((entry) => entry.propertyName ?? [])),
+  ];
+  const [only] = places;
+  if (places.length === 1 && only !== undefined) return words.clockOf(only);
+  if (places.length === 0 && opened.timezone === zone) {
+    return words.clockOf(opened.name);
+  }
+  return zoneName(locale, zone);
 }

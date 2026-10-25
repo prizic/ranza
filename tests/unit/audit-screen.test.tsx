@@ -21,6 +21,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 import { AuditTable } from "../../apps/operator-workspace/src/features/audit-log/components/audit-table";
 import { RecordPanel } from "../../apps/operator-workspace/src/features/audit-log/components/record-panel";
 
+const OPENED = { name: "Demo Otel İstanbul", timezone: "Europe/Istanbul" };
 const VIEWER = "d6000001-0000-4000-8000-000000000001";
 const COLLEAGUE = "d6000001-0000-4000-8000-000000000002";
 const STRANGER = "d6000001-0000-4000-8000-000000000003";
@@ -79,6 +80,8 @@ function show(entries: AuditEntry[]) {
         propertyId="x"
         reach={REACH}
         recordHref="/en/audit-log?property=x"
+        opened={OPENED}
+        today="2026-09-21"
         viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
@@ -99,6 +102,7 @@ function open(
         names={pageOf([record], roles)}
         propertyId="x"
         reach={REACH}
+        openedPropertyName={OPENED.name}
         viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
@@ -199,6 +203,8 @@ describe("what a row says", () => {
           propertyId="x"
           reach={REACH}
           recordHref="/en/audit-log?property=x"
+          opened={OPENED}
+          today="2026-09-21"
           viewerId={VIEWER}
         />
       </NextIntlClientProvider>,

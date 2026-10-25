@@ -15,6 +15,7 @@ import {
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { asPermission } from "../../staff/labels";
 import { formatSize } from "../../data-export/helpers";
+import { minorUnitsOf, shownAmount } from "../amounts";
 import { HIDDEN_CONTEXT_KEYS, isContextKey } from "../context-keys";
 import {
   maintenanceSettingChanges,
@@ -228,8 +229,9 @@ export function ContextFacts({
   }
 
   function render(key: string, value: unknown): ReactNode {
-    if (MONEY.has(key) && typeof value === "number" && currency) {
-      return formatMoney(value, currency, locale);
+    const minor = MONEY.has(key) ? minorUnitsOf(value) : null;
+    if (minor !== null && currency) {
+      return formatMoney(shownAmount(action, minor), currency, locale);
     }
     if (TIMES.has(key) && typeof value === "string") return value.slice(0, 5);
     if (key === "format" && typeof value === "string") {

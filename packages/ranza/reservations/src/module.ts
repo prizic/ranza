@@ -1400,7 +1400,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
           accommodationUnitId: closed.accommodationUnitId,
           reservationId: closed.reservationId,
           folioId: review.folioId,
-          balanceMinor: review.balanceMinor,
+          // A number, as every other amount on a record is: the sum arrives
+          // from the database as text, and text printed as a bare digit.
+          balanceMinor: Number(review.balanceMinor),
           currency: review.currency,
           folioClosed: folio !== null,
           plannedEndsOn: review.plannedEndsOn,

@@ -25,6 +25,7 @@ import {
 import { AuditTable } from "../../apps/operator-workspace/src/features/audit-log/components/audit-table";
 import { RecordPanel } from "../../apps/operator-workspace/src/features/audit-log/components/record-panel";
 
+const OPENED = { name: "Demo Otel İstanbul", timezone: "Europe/Istanbul" };
 const VIEWER = "d6100001-0000-4000-8000-000000000001";
 const FOLIO = "d6100003-0000-4000-8000-000000000001";
 const ROOM = "d6100006-0000-4000-8000-000000000001";
@@ -93,6 +94,8 @@ function show(
         propertyId={PROPERTY}
         reach={options.reach ?? REACH}
         recordHref="/en/audit-log?property=x"
+        opened={OPENED}
+        today="2026-09-21"
         viewerId={VIEWER}
       />
     </NextIntlClientProvider>,
@@ -299,6 +302,7 @@ describe("where a record's subject opens", () => {
           names={pageOf([record])}
           propertyId={PROPERTY}
           reach={REACH}
+          openedPropertyName={OPENED.name}
           viewerId={VIEWER}
         />
       </NextIntlClientProvider>,
@@ -333,6 +337,7 @@ describe("the details table", () => {
           names={pageOf([record])}
           propertyId={PROPERTY}
           reach={REACH}
+          openedPropertyName={OPENED.name}
           viewerId={VIEWER}
         />
       </NextIntlClientProvider>,
@@ -348,10 +353,12 @@ describe("the details table", () => {
 });
 
 describe("the clock", () => {
-  it("AL-S2-09: names the one zone in the column's heading, and says each place's own when there are two", () => {
+  it("AL-S2-09: names the Property whose clock the one zone is, in words, and says each place's own when there are two", () => {
     show([entry({}), entry({ id: "d6100009-0000-4000-8000-000000000002" })]);
     expect(
-      screen.getByRole("columnheader", { name: "When (Europe/Istanbul)" }),
+      screen.getByRole("columnheader", {
+        name: "When (Demo Otel İstanbul time)",
+      }),
     ).toBeInTheDocument();
     cleanup();
     show([
@@ -364,6 +371,63 @@ describe("the clock", () => {
     expect(
       screen.getByRole("columnheader", { name: /each place’s own clock/ }),
     ).toBeInTheDocument();
+  });
+
+  it("AL-S2-09: never prints a zone's id, which in Arabic is Latin text inside a right-to-left heading", () => {
+    for (const locale of supportedLocales) {
+      show(
+        [
+          entry({ propertyName: "North", locationId: PROPERTY }),
+          entry({
+            id: "d6100009-0000-4000-8000-000000000002",
+            propertyName: "South",
+          }),
+        ],
+        { locale },
+      );
+      const heading = screen.getAllByRole("columnheader")[0]!;
+      expect(heading.textContent, locale).not.toMatch(/Europe\//);
+      expect(heading.textContent, locale).toMatch(/\(.+\)/);
+      cleanup();
+    }
+  });
+
+  it("AL-S2-09: a time in the current year carries no year, and one in an earlier year does", () => {
+    show([
+      entry({ occurredAt: new Date("2026-09-20T12:22:00Z") }),
+      entry({
+        id: "d6100009-0000-4000-8000-000000000002",
+        occurredAt: new Date("2025-03-02T09:05:00Z"),
+      }),
+    ]);
+    const [thisYear, earlier] = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.querySelector("time")!.textContent);
+    expect(thisYear).not.toContain("2026");
+    expect(earlier).toContain("2025");
+  });
+
+  it("AL-S2-09: a record opened by its link says whose clock its time is on, even for the whole Organization", () => {
+    const place = entry({});
+    const whole = entry({ propertyName: null, locationId: null });
+    for (const record of [place, whole]) {
+      render(
+        <NextIntlClientProvider locale="en" messages={messages.en}>
+          <RecordPanel
+            entry={record}
+            locale="en"
+            names={pageOf([record])}
+            openedPropertyName="Opened Hotel"
+            propertyId={PROPERTY}
+            reach={REACH}
+            viewerId={VIEWER}
+          />
+        </NextIntlClientProvider>,
+      );
+    }
+    expect(screen.getByText("Demo Otel İstanbul time")).toBeInTheDocument();
+    expect(screen.getByText("Opened Hotel time")).toBeInTheDocument();
   });
 });
 

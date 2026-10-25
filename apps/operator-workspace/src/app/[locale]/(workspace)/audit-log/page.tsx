@@ -144,6 +144,7 @@ export default async function AuditLogPage({
             entry={found.entry}
             locale={locale}
             names={found}
+            openedPropertyName={property.propertyName}
             propertyId={property.propertyId}
             reach={reach}
             viewerId={viewer.userId}
@@ -281,10 +282,12 @@ export default async function AuditLogPage({
           locale={locale}
           newestHref={cursor ? filteredHref : null}
           olderHref={olderHref}
+          opened={{ name: property.propertyName, timezone: property.timezone }}
           page={page}
           propertyId={property.propertyId}
           reach={reach}
           recordHref={filteredHref}
+          today={calendarDay(property.timezone)}
           viewerId={viewer.userId}
         />
       ) : null}

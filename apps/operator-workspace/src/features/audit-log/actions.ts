@@ -205,6 +205,34 @@ export function isCorrection(action: string): boolean {
 }
 
 /**
+ * The actions whose writer will not record them without a reason. For these an
+ * empty Why is a gap in the record, which the list says in words; for every
+ * other action it is the ordinary case, which the list keeps quiet (DATA-04).
+ */
+const REASON_EXPECTED: readonly KnownAction[] = [
+  ...CORRECTIONS,
+  "reservation.cancelled",
+  "stay.moved",
+];
+
+export function expectsReason(action: string): boolean {
+  return (REASON_EXPECTED as readonly string[]).includes(action);
+}
+
+/** Why a Guest is moved, as the reservations module records it in `reasonKind`. */
+export const MOVE_REASON_KINDS = [
+  "fault",
+  "upgrade",
+  "guest_request",
+  "other",
+] as const;
+export type MoveReasonKind = (typeof MOVE_REASON_KINDS)[number];
+
+export function isMoveReasonKind(kind: unknown): kind is MoveReasonKind {
+  return (MOVE_REASON_KINDS as readonly unknown[]).includes(kind);
+}
+
+/**
  * Enough of a uuid to tell two apart on a screen. The whole id is always on
  * the element as well, for whoever needs to search a database with it.
  */

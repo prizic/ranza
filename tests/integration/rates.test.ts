@@ -744,7 +744,8 @@ describe("a night is charged once (slice 3)", () => {
       const record = await latestRecord(owner, "stay.checked_out", stayId);
       expect(record?.context).toMatchObject({
         nightsCharged: 2,
-        balanceMinor: "300000",
+        // A number, as every other amount on a record is (DATA-01).
+        balanceMinor: 300000,
       });
 
       // The close of yesterday then charges nothing again, and counts it.

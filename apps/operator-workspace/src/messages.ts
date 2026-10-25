@@ -1321,7 +1321,7 @@ export interface Messages {
     rangeDone: string;
     /** `{count}` days, both ends included. */
     rangeSpan: string;
-    /** `{timezone}`: the zone whose clock the days are read on. */
+    /** `{property}`, `{offset}` ("UTC+03:00"): whose clock the days are read on. */
     rangeClock: string;
     rangeMoot: string;
     presetLast30: string;
@@ -1335,7 +1335,11 @@ export interface Messages {
       json: { title: string; hint: string };
     };
     stackedWarning: string;
+    /** `{property}`, `{offset}` ("UTC+03:00"): the file's times are UTC; the Property's clock is not. */
     columnsNote: string;
+    /** Beside the disabled request button: why it is. */
+    requestNeedsDataset: string;
+    requestNeedsPermission: string;
     requestButton: string;
     requesting: string;
     cancel: string;
@@ -1386,6 +1390,10 @@ export interface Messages {
       status: string;
       nextRun: string;
     };
+    /** `{when}`: when the schedule last ran; its outcome is said after it. */
+    lastRun: string;
+    neverRun: string;
+    showInHistory: string;
     scheduleStatuses: {
       active: string;
       paused: string;
@@ -1423,6 +1431,9 @@ export interface Messages {
     };
     requestAgain: string;
     download: string;
+    /** `{name}`: who asked, when the reader is not them and does not reach every Property. */
+    downloadNotRequester: string;
+    downloadRoleLacks: string;
     /** `{date}`: when a ready export stops being downloadable. */
     expiresOn: string;
     personalBadge: string;
@@ -2759,9 +2770,13 @@ export interface Messages {
   auditShowAll: string;
   auditHistoryLink: string;
   auditExportLink: string;
-  /** `{timezone}`: the one clock every time in the list is on. */
+  /** `{clock}`: whose clock every time in the list is on, in words (`auditClockOf`). */
   auditWhenIn: string;
   auditWhenEach: string;
+  /** `{place}`: "Demo Hotel time", the clock of a Property named, not a zone's id. */
+  auditClockOf: string;
+  /** A record that should carry a reason and does not (a correction). */
+  auditReasonMissing: string;
   /** The headings the action filter's choices are listed under. */
   auditArea: Record<
     | "bookings"
@@ -4978,7 +4993,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeClear: "Temizle",
       rangeDone: "Tamam",
       rangeSpan: "{count, plural, one {# gün} other {# gün}}",
-      rangeClock: "Günler {timezone} saatine göre okunur.",
+      rangeClock:
+        "Günler {property} saatine göre okunur (bugün {offset}), UTC’ye göre değil: orada ayın 1’inde 00:30’da olan bir kayıt 1’indedir.",
       rangeMoot:
         "Bu tarihler burada hiçbir şeyi kesmez: konuklar ve odalar tarihe göre hiçbir zaman kesilmez.",
       presetLast30: "Son 30 gün",
@@ -4998,7 +5014,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       stackedWarning:
         "CSV’de birkaç veri seti tek dosyayı paylaşır: her biri “# dataset: ad” satırıyla başlar ve bir e-tablo hepsini tek sayfa olarak açar. Her veri seti için temiz bir tablo isterseniz tek tek isteyin ya da JSON seçin.",
       columnsNote:
-        "Sütunlar sistemin kendi adlarını taşır. Tutarlar küçük birimle yazılır (5000, 50,00 demektir) ve saatler UTC’dir.",
+        "Sütunlar sistemin kendi adlarını taşır. Tutarlar küçük birimle yazılır (5000, 50,00 demektir). Dosyadaki saatler UTC’dir; {property} bugün {offset} saatindedir.",
+      requestNeedsDataset: "Önce bir veri seti seçin.",
+      requestNeedsPermission: "Rolünüz dışa aktarma isteyemez.",
       requestButton: "Dışa aktarmayı iste",
       requesting: "İsteniyor…",
       cancel: "Vazgeç",
@@ -5053,6 +5071,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status: "Durum",
         nextRun: "Sonraki çalışma",
       },
+      lastRun: "Son çalışma: {when}",
+      neverRun: "Henüz çalışmadı",
+      showInHistory: "Geçmiş’te göster",
       scheduleStatuses: {
         active: "Etkin",
         paused: "Durduruldu",
@@ -5090,6 +5111,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       requestAgain: "Yeniden iste",
       download: "İndir",
+      downloadNotRequester:
+        "Bu dosyayı yalnızca {name} ya da rolü her tesise erişen biri indirebilir.",
+      downloadRoleLacks:
+        "Rolünüz bu veri setlerini dışa aktaramaz, bu yüzden bu dosyayı indiremez.",
       expiresOn: "{date} tarihine kadar indirilebilir",
       personalBadge: "Kişisel veri",
       rangeBetween: "{from} – {to}",
@@ -6159,7 +6184,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditShowAll: "Tüm kayıtları göster",
     auditHistoryLink: "Buna ait tüm kayıtlar",
     auditExportLink: "Denetim kaydını dışa aktar",
-    auditWhenIn: "Zaman ({timezone})",
+    auditWhenIn: "Zaman ({clock})",
+    auditClockOf: "{place} saati",
+    auditReasonMissing: "Gerekçe yazılmamış",
     auditWhenEach: "Zaman (her yerin kendi saati)",
     auditChangedTo: "yeni değer",
     auditInspectionFollowsOrganization: "Organizasyonun ayarı",
@@ -6177,9 +6204,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       period: "Bordro dönemi",
       employeeCount: "Ödenen personel sayısı",
       description: "Açıklama",
-      lineId: "Satır",
-      reversedLineId: "Ters kaydedilen satır",
-      reversalLineId: "Ters kayıt satırı",
       stayId: "Konaklama",
       folioId: "Folyo",
       accommodationUnitId: "Birim",
@@ -6243,7 +6267,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       reservationId: "Rezervasyon",
       resourceTypes: "Veri setleri",
       returnAs: "Odanın dönüş durumu",
+      nightsCharged: "Çıkışta ücretlendirilen geceler",
+      roomNightsCharged: "Ücretlendirilen oda geceleri",
       roomNightsNotCharged: "Ücretlendirilmeyen oda geceleri",
+      roomWasNotReady: "Giriş yapılırken oda hazır değildi",
       servicedOn: "Bakım günü",
       title: "Başlık",
       unitId: "Oda",
@@ -8541,7 +8568,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeClear: "Clear",
       rangeDone: "Done",
       rangeSpan: "{count, plural, one {# day} other {# days}}",
-      rangeClock: "Days are read on the clock of {timezone}.",
+      rangeClock:
+        "Days are read on the clock of {property} ({offset} today), not UTC: something there at 00:30 on the 1st is on the 1st.",
       rangeMoot:
         "These dates cut nothing here: guests and rooms are never cut by date.",
       presetLast30: "Last 30 days",
@@ -8558,7 +8586,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       stackedWarning:
         "In CSV, several datasets share one file: each starts under a “# dataset: name” line, and a spreadsheet opens them as a single sheet. For one clean table per dataset, request them one at a time, or choose JSON.",
       columnsNote:
-        "Columns carry the system’s own names. Amounts are whole minor units (5000 is 50.00) and times are UTC.",
+        "Columns carry the system’s own names. Amounts are whole minor units (5000 is 50.00). Times in the file are UTC; {property} is {offset} today.",
+      requestNeedsDataset: "Choose a dataset first.",
+      requestNeedsPermission: "Your role cannot request exports.",
       requestButton: "Request export",
       requesting: "Requesting…",
       cancel: "Cancel",
@@ -8613,6 +8643,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status: "Status",
         nextRun: "Next run",
       },
+      lastRun: "Last run: {when}",
+      neverRun: "Not run yet",
+      showInHistory: "Show in History",
       scheduleStatuses: {
         active: "Active",
         paused: "Paused",
@@ -8650,6 +8683,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       requestAgain: "Request again",
       download: "Download",
+      downloadNotRequester:
+        "Only {name}, or someone whose role reaches every Property, can download this file.",
+      downloadRoleLacks:
+        "Your role cannot export these datasets, so it cannot download this file.",
       expiresOn: "Available until {date}",
       personalBadge: "Personal data",
       rangeBetween: "{from} to {to}",
@@ -9713,7 +9750,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditShowAll: "Show every record",
     auditHistoryLink: "Every record about this",
     auditExportLink: "Export the audit log",
-    auditWhenIn: "When ({timezone})",
+    auditWhenIn: "When ({clock})",
+    auditClockOf: "{place} time",
+    auditReasonMissing: "No reason recorded",
     auditWhenEach: "When (each place’s own clock)",
     auditChangedTo: "changed to",
     auditInspectionFollowsOrganization: "The Organization's setting",
@@ -9731,9 +9770,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       period: "Payroll period",
       employeeCount: "Employees paid",
       description: "Description",
-      lineId: "Line",
-      reversedLineId: "Reversed line",
-      reversalLineId: "Reversal line",
       stayId: "Stay",
       folioId: "Folio",
       accommodationUnitId: "Unit",
@@ -9797,7 +9833,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       reservationId: "Reservation",
       resourceTypes: "Datasets",
       returnAs: "Room returns as",
+      nightsCharged: "Nights charged at check-out",
+      roomNightsCharged: "Room nights charged",
       roomNightsNotCharged: "Room nights not charged",
+      roomWasNotReady: "Room was not ready at check-in",
       servicedOn: "Serviced on",
       title: "Title",
       unitId: "Room",
@@ -11990,7 +12029,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         "هذا الملف لم يعد متاحًا. تُحفظ الملفات {days} أيام، ويحتاج التنزيل أيضًا إلى أن يظل دورك شاملًا للبيانات التي فيه. اطلبه من جديد إن كنت ما زلت تحتاجه.",
       exportsTitle: "أحدث عمليات التصدير",
       exportsDescription:
-        "آخر ٥٠ طلبًا لـ {organization}، الأحدث أولًا. يمكن تنزيل الملف الجاهز لمدة {days} أيام.",
+        "آخر 50 طلبًا لـ {organization}، الأحدث أولًا. يمكن تنزيل الملف الجاهز لمدة {days} أيام.",
       noExports: "لم يُصدَّر شيء من {organization} بعد.",
       noExportsAction: "طلب تصدير",
       noExportsDescription:
@@ -12013,7 +12052,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reservations_stays: "تواريخ الحجز وحالاته والغرف",
         rooms_beds: "أرقام الغرف والطوابق والأنواع والسعة",
         folios_payments:
-          "كل بند رسوم ودفعة في كل حساب. المبالغ بأصغر وحدة: ٥٠٠٠ تعني ٥٠٫٠٠",
+          "كل بند رسوم ودفعة في كل حساب. المبالغ بأصغر وحدة: 5000 تعني 50.00",
         audit_log: "ما الذي جرى، ومن فعله، وأين، ولماذا",
       },
       datasetNeeds: "يحتاج دورك إلى صلاحية «{permission}» لتصدير هذا.",
@@ -12040,10 +12079,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       rangeDone: "تم",
       rangeSpan:
         "{count, plural, zero {# يوم} one {يوم} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
-      rangeClock: "تُقرأ الأيام بتوقيت {timezone}.",
+      rangeClock:
+        "تُقرأ الأيام بتوقيت \u2068{property}\u2069 (\u2066{offset}\u2069 اليوم) لا بتوقيت UTC: ما يحدث هناك عند 00:30 من اليوم الأول يُحتسب في اليوم الأول.",
       rangeMoot:
         "هذه التواريخ لا تقصر شيئًا هنا: الضيوف والغرف لا تُقصر بالتاريخ أبدًا.",
-      presetLast30: "آخر ٣٠ يومًا",
+      presetLast30: "آخر 30 يومًا",
       presetThisMonth: "هذا الشهر",
       presetLastMonth: "الشهر الماضي",
       presetThisYear: "هذه السنة",
@@ -12057,7 +12097,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       stackedWarning:
         "في CSV تشترك عدة مجموعات بيانات في ملف واحد: تبدأ كل واحدة تحت سطر «# dataset: الاسم»، ويفتحها جدول البيانات كلها في ورقة واحدة. للحصول على جدول نظيف لكل مجموعة اطلبها كل واحدة على حدة أو اختر JSON.",
       columnsNote:
-        "تحمل الأعمدة أسماء النظام نفسها. المبالغ بأصغر وحدة (٥٠٠٠ تعني ٥٠٫٠٠) والأوقات بتوقيت UTC.",
+        "تحمل الأعمدة أسماء النظام نفسها. المبالغ بأصغر وحدة (5000 تعني 50.00). الأوقات في الملف بتوقيت UTC، و\u2068{property}\u2069 على \u2066{offset}\u2069 اليوم.",
+      requestNeedsDataset: "اختر مجموعة بيانات أولًا.",
+      requestNeedsPermission: "لا يستطيع دورك طلب عمليات التصدير.",
       requestButton: "طلب التصدير",
       requesting: "جارٍ الطلب…",
       cancel: "إلغاء",
@@ -12111,6 +12153,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         status: "الحالة",
         nextRun: "التشغيل القادم",
       },
+      lastRun: "آخر تشغيل: {when}",
+      neverRun: "لم يُشغَّل بعد",
+      showInHistory: "إظهاره في السجل",
       scheduleStatuses: {
         active: "نشط",
         paused: "متوقف مؤقتاً",
@@ -12148,6 +12193,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       requestAgain: "اطلبه من جديد",
       download: "تنزيل",
+      downloadNotRequester:
+        "لا يستطيع تنزيل هذا الملف إلا \u2068{name}\u2069 أو من يصل دوره إلى كل العقارات.",
+      downloadRoleLacks:
+        "لا يستطيع دورك تصدير مجموعات البيانات هذه، فلا يمكنه تنزيل هذا الملف.",
       expiresOn: "متاح حتى {date}",
       personalBadge: "بيانات شخصية",
       rangeBetween: "{from} – {to}",
@@ -13195,7 +13244,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     auditShowAll: "عرض كل السجلات",
     auditHistoryLink: "كل السجلات الخاصة بهذا",
     auditExportLink: "تصدير سجل التدقيق",
-    auditWhenIn: "الوقت ({timezone})",
+    auditWhenIn: "الوقت ({clock})",
+    auditClockOf: "بتوقيت \u2068{place}\u2069",
+    auditReasonMissing: "لم يُسجَّل سبب",
     auditWhenEach: "الوقت (بتوقيت كل مكان)",
     auditChangedTo: "تغيّر إلى",
     auditInspectionFollowsOrganization: "إعداد المؤسسة",
@@ -13213,9 +13264,6 @@ export const messages: Record<SupportedLocale, Messages> = {
       period: "فترة الرواتب",
       employeeCount: "عدد الموظفين المدفوع لهم",
       description: "الوصف",
-      lineId: "البند",
-      reversedLineId: "البند المعكوس",
-      reversalLineId: "بند العكس",
       stayId: "الإقامة",
       folioId: "الفوليو",
       accommodationUnitId: "الوحدة",
@@ -13279,7 +13327,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       reservationId: "الحجز",
       resourceTypes: "مجموعات البيانات",
       returnAs: "حالة الغرفة عند إعادتها",
+      nightsCharged: "الليالي المحتسبة عند المغادرة",
+      roomNightsCharged: "ليالي الغرف المحتسبة",
       roomNightsNotCharged: "ليالي الغرف غير المحاسَب عليها",
+      roomWasNotReady: "لم تكن الغرفة جاهزة عند تسجيل الوصول",
       servicedOn: "تاريخ الصيانة",
       title: "العنوان",
       unitId: "الغرفة",

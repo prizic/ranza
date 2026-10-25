@@ -987,7 +987,7 @@ describe("checking out against the bill", () => {
     const [record] = await audit.historyOf(MEMBER, "stay", stayId);
     expect(record?.reason).toBe("company pays by transfer");
     expect(record?.context).toMatchObject({
-      balanceMinor: "4500",
+      balanceMinor: 4500,
       folioClosed: false,
     });
   });

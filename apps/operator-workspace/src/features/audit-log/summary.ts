@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import type { AuditEntry } from "@ranza/core";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { readAs } from "./actions";
+import { minorUnitsOf, shownAmount } from "./amounts";
 import type { AuditWords } from "./words";
 
 /**
@@ -240,7 +241,11 @@ export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
       case "folio.charge_posted":
       case "folio.payment_posted":
       case "folio.line_reversed": {
-        const amount = money(context.amountMinor, context.currency);
+        const minor = minorUnitsOf(context.amountMinor);
+        const amount = money(
+          minor === null ? undefined : shownAmount(action, minor),
+          context.currency,
+        );
         const description =
           typeof context.description === "string" ? context.description : null;
         const parts = [description, amount].filter(
