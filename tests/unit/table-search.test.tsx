@@ -87,7 +87,9 @@ const LABELS: DataTableLabels = {
   selectAllInFilter: (count) => `Select all ${count} in this filter`,
   selectAllRows: "All",
   selectedCount: (count) => `${count} selected`,
+  selectHint: "Tick rows",
   selectRow: "Row",
+  selectRowNamed: (name) => `Row ${name}`,
   visibleColumns: "Visible",
 };
 

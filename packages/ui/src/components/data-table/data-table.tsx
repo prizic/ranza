@@ -105,6 +105,10 @@ export interface DataTableLabels extends PaginationLabels {
   searchBy: (columns: string[]) => string;
   selectAllRows: string;
   selectRow: string;
+  /** "Select 101" — the tick on one row, named by what the row is. */
+  selectRowNamed: (name: string) => string;
+  /** Said where the bulk bar will appear, so the list does not move when it does. */
+  selectHint: string;
   selectedCount: (n: number) => string;
   clearSelection: string;
   /** "Select all 42 in this filter" — the rows beyond the page the ticks cover. */
@@ -138,6 +142,7 @@ export function DataTable<TData, TValue>({
   pageSize = 10,
   rowClassName,
   rowsInDatabase,
+  rowLabel,
   searchColumns,
   toolbarExtra,
 }: {
@@ -194,6 +199,11 @@ export function DataTable<TData, TValue>({
    * than having one of its own.
    */
   searchColumns?: readonly string[];
+  /**
+   * What a row is called, for the tick that selects it. Without it every tick
+   * reads "Select row" and a screen reader hears the same name down the list.
+   */
+  rowLabel?: (row: TData) => string;
   toolbarExtra?: ReactNode;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -244,7 +254,11 @@ export function DataTable<TData, TValue>({
         ),
         cell: ({ row }) => (
           <Checkbox
-            aria-label={labels.selectRow}
+            aria-label={
+              rowLabel
+                ? labels.selectRowNamed(rowLabel(row.original))
+                : labels.selectRow
+            }
             className={TOUCH_TICK}
             checked={row.getIsSelected()}
             onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
@@ -253,7 +267,7 @@ export function DataTable<TData, TValue>({
       },
       ...columns,
     ];
-  }, [columns, labels, selectable]);
+  }, [columns, labels, rowLabel, selectable]);
 
   const table = useReactTable({
     ...(getRowId ? { getRowId: (row: TData) => getRowId(row) } : {}),
@@ -310,6 +324,7 @@ export function DataTable<TData, TValue>({
               className="pointer-events-none absolute start-3.5 top-3 size-4 text-muted-foreground"
             />
             <Input
+              aria-label={searchPlaceholder}
               className="h-10 w-full rounded-2xl border-slate-200/80 bg-white ps-10 pe-4 shadow-2xs hover:border-slate-300 sm:w-[240px] lg:w-[320px] [&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setSearch(event.target.value)}
               placeholder={searchPlaceholder}
@@ -364,6 +379,15 @@ export function DataTable<TData, TValue>({
           <DataTableViewOptions labels={labels} table={table} />
         </div>
       </div>
+
+      {bulkActions && selectedRows.length === 0 ? (
+        // The bar's own height, held while there is nothing to act on: a bar
+        // that arrives in the flow pushes the first row down under the pointer
+        // that has just ticked it (HOUSEKEEPING-03).
+        <p className="flex min-h-[3.375rem] items-center px-4 text-sm text-muted-foreground max-md:min-h-[4.125rem]">
+          {labels.selectHint}
+        </p>
+      ) : null}
 
       {bulkActions && selectedRows.length > 0 ? (
         // Above the table rather than floating over it: staff are reading rows

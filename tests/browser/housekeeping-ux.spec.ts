@@ -94,7 +94,10 @@ test("a phone says a mark landed where it can be seen, and the stale-link page p
   expect(statusBox.x + statusBox.width).toBeLessThanOrEqual(375);
 
   // HK-08: tick, mark, and the confirmation is in the window.
-  await page.getByRole("checkbox", { name: "Select row" }).first().click();
+  await page
+    .getByRole("checkbox", { name: /^Select \d/ })
+    .first()
+    .click();
   const markClean = page.getByRole("button", { name: "Mark clean" });
   // HK-02: and it is a target a thumb can hit, with Mark dirty set apart.
   expect((await markClean.boundingBox())!.height).toBeGreaterThanOrEqual(44);

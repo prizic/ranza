@@ -24,6 +24,15 @@ import type { ColumnHeaderLabels, DataTableLabels } from "@ranza/ui";
  */
 export function useTableLabels(): DataTableLabels {
   const t = useTranslations("table");
+  // The same object while the locale holds: a table puts it in the dependency
+  // list of the columns it builds, and a new one every render would remount the
+  // select column and drop the focus on its tick (HOUSEKEEPING-17).
+  return useMemo(() => tableLabels(t), [t]);
+}
+
+function tableLabels(
+  t: ReturnType<typeof useTranslations<"table">>,
+): DataTableLabels {
   return {
     capped: (loaded, total) => t("capped", { n: loaded, of: total }),
     cappedHint: t("cappedHint"),
@@ -52,7 +61,9 @@ export function useTableLabels(): DataTableLabels {
     selectAllInFilter: (n) => t("selectAllInFilter", { n }),
     selectAllRows: t("selectAllRows"),
     selectedCount: (n) => t("selectedCount", { n }),
+    selectHint: t("selectHint"),
     selectRow: t("selectRow"),
+    selectRowNamed: (name) => t("selectRowNamed", { name }),
     visibleColumns: t("visibleColumns"),
   };
 }

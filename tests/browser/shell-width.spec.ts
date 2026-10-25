@@ -280,22 +280,31 @@ test("the end of a phone page clears the bottom bar, whether its labels take one
     await page.goto(`/${locale}/today?property=${testProperty()}`);
     const dock = page.locator("nav.fixed").last();
     await expect(dock).toBeVisible();
-    await page.evaluate(() =>
-      window.scrollTo(0, document.documentElement.scrollHeight),
-    );
-    const [dockTop, contentBottom] = await Promise.all([
-      dock.evaluate((element) => element.getBoundingClientRect().top),
-      page.evaluate(() =>
-        Math.max(
-          ...[...document.querySelectorAll("main *")].map(
-            (element) => element.getBoundingClientRect().bottom,
-          ),
-        ),
-      ),
-    ]);
-    expect(
-      contentBottom,
-      `the last thing on the page runs under the bottom bar in ${locale}`,
-    ).toBeLessThanOrEqual(dockTop);
+    // The page keeps growing while Today's figures arrive, so the end is
+    // looked for again each time rather than once: measuring after a single
+    // scroll measured a page that was no longer at its end.
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() =>
+            window.scrollTo(0, document.documentElement.scrollHeight),
+          );
+          const [dockTop, contentBottom] = await Promise.all([
+            dock.evaluate((element) => element.getBoundingClientRect().top),
+            page.evaluate(() =>
+              Math.max(
+                ...[...document.querySelectorAll("main *")].map(
+                  (element) => element.getBoundingClientRect().bottom,
+                ),
+              ),
+            ),
+          ]);
+          return contentBottom - dockTop;
+        },
+        {
+          message: `the last thing on the page runs under the bottom bar in ${locale}`,
+        },
+      )
+      .toBeLessThanOrEqual(0);
   }
 });

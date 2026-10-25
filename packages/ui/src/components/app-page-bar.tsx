@@ -23,12 +23,15 @@ export interface PageCrumb {
  * instead, so there is still exactly one `h1`.
  *
  * On a phone the bar's width goes to the way up, the Property, the language
- * and the account, and the page's name — set under the bar anyway, or opened
- * by the page's own display type — is left to assistive technology.
+ * and the account, and the page's name — set under the bar anyway — is left to
+ * assistive technology. A page that opens with display type of its own keeps
+ * its name in the bar on a phone, since nothing under the bar names it as the
+ * page (TODAY-21).
  *
  * `chips` — every page the person reaches, for a role with so few that the frame
  * has no sidebar (`NavChips`) — take the trail's place: the brand, the way up,
- * and the chips, which wrap onto a row of their own below a tablet's width. The
+ * and the chips, which wrap onto a row of their own below a laptop's width, so
+ * a tablet gives them the whole row and not what the controls leave. The
  * page's name is then left to assistive technology, as on a phone, because the
  * chip that is lit names it.
  *
@@ -70,7 +73,7 @@ export function AppPageBar({
 }) {
   const leafClass = cn(
     "truncate text-sm font-semibold tracking-tight text-foreground",
-    chips ? "sr-only" : "max-sm:sr-only",
+    chips ? "sr-only" : display ? "max-sm:sr-only" : "",
   );
   const leaf = display ? (
     <span aria-current="page" className={leafClass}>
@@ -85,14 +88,14 @@ export function AppPageBar({
       <header
         className={cn(
           "flex shrink-0 items-center justify-between gap-x-4 border-b border-border pe-4 md:pe-8",
-          chips ? "min-h-16 flex-wrap py-2 md:flex-nowrap" : "h-16",
+          chips ? "min-h-16 flex-wrap py-2 xl:flex-nowrap" : "h-16",
           back ? "ps-2 md:ps-6" : "ps-4 md:ps-8",
         )}
       >
         <div
           className={cn(
             "flex min-w-0 items-center gap-2 sm:gap-3",
-            chips ? "md:flex-1" : "flex-1",
+            chips ? "xl:flex-1" : "flex-1",
           )}
         >
           {back}
@@ -100,7 +103,7 @@ export function AppPageBar({
           {chips ? (
             <>
               {leaf}
-              <div className="hidden min-w-0 flex-1 md:block">{chips}</div>
+              <div className="hidden min-w-0 flex-1 xl:block">{chips}</div>
             </>
           ) : crumbs.length > 0 ? (
             <nav aria-label={breadcrumbLabel} className="min-w-0 flex-1">
@@ -141,7 +144,7 @@ export function AppPageBar({
             {action}
           </div>
         ) : null}
-        {chips ? <div className="w-full min-w-0 md:hidden">{chips}</div> : null}
+        {chips ? <div className="w-full min-w-0 xl:hidden">{chips}</div> : null}
       </header>
 
       {/* Present even when empty: its top padding is the space between the bar

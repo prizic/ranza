@@ -4,6 +4,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./hydration";
 
 import { aStaffMember, signIn, testProperty } from "./front-desk";
+import { aPropertyWithRooms } from "./ux-rooms";
 
 const EVIDENCE = path.resolve(
   __dirname,
@@ -376,4 +377,72 @@ test("a table's search takes the whole row on a phone and keeps its width on a d
   await expect
     .poll(async () => (await search.boundingBox())?.width ?? 0)
     .toBeLessThanOrEqual(340);
+});
+
+test("ticking the first room does not move the list", async ({ page }) => {
+  test.setTimeout(240_000);
+  const { propertyId } = aPropertyWithRooms("shell ticking", [
+    { name: "101", status: "dirty" },
+    { name: "102", status: "dirty" },
+  ]);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page);
+  await page.goto(`/en/housekeeping?property=${propertyId}`);
+
+  const first = page.locator("tbody tr").first();
+  await expect(first).toBeVisible();
+  const before = (await first.boundingBox())!.y;
+  await first.getByRole("checkbox").click();
+  await expect(page.getByText(/1 selected/)).toBeVisible();
+  const after = (await first.boundingBox())!.y;
+  expect(
+    Math.abs(after - before),
+    "the bar took the place of the hint, so the row stays under the pointer",
+  ).toBeLessThanOrEqual(1);
+  await expect(first.getByRole("checkbox")).toHaveAccessibleName(/^Select \d/);
+});
+
+test("a tablet gives the chips the whole row, and a phone's bar names Today", async ({
+  page,
+  request,
+  baseURL,
+}) => {
+  test.setTimeout(240_000);
+  await signedInAs(page, request, baseURL!, "finance");
+
+  // Seven chips need more than a tablet's row, so they may scroll there, but
+  // they have the row to themselves; at a laptop's width they all fit.
+  for (const [width, scrolls] of [
+    [768, true],
+    [1024, false],
+  ] as const) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/en/finance?property=${testProperty()}`);
+    const row = page.locator("header nav ul").locator("visible=true");
+    await expect(row).toBeVisible();
+    await expect(page.locator("main [class*=animate-pulse]")).toHaveCount(0);
+    const [scrollWidth, clientWidth] = await row.evaluate((element) => [
+      element.scrollWidth,
+      element.clientWidth,
+    ]);
+    expect(
+      clientWidth,
+      `the chips are squeezed to a strip at ${width} px`,
+    ).toBeGreaterThan(width - 100);
+    if (!scrolls) expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
+    if (width === 768) {
+      await page.screenshot({ path: path.join(EVIDENCE, "chips-768.png") });
+    }
+  }
+
+  await page.context().clearCookies();
+  await signedInAs(page, request, baseURL!, "front_desk");
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(`/en/today?property=${testProperty()}`);
+  await expect(
+    page.locator("header h1"),
+    "Today's display type is the weekday, so the bar names the page",
+  ).toBeVisible();
+  await expect(page.locator("header h1")).toHaveText("Today");
+  await page.screenshot({ path: path.join(EVIDENCE, "today-phone-bar.png") });
 });

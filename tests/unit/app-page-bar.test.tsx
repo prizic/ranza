@@ -46,6 +46,44 @@ describe("AppPageBar", () => {
     expect(headings[0]?.textContent).toBe("Today");
   });
 
+  it("TODAY-21: keeps the bar's name of a page with display type of its own on a phone, and hides it only where the title is set under the bar", () => {
+    const { container, rerender } = render(
+      <AppPageBar
+        breadcrumbLabel="Breadcrumb"
+        crumbs={crumbs}
+        display={false}
+        title="Today"
+      />,
+    );
+    expect(container.querySelector("h1")?.className).not.toContain("sr-only");
+
+    rerender(
+      <AppPageBar
+        breadcrumbLabel="Breadcrumb"
+        crumbs={crumbs}
+        title="Arrivals"
+      />,
+    );
+    expect(
+      screen.getByText("Arrivals", { selector: "[aria-current=page]" })
+        .className,
+    ).toContain("max-sm:sr-only");
+  });
+
+  it("HOUSEKEEPING-01: draws the chips twice, inline for a laptop and on a row of their own below it", () => {
+    const { container } = render(
+      <AppPageBar
+        chips={<nav aria-label="Pages" />}
+        crumbs={crumbs}
+        title="Housekeeping"
+      />,
+    );
+    const rows = container.querySelectorAll("nav[aria-label=Pages]");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.parentElement?.className).toContain("xl:block");
+    expect(rows[1]?.parentElement?.className).toContain("xl:hidden");
+  });
+
   it("keeps the section's tabs out of the bar, which holds only the trail and its controls", () => {
     render(
       <AppPageBar

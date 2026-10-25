@@ -216,6 +216,7 @@ export function HousekeepingBoard({
           />
         }
         getRowId={(room) => room.unitId}
+        rowLabel={(room) => room.name}
         facets={[
           {
             columnId: "status",

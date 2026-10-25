@@ -3033,6 +3033,8 @@ export interface TableMessages {
   searchBy: string;
   selectAllRows: string;
   selectRow: string;
+  selectRowNamed: string;
+  selectHint: string;
   selectedCount: string;
   clearSelection: string;
   selectAllInFilter: string;
@@ -6400,6 +6402,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "{columns} ara",
       selectAllRows: "Tüm satırları seç",
       selectRow: "Satırı seç",
+      selectRowNamed: "{name} satırını seç",
+      selectHint:
+        "Birkaç satırda birlikte işlem yapmak için satırları işaretleyin.",
       selectedCount: "{n, plural, other {# seçili}}",
       clearSelection: "Seçimi kaldır",
       selectAllInFilter: "Bu filtredeki tüm {n, number} satırı seç",
@@ -9882,6 +9887,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "Search {columns}",
       selectAllRows: "Select all rows",
       selectRow: "Select row",
+      selectRowNamed: "Select {name}",
+      selectHint: "Tick rows to act on several at once.",
       selectedCount: "{n, plural, other {# selected}}",
       clearSelection: "Clear selection",
       selectAllInFilter: "Select all {n, number} in this filter",
@@ -13299,6 +13306,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       searchBy: "ابحث في {columns}",
       selectAllRows: "تحديد كل الصفوف",
       selectRow: "تحديد الصف",
+      selectRowNamed: "تحديد {name}",
+      selectHint: "حدّد صفوفًا لتنفيذ إجراء على عدة صفوف دفعة واحدة.",
       selectedCount:
         "{n, plural, zero {لا شيء محدد} one {واحدة محددة} two {اثنتان محددتان} few {# محددة} many {# محددة} other {# محددة}}",
       clearSelection: "إلغاء التحديد",

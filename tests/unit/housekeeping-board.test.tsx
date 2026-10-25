@@ -205,7 +205,7 @@ describe("the housekeeping board", () => {
     const rooms = [room({})];
     show(boardOf(rooms, true));
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Select row" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select 101" }));
     fireEvent.click(screen.getByRole("button", { name: "Mark clean" }));
 
     expect(await screen.findByText(/couldn't be updated/)).toBeInTheDocument();
