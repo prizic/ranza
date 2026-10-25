@@ -82,7 +82,11 @@ test("on a phone the board is one short row of counts, says who is in each room,
 
   // HOUSEKEEPING-03: the bar over the list is icons in one short row, with
   // every button still a thumb's size and still named.
-  await page.getByRole("checkbox", { name: "Select row" }).first().click();
+  // A row's tick is named for its room; the header's reads "Select all …".
+  await page
+    .getByRole("checkbox", { name: /^Select (?!all)/ })
+    .first()
+    .click();
   const bar = page.locator("div.sticky", { hasText: "Clear selection" });
   await expect(bar).toBeVisible();
   expect((await bar.boundingBox())!.height).toBeLessThan(130);

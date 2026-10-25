@@ -85,7 +85,10 @@ test("an address with no language opens in the remembered one, and a rail group 
   await page.goto("/reservations");
   await expect(page).toHaveURL(/\/en\/reservations/);
 
-  // Committed and not loaded: the page answers with a redirect.
+  // Committed and not loaded: the page answers with a redirect. The previous
+  // page is left first because its dev client can navigate itself mid-compile
+  // and abort this goto.
+  await page.goto("about:blank");
   await page.goto(`/en/front-office?property=${testProperty()}`, {
     waitUntil: "commit",
   });
