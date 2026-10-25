@@ -84,12 +84,24 @@ test("a session ended while the workspace is open goes to sign in on the next pa
     ),
   ).toBe("1");
 
-  await page
-    .locator(`aside a[href="/en/finance?property=${propertyId}"]`)
-    .first()
-    .click();
+  // A read the open page is already making may notice first, and then the
+  // session-ended dialog (SHELL-07) covers the rail and offers the way to sign
+  // in itself; otherwise the click on the next page is what finds out.
+  const ended = page.getByRole("dialog", {
+    name: messages.en.sessionEnded.title,
+  });
+  await expect(async () => {
+    if (await ended.isVisible()) return;
+    await page
+      .locator(`aside a[href="/en/finance?property=${propertyId}"]`)
+      .first()
+      .click({ timeout: 1_000 });
+  }).toPass();
+  if (await ended.isVisible()) {
+    await ended.getByRole("link", { name: messages.en.signIn }).click();
+  }
   // Sent to sign in with where they were going, so signing in comes back.
-  await expect(page).toHaveURL(/\/en\/sign-in\?next=%2Fen%2Ffinance/);
+  await expect(page).toHaveURL(/\/en\/sign-in\?next=%2Fen%2F(finance|today)/);
   // Reached by a client-side redirect, so the sign-in page sets its own locale
   // too; it used to fall back to Turkish here.
   await expect(
