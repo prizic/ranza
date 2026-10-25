@@ -203,11 +203,13 @@ export function RequestsTable({
             setTab(val as FilterTab);
             setRefusal("idle");
           }}
-          className="w-auto max-w-full"
+          className="w-full sm:w-auto"
         >
-          <TabsList className="max-w-full justify-start overflow-x-auto">
+          {/* Three short labels sharing the width, so none is cut off on a
+              phone and nothing needs to scroll (HOUSEKEEPING-12). */}
+          <TabsList className="w-full sm:w-fit">
             <TabsTrigger value="open" className="gap-1.5">
-              <span>{t("openRequests")}</span>
+              <span>{t("tabOpen")}</span>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium">
                 {counts.open}
               </span>
@@ -219,7 +221,7 @@ export function RequestsTable({
               </span>
             </TabsTrigger>
             <TabsTrigger value="all" className="gap-1.5">
-              <span>{t("allRequests")}</span>
+              <span>{t("tabAll")}</span>
               <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium">
                 {counts.all}
               </span>

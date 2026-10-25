@@ -135,11 +135,11 @@ test("cancelling needs a reason and says what happens, and a cancelled request r
   ).toBeDisabled();
   await expect(dialog).toContainText("Nothing is sent to the guest");
   // GX-03: the database wants three characters, so two is not offered.
-  await dialog.getByLabel("Cancellation Reason").fill("no");
+  await dialog.getByLabel("Cancellation reason").fill("no");
   await expect(
     dialog.getByRole("button", { name: "Cancel request" }),
   ).toBeDisabled();
-  await dialog.getByLabel("Cancellation Reason").fill("logged twice");
+  await dialog.getByLabel("Cancellation reason").fill("logged twice");
   await page.screenshot({ path: path.join(EVIDENCE, "cancel-dialog.png") });
   await dialog.getByRole("button", { name: "Cancel request" }).click();
   await expect(dialog).toBeHidden();
@@ -157,7 +157,7 @@ test("cancelling needs a reason and says what happens, and a cancelled request r
   await row(page, "GX cancel me")
     .getByRole("button", { name: "Reopen" })
     .click();
-  await page.getByRole("tab", { name: /Open Requests/ }).click();
+  await page.getByRole("tab", { name: /^Open/ }).click();
   await expect(row(page, "GX cancel me")).toContainText("New");
   await expect(row(page, "GX cancel me")).not.toContainText("logged twice");
 });
@@ -176,9 +176,7 @@ test("a refusal from the server is shown, and the page that was out of date says
         set status = 'cancelled', cancel_reason = 'cancelled elsewhere'
       where title = 'GX stale' and property_id = '${propertyId}'`,
   );
-  await row(page, "GX stale")
-    .getByRole("button", { name: "Start Working" })
-    .click();
+  await row(page, "GX stale").getByRole("button", { name: "Start" }).click();
   // The refresh that follows takes the cancelled request out of Open; what the
   // page says about the press has to still be there once it has.
   await expect(row(page, "GX stale")).toHaveCount(0);
@@ -201,7 +199,7 @@ test("somebody who may only log requests is told so and is not offered buttons t
   await expect(
     page.getByText(/You can log new requests here\. Working on them/),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "New Request" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New request" })).toBeVisible();
   const request = row(page, "GX housekeeping view");
   await expect(request).toBeVisible();
   await expect(request.getByRole("button")).toHaveCount(0);
@@ -244,7 +242,7 @@ test("on a phone the queue is cards that fit the screen", async ({ page }) => {
     window.innerWidth,
   ]);
   expect(widths[0]).toBeLessThanOrEqual(widths[1]!);
-  await expect(page.getByRole("tab", { name: /All Requests/ })).toBeAttached();
+  await expect(page.getByRole("tab", { name: /^All/ })).toBeAttached();
   await page.screenshot({ path: path.join(EVIDENCE, "phone-cards.png") });
 });
 
@@ -256,8 +254,8 @@ test("a request for a room is logged for the guest in it, and the form says so b
   await signIn(page);
   await page.goto(`/en/guest-experience?property=${propertyId}`);
 
-  await page.getByRole("button", { name: "New Request" }).click();
-  const dialog = page.getByRole("dialog", { name: "Create Service Request" });
+  await page.getByRole("button", { name: "New request" }).click();
+  const dialog = page.getByRole("dialog", { name: "New request" });
   await dialog.getByLabel("Title").fill("GX extra pillows");
   await dialog.getByRole("combobox", { name: "Room" }).click();
   await page.getByRole("option", { name: new RegExp(roomName) }).click();
@@ -265,7 +263,7 @@ test("a request for a room is logged for the guest in it, and the form says so b
   await expect(dialog).toContainText(
     "In house: Ada Occupant. The request is logged for them.",
   );
-  await dialog.getByRole("button", { name: "Log Request" }).click();
+  await dialog.getByRole("button", { name: "Create request" }).click();
   await expect(dialog).toBeHidden();
   await expect(row(page, "GX extra pillows")).toContainText("Ada Occupant");
 });

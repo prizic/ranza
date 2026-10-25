@@ -2138,6 +2138,8 @@ export interface Messages {
     noRequestsTitle: string;
     noRequestsDescription: string;
     readOnly: string;
+    /** Heads a request drawer the viewer may read but not change. */
+    sheetReadOnly: string;
     filterPriority: string;
     filterAssignee: string;
     allPriorities: string;
@@ -2539,6 +2541,9 @@ export interface Messages {
     subheading: string;
     newRequest: string;
     allRequests: string;
+    /** The short tab labels, so three tabs fit a phone (HOUSEKEEPING-12). */
+    tabOpen: string;
+    tabAll: string;
     openRequests: string;
     resolvedRequests: string;
     cancelRequest: string;
@@ -5434,6 +5439,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bir şey bozulduğunda buradan ya da Odalar ekranından bildirin. Tesisteki herkes bildirebilir.",
       readOnly:
         "Tüm talepleri görebilirsiniz. Taşımak, atamak ve iptal etmek için bakım yönetme yetkisi gerekir.",
+      sheetReadOnly:
+        "Bu talebi okuyabilirsiniz ama değiştiremezsiniz. Değiştirmek için bakım yönetme yetkisi gerekir.",
       filterPriority: "Öncelik",
       filterAssignee: "Atanan",
       allPriorities: "Tüm öncelikler",
@@ -5860,9 +5867,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       heading: "Misafir Deneyimi ve Talepler",
       subheading:
         "Misafir ve konaklayanlardan gelen talepler: kimde olduğu, ne kadar acil olduğu ve ne kadardır beklediği.",
-      newRequest: "Yeni Talep",
-      allRequests: "Tüm Talepler",
-      openRequests: "Açık Talepler",
+      newRequest: "Yeni talep",
+      allRequests: "Tüm talepler",
+      tabOpen: "Açık",
+      tabAll: "Tümü",
+      openRequests: "Açık talepler",
       resolvedRequests: "Kapanan",
       cancelRequest: "Talebi iptal et",
       keepRequest: "Talebi koru",
@@ -5879,7 +5888,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       status: "Durum",
       room: "Oda",
       guest: "Misafir",
-      assignee: "Atanan Kişi",
+      assignee: "Atanan kişi",
       unassigned: "Atanmadı",
       reportedAt: "Oluşturulma",
       resolvedAt: "Çözümlenme",
@@ -5899,18 +5908,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       statuses: {
         new: "Yeni",
-        in_progress: "İşlemde",
+        in_progress: "Sürüyor",
         resolved: "Çözümlendi",
-        cancelled: "İptal Edildi",
+        cancelled: "İptal edildi",
       },
-      markInProgress: "İşleme Al",
+      markInProgress: "Başlat",
       resolve: "Çözümle",
-      reopen: "Yeniden Aç",
-      cancelReason: "İptal Gerekçesi",
+      reopen: "Yeniden aç",
+      cancelReason: "İptal gerekçesi",
       cancelReasonPlaceholder: "Neden iptal edildiğini belirtin...",
-      resolutionNotes: "Çözüm Notları",
+      resolutionNotes: "Çözüm notları",
       resolutionNotesPlaceholder: "Yapılan işlemi belirtin...",
-      createDialogTitle: "Yeni Hizmet Talebi Oluştur",
+      createDialogTitle: "Yeni talep",
       createDialogDesc:
         "Misafir veya oda için yeni bir operasyonel hizmet talebi kaydedin.",
       createHeading: "Misafirin neye ihtiyacı var?",
@@ -5923,7 +5932,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       selectPriority: "Öncelik seçin",
       selectRoom: "Oda seçin (opsiyonel)",
       noRoom: "Oda seçilmedi",
-      submit: "Talebi Kaydet",
+      submit: "Talebi kaydet",
       cancelling: "İptal ediliyor...",
       saving: "Kaydediliyor...",
       emptyTitle: "Henüz talep yok",
@@ -8926,6 +8935,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "When something breaks, report it here or from Rooms. Anyone at the Property can.",
       readOnly:
         "You can see every request. Moving, assigning and cancelling them needs the permission to manage maintenance.",
+      sheetReadOnly:
+        "You can read this request but not change it. Changing it needs the permission to manage maintenance.",
       filterPriority: "Priority",
       filterAssignee: "Assignee",
       allPriorities: "Any priority",
@@ -9347,9 +9358,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       heading: "Guest Experience & Requests",
       subheading:
         "Requests from guests and residents: who has them, how urgent they are and how long they have waited.",
-      newRequest: "New Request",
-      allRequests: "All Requests",
-      openRequests: "Open Requests",
+      newRequest: "New request",
+      allRequests: "All requests",
+      tabOpen: "Open",
+      tabAll: "All",
+      openRequests: "Open requests",
       resolvedRequests: "Closed",
       cancelRequest: "Cancel request",
       keepRequest: "Keep request",
@@ -9366,16 +9379,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       status: "Status",
       room: "Room",
       guest: "Guest",
-      assignee: "Assigned To",
+      assignee: "Assigned to",
       unassigned: "Unassigned",
-      reportedAt: "Reported At",
-      resolvedAt: "Resolved At",
+      reportedAt: "Reported",
+      resolvedAt: "Resolved",
       actions: "Actions",
       categories: {
         housekeeping: "Housekeeping",
         maintenance: "Maintenance",
         amenities: "Amenities",
-        front_desk: "Front Desk",
+        front_desk: "Front desk",
         other: "Other",
       },
       priorities: {
@@ -9386,18 +9399,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       statuses: {
         new: "New",
-        in_progress: "In Progress",
+        in_progress: "In progress",
         resolved: "Resolved",
         cancelled: "Cancelled",
       },
-      markInProgress: "Start Working",
+      markInProgress: "Start",
       resolve: "Resolve",
       reopen: "Reopen",
-      cancelReason: "Cancellation Reason",
+      cancelReason: "Cancellation reason",
       cancelReasonPlaceholder: "Provide a reason for cancellation...",
-      resolutionNotes: "Resolution Notes",
+      resolutionNotes: "Resolution notes",
       resolutionNotesPlaceholder: "Action taken to resolve request...",
-      createDialogTitle: "Create Service Request",
+      createDialogTitle: "New request",
       createDialogDesc:
         "Log a new service request on behalf of a guest or accommodation unit.",
       createHeading: "What does the guest need?",
@@ -9409,7 +9422,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       selectPriority: "Select priority",
       selectRoom: "Select unit (optional)",
       noRoom: "No unit",
-      submit: "Log Request",
+      submit: "Create request",
       cancelling: "Cancelling...",
       saving: "Saving...",
       emptyTitle: "No requests yet",
@@ -12350,6 +12363,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "عندما يتعطل شيء، أبلغ عنه هنا أو من شاشة الغرف. يمكن لأي شخص في العقار الإبلاغ.",
       readOnly:
         "يمكنك رؤية كل الطلبات. نقلها وإسنادها وإلغاؤها يتطلب صلاحية إدارة الصيانة.",
+      sheetReadOnly:
+        "يمكنك قراءة هذا الطلب لكن لا يمكنك تغييره. التغيير يتطلب صلاحية إدارة الصيانة.",
       filterPriority: "الأولوية",
       filterAssignee: "المُسنَد إليه",
       allPriorities: "كل الأولويات",
@@ -12766,6 +12781,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "طلبات الضيوف والمقيمين: من يتولاها، ومدى استعجالها، ومنذ متى تنتظر.",
       newRequest: "طلب جديد",
       allRequests: "كل الطلبات",
+      tabOpen: "المفتوحة",
+      tabAll: "الكل",
       openRequests: "الطلبات المفتوحة",
       resolvedRequests: "المغلقة",
       cancelRequest: "إلغاء الطلب",
