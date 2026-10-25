@@ -1532,13 +1532,30 @@ describe("the Finance list explains each Folio (FIN-02, FIN-03, FIN-09)", () => 
     });
   });
 
-  it("the_list_Today_reads_does_not_pay_for_pending_nights", async () => {
+  it("the_plain_list_does_not_pay_for_pending_nights_and_the_list_that_adds_up_what_guests_owe_does", async () => {
+    // FINANCE-01: Today adds up what Guests owe, so it asks for the nights
+    // check-out would charge; a caller that only counts Folios does not.
     const folioId = await folioAt(await aBilledUnit(), "Lean Read");
     await runningFor(folioId, 2, 12000);
-    const lean = (await folios.listFolios(MEMBER, PROPERTY)).find(
-      (folio) => folio.folioId === folioId,
-    )!;
-    expect(lean).toMatchObject({ pendingNights: 0, pendingMinor: 0 });
+    const find = (list: Awaited<ReturnType<typeof folios.listFolios>>) =>
+      list.find((folio) => folio.folioId === folioId)!;
+
+    expect(find(await folios.listFolios(MEMBER, PROPERTY))).toMatchObject({
+      pendingNights: 0,
+      pendingMinor: 0,
+    });
+    const asked = find(
+      await folios.listFolios(MEMBER, PROPERTY, { pending: true }),
+    );
+    // Not a fixed figure: an earlier test closes a business day, and a close
+    // takes the nights it reaches off what is pending.
+    expect(asked.pendingNights).toBeGreaterThan(0);
+    expect(asked.pendingMinor).toBe(asked.pendingNights * 12000);
+    const paged = (
+      await folios.listFolioPage(MEMBER, PROPERTY, { show: "all" })
+    ).folios.find((folio) => folio.folioId === folioId)!;
+    expect(asked.pendingMinor).toBe(paged.pendingMinor);
+    expect(asked.balanceMinor).toBe(paged.balanceMinor);
   });
 
   it("owing_holds_a_balance_or_nights_still_to_charge_and_nothing_settled", async () => {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Clock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FolioDetail } from "@ranza/folios";
+import { owedOnFolio } from "../../../lib/owed";
 import {
   Fact,
   FactList,
@@ -23,7 +24,6 @@ import {
   isolate,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { owedMinor } from "../../today/views";
 import { cancelledLine, folioOverdueDays, nightsNote } from "../derive";
 import {
   ChargeForm,
@@ -105,7 +105,13 @@ export function FolioPanel({
     who,
     unit: folio.unitName,
   };
-  const owed = owedMinor(folio);
+  const owed = owedOnFolio(folio);
+  // What this role cannot do on an open Folio, said once under the lines so a
+  // missing button is not mistaken for a broken one (FINANCE-11).
+  const lacks = [
+    ...(mayPostCharge ? [] : [f("lackAddCharge")]),
+    ...(canReverseCharge || canReversePayment ? [] : [f("lackReverse")]),
+  ];
   const overdue = folioOverdueDays(folio);
   const note = nightsNote(folio);
 
@@ -198,7 +204,7 @@ export function FolioPanel({
         <Fact label={f("paid")}>
           <span className="tabular-nums">{money(folio.paidMinor)}</span>
         </Fact>
-        <Fact label={t("balance")}>
+        <Fact label={f("balanceNow")}>
           <span className="font-semibold tabular-nums">
             {money(folio.balanceMinor)}
           </span>
@@ -214,7 +220,9 @@ export function FolioPanel({
               </span>
             </Fact>
             <Fact label={f("owesAtCheckOut")}>
-              <span className="font-semibold tabular-nums">{money(owed)}</span>
+              <span className="font-semibold tabular-nums">
+                {money(owed.netMinor)}
+              </span>
             </Fact>
           </>
         ) : null}
@@ -227,7 +235,7 @@ export function FolioPanel({
           role="status"
         >
           {note === "unpriced"
-            ? f("nightsUnpriced")
+            ? f(mayOpenReservation ? "nightsUnpriced" : "nightsUnpricedAsk")
             : note === "none_yet"
               ? folio.lastClosedOn
                 ? f("nightsNoneYetSince", {
@@ -246,7 +254,9 @@ export function FolioPanel({
         <TableHeader>
           <TableRow>
             <TableHead>{t("description")}</TableHead>
-            <TableHead>{t("posted")}</TableHead>
+            <TableHead className="hidden sm:table-cell">
+              {t("posted")}
+            </TableHead>
             <TableHead className="text-end">{t("amount")}</TableHead>
             <TableHead className="text-end">
               <span className="sr-only">{t("action")}</span>
@@ -271,6 +281,13 @@ export function FolioPanel({
               // description is the reason that was typed.
               const reason =
                 cancelled && !cancelled.roomNightOf ? line.description : null;
+              const posted = formatDate(line.postedAt, locale, {
+                hour: "2-digit",
+                // 24-hour in every language, as everywhere else.
+                hourCycle: "h23",
+                minute: "2-digit",
+                timeZone,
+              });
               return (
                 <TableRow key={line.lineId}>
                   <TableCell>
@@ -301,17 +318,15 @@ export function FolioPanel({
                         {f("reversalReason", { reason: isolate(reason) })}
                       </span>
                     ) : null}
+                    {/* On a phone the Posted column is gone, so the amount and
+                        Reverse fit beside the description without a sideways
+                        swipe (FINANCE-06); the time moves under it. */}
+                    <span className="mt-0.5 block text-step--1 text-muted-foreground sm:hidden">
+                      {posted}
+                    </span>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-step--1 text-muted-foreground">
-                    <time dateTime={line.postedAt.toISOString()}>
-                      {formatDate(line.postedAt, locale, {
-                        hour: "2-digit",
-                        // 24-hour in every language, as everywhere else.
-                        hourCycle: "h23",
-                        minute: "2-digit",
-                        timeZone,
-                      })}
-                    </time>
+                  <TableCell className="hidden whitespace-nowrap text-step--1 text-muted-foreground sm:table-cell">
+                    <time dateTime={line.postedAt.toISOString()}>{posted}</time>
                   </TableCell>
                   <TableCell className="text-end tabular-nums">
                     {money(line.amountMinor)}
@@ -345,7 +360,15 @@ export function FolioPanel({
             <ChargeForm folio={subject} locale={locale} />
           ) : null}
           {mayPostPayment ? (
-            <PaymentDialog folio={subject} locale={locale} owedMinor={owed} />
+            <PaymentDialog folio={subject} locale={locale} owed={owed} />
+          ) : null}
+          {lacks.length > 0 ? (
+            <p
+              className="mt-4 max-w-prose text-step--1 text-muted-foreground"
+              data-testid="role-lacks-note"
+            >
+              {f("lackNote", { actions: lacks.join(", ") })}
+            </p>
           ) : null}
           <Separator className="my-6" />
           {folio.stayInHouse ? (

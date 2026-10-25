@@ -55,7 +55,11 @@ export async function postCharge(
     .filter({ has: page.locator("#charge-description") });
   await form.locator("#charge-description").fill(description);
   await form.locator("#charge-amount").fill(amount);
-  await form.getByRole("button", { name: "Post" }).click();
+  await form.getByRole("button", { name: "Post", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Post charge" })
+    .click();
   await expect(
     page.getByRole("row").filter({ hasText: description }),
   ).toBeVisible();

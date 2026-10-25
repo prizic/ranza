@@ -18,9 +18,8 @@ const ROW =
   "flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-muted/60 px-4 py-3 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 /**
- * Finance's two lists: who leaves with a balance, and the largest open ones.
- * The word is balance throughout, never unpaid: Ranza records charges and
- * reversals, not payments (TD-S1-15).
+ * Finance's two lists: who leaves owing, and the open Folios owing the most.
+ * Both show what `owedOnFolio` says, the figure Departures and Finance show.
  */
 export function MoneyLists({
   aside,

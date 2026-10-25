@@ -177,7 +177,7 @@ test.describe("Finance (RANZ-67)", () => {
     await expect(page.getByText("Something went wrong")).toHaveCount(0);
   });
 
-  test("a_charge_typed_with_grouping_posts_and_a_refused_one_keeps_what_was_typed", async ({
+  test("a_charge_typed_with_grouping_posts_after_a_confirm_and_a_bad_amount_is_said_while_typing", async ({
     page,
   }) => {
     const propertyId = aDeskProperty();
@@ -191,17 +191,25 @@ test.describe("Finance (RANZ-67)", () => {
     await page.goto(`/en/finance?property=${propertyId}&folio=${folio}`);
     const description = page.locator("#charge-description");
     const amount = page.locator("#charge-amount");
+    const post = page.getByRole("button", { name: "Post", exact: true });
+    await expect(post).toBeDisabled();
     await description.fill("Minibar");
     await amount.fill("12.505");
-    await page.getByRole("button", { name: "Post", exact: true }).click();
     await expect(
       page.getByText("A TRY amount has at most 2 decimal places."),
     ).toBeVisible();
+    await expect(post).toBeDisabled();
     await expect(description).toHaveValue("Minibar");
     await expect(amount).toHaveValue("12.505");
 
     await amount.fill("1,250.00");
-    await page.getByRole("button", { name: "Post", exact: true }).click();
+    await expect(post).toBeEnabled();
+    await post.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(guest.guestName);
+    await expect(dialog).toContainText(guest.unitName);
+    await expect(dialog).toContainText("TRY 1,250.00");
+    await dialog.getByRole("button", { name: "Post charge" }).click();
     const line = page.getByRole("row").filter({ hasText: "Minibar" });
     await expect(line).toContainText("TRY 1,250.00");
     await expect(description).toHaveValue("");
@@ -279,6 +287,10 @@ test.describe("Finance (RANZ-67)", () => {
     await page.locator("#charge-description").fill("Late checkout fee");
     await page.locator("#charge-amount").fill("300");
     await page.getByRole("button", { name: "Post", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Post charge" })
+      .click();
     const row = page.getByRole("row").filter({ hasText: "Late checkout fee" });
     await expect(row).toBeVisible();
 
@@ -329,6 +341,10 @@ test.describe("Finance (RANZ-67)", () => {
     await page.locator("#charge-description").fill("Minibar");
     await page.locator("#charge-amount").fill("1.250,00");
     await page.getByRole("button", { name: "İşle", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Ücreti kaydet" })
+      .click();
     await expect(
       page.getByRole("row").filter({ hasText: "Minibar" }),
     ).toContainText("1.250,00");
@@ -341,6 +357,10 @@ test.describe("Finance (RANZ-67)", () => {
     await page.locator("#charge-description").fill("خدمة الغرف");
     await page.locator("#charge-amount").fill("٢٬٥٠٠٫٥٠");
     await page.getByRole("button", { name: "قيد", exact: true }).click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "سجّل الرسم" })
+      .click();
     await expect(
       page.getByRole("row").filter({ hasText: "خدمة الغرف" }),
     ).toContainText("2,500.50");

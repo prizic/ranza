@@ -1,4 +1,5 @@
 import type { FolioSummary } from "@ranza/folios";
+import { isOwing } from "../../lib/owed";
 import type { HousekeepingRoom } from "@ranza/housekeeping";
 import type { Arrival, Departure } from "@ranza/reservations";
 
@@ -169,25 +170,6 @@ export function overdueDays(
       86_400_000,
   );
   return Math.max(0, days);
-}
-
-/**
- * What a Guest leaving owes: the Folio's balance plus the nights check-out will
- * charge (ADR 0038). The figure the check-out dialog asks about, so a row, a
- * filter and a figure on Today cannot say a Guest owes nothing while the dialog
- * demands a reason for the bill.
- */
-export function owedMinor(
-  departure: Pick<Departure, "balanceMinor" | "pendingMinor">,
-): number {
-  return departure.balanceMinor + departure.pendingMinor;
-}
-
-/** A Guest leaving with something owing, as the departures list shows it. */
-export function isOwing(
-  departure: Pick<Departure, "balanceMinor" | "pendingMinor">,
-): boolean {
-  return owedMinor(departure) > 0;
 }
 
 export function inArrivalFilter(

@@ -66,7 +66,11 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
 // Both are tested on their own; here only whether the page reaches them.
 vi.mock(
   "../../apps/operator-workspace/src/features/finance/components/folios-table",
-  () => ({ FoliosTable: () => <p data-testid="folios-table" /> }),
+  () => ({
+    FoliosTable: (props: { folioHref: string }) => (
+      <p data-folio-href={props.folioHref} data-testid="folios-table" />
+    ),
+  }),
 );
 const folioPanel = vi.fn();
 vi.mock(
@@ -235,5 +239,71 @@ describe("a folio's history (AUDIT-03)", () => {
     permittedProperties.mockResolvedValue([]);
     await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
     expect(history()).toBeNull();
+  });
+});
+
+describe("the list a folio is opened from (FINANCE-05, FINANCE-12)", () => {
+  const ROW = (balanceMinor: number, pendingMinor: number) => ({
+    folioId: "d9100005-0000-4000-8000-0000000000aa",
+    balanceMinor,
+    pendingMinor,
+    currency: "TRY",
+  });
+
+  it("a_folio_opened_from_the_owing_list_comes_back_to_the_owing_list", async () => {
+    await show({ property: PROPERTY.propertyId, show: "owing" });
+    expect(screen.getByTestId("folios-table")).toHaveAttribute(
+      "data-folio-href",
+      `/en/finance?property=${PROPERTY.propertyId}&show=owing`,
+    );
+  });
+
+  it("the_whole_list_keeps_no_tab_in_its_links", async () => {
+    await show({ property: PROPERTY.propertyId });
+    expect(screen.getByTestId("folios-table")).toHaveAttribute(
+      "data-folio-href",
+      `/en/finance?property=${PROPERTY.propertyId}`,
+    );
+  });
+
+  it("a_folio_that_cannot_be_opened_says_so_above_the_list_and_still_offers_it", async () => {
+    folio.mockResolvedValue(null);
+    await show({
+      property: PROPERTY.propertyId,
+      folio: "00000000-0000-0000-0000-000000000000",
+    });
+    expect(screen.getByTestId("folio-not-found")).toHaveTextContent(
+      messages.en.finance.folioNotFound,
+    );
+    expect(screen.getByTestId("folios-table")).toBeInTheDocument();
+  });
+
+  it("no_notice_without_a_folio_in_the_address", async () => {
+    await show({ property: PROPERTY.propertyId });
+    expect(screen.queryByTestId("folio-not-found")).toBeNull();
+  });
+
+  it("the_summary_adds_what_check_out_will_charge_and_says_how_much_of_it_that_is", async () => {
+    folioPage.mockResolvedValue({
+      folios: [ROW(733_000, 0), ROW(0, 1_120_000), ROW(-50_000, 0)],
+      total: 3,
+    });
+    await show({ property: PROPERTY.propertyId, show: "owing" });
+    const summary = screen.getByTestId("owing-summary");
+    expect(summary).toHaveTextContent(
+      "2 folios owe TRY 18,530.00 in all: TRY 7,330.00 already on the bills and TRY 11,200.00 for nights check-out will charge",
+    );
+  });
+
+  it("the_summary_is_on_the_open_list_too_and_says_nothing_when_nobody_owes", async () => {
+    folioPage.mockResolvedValue({ folios: [ROW(100, 0)], total: 1 });
+    await show({ property: PROPERTY.propertyId, show: "open" });
+    expect(screen.getByTestId("owing-summary")).toHaveTextContent(
+      "1 folio owes TRY 1.00 in all",
+    );
+    cleanup();
+    folioPage.mockResolvedValue({ folios: [ROW(-5, 0)], total: 1 });
+    await show({ property: PROPERTY.propertyId, show: "open" });
+    expect(screen.queryByTestId("owing-summary")).toBeNull();
   });
 });

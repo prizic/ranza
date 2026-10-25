@@ -85,7 +85,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
       modules.reservations.listDepartures(userId, propertyId, "in_house"),
     units: (propertyId) => modules.accommodation.listUnits(userId, propertyId),
     board: (propertyId) => modules.housekeeping.board(userId, propertyId),
-    folios: (propertyId) => modules.folios.listFolios(userId, propertyId),
+    folios: (propertyId) =>
+      modules.folios.listFolios(userId, propertyId, { pending: true }),
     maintenance: (propertyId) =>
       modules.maintenance.todayView(userId, propertyId),
     activity: (propertyId, since) =>

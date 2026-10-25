@@ -1,6 +1,7 @@
 import type { DaysWaiting } from "@ranza/business-day";
 import type { AuditPage, WorkingDay } from "@ranza/core";
 import type { ChargesPosted, FolioSummary } from "@ranza/folios";
+import { isOwing, owedAcrossFolios, owedOnFolio } from "../lib/owed";
 import type {
   HousekeepingBoard,
   HousekeepingRoom,
@@ -21,8 +22,6 @@ import {
   expectedTonight,
   holdsTonight,
   inRoomFilter,
-  isOwing,
-  owedMinor,
   isToCome,
   leavesTonight,
   overdueDays,
@@ -192,9 +191,18 @@ export interface LeavingOwing {
   rows: readonly DepartureRow[];
 }
 
+/**
+ * What Guests owe is one figure everywhere (`owedOnFolio`): the bill plus the
+ * nights check-out will charge. `openOwed` is that across the open Folios and
+ * `openAtCheckOut` the part of it still to be charged, so a reader can tell the
+ * two apart without the card inventing a second definition.
+ */
 export interface MoneyCard {
   openFolios: number;
-  openBalance: readonly Money[];
+  /** Of the open Folios, how many owe anything. */
+  openOwing: number;
+  openOwed: readonly Money[];
+  openAtCheckOut: readonly Money[];
   largest: readonly {
     folioId: string;
     guestName: string;
@@ -513,7 +521,7 @@ function departureRow(
     ...(money
       ? {
           balance: {
-            amountMinor: owedMinor(departure),
+            amountMinor: owedOnFolio(departure).totalMinor,
             currency: departure.currency,
           },
           ...(departure.folioId ? { folioId: departure.folioId } : {}),
@@ -680,26 +688,35 @@ export function moneyFrom(
   businessDate: string,
 ): MoneyCard {
   const open = folios.filter((folio) => folio.status === "open");
-  const owedOf = (row: Departure) => ({
-    amountMinor: owedMinor(row),
+  const owedOf = (row: {
+    balanceMinor: number;
+    pendingMinor: number;
+    currency: string;
+  }) => ({
+    amountMinor: owedOnFolio(row).totalMinor,
     currency: row.currency,
   });
-  const balanceOf = (row: { balanceMinor: number; currency: string }) => ({
-    amountMinor: row.balanceMinor,
-    currency: row.currency,
-  });
+  const openOwed = owedAcrossFolios(open);
   const card: MoneyCard = {
     openFolios: open.length,
-    openBalance: totals(open.map(balanceOf)),
+    openOwing: openOwed.reduce((sum, owed) => sum + owed.folios, 0),
+    openOwed: openOwed.map((owed) => ({
+      amountMinor: owed.totalMinor,
+      currency: owed.currency,
+    })),
+    openAtCheckOut: openOwed.map((owed) => ({
+      amountMinor: owed.atCheckOutMinor,
+      currency: owed.currency,
+    })),
     largest: open
-      .filter((folio) => folio.balanceMinor > 0)
-      .sort((a, b) => b.balanceMinor - a.balanceMinor)
+      .filter(isOwing)
+      .sort((a, b) => owedOf(b).amountMinor - owedOf(a).amountMinor)
       .slice(0, 5)
       .map((folio) => ({
         folioId: folio.folioId,
         guestName: folio.guestName,
         unitName: folio.unitName,
-        balance: balanceOf(folio),
+        balance: owedOf(folio),
       })),
   };
   if (departures === null) return card;
@@ -714,7 +731,8 @@ export function moneyFrom(
     rows: [...owingRows]
       .sort(
         (a, b) =>
-          Number(b.overdue) - Number(a.overdue) || owedMinor(b) - owedMinor(a),
+          Number(b.overdue) - Number(a.overdue) ||
+          owedOf(b).amountMinor - owedOf(a).amountMinor,
       )
       .slice(0, LIST_LIMIT)
       .map((row) => departureRow(row, true, businessDate)),
@@ -1027,7 +1045,7 @@ export function attentionFrom(
     const balance = owing
       ? {
           balance: {
-            amountMinor: owedMinor(departure),
+            amountMinor: owedOnFolio(departure).totalMinor,
             currency: departure.currency,
           },
           ...(departure.folioId ? { folioId: departure.folioId } : {}),

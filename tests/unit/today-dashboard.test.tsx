@@ -594,7 +594,9 @@ describe("the finance tiles", () => {
       status: "ok",
       data: {
         openFolios: 30,
-        openBalance: [{ amountMinor: 6633500, currency: "TRY" }],
+        openOwing: 27,
+        openOwed: [{ amountMinor: 9433500, currency: "TRY" }],
+        openAtCheckOut: [{ amountMinor: 2800000, currency: "TRY" }],
         largest: [],
         ...(leaving
           ? {
@@ -618,7 +620,9 @@ describe("the finance tiles", () => {
     expect(screen.getAllByText("All Folios", { exact: true })).toHaveLength(1);
     const tile = screen.getByRole("link", { name: /Open Folios/ });
     expect(tile).toHaveTextContent("30");
-    expect(tile).toHaveTextContent("Balance TRY 66,335.00");
+    expect(tile).toHaveTextContent(
+      "Owed TRY 94,335.00, TRY 28,000.00 of it at check-out",
+    );
   });
 
   it("the_departures_tile_says_it_is_owed_by_guests_leaving_or_overdue", () => {
@@ -648,11 +652,17 @@ describe("the finance card", () => {
       mayBook: false,
       money: {
         status: "ok",
-        data: { openFolios: 0, openBalance: [], largest: [] },
+        data: {
+          openFolios: 0,
+          openOwing: 0,
+          openOwed: [],
+          openAtCheckOut: [],
+          largest: [],
+        },
       },
       attention: { items: [], complete: true },
     });
-    expect(screen.getByText("Açık bakiye yok.")).toBeInTheDocument();
+    expect(screen.getByText("Açık folyolarda borç yok.")).toBeInTheDocument();
     expect(
       document.querySelector('[aria-labelledby="today-largest"] ul'),
     ).toBeNull();

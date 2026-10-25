@@ -520,9 +520,21 @@ function Tiles({
                 label={t("openFolios")}
                 opens={t("allFolios")}
                 stale={stale}
-                sub={t("openFoliosBalance", {
-                  amount: money(data.openBalance, currency, locale),
-                })}
+                sub={
+                  data.openOwing === 0
+                    ? t("openFoliosOwedNothing")
+                    : t(
+                        data.openAtCheckOut.some(
+                          (later) => later.amountMinor > 0,
+                        )
+                          ? "openFoliosOwedLater"
+                          : "openFoliosOwed",
+                        {
+                          amount: money(data.openOwed, currency, locale),
+                          later: money(data.openAtCheckOut, currency, locale),
+                        },
+                      )
+                }
               >
                 {n(data.openFolios)}
               </StatTile>

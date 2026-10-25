@@ -276,17 +276,19 @@ export function createFoliosModule(deps: FoliosDeps) {
    * nobody has checked in yet. Those are different situations with
    * deliberately identical answers.
    *
-   * Without the nights a check-out would still charge: a caller that only
-   * counts or filters Folios, as Today does, should not pay for them.
+   * Without the nights a check-out would still charge unless `pending` asks
+   * for them: a caller that only counts Folios should not pay for them, and a
+   * caller that adds up what Guests owe must ask (`owedOnFolio`).
    */
   async function listFolios(
     userId: string,
     propertyId: string,
+    { pending = false }: { pending?: boolean } = {},
   ): Promise<FolioSummary[]> {
     const rows = await withOrganizationContext(deps.db, { userId }, (tx) =>
       tx.$queryRawUnsafe<SummaryRow[]>(
         `select page.*
-           from (${folioQuery("folio.property_id = $1::uuid")}) as page
+           from (${folioQuery("folio.property_id = $1::uuid", { pending })}) as page
           -- Not \`order by status\`: status is text, and 'closed' sorts before
           -- 'open', which listed the finished Folios first (FO-S9-02).
           order by page."status" = 'open' desc, page."unitName", page."folioId"`,

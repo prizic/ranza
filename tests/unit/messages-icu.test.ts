@@ -140,12 +140,14 @@ describe("every catalogue parses", () => {
             // formatted by nothing else until a screen renders it.
             expect(() =>
               translate(path.join("."), {
+                actions: "x",
                 age: "3 hr. ago",
                 amount: "₺3.000,00",
                 available: 200,
                 awaiting: 2,
                 balance: "₺45,00",
                 bed: "x",
+                billed: "₺3.000,00",
                 charged: "₺3.000,00",
                 closed: 10,
                 code: 503,
@@ -176,6 +178,7 @@ describe("every catalogue parses", () => {
                 hours: 24,
                 label: "x",
                 last: "140",
+                later: "₺1.500,00",
                 left: 1,
                 max: 2,
                 megabytes: 25,
@@ -187,6 +190,7 @@ describe("every catalogue parses", () => {
                 name: "x",
                 names: "x",
                 nights: 118,
+                now: "₺1.500,00",
                 number: 12,
                 occupied: 150,
                 of: 9,
@@ -216,6 +220,7 @@ describe("every catalogue parses", () => {
                 seconds: 2,
                 sellable: 20,
                 setting: "x",
+                since: "16 Sep",
                 shade: "#a35200",
                 state: "x",
                 status: "x",

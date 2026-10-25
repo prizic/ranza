@@ -332,6 +332,29 @@ describe("money and direction at display (FO-S9-06)", () => {
   });
 });
 
+describe("a Folio's lines on a phone (FINANCE-06)", () => {
+  it("drops the Posted column below the small breakpoint and keeps the time under the description, so Amount and Reverse stay in view", () => {
+    const { container } = panel(FOLIO);
+    const posted = [...container.querySelectorAll("th")].find(
+      (head) => head.textContent === messages.en.posted,
+    )!;
+    expect(posted.className).toContain("hidden");
+    expect(posted.className).toContain("sm:table-cell");
+    for (const head of container.querySelectorAll("th")) {
+      if (head === posted) continue;
+      expect(head.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    }
+    for (const row of container.querySelectorAll("tbody tr")) {
+      const cells = [...row.querySelectorAll("td")];
+      const phoneTime = cells[0]!.querySelector("span.sm\\:hidden");
+      expect(phoneTime?.textContent).toBe(
+        row.querySelector("time")!.textContent,
+      );
+      expect(cells[2]!.className).not.toMatch(/(^|\s)hidden(\s|$)/);
+    }
+  });
+});
+
 describe("a line is dated by the Property's own clock", () => {
   const LATE = new Date("2026-09-26T22:30:00Z");
   const late: FolioDetail["lines"][number] = {
@@ -404,7 +427,7 @@ describe("who the Folio is, and what it has come to (FIN-03, FIN-13)", () => {
       screen.getByText(messages.en.finance.paid).closest("div")!,
     ).toHaveTextContent("TRY 150.00");
     expect(
-      screen.getByText(messages.en.balance).closest("div")!,
+      screen.getByText(messages.en.finance.balanceNow).closest("div")!,
     ).toHaveTextContent("TRY 100.00");
   });
 
@@ -804,5 +827,159 @@ describe("what a form posts and when it clears (FIN-04, FIN-06)", () => {
       expect(amount).toHaveValue("");
     }
     expect(postCharge).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("a role that cannot act is told so, and who can (FINANCE-08, FINANCE-11)", () => {
+  const render_ = (
+    folio: FolioDetail,
+    flags: {
+      mayOpenReservation?: boolean;
+      mayPostCharge?: boolean;
+      mayReverseCharge?: boolean;
+      mayPostPayment?: boolean;
+    },
+  ) =>
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel
+          folio={folio}
+          locale="en"
+          mayReversePayment={false}
+          propertyId={folio.propertyId}
+          timeZone="Europe/Istanbul"
+          {...flags}
+        />
+      </NextIntlClientProvider>,
+    );
+  const UNPRICED = { ...FOLIO, nightlyRateMinor: null, roomNightLines: 0 };
+
+  it("a_role_that_cannot_open_reservations_is_told_who_can_add_the_price", () => {
+    render_(UNPRICED, { mayOpenReservation: false });
+    const note = screen.getByTestId("nights-note");
+    expect(note).toHaveTextContent("Ask the front desk or a manager");
+    expect(note).not.toHaveTextContent("from the Reservations screen");
+  });
+
+  it("a_role_that_can_open_reservations_is_sent_there_for_the_price", () => {
+    render_(UNPRICED, { mayOpenReservation: true });
+    expect(screen.getByTestId("nights-note")).toHaveTextContent(
+      "Add a price to the booking from the Reservations screen",
+    );
+  });
+
+  it("the_payment_dialog_does_not_mention_nights_check_out_will_not_charge", () => {
+    render_(
+      { ...UNPRICED, pendingNights: 0, pendingMinor: 0 },
+      { mayPostPayment: true },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.en.addPayment }),
+    );
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("owes TRY 250.00 now.");
+    expect(dialog).not.toHaveTextContent("check-out will still charge");
+  });
+
+  it("an_open_folio_says_what_this_role_cannot_do", () => {
+    render_(FOLIO, {
+      mayPostCharge: false,
+      mayReverseCharge: false,
+      mayPostPayment: true,
+    });
+    expect(screen.getByTestId("role-lacks-note")).toHaveTextContent(
+      "Not part of your role: adding a charge, reversing a line.",
+    );
+  });
+
+  it("a_role_that_can_do_both_sees_no_such_note", () => {
+    render_(FOLIO, { mayPostCharge: true, mayReverseCharge: true });
+    expect(screen.queryByTestId("role-lacks-note")).toBeNull();
+  });
+});
+
+describe("posting a charge asks once, naming what it does (FINANCE-04)", () => {
+  const fill = (description: string, amount: string) => {
+    fireEvent.change(screen.getByLabelText("Description"), {
+      target: { value: description },
+    });
+    fireEvent.change(screen.getByLabelText(/Amount/), {
+      target: { value: amount },
+    });
+  };
+
+  it("post_stays_disabled_until_there_is_something_to_post", () => {
+    panel(FOLIO);
+    const post = screen.getByRole("button", { name: "Post" });
+    expect(post).toBeDisabled();
+    fill("Minibar", "");
+    expect(post).toBeDisabled();
+    fill("Minibar", "12500");
+    expect(post).toBeEnabled();
+  });
+
+  it("the_summary_reads_the_amount_back_before_anything_is_asked", () => {
+    panel(FOLIO);
+    fill("Minibar", "12500");
+    expect(plain(screen.getByTestId("charge-summary"))).toContain(
+      "Adds TRY 12,500.00 to the folio of Ada Lovelace, 101.",
+    );
+  });
+
+  it("post_opens_a_question_that_names_the_guest_the_room_and_the_amount_and_posts_nothing_yet", () => {
+    panel(FOLIO);
+    fill("Minibar", "1250");
+    fireEvent.click(screen.getByRole("button", { name: "Post" }));
+    const dialog = screen.getByRole("dialog");
+    expect(plain(dialog)).toContain(
+      "Adds TRY 1,250.00 to the folio of Ada Lovelace, 101.",
+    );
+    expect(dialog).toHaveTextContent("reversed with a reason, never deleted");
+    expect(postCharge).not.toHaveBeenCalled();
+  });
+
+  it("cancel_posts_nothing_and_keeps_what_was_typed", () => {
+    panel(FOLIO);
+    fill("Minibar", "1250");
+    fireEvent.click(screen.getByRole("button", { name: "Post" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+    expect(postCharge).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Description")).toHaveValue("Minibar");
+    expect(screen.getByLabelText(/Amount/)).toHaveValue("1250");
+  });
+
+  it("post_charge_in_the_question_is_the_one_click_that_posts", async () => {
+    postCharge.mockResolvedValue("done");
+    panel(FOLIO);
+    fill("Minibar", "1250");
+    fireEvent.click(screen.getByRole("button", { name: "Post" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Post charge",
+      }),
+    );
+    await vi.waitFor(() => expect(postCharge).toHaveBeenCalledTimes(1));
+    const form = postCharge.mock.calls[0]![1] as FormData;
+    expect(Object.fromEntries(form)).toMatchObject({
+      amount: "1250",
+      description: "Minibar",
+      folio: FOLIO.folioId,
+    });
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText("Description")).toHaveValue(""),
+    );
+  });
+
+  it("an_amount_that_is_not_an_amount_is_said_so_beside_the_field", () => {
+    panel(FOLIO);
+    fill("Minibar", "12.505");
+    expect(
+      screen.getByText("A TRY amount has at most 2 decimal places."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Post" })).toBeDisabled();
   });
 });

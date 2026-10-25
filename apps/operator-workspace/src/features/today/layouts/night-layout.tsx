@@ -231,12 +231,12 @@ export function NightLayout({
       open: t("unclosed.open"),
     });
   }
-  if (owed && owed.openFolios > 0) {
+  if (owed && owed.openOwing > 0) {
     handover.push({
       key: "balances",
       tone: "risk",
-      title: t("night.hand.balances", { count: owed.openFolios }),
-      body: money(owed.openBalance, summary.day.currency, locale),
+      title: t("night.hand.balances", { count: owed.openOwing }),
+      body: money(owed.openOwed, summary.day.currency, locale),
       href: todayHref(locale, "finance", id),
       open: t("open.finance"),
     });

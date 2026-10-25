@@ -24,8 +24,8 @@ import {
   type StatusTone,
 } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import { owedOnFolio } from "../../../lib/owed";
 import type { ArrivalRow } from "../../../server/viewer";
-import { owedMinor } from "../../today/views";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction } from "./check-in-action";
 import { CheckOutDialog } from "./check-out-dialog";
@@ -671,7 +671,7 @@ function departureColumns(
       // What the check-out dialog asks about: the Folio plus the nights check-out
       // will charge, so a row never reads zero over a bill the dialog demands a
       // reason for.
-      accessorFn: (departure) => owedMinor(departure),
+      accessorFn: (departure) => owedOnFolio(departure).netMinor,
       meta: { title: t("balance") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -686,7 +686,7 @@ function departureColumns(
             <Balance
               currency={row.original.currency}
               locale={locale}
-              minor={owedMinor(row.original)}
+              minor={owedOnFolio(row.original).netMinor}
             />
             {row.original.pendingNights > 0 ? (
               <span className="block text-step--1 text-muted-foreground">

@@ -1,10 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useState, type ReactNode } from "react";
+import {
+  useActionState,
+  useEffect,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import type { FolioLine, PaymentMethod } from "@ranza/folios";
+import type { Owed } from "../../../lib/owed";
 import {
   ArrowButton,
   Button,
@@ -156,6 +163,21 @@ function typedBalance(
   });
 }
 
+const AMOUNT_FAULT_MESSAGE = {
+  format: "amountFormat",
+  decimals: "amountDecimals",
+  size: "amountSize",
+} as const;
+
+/**
+ * Adding a charge puts money on a Guest's bill, so posting asks once, in a
+ * dialog that names the Guest, the room and the amount and says what follows
+ * (RANZ-55, FINANCE-04). The summary is also live under the fields, so a
+ * mistyped 12500 for 1250 is read back before the question is asked.
+ *
+ * The dialog's button submits this form through its `form` attribute, so the
+ * fields stay where they are and a refusal keeps what was typed (RANZ-54).
+ */
 export function ChargeForm({
   folio,
   locale,
@@ -169,16 +191,37 @@ export function ChargeForm({
     useFinanceAction(postCharge);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const formId = `charge-form-${folio.folioId}`;
 
   useEffect(() => {
+    if (run === 0) return;
+    setConfirming(false);
     if (last === "done") {
       setDescription("");
       setAmount("");
     }
   }, [last, run]);
 
+  const parsed = parseAmount(amount, folio.currency, locale);
+  const typed = parsed.ok && parsed.minor > 0 ? parsed.minor : null;
+  const ready = typed !== null && description.trim().length > 0;
+  const money = (minor: number) => formatMoney(minor, folio.currency, locale);
+  const who = isolate(folio.who);
+  const unit = isolate(folio.unit);
+  const summary = ready
+    ? f("chargeSummary", { amount: money(typed), who, unit })
+    : f("chargeSummaryIncomplete");
+  // Enter in a field asks the same question the button does, instead of doing
+  // nothing: a form with two fields and no submit button never submits itself.
+  const askOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (ready) setConfirming(true);
+  };
+
   return (
-    <form action={act} className="mt-6 grid gap-4">
+    <form action={act} className="mt-6 grid gap-4" id={formId}>
       <h3 className="text-step-0 font-medium">{t("addCharge")}</h3>
       <input name="folio" type="hidden" value={folio.folioId} />
       <input name="locale" type="hidden" value={locale} />
@@ -195,6 +238,7 @@ export function ChargeForm({
               setDescription(event.target.value);
               edited();
             }}
+            onKeyDown={askOnEnter}
             required
             value={description}
           />
@@ -217,16 +261,32 @@ export function ChargeForm({
               setAmount(event.target.value);
               edited();
             }}
+            onKeyDown={askOnEnter}
             required
             value={amount}
           />
         </Field>
-        <Button disabled={pending} type="submit">
-          {pending ? t("posting") : t("post")}
+        <Button
+          disabled={!ready}
+          onClick={() => setConfirming(true)}
+          type="button"
+        >
+          {t("post")}
         </Button>
       </div>
-      <p className="text-step--1 text-muted-foreground">
-        {f("chargeHint", { who: isolate(folio.who) })}
+      {amount.trim() !== "" && !parsed.ok ? (
+        <FormError>
+          {f(`outcome.${AMOUNT_FAULT_MESSAGE[parsed.fault]}`, {
+            digits: minorDigits(folio.currency) ?? 2,
+            currency: folio.currency,
+          })}
+        </FormError>
+      ) : null}
+      <p
+        className="text-step--1 text-muted-foreground"
+        data-testid="charge-summary"
+      >
+        {summary} {f("chargeHint")}
       </p>
 
       <Outcome
@@ -234,6 +294,36 @@ export function ChargeForm({
         outcome={outcome}
         refused={f("whatCharge")}
       />
+
+      <Dialog onOpenChange={setConfirming} open={confirming}>
+        <DialogContent className={dialogFrameClassName("small")}>
+          <DialogMasthead
+            art="/illustrations/dialogs/payment.svg"
+            eyebrow={f("chargeConfirmTitle")}
+            facts={unit}
+            heading={typed === null ? who : money(typed)}
+          />
+          <DialogBody simple>
+            <DialogDescription className="m-0 text-sm">
+              {summary}
+            </DialogDescription>
+            <DialogNotice>{f("chargeConfirmEffect")}</DialogNotice>
+          </DialogBody>
+          <DialogActions>
+            <CancelButton onClick={() => setConfirming(false)} type="button">
+              {f("cancel")}
+            </CancelButton>
+            <ArrowButton
+              autoFocus
+              disabled={pending}
+              form={formId}
+              type="submit"
+            >
+              {pending ? t("posting") : f("postCharge")}
+            </ArrowButton>
+          </DialogActions>
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }
@@ -257,18 +347,19 @@ const METHODS: readonly PaymentMethod[] = [
 export function PaymentDialog({
   folio,
   locale,
-  owedMinor,
+  owed,
 }: {
   folio: FolioSubject;
   locale: SupportedLocale;
-  /** What the Guest owes now: the bill plus the nights check-out will charge. */
-  owedMinor: number;
+  /** What the Guest owes: the bill plus the nights check-out will charge. */
+  owed: Owed;
 }) {
   const t = useTranslations();
   const f = useTranslations("finance");
   const { act, edited, outcome, pending, last, run } =
     useFinanceAction(postPayment);
   const [open, setOpen] = useState(false);
+  const owedMinor = owed.totalMinor;
   const initialAmount =
     owedMinor > 0 ? typedBalance(owedMinor, folio.currency, locale) : "";
   const [amount, setAmount] = useState(initialAmount);
@@ -293,7 +384,7 @@ export function PaymentDialog({
 
   const parsed = parseAmount(amount, folio.currency, locale);
   const typed = parsed.ok && parsed.minor > 0 ? parsed.minor : null;
-  const extra = typed !== null ? typed - Math.max(owedMinor, 0) : 0;
+  const extra = typed !== null ? typed - owedMinor : 0;
   const money = (minor: number) => formatMoney(minor, folio.currency, locale);
   const who = isolate(folio.who);
   const unit = isolate(folio.unit);
@@ -334,7 +425,9 @@ export function PaymentDialog({
           <DialogBody>
             <DialogDescription className="m-0 py-5 text-sm">
               {owedMinor > 0
-                ? f("owesNow", { amount: money(owedMinor) })
+                ? f(owed.atCheckOutMinor > 0 ? "owesNowLater" : "owesNow", {
+                    amount: money(owedMinor),
+                  })
                 : f("owesNothing")}
             </DialogDescription>
 
@@ -422,7 +515,7 @@ export function PaymentDialog({
                 >
                   {f("paymentExtra", {
                     extra: money(extra),
-                    owed: money(Math.max(owedMinor, 0)),
+                    owed: money(owedMinor),
                   })}
                 </TickRow>
               ) : null}

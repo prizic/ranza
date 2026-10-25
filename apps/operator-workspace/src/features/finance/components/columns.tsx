@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CircleCheck, Clock, Lock } from "lucide-react";
 import type { FolioSummary } from "@ranza/folios";
+import { owedOnFolio } from "../../../lib/owed";
 import { DataTableColumnHeader, StatusBadge } from "@ranza/ui";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { useSortLabels } from "../../../lib/table-labels";
-import { owedMinor } from "../../today/views";
 import { folioOverdueDays } from "../derive";
 
 /**
@@ -109,9 +109,11 @@ export function useFolioColumns(
     },
     {
       id: "balanceMinor",
-      // Sorted by what the Guest owes, which is the balance plus the nights
-      // check-out will charge: the one definition the departures list uses.
-      accessorFn: (folio) => owedMinor(folio),
+      // Shown and sorted by what the Guest owes: the bill plus the nights
+      // check-out will charge, the one definition (`owedOnFolio`) Today and
+      // the departures list use, so the figure that ranks a row is the figure
+      // in it (FINANCE-01).
+      accessorFn: (folio) => owedOnFolio(folio).netMinor,
       meta: { title: t("balance") },
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -128,14 +130,20 @@ export function useFolioColumns(
       // line to wrap, not where there is room for "Last posted Oct 19, 2026".
       cell: ({ row }) => {
         const folio = row.original;
+        const owed = owedOnFolio(folio);
         return (
           <div className="ms-auto grid max-w-36 justify-items-end gap-0.5 text-end whitespace-normal md:max-w-none">
             <span className="font-medium tabular-nums">
-              {formatMoney(folio.balanceMinor, folio.currency, locale)}
+              {formatMoney(owed.netMinor, folio.currency, locale)}
             </span>
             {folio.pendingNights > 0 ? (
               <span className="text-step--1 text-muted-foreground tabular-nums">
-                {f("plusPending", {
+                {f("billedPlusPending", {
+                  billed: formatMoney(
+                    folio.balanceMinor,
+                    folio.currency,
+                    locale,
+                  ),
                   amount: formatMoney(
                     folio.pendingMinor,
                     folio.currency,

@@ -22,6 +22,8 @@ import { createCoreModule } from "../../packages/ranza/core/src";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
 import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
 import { createFoliosModule } from "../../packages/ranza/folios/src";
+import { owedAcrossFolios } from "../../apps/operator-workspace/src/lib/owed";
+import type { MoneyCard } from "../../apps/operator-workspace/src/server/today-derive";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
 import {
   createMaintenanceModule,
@@ -350,6 +352,64 @@ describe("Today, per shipped role", () => {
           },
         },
       });
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+describe("what guests owe, on Today and in Finance (FINANCE-01)", () => {
+  it(
+    "the_open_folios_tile_owes_what_the_finance_list_adds_up",
+    async () => {
+      // The Leaver has two nights behind them that no close has charged yet:
+      // price the booking, so the bill on the Folio and what check-out will
+      // add are different numbers and a sum over only one of them is wrong.
+      const setRate = (rate: number | null) =>
+        owner.$transaction(async (tx) => {
+          await tx.$executeRawUnsafe(
+            `set local session_replication_role = replica`,
+          );
+          await tx.$executeRawUnsafe(
+            `update public.reservations
+                set nightly_rate_minor = $2::bigint,
+                    rate_currency = case when $2::bigint is null then null else 'TRY' end
+              where property_id = $1::uuid and status = 'checked_in'`,
+            PROPERTY,
+            rate,
+          );
+        });
+      await setRate(10_000);
+      try {
+        const summary = await todayFor(FINANCE, PROPERTY);
+        expect(summary?.money?.status).toBe("ok");
+        const card = (
+          summary?.money as { status: "ok"; data: MoneyCard } | undefined
+        )?.data;
+        const open = (
+          await modules.folios.listFolioPage(FINANCE, PROPERTY, {
+            show: "open",
+          })
+        ).folios;
+        const owed = owedAcrossFolios(open);
+        expect(owed[0]?.atCheckOutMinor).toBeGreaterThan(0);
+        expect(card?.openOwing).toBe(
+          owed.reduce((n, row) => n + row.folios, 0),
+        );
+        expect(card?.openOwed).toEqual(
+          owed.map((row) => ({
+            amountMinor: row.totalMinor,
+            currency: row.currency,
+          })),
+        );
+        expect(card?.openAtCheckOut).toEqual(
+          owed.map((row) => ({
+            amountMinor: row.atCheckOutMinor,
+            currency: row.currency,
+          })),
+        );
+      } finally {
+        await setRate(null);
+      }
     },
     DATABASE_BUDGET_MS,
   );

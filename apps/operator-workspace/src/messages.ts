@@ -790,6 +790,7 @@ export interface Messages {
       closed: string;
     };
     owingSummary: string;
+    owingSummaryLater: string;
     showAll: string;
     empty: {
       owingTitle: string;
@@ -801,7 +802,8 @@ export interface Messages {
     };
     stayDates: string;
     stayFrom: string;
-    plusPending: string;
+    billedPlusPending: string;
+    balanceNow: string;
     lastPosted: string;
     nothingPosted: string;
     reservationLink: string;
@@ -811,6 +813,7 @@ export interface Messages {
     pendingNights: string;
     owesAtCheckOut: string;
     nightsUnpriced: string;
+    nightsUnpricedAsk: string;
     nightsNoneYet: string;
     nightsNoneYetSince: string;
     nightsSoFar: string;
@@ -818,6 +821,11 @@ export interface Messages {
     reversalReason: string;
     correctionsNote: string;
     chargeHint: string;
+    chargeSummary: string;
+    chargeSummaryIncomplete: string;
+    chargeConfirmTitle: string;
+    chargeConfirmEffect: string;
+    postCharge: string;
     whatCharge: string;
     whatPayment: string;
     whatReverse: string;
@@ -836,6 +844,7 @@ export interface Messages {
     };
     paymentFor: string;
     owesNow: string;
+    owesNowLater: string;
     owesNothing: string;
     chooseMethod: string;
     paymentNote: string;
@@ -860,6 +869,10 @@ export interface Messages {
     paymentHintMissing: string;
     paymentHintExtra: string;
     reverseHintMissing: string;
+    lackNote: string;
+    lackAddCharge: string;
+    lackReverse: string;
+    folioNotFound: string;
   };
 
   rooms: string;
@@ -1934,7 +1947,9 @@ export interface Messages {
     owedOnDepartures: string;
     guests: string;
     openFolios: string;
-    openFoliosBalance: string;
+    openFoliosOwed: string;
+    openFoliosOwedLater: string;
+    openFoliosOwedNothing: string;
     overdueOwing: string;
     movements: string;
     tabArrivals: string;
@@ -2354,6 +2369,8 @@ export interface Messages {
       monthToDate: string;
       /** The same, for a window that is not a month. */
       closedOf: string;
+      closedOfOne: string;
+      monthToDateOne: string;
       /** What a period that is not over rests on: which days each figure counts. */
       openNote: string;
       openNoteNoMoney: string;
@@ -2378,6 +2395,7 @@ export interface Messages {
       hideDays: string;
       /** `{reference}`: the booking a Stay in the day's drawer came from. */
       openBooking: string;
+      openFolio: string;
       unchargedAction: string;
       /** `{date}`: the Property's business date today. */
       asOf: string;
@@ -2407,6 +2425,8 @@ export interface Messages {
       sameElapsedDays: string;
       /** `{month}`: the prior month, which had no activity in the days compared. */
       noPrior: string;
+      /** `{month}` had none in its first `{days}` days, the days compared with. */
+      noPriorWithin: string;
       revenue: string;
       roomNightsCharged: string;
       corrections: string;
@@ -2525,6 +2545,9 @@ export interface Messages {
     oneTitle: string;
     /** `{property}`. */
     oneDescription: string;
+    /** `{property}`: for somebody who can give staff access to Properties. */
+    oneDescriptionStaffAdmin: string;
+    openPeople: string;
     noneTitle: string;
     noneDescription: string;
     goToToday: string;
@@ -3662,7 +3685,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "Folyodaki ücreti ters kaydetme",
         postPayment: "Ödeme kaydetme",
         reversePayment: "Folyodaki ödemeyi ters kaydetme",
-        viewLedger: "Muhasebe defterini okuma",
+        viewLedger: "Muhasebe defterini ve gelir raporlarını okuma",
         administerStaff:
           "Ekibe kişi davet etme, rol ve erişimlerini değiştirme",
         defineRoles: "Rol tanımlama ve düzenleme",
@@ -3948,6 +3971,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       owingSummary:
         "{count, plural, one {# folyoda} other {# folyoda}} toplam {amount} ödenmemiş tutar var",
+      owingSummaryLater:
+        "{count, plural, one {# folyoda} other {# folyoda}} toplam {amount} borç var: {now} folyolarda, {later} çıkışta ücretlendirilecek gecelerden",
       showAll: "Tümünü göster",
       empty: {
         owingTitle: "Kimsenin borcu yok",
@@ -3962,8 +3987,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       stayDates: "{from} – {to}",
       stayFrom: "{from} tarihinden",
-      plusPending:
-        "+ çıkışta {count, plural, one {# gece} other {# gece}} için {amount}",
+      billedPlusPending:
+        "{billed} işlendi + çıkışta {count, plural, one {# gece} other {# gece}} için {amount}",
+      balanceNow: "Folyodaki bakiye",
       lastPosted: "Son işlem {date}",
       nothingPosted: "Henüz bir şey işlenmedi",
       reservationLink: "Rezervasyon {reference}",
@@ -3974,6 +4000,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       owesAtCheckOut: "Çıkışta borç",
       nightsUnpriced:
         "Bu rezervasyonun fiyatı yok, bu yüzden bu folyoya hiçbir gece ücretlendirilmez. Rezervasyonlar ekranından rezervasyona fiyat ekleyin.",
+      nightsUnpricedAsk:
+        "Bu rezervasyonun fiyatı yok, bu yüzden bu folyoya hiçbir gece ücretlendirilmez. Fiyat eklemesi için ön büro veya bir yöneticiye başvurun.",
       nightsNoneYet:
         "Henüz hiçbir gece ücretlendirilmedi. Geceler her gün kapatıldığında ve çıkışta bu folyoya ücretlendirilir. Bu tesiste henüz kapatılmış bir gün yok.",
       nightsNoneYetSince:
@@ -3984,8 +4012,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       reversalReason: "Gerekçe: {reason}",
       correctionsNote:
         "Düzeltme hiçbir satırı silmez. Asıl satır ters kaydedildi olarak işaretli kalır ve ardından ters tutarlı bir satır eklenir.",
-      chargeHint:
-        "{who} folyosuna ücret ekler. Bir ücret gerekçesiyle ters kaydedilebilir, silinemez.",
+      chargeHint: "Bir ücret gerekçesiyle ters kaydedilebilir, silinemez.",
+      chargeSummary: "{who}, {unit} folyosuna {amount} ekler.",
+      chargeSummaryIncomplete:
+        "Neyin ücreti olduğunu ve tutarı yazın; kaydedilecek olan burada görünür.",
+      chargeConfirmTitle: "Bu ücret kaydedilsin mi?",
+      chargeConfirmEffect:
+        "Ücret misafirin borcuna eklenir ve hemen folyoda görünür. Gerekçesiyle ters kaydedilebilir, silinemez.",
+      postCharge: "Ücreti kaydet",
       whatCharge: "Ücret ekleme",
       whatPayment: "Ödeme kaydı",
       whatReverse: "Ters kayıt",
@@ -4008,7 +4042,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         reasonTooLong: "Gerekçe en fazla 200 karakter olabilir.",
       },
       paymentFor: "{who}, {unit} için alınan parayı kaydedin.",
-      owesNow:
+      owesNow: "Bu misafirin şu an {amount} borcu var.",
+      owesNowLater:
         "Bu misafirin şu an {amount} borcu var; çıkışta ücretlendirilecek geceler dahil.",
       owesNothing:
         "Bu folyoda şu an borç yok. Buraya kaydedilen her tutar alacak olarak kalır.",
@@ -4043,6 +4078,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       paymentHintMissing: "Tutarı girin ve nasıl ödendiğini seçin.",
       paymentHintExtra: "Borçtan fazlasını almak için kutuyu işaretleyin.",
       reverseHintMissing: "Nedenini en az 3 karakterle yazın.",
+      lackNote:
+        "Rolünüzde olmayanlar: {actions}. Bunu yapabilen bir meslektaşınıza başvurun.",
+      lackAddCharge: "ücret ekleme",
+      lackReverse: "satır ters kaydı",
+      folioNotFound:
+        "Bu folyo burada açılamıyor: bu tesiste değil, artık yok ya da rolünüz göremiyor. Liste aşağıda.",
       history: "Geçmiş",
     },
 
@@ -4349,7 +4390,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       owedOnDepartures: "Ayrılan ve gecikmiş misafirlerin borcu",
       guests: "{count, plural, one {# misafir} other {# misafir}}",
       openFolios: "Açık folyo",
-      openFoliosBalance: "Bakiye {amount}",
+      openFoliosOwed: "Borç {amount}",
+      openFoliosOwedLater: "Borç {amount}; {later} çıkışta eklenecek",
+      openFoliosOwedNothing: "Borç yok",
       overdueOwing: "Gecikmiş, bakiyeli",
       movements: "Bugünkü hareket",
       tabArrivals: "Gelişler · {count}",
@@ -4386,9 +4429,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Kirli ve kontrol bekleyen sayıları yalnızca boş odaları sayar.",
       floorReady: "{count} / {of}",
       owing: "Bakiyesiyle ayrılanlar",
-      largestBalances: "En yüksek açık bakiyeler",
+      largestBalances: "En çok borcu olan açık folyolar",
       allFolios: "Tüm folyolar",
-      noBalances: "Açık bakiye yok.",
+      noBalances: "Açık folyolarda borç yok.",
       noOwingTitle: "Bakiyeyle ayrılan yok",
       noOwingDescription:
         "Bugün ya da daha önce ayrılması gerekenlerin bakiyesi kapalı.",
@@ -5700,13 +5743,15 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Henüz ücretlendirilen Misafir gecelemesi yok, bölünecek bir şey yok.",
         revPar: "Mevcut geceleme başına gelir (RevPAR)",
         revParArithmetic: "{revenue} oda geliri ÷ {nights} mevcut geceleme",
-        revParNone: "Mevcut geceleme yok, bölünecek bir şey yok.",
+        revParNone: "Henüz kapanan gün yok, bölünecek bir şey yok.",
         againstPrior: "{month} ayında: {value}",
         pointsChange: "{value} puan",
         sameElapsedDays:
           "{month} ayının aynı geçen günleriyle karşılaştırılır.",
         noPrior:
           "{month} ayında hiçbir şey olmadı, karşılaştırılacak bir şey yok.",
+        noPriorWithin:
+          "{month} ayının ilk {days, plural, other {# gününde}} (bu ayın şimdiye kadarki günlerine denk gelen günler) hiçbir şey olmadı, karşılaştırılacak bir şey yok.",
         revenue: "Gelir",
         roomNightsCharged: "Ücretlendirilen oda geceleri",
         corrections: "Düzeltmeler (iptal edilen geceler)",
@@ -5769,10 +5814,12 @@ export const messages: Record<SupportedLocale, Messages> = {
         previousDay: "Önceki gün",
         nextDay: "Sonraki gün",
         closedOf: "{total} günün {closed} günü kapandı",
+        closedOfOne: "1 günün {closed} günü kapandı",
+        monthToDateOne: "Ay başından bugüne · 1 günün {closed} günü kapandı",
         openNoteNoMoney:
           "Doluluk, kapanmış ya da kapanmamış, şimdiye kadarki her günü sayar.",
         incompleteBadge:
-          "Eksik · {total} günün {unclosed} günü hiç kapatılmadı",
+          "Eksik · {since} tarihinden beri {total} günün {unclosed} günü hiç kapatılmadı",
         incompleteNote:
           "Doluluk her günü sayar. Gelir ve onu bölen oranlar yalnızca kapanan günleri kapsar, bu yüzden olduğundan düşüktür.",
         incompleteNoteNoMoney:
@@ -5793,6 +5840,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         showDays: "{count} günü göster",
         hideDays: "Günleri gizle",
         openBooking: "{reference} rezervasyonunu aç",
+        openFolio: "Folyoyu aç",
         unchargedAction:
           "Hangi rezervasyonlar olduğunu görmek için tablodan bir gün açın, sonra fiyatını eklemek için rezervasyonu açın.",
       },
@@ -5833,6 +5881,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       oneTitle: "Karşılaştıracak bir şey yok",
       oneDescription:
         "Tek bir Tesisiniz var: {property}. Birden fazla Tesise atandığınızda burada yan yana görünürler. Başka bir Tesise atanmanız gerekiyorsa bir Sahip'e sorun.",
+      oneDescriptionStaffAdmin:
+        "Erişebildiğiniz tek Tesis {property}. Organizasyonunuzda başka bir Tesis varsa hesabınıza erişimi Ekip sayfasından verin; ikiye eriştiğiniz anda burada yan yana görünürler.",
+      openPeople: "Ekibi aç",
       noneTitle: "Gösterilecek Tesis yok",
       noneDescription: "Bu Organizasyonda erişebildiğiniz bir Tesis yok.",
       goToToday: "Bugün'e git",
@@ -7143,7 +7194,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "Reverse a charge on a Folio",
         postPayment: "Record a payment on a Folio",
         reversePayment: "Reverse a payment on a Folio",
-        viewLedger: "Read the general ledger",
+        viewLedger: "Read the ledger and revenue reports",
         administerStaff: "Invite staff and change their role or reach",
         defineRoles: "Define and edit roles",
         configureAccommodation: "Configure rooms & beds",
@@ -7433,6 +7484,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       owingSummary:
         "{count, plural, one {# folio owes} other {# folios owe}} {amount} in all",
+      owingSummaryLater:
+        "{count, plural, one {# folio owes} other {# folios owe}} {amount} in all: {now} already on the bills and {later} for nights check-out will charge",
       showAll: "Show all",
       empty: {
         owingTitle: "Nobody owes anything",
@@ -7447,8 +7500,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       stayDates: "{from} – {to}",
       stayFrom: "From {from}",
-      plusPending:
-        "+ {amount} for {count, plural, one {# night} other {# nights}} at check-out",
+      billedPlusPending:
+        "{billed} billed + {amount} for {count, plural, one {# night} other {# nights}} at check-out",
+      balanceNow: "Balance on the bill",
       lastPosted: "Last posted {date}",
       nothingPosted: "Nothing posted yet",
       reservationLink: "Booking {reference}",
@@ -7460,6 +7514,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       owesAtCheckOut: "Owes at check-out",
       nightsUnpriced:
         "This booking has no price, so no nights are charged to this folio. Add a price to the booking from the Reservations screen.",
+      nightsUnpricedAsk:
+        "This booking has no price, so no nights are charged to this folio. Ask the front desk or a manager to add a price to the booking.",
       nightsNoneYet:
         "No nights charged yet. They are charged to this folio when each day is closed, and at check-out. No day has been closed at this Property yet.",
       nightsNoneYetSince:
@@ -7470,8 +7526,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       reversalReason: "Reason: {reason}",
       correctionsNote:
         "A correction never removes a line. The original stays, marked reversed, and a line with the opposite amount is added after it.",
-      chargeHint:
-        "Adds a charge to the folio of {who}. A charge can be reversed with a reason, never deleted.",
+      chargeHint: "A charge can be reversed with a reason, never deleted.",
+      chargeSummary: "Adds {amount} to the folio of {who}, {unit}.",
+      chargeSummaryIncomplete:
+        "Say what it is for and type the amount to see what will be posted.",
+      chargeConfirmTitle: "Post this charge?",
+      chargeConfirmEffect:
+        "The charge is added to what they owe and shows on the folio at once. It can be reversed with a reason, never deleted.",
+      postCharge: "Post charge",
       whatCharge: "The charge",
       whatPayment: "The payment",
       whatReverse: "The reversal",
@@ -7494,7 +7556,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         reasonTooLong: "Keep the reason to 200 characters or fewer.",
       },
       paymentFor: "Record money received from {who}, {unit}.",
-      owesNow:
+      owesNow: "This Guest owes {amount} now.",
+      owesNowLater:
         "This Guest owes {amount} now, counting the nights check-out will still charge.",
       owesNothing:
         "Nothing is owed on this folio now. Anything recorded here stays as a credit.",
@@ -7528,6 +7591,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       paymentHintMissing: "Enter the amount and choose how it was paid.",
       paymentHintExtra: "Tick the box to take more than is owed.",
       reverseHintMissing: "Say why, in at least 3 characters.",
+      lackNote:
+        "Not part of your role: {actions}. Ask a colleague whose role includes it.",
+      lackAddCharge: "adding a charge",
+      lackReverse: "reversing a line",
+      folioNotFound:
+        "That folio can't be opened here: it is not at this Property, it no longer exists, or your role can't see it. The list is below.",
       history: "History",
     },
 
@@ -7841,7 +7910,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       owedOnDepartures: "Owed by Guests leaving or overdue",
       guests: "{count, plural, one {# Guest} other {# Guests}}",
       openFolios: "Open Folios",
-      openFoliosBalance: "Balance {amount}",
+      openFoliosOwed: "Owed {amount}",
+      openFoliosOwedLater: "Owed {amount}, {later} of it at check-out",
+      openFoliosOwedNothing: "Nothing owed",
       overdueOwing: "Overdue with a balance",
       movements: "Today's movements",
       tabArrivals: "Arrivals · {count}",
@@ -7879,9 +7950,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomsEmptyOnly: "Dirty and awaiting inspection count empty rooms only.",
       floorReady: "{count} / {of}",
       owing: "Leaving with a balance",
-      largestBalances: "Largest open balances",
+      largestBalances: "Open Folios owing the most",
       allFolios: "All Folios",
-      noBalances: "No open balances.",
+      noBalances: "No open Folio owes anything.",
       noOwingTitle: "Nobody leaves with a balance",
       noOwingDescription:
         "Everyone due to leave today or before has a closed balance.",
@@ -9194,12 +9265,14 @@ export const messages: Record<SupportedLocale, Messages> = {
         adrNone: "No charged Guest nights yet, so there is nothing to divide.",
         revPar: "Revenue per available night (RevPAR)",
         revParArithmetic: "{revenue} room revenue ÷ {nights} available nights",
-        revParNone: "No available nights, so there is nothing to divide.",
+        revParNone: "No day has closed yet, so there is nothing to divide.",
         againstPrior: "vs {month}: {value}",
         pointsChange: "{value} points",
         sameElapsedDays: "Compared with the same elapsed days of {month}.",
         noPrior:
           "{month} had no activity, so there is nothing to compare with.",
+        noPriorWithin:
+          "{month} had no activity in its first {days, plural, one {day} other {# days}}, the days that match this month so far, so there is nothing to compare with.",
         revenue: "Revenue",
         roomNightsCharged: "Room nights charged",
         corrections: "Corrections (reversed nights)",
@@ -9262,9 +9335,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         previousDay: "Previous day",
         nextDay: "Next day",
         closedOf: "{closed} of {total} days closed",
+        closedOfOne: "{closed} of 1 day closed",
+        monthToDateOne: "Month to date · {closed} of 1 day closed",
         openNoteNoMoney: "Occupancy counts every day so far, closed or not.",
         incompleteBadge:
-          "Incomplete · {unclosed} of {total} days were never closed",
+          "Incomplete · {unclosed} of {total} days since {since} were never closed",
         incompleteNote:
           "Occupancy counts every day. Revenue and the rates that divide it cover only the days that closed, so they are understated.",
         incompleteNoteNoMoney:
@@ -9284,6 +9359,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         showDays: "Show the {count} days",
         hideDays: "Hide the days",
         openBooking: "Open booking {reference}",
+        openFolio: "Open Folio",
         unchargedAction:
           "Open a day from the table to see which bookings, then open a booking to add its price.",
       },
@@ -9324,6 +9400,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       oneTitle: "Nothing to compare yet",
       oneDescription:
         "You have one Property, {property}. Properties line up side by side here once you are assigned to more than one. Ask an Owner if you should be assigned to another.",
+      oneDescriptionStaffAdmin:
+        "{property} is the only Property you reach. If your Organization has another, give your account access to it in People; the two appear side by side here as soon as you reach both.",
+      openPeople: "Open People",
       noneTitle: "No Property to show",
       noneDescription: "You do not reach any Property in this Organization.",
       goToToday: "Go to Today",
@@ -10614,7 +10693,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         reverseCharge: "عكس رسم مسجَّل على الحساب",
         postPayment: "تسجيل دفعة على الحساب",
         reversePayment: "عكس دفعة مسجَّلة على الحساب",
-        viewLedger: "قراءة دفتر الأستاذ العام",
+        viewLedger: "قراءة دفتر الأستاذ وتقارير الإيرادات",
         administerStaff: "دعوة الموظفين وتغيير دورهم ونطاق وصولهم",
         defineRoles: "تعريف الأدوار وتعديلها",
         configureAccommodation: "تهيئة الغرف والأسرّة",
@@ -10891,6 +10970,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       owingSummary:
         "{count, plural, zero {لا حسابات} one {حساب واحد} two {حسابان} few {# حسابات} many {# حسابًا} other {# حساب}} عليها رصيد، مجموعه {amount}",
+      owingSummaryLater:
+        "{count, plural, zero {لا حسابات} one {حساب واحد} two {حسابان} few {# حسابات} many {# حسابًا} other {# حساب}} عليها رصيد، مجموعه {amount}: {now} على الحسابات و{later} عن ليالٍ ستُحتسب عند المغادرة",
       showAll: "اعرض الكل",
       empty: {
         owingTitle: "لا أحد مدين بشيء",
@@ -10904,8 +10985,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
       stayDates: "{from} – {to}",
       stayFrom: "من {from}",
-      plusPending:
-        "+ {amount} عن {count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتين} few {# ليالٍ} many {# ليلة} other {# ليلة}} عند المغادرة",
+      billedPlusPending:
+        "{billed} مقيَّد + {amount} عن {count, plural, zero {لا ليالٍ} one {ليلة واحدة} two {ليلتين} few {# ليالٍ} many {# ليلة} other {# ليلة}} عند المغادرة",
+      balanceNow: "الرصيد على الحساب",
       lastPosted: "آخر قيد {date}",
       nothingPosted: "لم يُقيَّد شيء بعد",
       reservationLink: "الحجز {reference}",
@@ -10917,6 +10999,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       owesAtCheckOut: "المستحق عند المغادرة",
       nightsUnpriced:
         "هذا الحجز بلا سعر، لذا لا تُحتسب أي ليلة على هذا الحساب. أضف سعرًا للحجز من شاشة الحجوزات.",
+      nightsUnpricedAsk:
+        "هذا الحجز بلا سعر، لذا لا تُحتسب أي ليلة على هذا الحساب. اطلب من الاستقبال أو أحد المديرين إضافة سعر للحجز.",
       nightsNoneYet:
         "لم تُحتسب أي ليلة بعد. تُحتسب الليالي على هذا الحساب عند إغلاق كل يوم وعند المغادرة. لم يُغلق أي يوم في هذه المنشأة بعد.",
       nightsNoneYetSince:
@@ -10927,8 +11011,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       reversalReason: "السبب: {reason}",
       correctionsNote:
         "التصحيح لا يحذف أي بند. يبقى البند الأصلي معلَّمًا بأنه معكوس، ويُضاف بعده بند بالمبلغ المقابل.",
-      chargeHint:
-        "يضيف رسمًا إلى حساب {who}. يمكن عكس الرسم بذكر السبب، ولا يُحذف.",
+      chargeHint: "يمكن عكس الرسم بذكر السبب، ولا يُحذف.",
+      chargeSummary: "يضيف {amount} إلى حساب {who}، {unit}.",
+      chargeSummaryIncomplete: "اكتب سبب الرسم والمبلغ لترى هنا ما سيُسجَّل.",
+      chargeConfirmTitle: "تسجيل هذا الرسم؟",
+      chargeConfirmEffect:
+        "يُضاف الرسم إلى ما على النزيل ويظهر في الحساب فورًا. يمكن عكسه بذكر السبب، ولا يُحذف.",
+      postCharge: "سجّل الرسم",
       whatCharge: "إضافة الرسم",
       whatPayment: "تسجيل الدفعة",
       whatReverse: "عكس البند",
@@ -10949,7 +11038,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         reasonTooLong: "اجعل السبب 200 حرف أو أقل.",
       },
       paymentFor: "سجّل المبلغ المستلم من {who}، {unit}.",
-      owesNow:
+      owesNow: "على هذا النزيل الآن {amount}.",
+      owesNowLater:
         "على هذا النزيل الآن {amount}، بما في ذلك الليالي التي ستُحتسب عند المغادرة.",
       owesNothing:
         "لا مستحقات على هذا الحساب الآن. أي مبلغ يُسجَّل هنا يبقى رصيدًا دائنًا.",
@@ -10984,6 +11074,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       paymentHintMissing: "أدخل المبلغ واختر طريقة الدفع.",
       paymentHintExtra: "ضع علامة على المربع لقبول أكثر من المستحق.",
       reverseHintMissing: "اكتب السبب في 3 أحرف على الأقل.",
+      lackNote: "ليس ضمن دورك: {actions}. اطلب ذلك من زميل يشمل دوره ذلك.",
+      lackAddCharge: "إضافة رسم",
+      lackReverse: "عكس سطر",
+      folioNotFound:
+        "تعذّر فتح هذا الحساب هنا: ليس في هذه المنشأة، أو لم يعد موجودًا، أو لا يظهر لدورك. القائمة أدناه.",
       history: "السجل",
     },
 
@@ -11293,7 +11388,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       guests:
         "{count, plural, zero {لا ضيوف} one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
       openFolios: "فواتير مفتوحة",
-      openFoliosBalance: "الرصيد {amount}",
+      openFoliosOwed: "المستحق {amount}",
+      openFoliosOwedLater: "المستحق {amount}، منه {later} عند المغادرة",
+      openFoliosOwedNothing: "لا مستحقات",
       overdueOwing: "متأخرون برصيد",
       movements: "حركة اليوم",
       tabArrivals: "الوصول · {count}",
@@ -11332,9 +11429,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomsEmptyOnly: "المتسخة وبانتظار الفحص تُحتسب من الغرف الشاغرة فقط.",
       floorReady: "{count} من {of}",
       owing: "يغادرون برصيد",
-      largestBalances: "أعلى الأرصدة المفتوحة",
+      largestBalances: "أكثر الفواتير المفتوحة استحقاقًا",
       allFolios: "كل الفواتير",
-      noBalances: "لا توجد أرصدة مفتوحة.",
+      noBalances: "لا مستحقات على أي فاتورة مفتوحة.",
       noOwingTitle: "لا أحد يغادر برصيد",
       noOwingDescription: "كل من يغادر اليوم أو قبله رصيده مغلق.",
       sectionUnavailable: "تعذّرت قراءة هذا القسم",
@@ -12618,11 +12715,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         adrNone: "لا توجد ليالي ضيوف محتسبة بعد، فلا شيء يُقسَم.",
         revPar: "الإيراد لكل ليلة متاحة (RevPAR)",
         revParArithmetic: "{revenue} إيرادات الغرف ÷ {nights} ليلة متاحة",
-        revParNone: "لا توجد ليالٍ متاحة، فلا شيء يُقسَم.",
+        revParNone: "لم يُغلق أي يوم بعد، فلا شيء يُقسَم.",
         againstPrior: "مقابل {month}: {value}",
         pointsChange: "{value} نقطة",
         sameElapsedDays: "مقارنةً بالأيام المنقضية نفسها من {month}.",
         noPrior: "لم يحدث شيء في {month}، فلا شيء للمقارنة معه.",
+        noPriorWithin:
+          "لم يحدث شيء في {month} خلال {days, plural, one {اليوم الأول} two {اليومين الأولين} other {الأيام الـ# الأولى}}، وهي الأيام المقابلة لهذا الشهر حتى الآن، فلا شيء للمقارنة معه.",
         revenue: "الإيرادات",
         roomNightsCharged: "ليالي الغرف المحتسبة",
         corrections: "التصحيحات (ليالٍ مُلغاة)",
@@ -12685,8 +12784,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         previousDay: "اليوم السابق",
         nextDay: "اليوم التالي",
         closedOf: "أُغلق {closed} من {total} يومًا",
+        closedOfOne: "أُغلق {closed} من يوم واحد",
+        monthToDateOne: "من بداية الشهر حتى اليوم · أُغلق {closed} من يوم واحد",
         openNoteNoMoney: "يحتسب الإشغال كل يوم حتى الآن، أُغلق أم لم يُغلق.",
-        incompleteBadge: "ناقص · لم يُغلق {unclosed} من {total} يومًا قط",
+        incompleteBadge:
+          "ناقص · لم يُغلق {unclosed} من {total} يومًا منذ {since} قط",
         incompleteNote:
           "يحتسب الإشغال كل الأيام. الإيرادات والنِّسَب التي تقسمها تشمل الأيام المغلقة فقط، لذا فهي أقل من الواقع.",
         incompleteNoteNoMoney:
@@ -12706,6 +12808,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         showDays: "عرض الأيام ({count})",
         hideDays: "إخفاء الأيام",
         openBooking: "افتح الحجز {reference}",
+        openFolio: "افتح الفاتورة",
         unchargedAction:
           "افتح يومًا من الجدول لترى أي الحجوزات، ثم افتح حجزًا لإضافة سعره.",
       },
@@ -12745,6 +12848,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       oneTitle: "لا شيء للمقارنة بعد",
       oneDescription:
         "لديك منشأة واحدة: {property}. تظهر المنشآت جنبًا إلى جنب هنا عندما تُسند إليك أكثر من واحدة. اسأل المالك إن كان ينبغي إسناد منشأة أخرى إليك.",
+      oneDescriptionStaffAdmin:
+        "{property} هي المنشأة الوحيدة التي تصل إليها. إن كان في مؤسستك منشأة أخرى فامنح حسابك الوصول إليها من صفحة الفريق؛ تظهر المنشأتان جنبًا إلى جنب هنا بمجرد وصولك إلى كلتيهما.",
+      openPeople: "افتح الفريق",
       noneTitle: "لا منشأة للعرض",
       noneDescription: "لا تصل إلى أي منشأة في هذه المؤسسة.",
       goToToday: "اذهب إلى اليوم",

@@ -21,7 +21,8 @@ import { ScreenDenied, ScreenRefusal } from "../screen-denied";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
 import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
-import { owedMinor, totals } from "../../../../features/today/views";
+import { owedAcrossFolios } from "../../../../lib/owed";
+import { FolioNotFound } from "../../../../features/finance/components/folio-not-found";
 
 /**
  * Finance: what each Stay at a Property has accrued, and the charges on one.
@@ -82,8 +83,9 @@ export default async function FinancePage({
   }
 
   // A `?folio=` the viewer cannot reach comes back null, exactly as one that
-  // never existed does, and both fall through to the list. What a viewer
-  // cannot see should not be distinguishable from what is not there.
+  // never existed does, and both fall through to the list with one notice that
+  // does not tell them apart. What a viewer cannot see should not be
+  // distinguishable from what is not there.
   const selected = search.folio ? await folio(search.folio) : null;
 
   if (selected) {
@@ -146,13 +148,9 @@ export default async function FinancePage({
   const financeHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
   const tab = parseFolioTab(search.show);
   const { folios: shown, total } = await folioPage(property.propertyId, tab);
-  const owing = tab === "owing" ? shown : [];
-  const owedTotal = totals(
-    owing.map((row) => ({
-      amountMinor: owedMinor(row),
-      currency: row.currency,
-    })),
-  );
+  // The one figure for what Guests owe (`owedAcrossFolios`), the same Today
+  // shows for the open Folios, over the rows this tab lists (FINANCE-01).
+  const [owed] = owedAcrossFolios(shown);
   const tabHrefs = Object.fromEntries(
     FOLIO_TABS.map((candidate) => [
       candidate,
@@ -165,27 +163,31 @@ export default async function FinancePage({
       <p className="text-sm text-muted-foreground">
         {t("foliosAt")} {property.propertyName}
       </p>
+      {search.folio ? <FolioNotFound /> : null}
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
         <FolioTabs current={tab} hrefs={tabHrefs} />
-        {tab === "owing" && owedTotal[0] ? (
+        {owed ? (
           <p
             className="text-sm text-muted-foreground tabular-nums"
             data-testid="owing-summary"
           >
-            {t("finance.owingSummary", {
-              count: total,
-              amount: formatMoney(
-                owedTotal[0].amountMinor,
-                owedTotal[0].currency,
-                locale,
-              ),
-            })}
+            {t(
+              owed.atCheckOutMinor > 0
+                ? "finance.owingSummaryLater"
+                : "finance.owingSummary",
+              {
+                count: owed.folios,
+                amount: formatMoney(owed.totalMinor, owed.currency, locale),
+                now: formatMoney(owed.nowMinor, owed.currency, locale),
+                later: formatMoney(owed.atCheckOutMinor, owed.currency, locale),
+              },
+            )}
           </p>
         ) : null}
       </div>
       <FoliosTable
         allHref={financeHref}
-        folioHref={financeHref}
+        folioHref={tabHrefs[tab]}
         folios={shown}
         locale={locale}
         tab={tab}

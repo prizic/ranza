@@ -100,6 +100,25 @@ describe("a row says whose folio it is and what is owed (FIN-03)", () => {
     );
   });
 
+  it("the_link_keeps_the_tab_so_back_returns_to_the_same_list (FINANCE-05)", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FoliosTable
+          allHref="/en/finance?property=p"
+          folioHref="/en/finance?property=p&show=owing"
+          folios={[ROW]}
+          locale="en"
+          tab="owing"
+          total={1}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("link", { name: /Ada Lovelace/ })).toHaveAttribute(
+      "href",
+      `/en/finance?property=p&show=owing&folio=${ROW.folioId}`,
+    );
+  });
+
   it("does not call a settled, closed folio overdue or owing", () => {
     table([
       {
