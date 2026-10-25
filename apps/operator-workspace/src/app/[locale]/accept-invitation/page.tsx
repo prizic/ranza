@@ -60,6 +60,10 @@ export default async function AcceptInvitationPage({
         title={accept(`refused.${page.reason}.title`)}
       >
         <InvitationRefused
+          continueHref={localizeHref(
+            locale,
+            `accept-invitation?token=${encodeURIComponent(token)}`,
+          )}
           reason={page.reason}
           signInHref={localizeHref(locale, "sign-in")}
         />
