@@ -19,15 +19,15 @@ import {
 import {
   ArrivalCommand,
   DepartureCommand,
+  blockerScreen,
   FoldToggle,
+  LINK_BUTTON,
   Panel,
   reviewFor,
+  useArrivalReason,
   type CheckOutReviews,
   type LayoutProps,
 } from "./parts";
-
-const LINK_BUTTON =
-  "inline-flex min-h-9 items-center rounded-full border border-border px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
 /** Rows shown before "show more": what a desk can start on at a glance. */
 const DO_NOW_COLLAPSED = 5;
@@ -58,8 +58,13 @@ interface Shared {
  */
 export function DoNow({
   actions,
+  overdueAbove,
   ...shared
-}: Shared & { actions: readonly DeskAction[] }) {
+}: Shared & {
+  actions: readonly DeskAction[];
+  /** Guests overdue to leave, listed above this card rather than in it. */
+  overdueAbove: number;
+}) {
   const t = useTranslations("todayLayouts");
   const [expanded, setExpanded] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
@@ -102,7 +107,7 @@ export function DoNow({
         </p>
         {actions.length === 0 ? (
           <p className="rounded-2xl bg-muted px-5 py-4 text-sm text-muted-foreground">
-            {t("doNow.empty")}
+            {overdueAbove > 0 ? t("doNow.emptyDepartures") : t("doNow.empty")}
           </p>
         ) : (
           <>
@@ -174,14 +179,16 @@ function DoNowRow({
       : null;
   const hasCommand = departure
     ? reviewFor(departure, reviews) !== undefined
-    : Boolean(arrival?.mayCheckIn && readiness === "ready");
+    : Boolean(arrival?.mayCheckIn && readiness !== "blocked");
   const id = scope.propertyId;
-  const screen =
-    action.kind === "room_at_risk"
-      ? "housekeeping"
-      : departure
-        ? "departures"
+  const screen = departure
+    ? "departures"
+    : arrival && readiness === "blocked"
+      ? blockerScreen(arrival)
+      : action.kind === "room_at_risk"
+        ? "housekeeping"
         : "arrivals";
+  const reasonOf = useArrivalReason();
 
   return (
     <li className="@container/row grid grid-cols-[1.75rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3 border-t border-line py-3 sm:grid-cols-[1.75rem_minmax(0,1fr)_auto]">
@@ -196,7 +203,12 @@ function DoNowRow({
           <bdi>{unit ? unitLabel(unit.roomName, unit.unitName) : null}</bdi>
         </h3>
         <p className="text-sm text-balance text-muted-foreground @min-[26rem]/row:col-span-2">
-          {detailOf(action, readiness, desk, locale, t)}
+          {detailOf(
+            action,
+            arrival && readiness ? reasonOf(arrival, readiness) : "",
+            locale,
+            t,
+          )}
         </p>
         {owed ? (
           <span className="text-sm font-medium tabular-nums @min-[26rem]/row:col-start-2 @min-[26rem]/row:row-start-1">
@@ -217,11 +229,12 @@ function DoNowRow({
             scope={scope}
           />
         ) : null}
-        {arrival && readiness === "ready" ? (
+        {arrival && readiness && readiness !== "blocked" ? (
           <ArrivalCommand
             arrival={arrival}
             locale={locale}
             onChanged={changed}
+            readiness={readiness}
           />
         ) : null}
         {hasCommand ? null : (
@@ -237,13 +250,11 @@ function DoNowRow({
 /** What is wrong with this row, in a sentence; what is owed is shown apart. */
 function detailOf(
   action: DeskAction,
-  readiness: Readiness | null,
-  desk: LayoutProps["desk"],
+  state: string,
   locale: SupportedLocale,
   t: ReturnType<typeof useTranslations<"todayLayouts">>,
 ): string {
   const { arrival, departure } = action;
-  const state = readiness ? t(`state.${readiness}`) : "";
   const time = arrival?.expectedArrival
     ? cutoffTime(arrival.expectedArrival, locale)
     : "";

@@ -10,6 +10,7 @@ import type {
   DepartureRow,
   DeskCard,
   DeskRoom,
+  OccupancyCard,
   RoomState,
 } from "../../apps/operator-workspace/src/server/today-derive";
 import {
@@ -17,10 +18,12 @@ import {
   alternativesFor,
   countsByState,
   DEFAULT_LAYOUT,
+  departureCounts,
   floorsOf,
   houseFlow,
   layoutCookieName,
   minutesAt,
+  minutesLate,
   parseLayout,
   readinessOf,
   roomsByName,
@@ -118,6 +121,12 @@ describe("the property's own clock", () => {
 
   it("midnight_is_zero_not_twenty_four", () => {
     expect(minutesAt(Date.UTC(2026, 9, 19, 21, 0), "Europe/Istanbul")).toBe(0);
+  });
+
+  it("an_arrival_expected_yesterday_is_late_by_the_night_not_by_zero", () => {
+    expect(minutesLate(14 * 60 + 32, 13 * 60)).toBe(92);
+    // 03:07 on the clock, expected 13:00 the day before: 14h07m late.
+    expect(minutesLate(3 * 60 + 7, 13 * 60)).toBe(14 * 60 + 7);
   });
 });
 
@@ -220,8 +229,19 @@ describe("what to do first", () => {
 });
 
 describe("how the house moved", () => {
+  const card = (inHouse: number, extra: Partial<OccupancyCard> = {}) => ({
+    sellable: 23,
+    available: 23,
+    inHouse,
+    expectedTonight: 0,
+    leavingTonight: 0,
+    arrivingTonight: 0,
+    ...extra,
+  });
+
   it("the_day_adds_up_to_the_occupancy_cards_own_expected_tonight", () => {
     // TODAY-01: two cards on one page said two different numbers for tonight.
+    // Kaya is overdue: still in the room, so the night does not free it.
     const flow = houseFlow(
       desk({
         departed: 3,
@@ -237,28 +257,62 @@ describe("how the house moved", () => {
           ),
         ],
       }),
-      { sellable: 23, inHouse: 10, expectedTonight: 13 },
+      card(10, { expectedTonight: 13, leavingTonight: 2, arrivingTonight: 5 }),
     );
     expect(flow).toMatchObject({
       startOfDay: 12,
       left: 3,
       arrived: 1,
-      stillLeaving: 3,
-      stillArriving: 6,
+      stillLeaving: 2,
+      stillArriving: 5,
+      overdueStaying: 1,
       tonight: 13,
-      sellable: 23,
+      available: 23,
     });
-    expect(flow.startOfDay - flow.left + flow.arrived).toBe(10);
+    expect(
+      flow.startOfDay -
+        flow.left +
+        flow.arrived -
+        flow.stillLeaving +
+        flow.stillArriving,
+    ).toBe(flow.tonight);
   });
 
-  it("a_house_booked_past_its_rooms_says_so_rather_than_hiding_it", () => {
+  it("a_house_booked_past_its_rooms_is_the_cards_clamped_figure_not_a_second_sum", () => {
+    // The card never says more than the rooms there are; the layouts used to
+    // add their own and say 5 of 3 (TODAY-01).
     const flow = houseFlow(
       desk({
         arrivals: ["1", "2", "3"].map((unit) => arrival("X", unit, "16:00")),
       }),
-      { sellable: 3, inHouse: 2, expectedTonight: 3 },
+      card(2, {
+        available: 3,
+        sellable: 3,
+        expectedTonight: 3,
+        arrivingTonight: 3,
+      }),
     );
-    expect(flow.tonight).toBe(5);
+    expect(flow.tonight).toBe(3);
+    expect(flow.available).toBe(3);
+  });
+});
+
+describe("checked out of how many", () => {
+  it("counts_the_guests_due_today_and_leaves_the_overdue_apart", () => {
+    // TODAY-02: the Timeline said 1/10 where the Overview said 1/3.
+    expect(
+      departureCounts(
+        desk({
+          departed: 1,
+          departures: [
+            leaving("Kaya", "103", true),
+            leaving("Lee", "104", true),
+            leaving("Novak", "204", false),
+            leaving("Okonkwo", "302", false),
+          ],
+        }),
+      ),
+    ).toEqual({ dueToday: 3, overdue: 2 });
   });
 });
 

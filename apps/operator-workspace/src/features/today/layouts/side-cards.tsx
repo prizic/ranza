@@ -25,14 +25,15 @@ export function RoomsBar({
   counts,
   locale,
   propertyId,
-  sellable,
 }: {
   counts: Record<RoomState, number>;
   locale: SupportedLocale;
   propertyId: string;
-  sellable: number;
 }) {
   const t = useTranslations("todayLayouts");
+  // Rooms with nobody in them: the same partition the Dirty and Awaiting
+  // figures count, so the headline and the list under it add up (TODAY-04).
+  const vacant = counts.ready + counts.awaiting_inspection + counts.dirty;
   return (
     <Panel labelledBy="rooms-bar-title">
       <div className="flex items-baseline justify-between gap-3">
@@ -47,7 +48,7 @@ export function RoomsBar({
         </OpenLink>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t("rooms.sellable", { count: sellable })}
+        {t("rooms.vacant", { vacant, ready: counts.ready })}
       </p>
       <div
         className="my-5 flex h-4 gap-0.5 overflow-hidden rounded-full"
@@ -75,6 +76,7 @@ export function RoomsBar({
           </li>
         ))}
       </ul>
+      <p className="mt-4 text-xs text-muted-foreground">{t("rooms.note")}</p>
     </Panel>
   );
 }
@@ -142,6 +144,13 @@ export function UnclosedDaysCard({
             {formatNumber(Number(day.slice(8)), locale)}
           </li>
         ))}
+        {waiting > DAYS_SHOWN ? (
+          <li className="grid h-8 min-w-9 place-items-center rounded-lg bg-warning-soft px-1.5 text-xs font-semibold text-warning tabular-nums">
+            {t("unclosed.more", {
+              count: formatNumber(waiting - DAYS_SHOWN, locale),
+            })}
+          </li>
+        ) : null}
       </ol>
       <Link
         className="inline-flex min-h-9 items-center rounded-full border border-border px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

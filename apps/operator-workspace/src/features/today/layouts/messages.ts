@@ -26,12 +26,13 @@ const en = {
       overview: "Overview",
     },
     hints: {
-      timeline: "The day on a line",
+      timeline: "Arrivals, departures and rooms across the day",
       house: "Every room at a glance",
-      "next-up": "One thing at a time",
-      night: "Closing and hand-over",
-      overview: "The cards, as before",
+      "next-up": "The most urgent job, one at a time",
+      night: "Close the day and hand over",
+      overview: "What needs attention, and the day's figures",
     },
+    saved: "Saved on this device.",
   },
   open: {
     arrivals: "Open Arrivals",
@@ -49,7 +50,9 @@ const en = {
       "{count, plural, one {# departure overdue} other {# departures overdue}}",
     toCome: "{count} still to come",
     toLeave: "{count} still to leave",
-    tonight: "{count} expected tonight, of {sellable} rooms",
+    tonight: "{count} expected tonight, of {available} rooms",
+    tonightOverdue:
+      "Counts {count, plural, one {# overdue guest} other {# overdue guests}} as staying until checked out.",
     roomsRest:
       "{awaiting} awaiting inspection · {dirty} dirty · {outOfService} out of service",
   },
@@ -79,15 +82,25 @@ const en = {
     showMore: "Show {count} more",
     showFewer: "Show fewer",
     noArrivals: "No arrival has a time in this window.",
+    arrivalsToCome: "Still to arrive",
+    arrivalsToComeHint: "Check in from the row.",
     noTime: "No expected time",
+    expectedAt: "Expected {time}",
     outside: "{count} more outside this window",
     lateBy: "{duration} late",
-    roomNotReady: "Room not ready",
+  },
+  blocker: {
+    not_confirmed: "The booking is not confirmed yet.",
+    unit_blocked: "The room is blocked.",
+    unit_out_of_service: "The room is out of service.",
+    unit_occupied: "A guest is still in the room.",
   },
   doNow: {
-    title: "Do these in order",
-    sub: "Most urgent first.",
-    empty: "Nothing is waiting on you.",
+    title: "Do these next",
+    sub: "Arrivals and rooms, most urgent first. Departures are listed above.",
+    empty: "No arrival or room needs you.",
+    emptyDepartures:
+      "No arrival or room needs you. The departures above are what is open.",
     group: {
       overdue_departure: "Overdue departures",
       late_arrival: "Late arrivals",
@@ -98,15 +111,18 @@ const en = {
   detail: {
     overdueDeparture: "Was due to leave {date}.",
     owes: "Owes {amount}.",
-    lateArrival: "Expected {time}, {duration} ago. Room: {state}.",
-    risk: "Arrives {time}, in {duration}. Room: {state}.",
-    riskNoTime: "No expected time. Room: {state}.",
+    room: "Room: {state}.",
+    lateArrival: "Expected {time}, {duration} ago. {state}",
+    risk: "Arrives {time}, in {duration}. {state}",
+    riskNoTime: "No expected time. {state}",
     noTime: "No expected time on the booking.",
   },
   rooms: {
     title: "Rooms",
     open: "Open the board",
-    sellable: "{count} can be sold tonight.",
+    vacant:
+      "{vacant, plural, one {# vacant room} other {# vacant rooms}} tonight, {ready} ready to sell.",
+    note: "Dirty and awaiting inspection count empty rooms only.",
   },
   unclosed: {
     badge: "Days not closed",
@@ -114,6 +130,7 @@ const en = {
       "{count, plural, one {# day waiting to be closed} other {# days waiting to be closed}}",
     body: "The oldest is {date}. A day's nights are charged when it is closed.",
     open: "Open Close the day",
+    more: "+{count}",
   },
   house: {
     title: "The house",
@@ -134,6 +151,8 @@ const en = {
     leaves: "Leaves",
     overdue: "Overdue",
     noTime: "No time",
+    arrival: "Arrival",
+    arrivalAt: "Arrival {time}",
     pick: "Choose a room or a guest to see what can be done.",
     stillToArrive: "Still to arrive",
     stillToLeave: "Still to leave",
@@ -217,7 +236,9 @@ const en = {
     expected: "{count} still expected.",
     allIn: "Everyone expected is in.",
     tonightLine:
-      "{tonight} of {sellable} rooms tonight, {percent}, if everyone expected comes and everyone due leaves.",
+      "{tonight} of {available} rooms tonight, {percent}, if everyone expected comes and everyone due today leaves.",
+    overdueNote:
+      "{count, plural, one {# overdue guest is} other {# overdue guests are}} counted as staying until checked out.",
     waterfall: "How the house moved today",
     step: {
       startOfDay: "At the start of the day",
@@ -231,7 +252,7 @@ const en = {
     allClosed: "Every day is closed.",
     outlookEyebrow: "Next seven nights",
     outlook: "Rooms held",
-    outlookHint: "Of the rooms in use.",
+    outlookHint: "Of the rooms in use, tonight first.",
     morningEyebrow: "Tomorrow morning",
     morning: "Are the rooms ready?",
     morningHint: "{count} vacant rooms tonight, by state.",
@@ -239,7 +260,12 @@ const en = {
       title: "Before you hand over",
       none: "Nothing to hand over.",
       arrivals:
-        "{count, plural, one {# arrival has not come} other {# arrivals have not come}}",
+        "{count, plural, one {# arrival is still expected} other {# arrivals are still expected}}",
+      overdue:
+        "{count, plural, one {# guest is overdue to leave} other {# guests are overdue to leave}}",
+      overdueBody:
+        "Longest: {guest}, room {room}, {days, plural, one {# day} other {# days}} late.",
+      overdueOwed: "{amount} owed.",
       unclosed:
         "{count, plural, one {# day is waiting to be closed} other {# days are waiting to be closed}}",
       unclosedBody: "Its nights are not charged until it is closed.",
@@ -274,12 +300,13 @@ const tr: TodayLayoutsMessages = {
       overview: "Genel bakış",
     },
     hints: {
-      timeline: "Gün tek bir çizgide",
+      timeline: "Gün boyunca gelişler, çıkışlar ve odalar",
       house: "Tüm odalar bir bakışta",
-      "next-up": "Aynı anda tek iş",
-      night: "Gün kapanışı ve devir",
-      overview: "Kartlar, eskisi gibi",
+      "next-up": "En acil iş, her seferinde bir tane",
+      night: "Günü kapatın ve devredin",
+      overview: "Dikkat isteyenler ve günün rakamları",
     },
+    saved: "Bu cihazda saklanır.",
   },
   open: {
     arrivals: "Gelişleri aç",
@@ -296,7 +323,9 @@ const tr: TodayLayoutsMessages = {
     overdue: "{count, plural, other {# çıkış gecikti}}",
     toCome: "{count} kişi daha gelecek",
     toLeave: "{count} kişi daha ayrılacak",
-    tonight: "{sellable} odadan {count} tanesi bu gece dolu bekleniyor",
+    tonight: "{available} odadan {count} tanesi bu gece dolu bekleniyor",
+    tonightOverdue:
+      "{count, plural, other {# gecikmiş misafir}} çıkış yapana kadar konaklıyor sayılır.",
     roomsRest:
       "{awaiting} kontrol bekliyor · {dirty} kirli · {outOfService} hizmet dışı",
   },
@@ -325,15 +354,25 @@ const tr: TodayLayoutsMessages = {
     showMore: "{count} kişi daha göster",
     showFewer: "Daha az göster",
     noArrivals: "Bu aralıkta saati olan bir geliş yok.",
+    arrivalsToCome: "Gelecekler",
+    arrivalsToComeHint: "Girişi satırdan yapın.",
     noTime: "Beklenen saat yok",
+    expectedAt: "Beklenen {time}",
     outside: "Bu aralığın dışında {count} geliş daha var",
     lateBy: "{duration} gecikti",
-    roomNotReady: "Oda hazır değil",
+  },
+  blocker: {
+    not_confirmed: "Rezervasyon henüz onaylanmadı.",
+    unit_blocked: "Oda satışa kapalı.",
+    unit_out_of_service: "Oda hizmet dışı.",
+    unit_occupied: "Odada hâlâ bir misafir var.",
   },
   doNow: {
-    title: "Sırayla şunları yapın",
-    sub: "En acil olan başta.",
-    empty: "Sizi bekleyen bir iş yok.",
+    title: "Sıradaki işler",
+    sub: "Gelişler ve odalar, en acil olan başta. Çıkışlar yukarıda listelenir.",
+    empty: "Sizi bekleyen bir geliş ya da oda yok.",
+    emptyDepartures:
+      "Sizi bekleyen bir geliş ya da oda yok. Açık olan, yukarıdaki çıkışlar.",
     group: {
       overdue_departure: "Gecikmiş çıkışlar",
       late_arrival: "Geciken gelişler",
@@ -344,21 +383,25 @@ const tr: TodayLayoutsMessages = {
   detail: {
     overdueDeparture: "{date} tarihinde ayrılması gerekiyordu.",
     owes: "{amount} borcu var.",
-    lateArrival: "Beklenen saat {time}, {duration} önce. Oda: {state}.",
-    risk: "{time} saatinde geliyor, {duration} sonra. Oda: {state}.",
-    riskNoTime: "Beklenen saat yok. Oda: {state}.",
+    room: "Oda: {state}.",
+    lateArrival: "Beklenen saat {time}, {duration} önce. {state}",
+    risk: "{time} saatinde geliyor, {duration} sonra. {state}",
+    riskNoTime: "Beklenen saat yok. {state}",
     noTime: "Rezervasyonda beklenen saat yok.",
   },
   rooms: {
     title: "Odalar",
     open: "Panoyu aç",
-    sellable: "Bu gece {count} oda satılabilir.",
+    vacant:
+      "Bu gece {vacant, plural, other {# oda boş}}, {ready} tanesi satışa hazır.",
+    note: "Kirli ve kontrol bekleyen sayıları yalnızca boş odaları sayar.",
   },
   unclosed: {
     badge: "Kapatılmamış günler",
     title: "{count, plural, other {# gün kapatılmayı bekliyor}}",
     body: "En eskisi {date}. Bir günün geceleri gün kapatılınca ücretlendirilir.",
     open: "Gün kapanışını aç",
+    more: "+{count}",
   },
   house: {
     title: "Otel",
@@ -379,6 +422,8 @@ const tr: TodayLayoutsMessages = {
     leaves: "Çıkış",
     overdue: "Gecikmiş",
     noTime: "Saat yok",
+    arrival: "Geliş",
+    arrivalAt: "Geliş {time}",
     pick: "Yapılabileceklere bakmak için bir oda ya da misafir seçin.",
     stillToArrive: "Gelecekler",
     stillToLeave: "Ayrılacaklar",
@@ -462,7 +507,9 @@ const tr: TodayLayoutsMessages = {
     expected: "{count} kişi hâlâ bekleniyor.",
     allIn: "Beklenen herkes geldi.",
     tonightLine:
-      "Beklenen herkes gelir, ayrılacak herkes ayrılırsa bu gece {sellable} odanın {tonight} tanesi dolu, {percent}.",
+      "Beklenen herkes gelir, bugün ayrılacak herkes ayrılırsa bu gece {available} odanın {tonight} tanesi dolu, {percent}.",
+    overdueNote:
+      "{count, plural, other {# gecikmiş misafir}} çıkış yapana kadar konaklıyor sayılır.",
     waterfall: "Otel bugün nasıl hareket etti",
     step: {
       startOfDay: "Günün başında",
@@ -476,14 +523,18 @@ const tr: TodayLayoutsMessages = {
     allClosed: "Tüm günler kapatıldı.",
     outlookEyebrow: "Önümüzdeki yedi gece",
     outlook: "Tutulan odalar",
-    outlookHint: "Kullanımdaki odalar içinden.",
+    outlookHint: "Kullanımdaki odalar içinden, bu gece başta.",
     morningEyebrow: "Yarın sabah",
     morning: "Odalar hazır mı?",
     morningHint: "Bu gece boş olan {count} oda, durumuna göre.",
     hand: {
       title: "Devretmeden önce",
       none: "Devredilecek bir şey yok.",
-      arrivals: "{count, plural, other {# kişi gelmedi}}",
+      arrivals: "{count, plural, other {# geliş hâlâ bekleniyor}}",
+      overdue: "{count, plural, other {# misafirin çıkışı gecikti}}",
+      overdueBody:
+        "En uzun: {guest}, oda {room}, {days, plural, other {# gün}} gecikmiş.",
+      overdueOwed: "{amount} borç.",
       unclosed: "{count, plural, other {# gün kapatılmayı bekliyor}}",
       unclosedBody: "Kapatılana kadar geceleri ücretlendirilmez.",
       balances: "{count, plural, other {# açık folyo bakiyeli}}",
@@ -512,12 +563,13 @@ const ar: TodayLayoutsMessages = {
       overview: "نظرة عامة",
     },
     hints: {
-      timeline: "اليوم على خط واحد",
+      timeline: "الوصول والمغادرة والغرف على امتداد اليوم",
       house: "كل الغرف في نظرة",
-      "next-up": "مهمة واحدة في كل مرة",
-      night: "إغلاق اليوم والتسليم",
-      overview: "البطاقات كما كانت",
+      "next-up": "أكثر المهام إلحاحًا، واحدة في كل مرة",
+      night: "أغلق اليوم وسلّم المناوبة",
+      overview: "ما يحتاج انتباهًا وأرقام اليوم",
     },
+    saved: "يُحفظ على هذا الجهاز.",
   },
   open: {
     arrivals: "افتح الوصول",
@@ -535,7 +587,9 @@ const ar: TodayLayoutsMessages = {
       "{count, plural, zero {لا مغادرة متأخرة} one {مغادرة متأخرة} two {مغادرتان متأخرتان} few {# مغادرات متأخرة} many {# مغادرة متأخرة} other {# مغادرة متأخرة}}",
     toCome: "{count} لم يصلوا بعد",
     toLeave: "{count} لم يغادروا بعد",
-    tonight: "{count} متوقعون الليلة من {sellable} غرفة",
+    tonight: "{count} متوقعون الليلة من {available} غرفة",
+    tonightOverdue:
+      "يُحتسب {count, plural, zero {لا ضيف متأخر} one {ضيف متأخر واحد} two {ضيفان متأخران} few {# ضيوف متأخرين} many {# ضيفًا متأخرًا} other {# ضيف متأخر}} مقيمًا حتى تسجيل خروجه.",
     roomsRest:
       "{awaiting} بانتظار الفحص · {dirty} متسخة · {outOfService} خارج الخدمة",
   },
@@ -565,15 +619,24 @@ const ar: TodayLayoutsMessages = {
     showMore: "عرض {count} آخرين",
     showFewer: "عرض أقل",
     noArrivals: "لا وصول بوقت محدد في هذه الفترة.",
+    arrivalsToCome: "لم يصلوا بعد",
+    arrivalsToComeHint: "سجّل الدخول من الصف.",
     noTime: "لا وقت متوقع",
+    expectedAt: "المتوقع {time}",
     outside: "{count} آخرون خارج هذه الفترة",
     lateBy: "متأخر {duration}",
-    roomNotReady: "الغرفة غير جاهزة",
+  },
+  blocker: {
+    not_confirmed: "الحجز غير مؤكد بعد.",
+    unit_blocked: "الغرفة محجوبة.",
+    unit_out_of_service: "الغرفة خارج الخدمة.",
+    unit_occupied: "ما زال نزيل في الغرفة.",
   },
   doNow: {
-    title: "افعل هذا بالترتيب",
-    sub: "الأكثر إلحاحًا أولًا.",
-    empty: "لا شيء ينتظرك.",
+    title: "افعل هذا تاليًا",
+    sub: "الوصول والغرف، الأكثر إلحاحًا أولًا. المغادرات مذكورة أعلاه.",
+    empty: "لا وصول ولا غرفة تحتاجك.",
+    emptyDepartures: "لا وصول ولا غرفة تحتاجك. المفتوح هو المغادرات أعلاه.",
     group: {
       overdue_departure: "مغادرات متأخرة",
       late_arrival: "وصول متأخر",
@@ -584,15 +647,18 @@ const ar: TodayLayoutsMessages = {
   detail: {
     overdueDeparture: "كان مطلوبًا مغادرته في {date}.",
     owes: "عليه {amount}.",
-    lateArrival: "المتوقع {time}، قبل {duration}. الغرفة: {state}.",
-    risk: "يصل {time}، بعد {duration}. الغرفة: {state}.",
-    riskNoTime: "لا وقت متوقع. الغرفة: {state}.",
+    room: "الغرفة: {state}.",
+    lateArrival: "المتوقع {time}، قبل {duration}. {state}",
+    risk: "يصل {time}، بعد {duration}. {state}",
+    riskNoTime: "لا وقت متوقع. {state}",
     noTime: "لا وقت متوقع للوصول في الحجز.",
   },
   rooms: {
     title: "الغرف",
     open: "افتح اللوحة",
-    sellable: "{count} غرفة تُباع الليلة.",
+    vacant:
+      "{vacant, plural, zero {لا غرف شاغرة} one {غرفة شاغرة واحدة} two {غرفتان شاغرتان} few {# غرف شاغرة} many {# غرفة شاغرة} other {# غرفة شاغرة}} الليلة، {ready} جاهزة للبيع.",
+    note: "المتسخة وبانتظار الفحص تُحتسب من الغرف الشاغرة فقط.",
   },
   unclosed: {
     badge: "أيام غير مغلقة",
@@ -600,6 +666,7 @@ const ar: TodayLayoutsMessages = {
       "{count, plural, zero {لا أيام} one {يوم واحد ينتظر الإغلاق} two {يومان ينتظران الإغلاق} few {# أيام تنتظر الإغلاق} many {# يومًا ينتظر الإغلاق} other {# يوم ينتظر الإغلاق}}",
     body: "أقدمها {date}. تُحتسب ليالي اليوم عند إغلاقه.",
     open: "افتح إغلاق اليوم",
+    more: "+{count}",
   },
   house: {
     title: "الفندق",
@@ -620,6 +687,8 @@ const ar: TodayLayoutsMessages = {
     leaves: "مغادرة",
     overdue: "متأخر",
     noTime: "بلا وقت",
+    arrival: "وصول",
+    arrivalAt: "وصول {time}",
     pick: "اختر غرفة أو نزيلًا لترى ما يمكن فعله.",
     stillToArrive: "لم يصلوا بعد",
     stillToLeave: "لم يغادروا بعد",
@@ -702,7 +771,9 @@ const ar: TodayLayoutsMessages = {
     expected: "{count} ما زالوا متوقعين.",
     allIn: "وصل كل من كان متوقعًا.",
     tonightLine:
-      "{tonight} من {sellable} غرفة الليلة، {percent}، إن وصل كل المتوقعين وغادر كل من حان موعده.",
+      "{tonight} من {available} غرفة الليلة، {percent}، إن وصل كل المتوقعين وغادر كل من حان موعد مغادرته اليوم.",
+    overdueNote:
+      "يُحتسب {count, plural, zero {لا ضيف متأخر} one {ضيف متأخر واحد} two {ضيفان متأخران} few {# ضيوف متأخرين} many {# ضيفًا متأخرًا} other {# ضيف متأخر}} مقيمًا حتى تسجيل خروجه.",
     waterfall: "كيف تحرّك الفندق اليوم",
     step: {
       startOfDay: "في بداية اليوم",
@@ -716,7 +787,7 @@ const ar: TodayLayoutsMessages = {
     allClosed: "كل الأيام مغلقة.",
     outlookEyebrow: "الليالي السبع القادمة",
     outlook: "الغرف المحجوزة",
-    outlookHint: "من الغرف قيد الاستخدام.",
+    outlookHint: "من الغرف قيد الاستخدام، والليلة أولًا.",
     morningEyebrow: "صباح الغد",
     morning: "هل الغرف جاهزة؟",
     morningHint: "{count} غرفة شاغرة الليلة، بحسب حالتها.",
@@ -724,7 +795,12 @@ const ar: TodayLayoutsMessages = {
       title: "قبل التسليم",
       none: "لا شيء للتسليم.",
       arrivals:
-        "{count, plural, zero {لا وصول متأخر} one {وصول واحد لم يحدث} two {وصولان لم يحدثا} few {# وصولات لم تحدث} many {# وصولًا لم يحدث} other {# وصول لم يحدث}}",
+        "{count, plural, zero {لا وصول متوقع} one {وصول واحد ما زال متوقعًا} two {وصولان ما زالا متوقعين} few {# وصولات ما زالت متوقعة} many {# وصولًا ما زال متوقعًا} other {# وصول ما زال متوقعًا}}",
+      overdue:
+        "{count, plural, zero {لا ضيف تأخر عن المغادرة} one {ضيف واحد تأخر عن المغادرة} two {ضيفان تأخرا عن المغادرة} few {# ضيوف تأخروا عن المغادرة} many {# ضيفًا تأخروا عن المغادرة} other {# ضيف تأخروا عن المغادرة}}",
+      overdueBody:
+        "الأطول: {guest}، الغرفة {room}، متأخر {days, plural, zero {لا أيام} one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}.",
+      overdueOwed: "مستحق {amount}.",
       unclosed:
         "{count, plural, zero {لا أيام} one {يوم واحد ينتظر الإغلاق} two {يومان ينتظران الإغلاق} few {# أيام تنتظر الإغلاق} many {# يومًا ينتظر الإغلاق} other {# يوم ينتظر الإغلاق}}",
       unclosedBody: "لا تُحتسب لياليه حتى يُغلق.",

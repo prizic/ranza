@@ -125,7 +125,11 @@ test("an arrival with an expected time reaches the timeline, the map and the que
   await page.goto(`/en/today?property=${propertyId}`);
   const flow = page.getByRole("region", { name: HEADING.timeline });
   await page.getByRole("button", { name: "Whole day" }).click();
-  await expect(flow.getByText(guest)).toBeVisible();
+  // Twice: a row under "Still to arrive" with its command, and a chip on the line.
+  await expect(flow.getByText(guest)).toHaveCount(2);
+  await expect(
+    flow.getByRole("region", { name: "Still to arrive" }).getByText(guest),
+  ).toBeVisible();
   // Beside the guest's name, not the hour on the axis that shares it.
   await expect(
     flow.locator("div", { hasText: guest }).getByText("05:00").first(),
@@ -134,9 +138,10 @@ test("an arrival with an expected time reaches the timeline, the map and the que
   await chooseLayout(page, DESK_EMAIL, "house");
   await page.goto(`/en/today?property=${propertyId}`);
   await expect(page.getByRole("region", { name: HEADING.house })).toBeVisible();
+  // The room's tile and the guest's row in the list beside it.
   await expect(
     page.getByRole("button", { name: new RegExp(guest) }),
-  ).toBeVisible();
+  ).toHaveCount(2);
 });
 
 test("every layout fits a phone and never scrolls sideways", async ({

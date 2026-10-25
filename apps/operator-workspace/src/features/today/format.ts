@@ -45,6 +45,17 @@ export function dayNumber(isoDate: string, locale: SupportedLocale): string {
   });
 }
 
+/** The weekday in its short form, for a tick that has a day number under it. */
+export function weekdayShort(isoDate: string, locale: SupportedLocale): string {
+  return formatDate(asDay(isoDate), locale, {
+    weekday: "short",
+    day: undefined,
+    month: undefined,
+    year: undefined,
+    timeZone: "UTC",
+  });
+}
+
 export function clockAt(
   instant: number,
   locale: SupportedLocale,

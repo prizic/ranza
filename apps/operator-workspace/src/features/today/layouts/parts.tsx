@@ -36,6 +36,7 @@ import { CheckOutDialog } from "../../front-office/components/check-out-dialog";
 import { fetchDepartures } from "../../front-office/queries";
 import { frontOfficeKeys } from "../../front-office/query-keys";
 import type { TodayScope } from "../query-keys";
+import { unitLabel } from "../../front-office/unit-label";
 import { minutesAt, type Readiness } from "./model";
 
 /** What every desk layout is handed: one answer, and what to do when it moves. */
@@ -95,6 +96,10 @@ export function usePropertyMinutes(nowMs: number, timeZone: string): number {
   return minutesAt(instant, timeZone);
 }
 
+/** A secondary action drawn as a link: the way into the screen that settles a row. */
+export const LINK_BUTTON =
+  "inline-flex min-h-9 items-center rounded-full border border-border px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+
 /** The width of an element, for a layout that packs things by their size. */
 export function useElementWidth<T extends HTMLElement>(): [
   (node: T | null) => void,
@@ -140,24 +145,72 @@ export function useCheckOutReviews(
 
 export type CheckOutReviews = ReturnType<typeof useCheckOutReviews>["reviews"];
 
-/** Check-in from a row, where the viewer may; nothing where they may not. */
+/**
+ * Check-in from a row, where the viewer may; nothing where they may not. A room
+ * that is not ready is asked about in place, with "Check in anyway", the same on
+ * every layout (TODAY-09): the command still asks the server, which decides.
+ */
 export function ArrivalCommand({
   arrival,
   locale,
   onChanged,
+  readiness,
 }: {
   arrival: ArrivalRow;
   locale: SupportedLocale;
   onChanged: () => void;
+  readiness?: Readiness;
 }) {
   if (!arrival.mayCheckIn) return null;
+  const because =
+    readiness === "dirty" || readiness === "awaiting_inspection"
+      ? readiness
+      : null;
   return (
     <CheckInAction
+      {...(arrival.guestName ? { guestName: arrival.guestName } : {})}
       locale={locale}
       onDone={onChanged}
       reservationId={arrival.reservationId}
+      {...(because
+        ? {
+            room: {
+              label: unitLabel(arrival.unit.roomName, arrival.unit.unitName),
+              because,
+            },
+          }
+        : {})}
     />
   );
+}
+
+/** Where an arrival that cannot be checked in is mended: the page that owns the blocker. */
+export type BlockedScreen = "arrivals" | "housekeeping" | "departures";
+
+export function blockerScreen(arrival: ArrivalRow): BlockedScreen {
+  switch (arrival.blocker) {
+    case "unit_blocked":
+    case "unit_out_of_service":
+      return "housekeeping";
+    case "unit_occupied":
+      return "departures";
+    case "not_confirmed":
+    case null:
+      return "arrivals";
+  }
+}
+
+/**
+ * What stands between this arrival and the key, in words: the booking's own
+ * reason when it is blocked, otherwise the state of the room (TODAY-08). One
+ * wording for the plan, the map and the queue.
+ */
+export function useArrivalReason() {
+  const t = useTranslations("todayLayouts");
+  return (arrival: ArrivalRow, readiness: Readiness): string =>
+    readiness === "blocked" && arrival.blocker
+      ? t(`blocker.${arrival.blocker}`)
+      : t("detail.room", { state: t(`state.${readiness}`) });
 }
 
 /** The bill a check-out would review, where the viewer may check out. */

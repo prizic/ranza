@@ -27,12 +27,15 @@ import {
 } from "./model";
 import {
   ArrivalCommand,
+  blockerScreen,
   DepartureCommand,
   Eyebrow,
+  LINK_BUTTON,
   Panel,
   StateBadge,
   stateIcon,
   STATE_ORDER,
+  useArrivalReason,
   useCheckOutReviews,
   usePropertyMinutes,
   type LayoutProps,
@@ -136,7 +139,7 @@ export function HouseLayout(props: LayoutProps) {
               <span className="text-4xl leading-none font-light tabular-nums">
                 {formatNumber(countOf(key), locale)}
               </span>
-              <span className="text-sm leading-tight font-medium">
+              <span className="text-sm leading-tight font-medium whitespace-nowrap">
                 {t(`house.filters.${key}`)}
               </span>
             </button>
@@ -260,9 +263,28 @@ function Tile({
   const label = departure?.overdue
     ? t("house.overdue")
     : t(`state.${room.state}`);
+  // Everything the tile shows, in one phrase: the room, who is in it or coming,
+  // and what is happening, so a screen reader hears what a sighted desk sees
+  // (TODAY-15). Joined by hand: ICU puts "and" between the parts in Arabic.
+  const spoken = [
+    room.name,
+    guest,
+    label,
+    arrival
+      ? arrival.expectedArrival
+        ? t("house.arrivalAt", {
+            time: cutoffTime(arrival.expectedArrival, locale),
+          })
+        : t("house.arrival")
+      : departure && !departure.overdue
+        ? t("house.leaves")
+        : null,
+  ]
+    .filter((part) => part !== null)
+    .join(locale === "ar" ? "، " : ", ");
   return (
     <button
-      aria-label={`${room.name}, ${t(`state.${room.state}`)}`}
+      aria-label={spoken}
       aria-pressed={selected}
       className={cn(
         "relative flex min-h-32 w-full flex-col justify-between gap-1.5 overflow-hidden rounded-2xl border-[1.5px] p-3 text-start transition-[opacity,transform] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
@@ -300,7 +322,10 @@ function Tile({
           </span>
         ) : null}
       </span>
-      <bdi className="block min-h-4 truncate text-sm leading-tight font-semibold">
+      <bdi
+        className="block min-h-4 text-sm leading-tight font-semibold [overflow-wrap:anywhere] line-clamp-2"
+        {...(guest && !canTake ? { title: guest } : {})}
+      >
         {canTake ? t("house.canTake") : guest}
       </bdi>
       <span
@@ -357,8 +382,7 @@ function Detail({
     selection?.kind === "departure"
       ? departureOf.get(selection.room)
       : undefined;
-  const open =
-    "inline-flex min-h-9 items-center rounded-full border border-border px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
+  const reasonOf = useArrivalReason();
 
   if (!selection || !room) {
     return (
@@ -396,20 +420,36 @@ function Detail({
           </Fact>
           <Fact label={unitLabel(arrival.unit.roomName, arrival.unit.unitName)}>
             <StateBadge state={readiness} />
+            {readiness === "blocked" ? (
+              <span className="mt-1 block text-xs font-normal text-warning">
+                {reasonOf(arrival, readiness)}
+              </span>
+            ) : null}
           </Fact>
         </dl>
         <div className="flex flex-wrap items-center gap-2">
-          <ArrivalCommand
-            arrival={arrival}
-            locale={locale}
-            onChanged={changed}
-          />
+          {readiness === "blocked" ? null : (
+            <ArrivalCommand
+              arrival={arrival}
+              locale={locale}
+              onChanged={changed}
+              readiness={readiness}
+            />
+          )}
           {readiness !== "ready" ? (
             <Link
-              className={open}
-              href={todayHref(locale, "housekeeping", propertyId)}
+              className={LINK_BUTTON}
+              href={todayHref(
+                locale,
+                readiness === "blocked"
+                  ? blockerScreen(arrival)
+                  : "housekeeping",
+                propertyId,
+              )}
             >
-              {t("open.housekeeping")}
+              {t(
+                `open.${readiness === "blocked" ? blockerScreen(arrival) : "housekeeping"}`,
+              )}
             </Link>
           ) : null}
         </div>
@@ -471,7 +511,7 @@ function Detail({
             scope={scope}
           />
           <Link
-            className={open}
+            className={LINK_BUTTON}
             href={todayHref(locale, "departures", propertyId)}
           >
             {t("open.departures")}
@@ -508,7 +548,7 @@ function Detail({
       <div className="mt-5 flex flex-wrap items-center gap-2">
         {room.state === "awaiting_inspection" || room.state === "dirty" ? (
           <Link
-            className={open}
+            className={LINK_BUTTON}
             href={todayHref(locale, "housekeeping", propertyId)}
           >
             {t("open.housekeeping")}
@@ -516,7 +556,7 @@ function Detail({
         ) : null}
         {room.state === "ready" && mayBook ? (
           <Link
-            className={open}
+            className={LINK_BUTTON}
             href={todayHref(locale, "reservations", propertyId)}
           >
             {t("house.newBooking")}
@@ -566,6 +606,7 @@ function Lists({
   totalDepartures: number;
 }) {
   const t = useTranslations("todayLayouts");
+  const reasonOf = useArrivalReason();
   const row =
     "grid w-full grid-cols-[3.25rem_1fr_auto] items-center gap-2.5 rounded-xl px-3 py-2 text-start transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:bg-accent aria-pressed:ring-1 aria-pressed:ring-primary";
   return (
@@ -610,6 +651,11 @@ function Lists({
                   <bdi className="block text-xs font-normal text-muted-foreground">
                     {unitLabel(arrival.unit.roomName, arrival.unit.unitName)}
                   </bdi>
+                  {readiness === "blocked" ? (
+                    <span className="block text-xs font-normal text-warning">
+                      {reasonOf(arrival, readiness)}
+                    </span>
+                  ) : null}
                 </span>
                 <StateBadge state={readiness} />
               </button>

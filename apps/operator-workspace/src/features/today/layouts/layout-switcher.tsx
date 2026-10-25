@@ -52,6 +52,9 @@ export function LayoutSwitcher({
             </span>
           </SelectItem>
         ))}
+        <p className="border-t border-line px-2 pt-2 pb-1 text-xs text-muted-foreground">
+          {t("switcher.saved")}
+        </p>
       </SelectContent>
     </Select>
   );

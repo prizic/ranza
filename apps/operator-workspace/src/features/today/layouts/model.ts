@@ -41,6 +41,17 @@ export function toMinutes(hhmm: string): number {
   return hour * 60 + minute;
 }
 
+/**
+ * How long past an expected time it is, for an arrival the server says is late.
+ * Between midnight and the Property's rollover the clock reads a smaller time
+ * than the one that was expected yesterday, so a negative difference is a
+ * late arrival from the day before, not "0m late".
+ */
+export function minutesLate(nowMinutes: number, expected: number): number {
+  const elapsed = nowMinutes - expected;
+  return elapsed < 0 ? elapsed + 24 * 60 : elapsed;
+}
+
 /** Minutes since midnight on the Property's own clock, at an instant. */
 export function minutesAt(instant: number, timeZone: string): number {
   const parts = new Intl.DateTimeFormat("en-GB", {
@@ -153,7 +164,7 @@ export function actionsFor(desk: DeskCard, nowMinutes: number): DeskAction[] {
         kind: "late_arrival",
         severity: "late",
         arrival,
-        minutes: nowMinutes - expected,
+        minutes: minutesLate(nowMinutes, expected),
       });
     } else if (isAtRisk(readinessOf(arrival, rooms))) {
       actions.push({
@@ -182,30 +193,56 @@ export interface HouseFlow {
   startOfDay: number;
   left: number;
   arrived: number;
+  /** Due to leave today and still here: the ones whose rooms the night frees. */
   stillLeaving: number;
+  /** Arrivals still to come that put a Guest in a room tonight. */
   stillArriving: number;
-  /** Where the day ends if everybody expected comes and everybody due goes. */
+  /** Past their day to leave and still here: their rooms stay held. */
+  overdueStaying: number;
+  /** Where the day ends: the occupancy card's own figure, never a second sum. */
   tonight: number;
-  sellable: number;
+  /** The rooms tonight is counted of: in service and not blocked. */
+  available: number;
 }
 
 /**
- * How the house moved today, from the same counts the occupancy card uses, so
- * the two cannot disagree (TODAY-01). `tonight` is the sum, not clamped: a
- * house booked past its rooms should say so rather than hide it.
+ * How the house moved today, from the counts the occupancy card carries, so
+ * every layout says the same number for tonight (TODAY-01). An overdue Guest is
+ * counted as staying until somebody checks them out (ADR 0033): they are not in
+ * `stillLeaving`, and `overdueStaying` says how many that is, so the figure can
+ * name its own rule.
  */
 export function houseFlow(desk: DeskCard, occupancy: OccupancyCard): HouseFlow {
   const arrived = desk.arrivals.filter((a) => !isToCome(a)).length;
-  const stillArriving = desk.arrivals.length - arrived;
-  const stillLeaving = desk.departures.length;
   return {
     startOfDay: occupancy.inHouse + desk.departed - arrived,
     left: desk.departed,
     arrived,
-    stillLeaving,
-    stillArriving,
-    tonight: occupancy.inHouse - stillLeaving + stillArriving,
-    sellable: occupancy.sellable,
+    stillLeaving: occupancy.leavingTonight,
+    stillArriving: occupancy.arrivingTonight,
+    overdueStaying: desk.departures.filter((d) => d.overdue).length,
+    tonight: occupancy.expectedTonight,
+    available: occupancy.available,
+  };
+}
+
+export interface DepartureCounts {
+  /** Gone today plus still here and due today: what "checked out of" counts. */
+  dueToday: number;
+  /** Past their day to leave and still here, apart from the above. */
+  overdue: number;
+}
+
+/**
+ * Checked out of how many: the Guests due today, with the overdue ones as a
+ * number of their own, as the Overview and the approved TD-S1-12 count them
+ * (TODAY-02). One denominator on every layout.
+ */
+export function departureCounts(desk: DeskCard): DepartureCounts {
+  const overdue = desk.departures.filter((d) => d.overdue).length;
+  return {
+    dueToday: desk.departed + desk.departures.length - overdue,
+    overdue,
   };
 }
 

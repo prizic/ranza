@@ -2,15 +2,23 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { formatNumber, formatWeekday } from "@ranza/i18n";
+import { formatNumber } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
-import { cutoffTime, duration, money, percent } from "../format";
+import {
+  cutoffTime,
+  dayNumber,
+  duration,
+  money,
+  percent,
+  weekdayShort,
+} from "../format";
 import { todayHref } from "../links";
 import { unitLabel } from "../../front-office/unit-label";
 import {
   countsByState,
   houseFlow,
   isToCome,
+  owedByDepartures,
   toMinutes,
   type HouseFlow,
 } from "./model";
@@ -150,6 +158,7 @@ export function NightLayout({
       ? 24 * 60 - nowMinutes + cutoff
       : cutoff - nowMinutes;
 
+  const overdueGuests = desk.departures.filter((d) => d.overdue);
   const handover: {
     key: string;
     tone: "late" | "risk" | "info";
@@ -158,6 +167,44 @@ export function NightLayout({
     href: string;
     open: string;
   }[] = [];
+  const longestOverdue = overdueGuests.reduce<
+    (typeof overdueGuests)[number] | null
+  >(
+    (longest, d) =>
+      longest === null || d.overdueDays > longest.overdueDays ? d : longest,
+    null,
+  );
+  if (longestOverdue) {
+    const owedOverdue = owedByDepartures(overdueGuests);
+    handover.push({
+      key: "overdue",
+      tone: "late",
+      title: t("night.hand.overdue", { count: overdueGuests.length }),
+      body: [
+        t("night.hand.overdueBody", {
+          guest: longestOverdue.guestName,
+          room: unitLabel(
+            longestOverdue.unit.roomName,
+            longestOverdue.unit.unitName,
+          ),
+          days: longestOverdue.overdueDays,
+        }),
+        owedOverdue !== null && owedOverdue > 0
+          ? t("night.hand.overdueOwed", {
+              amount: money(
+                [{ amountMinor: owedOverdue, currency: summary.day.currency }],
+                summary.day.currency,
+                locale,
+              ),
+            })
+          : null,
+      ]
+        .filter((part) => part !== null)
+        .join(" "),
+      href: todayHref(locale, "departures", id),
+      open: t("open.departures"),
+    });
+  }
   if (toCome.length > 0) {
     handover.push({
       key: "arrivals",
@@ -236,9 +283,12 @@ export function NightLayout({
             <p className="mt-5 max-w-prose text-muted-foreground">
               {t("night.tonightLine", {
                 tonight: n(flow.tonight),
-                sellable: n(flow.sellable),
-                percent: percent(flow.tonight, flow.sellable, locale) ?? "",
+                available: n(flow.available),
+                percent: percent(flow.tonight, flow.available, locale) ?? "",
               })}
+              {flow.overdueStaying > 0
+                ? ` ${t("night.overdueNote", { count: flow.overdueStaying })}`
+                : null}
             </p>
           ) : null}
         </div>
@@ -319,10 +369,10 @@ export function NightLayout({
             <p className="text-sm text-muted-foreground">
               {t("night.outlookHint")}
             </p>
-            <ol className="mt-5 flex h-48 items-end gap-2">
+            <ol className="mt-5 flex h-48 items-end gap-1.5">
               {nights.map((night, index) => (
                 <li
-                  className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+                  className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-2"
                   key={night.day}
                 >
                   <span className="text-lg font-light tabular-nums">
@@ -338,12 +388,13 @@ export function NightLayout({
                       height: `${Math.min(100, (night.booked / Math.max(1, night.inUse)) * 100)}%`,
                     }}
                   />
-                  <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                    {formatWeekday(
-                      new Date(`${night.day}T12:00:00Z`),
-                      locale,
-                      "UTC",
-                    )}
+                  <span className="flex w-full min-w-0 flex-col items-center text-[10px] leading-tight text-muted-foreground">
+                    <span className="w-full truncate text-center">
+                      {weekdayShort(night.day, locale)}
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      {dayNumber(night.day, locale)}
+                    </span>
                   </span>
                 </li>
               ))}

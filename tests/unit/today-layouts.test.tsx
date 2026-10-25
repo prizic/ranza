@@ -27,6 +27,7 @@ import type {
   RoomState,
   TodaySummary,
 } from "../../apps/operator-workspace/src/server/today-derive";
+import { checkInReservation } from "../../apps/operator-workspace/src/server/front-office";
 import { TodayDashboard } from "../../apps/operator-workspace/src/features/today/components/today-dashboard";
 import {
   layoutCookieName,
@@ -106,6 +107,7 @@ const leaving = (
   unit: { unitName: unit, roomName: null },
   endsOn: overdue ? "2026-10-17" : "2026-10-19",
   overdue,
+  overdueDays: overdue ? 2 : 0,
   mayCheckOut: false,
 });
 
@@ -124,7 +126,14 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
     mayBook: true,
     occupancy: {
       status: "ok",
-      data: { sellable: 5, inHouse: 2, expectedTonight: 3 },
+      data: {
+        sellable: 5,
+        available: 5,
+        inHouse: 2,
+        expectedTonight: 3,
+        leavingTonight: 0,
+        arrivingTonight: 1,
+      },
     },
     attention: { items: [], complete: true },
     desk: {
@@ -253,6 +262,24 @@ describe("the choice of layout", () => {
     expect(document.cookie).not.toContain(layoutCookieName("u-2"));
   });
 
+  it("describes_each_layout_by_what_it_is_for_and_says_where_the_choice_is_kept", () => {
+    // TODAY-23: "The cards, as before" and "One thing at a time" said nothing
+    // to somebody who had never seen the old page.
+    view(summary());
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Layout" }), {
+      key: "Enter",
+    });
+    const list = within(screen.getByRole("listbox"));
+    expect(
+      list.getByText("The most urgent job, one at a time"),
+    ).toBeInTheDocument();
+    expect(list.getByText("Close the day and hand over")).toBeInTheDocument();
+    expect(
+      list.getByText("What needs attention, and the day's figures"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Saved on this device.")).toBeInTheDocument();
+  });
+
   it("a_desk_section_that_could_not_be_read_says_so_and_still_offers_the_overview", () => {
     view(summary({ desk: { status: "unavailable" } }));
     expect(
@@ -273,23 +300,56 @@ describe("the choice of layout", () => {
 });
 
 describe("the timeline", () => {
-  it("puts_each_arrival_with_a_time_on_the_line_and_the_rest_under_it", () => {
+  it("puts_each_arrival_with_a_time_on_the_line_and_every_arrival_in_a_row_above_it", () => {
     view(summary());
     const flow = screen.getByRole("region", { name: "Today's flow" });
-    for (const guest of ["Costa", "Demir"]) {
-      expect(within(flow).getByText(guest)).toBeInTheDocument();
+    const rows = within(
+      within(flow).getByRole("region", { name: "Still to arrive" }),
+    );
+    // Every arrival still to come is a row with its own command (TODAY-07).
+    for (const guest of ["Costa", "Demir", "Moreau", "Petrov"]) {
+      expect(rows.getByText(guest)).toBeInTheDocument();
     }
-    // Moreau, at 20:30, is past the next five hours: counted, not drawn.
-    expect(within(flow).queryByText("Moreau")).toBeNull();
-    // Petrov has no time to be placed by: named under the line, not on it.
-    expect(within(flow).getByText(/Petrov/)).toBeInTheDocument();
-    expect(within(flow).getByText(/No expected time/)).toBeInTheDocument();
+    // On the line twice over only where the time falls in the next five hours:
+    // Moreau, at 20:30, is counted below it, not drawn; Petrov has no time.
+    expect(within(flow).getAllByText("Costa")).toHaveLength(2);
+    expect(within(flow).getAllByText("Demir")).toHaveLength(2);
+    expect(within(flow).getAllByText("Moreau")).toHaveLength(1);
+    expect(within(flow).getAllByText("Petrov")).toHaveLength(1);
+    expect(rows.getByText("No expected time")).toBeInTheDocument();
   });
 
-  it("says_how_late_the_late_arrival_is_and_which_room_is_not_ready", () => {
+  it("without_a_time_on_any_arrival_there_is_no_chart_to_draw", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            arrivals: [arrival("Petrov", "207", null)],
+          },
+        },
+      }),
+    );
+    const flow = screen.getByRole("region", { name: "Today's flow" });
+    expect(
+      within(flow).queryByRole("button", { name: "Whole day" }),
+    ).toBeNull();
+    expect(within(flow).queryByText("On time")).toBeNull();
+    expect(within(flow).queryByText("Now")).toBeNull();
+    expect(within(flow).getByText("Petrov")).toBeInTheDocument();
+  });
+
+  it("says_how_late_the_late_arrival_is_and_why_each_room_cannot_take_its_guest_yet", () => {
     view(summary());
     expect(screen.getAllByText("32m late").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Room not ready").length).toBeGreaterThan(0);
+    // The same words in the plan and under the line (TODAY-08).
+    expect(
+      screen.getAllByText(/Room: Clean, awaiting inspection\./).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Room: Dirty\./).length).toBeGreaterThan(0);
   });
 
   it("lists_the_overdue_departure_above_the_line_with_how_long_it_has_been", () => {
@@ -385,17 +445,77 @@ describe("the timeline", () => {
     });
   });
 
-  it("offers_check_in_only_where_the_room_is_ready_and_the_viewer_may", () => {
+  it("offers_check_in_wherever_the_viewer_may_and_the_booking_is_not_blocked", () => {
     view(summary());
-    const flow = screen.getByRole("region", { name: "Today's flow" });
-    // Costa's room is ready; Demir's is not, so he is sent to housekeeping.
+    const rows = within(
+      screen.getByRole("region", { name: "Still to arrive" }),
+    );
+    // Costa's room is ready; Demir's and Moreau's are not, and the desk is
+    // still offered the button: the server decides, and asks in place (TODAY-09).
+    expect(rows.getAllByRole("button", { name: /Check in/i })).toHaveLength(4);
+  });
+
+  it("a_booking_that_cannot_be_checked_in_names_why_and_links_to_the_screen_that_mends_it", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            arrivals: [
+              arrival("Hughes", "306", "18:00", {
+                state: "blocked",
+                blocker: "unit_out_of_service",
+              }),
+              arrival("Ivanov", "101", "18:00", {
+                state: "blocked",
+                blocker: "not_confirmed",
+              }),
+              arrival("Jones", "102", "18:00", {
+                state: "blocked",
+                blocker: "unit_occupied",
+              }),
+            ],
+          },
+        },
+      }),
+    );
+    const rows = within(
+      screen.getByRole("region", { name: "Still to arrive" }),
+    );
+    expect(rows.queryByRole("button", { name: /Check in/i })).toBeNull();
+    expect(rows.getByText("The room is out of service.")).toBeInTheDocument();
     expect(
-      within(flow).getAllByRole("button", { name: /Check in/i }),
+      rows.getByText("The booking is not confirmed yet."),
+    ).toBeInTheDocument();
+    expect(rows.getByText("A guest is still in the room.")).toBeInTheDocument();
+    // Each goes to the page that owns the blocker.
+    expect(
+      rows.getAllByRole("link", { name: "Open Housekeeping" }),
     ).toHaveLength(1);
-    const plan = screen.getByRole("region", { name: "Do these in order" });
+    expect(rows.getAllByRole("link", { name: "Open Arrivals" })).toHaveLength(
+      1,
+    );
+    expect(rows.getAllByRole("link", { name: "Open Departures" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("a_room_that_is_not_ready_is_asked_about_in_place_with_check_in_anyway", async () => {
+    vi.mocked(checkInReservation).mockResolvedValueOnce("notReady");
+    view(summary());
+    const rows = within(
+      screen.getByRole("region", { name: "Still to arrive" }),
+    );
+    fireEvent.click(rows.getAllByRole("button", { name: /Check in/i })[1]!);
     expect(
-      within(plan).getAllByRole("link", { name: "Open Housekeeping" }),
-    ).toHaveLength(2);
+      await rows.findByRole("button", { name: "Check in anyway" }),
+    ).toBeInTheDocument();
+    expect(
+      rows.getByText("201 is clean and waiting for inspection."),
+    ).toBeInTheDocument();
   });
 
   it("outside_the_window_it_counts_what_is_left_out_and_one_click_shows_them", () => {
@@ -409,64 +529,78 @@ describe("the timeline", () => {
     ).toBeInTheDocument();
   });
 
-  it("the_plan_is_ranked_overdue_first_and_names_every_row_with_a_way_in", () => {
+  it("the_plan_lists_arrivals_and_rooms_and_leaves_the_departures_to_the_list_above", () => {
     view(summary());
-    const plan = screen.getByRole("region", { name: "Do these in order" });
+    const plan = screen.getByRole("region", { name: "Do these next" });
     const titles = within(plan)
       .getAllByRole("heading", { level: 3 })
       .map((h) => h.textContent ?? "");
-    expect(titles[0]).toContain("Kaya");
-    expect(titles[1]).toContain("Costa");
+    // Kaya is overdue and already a row of "Due out today": one row, one
+    // Check out button, not two (TODAY-11).
+    expect(titles.join("|")).not.toContain("Kaya");
+    expect(titles[0]).toContain("Costa");
     expect(titles.join("|")).toContain("Petrov");
+    expect(
+      within(screen.getByRole("region", { name: "Today's flow" })).getByText(
+        "Kaya",
+      ),
+    ).toBeInTheDocument();
   });
 
   describe("the_plan_folds_to_five_and_opens_into_groups_by_kind", () => {
-    function crowdedPlan(overdue: number) {
+    function crowdedPlan(late: number) {
       const base = summary();
       if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
-      const rows = Array.from({ length: overdue }, (_, i) =>
-        leaving(`Late ${i}`, `4${String(i).padStart(2, "0")}`, true),
+      const extra = Array.from({ length: late }, (_, i) =>
+        arrival(`Late ${i}`, `4${String(i).padStart(2, "0")}`, "13:00", {
+          expectedArrivalPassed: true,
+        }),
       );
       return summary({
-        desk: { status: "ok", data: { ...base.desk.data, departures: rows } },
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            arrivals: [...extra, ...base.desk.data.arrivals],
+          },
+        },
       });
     }
 
     it("shows_the_five_most_urgent_and_says_how_many_are_left", () => {
-      view(crowdedPlan(7));
-      const plan = screen.getByRole("region", { name: "Do these in order" });
+      view(crowdedPlan(6));
+      const plan = screen.getByRole("region", { name: "Do these next" });
       expect(within(plan).getAllByRole("heading", { level: 3 })).toHaveLength(
         5,
       );
       expect(
-        within(plan).getByRole("button", { name: "Show 6 more" }),
+        within(plan).getByRole("button", { name: "Show 5 more" }),
       ).toHaveAttribute("aria-expanded", "false");
-      expect(within(plan).queryByText(/Overdue departures ·/)).toBeNull();
+      expect(within(plan).queryByText(/Late arrivals ·/)).toBeNull();
     });
 
     it("opens_into_a_group_for_each_kind_in_the_same_order", () => {
-      view(crowdedPlan(7));
-      const plan = screen.getByRole("region", { name: "Do these in order" });
+      view(crowdedPlan(6));
+      const plan = screen.getByRole("region", { name: "Do these next" });
       fireEvent.click(
-        within(plan).getByRole("button", { name: "Show 6 more" }),
+        within(plan).getByRole("button", { name: "Show 5 more" }),
       );
       const labels = within(plan)
         .getAllByText(/ · \d+$/)
         .map((node) => node.textContent);
       expect(labels).toEqual([
-        "Overdue departures · 7",
-        "Late arrivals · 1",
+        "Late arrivals · 7",
         "Rooms at risk · 2",
         "No expected time · 1",
       ]);
       expect(within(plan).getAllByRole("heading", { level: 3 })).toHaveLength(
-        11,
+        10,
       );
     });
 
     it("a_short_plan_is_shown_whole_with_nothing_to_open", () => {
       view(summary());
-      const plan = screen.getByRole("region", { name: "Do these in order" });
+      const plan = screen.getByRole("region", { name: "Do these next" });
       expect(within(plan).queryByRole("button", { name: /Show/ })).toBeNull();
     });
   });
@@ -496,13 +630,15 @@ describe("the timeline", () => {
         },
       }),
     );
-    const plan = screen.getByRole("region", { name: "Do these in order" });
+    const flow = screen.getByRole("region", { name: "Today's flow" });
     expect(
-      await within(plan).findByRole("button", { name: /Check .*Kaya.* out/ }),
+      await within(flow).findByRole("button", { name: /Check .*Kaya.* out/ }),
     ).toBeInTheDocument();
-    // Kaya can be checked out from the row; Aydın's viewer is sent to the screen.
+    // Kaya can be checked out from the row; Aydın's viewer is sent to the
+    // screen, and not before: a link that turns into a button is what the
+    // audit saw change under the pointer (TODAY-20).
     expect(
-      within(plan).getAllByRole("link", { name: "Open Departures" }),
+      within(flow).getAllByRole("link", { name: "Open Departures" }),
     ).toHaveLength(1);
     reviews.length = 0;
   });
@@ -518,10 +654,75 @@ describe("the timeline", () => {
         data: { ...desk, arrivals: [], departures: [], rooms: desk.rooms },
       },
     });
-    expect(screen.getByText("Nothing is waiting on you.")).toBeInTheDocument();
     expect(
-      screen.getByText("No arrival has a time in this window."),
+      screen.getByText("No arrival or room needs you."),
     ).toBeInTheDocument();
+    // No arrival has a time, so there is no line to draw and no empty one.
+    expect(screen.queryByText(/in this window/)).toBeNull();
+  });
+
+  it("an_overdue_guest_is_the_only_thing_open_and_the_plan_points_up_to_them", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: { status: "ok", data: { ...base.desk.data, arrivals: [] } },
+      }),
+    );
+    expect(
+      screen.getByText(
+        "No arrival or room needs you. The departures above are what is open.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("checked_out_is_of_the_guests_due_today_with_the_overdue_ones_counted_apart", () => {
+    // TODAY-02: 1 of (1 gone + 0 due today), and one overdue beside it.
+    view(summary());
+    const figure = screen.getByRole("link", { name: /Checked out/ });
+    expect(figure).toHaveTextContent("1/1");
+    expect(figure).toHaveTextContent("1 departure overdue");
+  });
+
+  it("tonight_is_the_cards_figure_and_names_how_overdue_guests_are_counted", () => {
+    view(summary());
+    const figure = screen.getByRole("link", { name: /In house now/ });
+    expect(figure).toHaveTextContent("3 expected tonight, of 5 rooms");
+    expect(figure).toHaveTextContent(
+      "Counts 1 overdue guest as staying until checked out.",
+    );
+  });
+
+  it("the_rooms_headline_counts_vacant_rooms_the_way_its_list_does", () => {
+    view(summary());
+    const rooms = within(screen.getByRole("region", { name: "Rooms" }));
+    // 101, 205 and 207 ready, 201 awaiting inspection, 305 dirty: five empty.
+    expect(
+      rooms.getByText("5 vacant rooms tonight, 3 ready to sell."),
+    ).toBeInTheDocument();
+    expect(
+      rooms.getByText("Dirty and awaiting inspection count empty rooms only."),
+    ).toBeInTheDocument();
+  });
+
+  it("days_not_closed_past_the_pills_say_how_many_more_there_are", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            unclosed: {
+              status: "ok",
+              data: { waiting: 13, oldest: "2026-10-06" },
+            },
+          },
+        },
+      }),
+    );
+    expect(screen.getByText("+5")).toBeInTheDocument();
   });
 
   it("places_chips_by_logical_offset_so_arabic_mirrors_by_construction", () => {
@@ -540,15 +741,25 @@ describe("the house map", () => {
     const map = screen.getByRole("region", { name: "The house" });
     const tile = (name: string) =>
       within(map).getByRole("button", { name: new RegExp(`^${name},`) });
-    expect(tile("102")).toHaveAccessibleName("102, In house");
+    // The name carries everything the tile shows, not only the state (TODAY-15).
+    expect(tile("102")).toHaveAccessibleName("102, Yılmaz, In house");
     expect(tile("306")).toHaveAccessibleName("306, Out of service");
-    expect(tile("305")).toHaveAccessibleName("305, Dirty");
+    expect(tile("305")).toHaveAccessibleName(
+      "305, Moreau, Dirty, Arrival 20:30",
+    );
+    expect(tile("103")).toHaveAccessibleName("103, Kaya, Overdue");
     expect(within(map).getAllByRole("button")).toHaveLength(8);
   });
 
   it("choosing_an_arrival_marks_other_ready_rooms_of_the_same_type_that_can_take_them", () => {
     view(summary(), { layout: "house" });
-    fireEvent.click(screen.getByRole("button", { name: /Demir/ }));
+    fireEvent.click(
+      within(
+        screen
+          .getByRole("heading", { name: /Still to arrive/ })
+          .closest("section")!,
+      ).getByRole("button", { name: /Demir/ }),
+    );
     const map = screen.getByRole("region", { name: "The house" });
     // 101 and 207 are ready Doubles, but 207 is booked for Petrov; 205 is a
     // Twin. Only 101 can take him.
@@ -556,6 +767,63 @@ describe("the house map", () => {
     expect(
       screen.getByText("Ready rooms of this type: 101."),
     ).toBeInTheDocument();
+  });
+
+  it("a_tile_keeps_the_whole_guest_name_for_a_pointer_and_a_screen_reader", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            rooms: base.desk.data.rooms.map((r) =>
+              r.name === "102"
+                ? {
+                    ...r,
+                    guestName: "Maria-Magdalena Wojciechowska-Papadopoulos",
+                  }
+                : r,
+            ),
+          },
+        },
+      }),
+      { layout: "house" },
+    );
+    const tile = screen.getByRole("button", { name: /^102,/ });
+    expect(tile).toHaveAccessibleName(
+      "102, Maria-Magdalena Wojciechowska-Papadopoulos, In house",
+    );
+    expect(
+      within(tile).getByTitle("Maria-Magdalena Wojciechowska-Papadopoulos"),
+    ).toBeInTheDocument();
+  });
+
+  it("a_blocked_arrival_in_the_map_says_why_and_offers_no_check_in", () => {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            arrivals: [
+              arrival("Hughes", "306", "18:00", {
+                state: "blocked",
+                blocker: "unit_out_of_service",
+              }),
+            ],
+          },
+        },
+      }),
+      { layout: "house" },
+    );
+    expect(
+      screen.getAllByText("The room is out of service.").length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Check in/i })).toBeNull();
   });
 
   it("a_filter_narrows_by_state_and_its_count_is_the_rooms_it_shows", () => {
@@ -568,7 +836,7 @@ describe("the house map", () => {
       .getAllByRole("button")
       .filter((b) => !b.className.includes("opacity-30"));
     expect(lit.map((b) => b.getAttribute("aria-label"))).toEqual([
-      "305, Dirty",
+      "305, Moreau, Dirty, Arrival 20:30",
     ]);
   });
 
@@ -593,6 +861,44 @@ describe("next up", () => {
     expect(screen.getByText("Late arrival · 205")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Previous" }));
     expect(screen.getByText("Overdue departure · 103")).toBeInTheDocument();
+  });
+
+  it("the_queue_folds_at_five_and_the_arrows_sit_beside_the_title", () => {
+    // TODAY-14: all 24 items were unfolded beside a card stretched to match.
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    const late = Array.from({ length: 8 }, (_, i) =>
+      arrival(`Late ${i}`, `4${String(i).padStart(2, "0")}`, "13:00", {
+        expectedArrivalPassed: true,
+      }),
+    );
+    view(
+      summary({
+        desk: {
+          status: "ok",
+          data: {
+            ...base.desk.data,
+            arrivals: [...late, ...base.desk.data.arrivals],
+          },
+        },
+      }),
+      { layout: "next-up" },
+    );
+    const queue = within(
+      screen
+        .getByRole("heading", { name: "Waiting on you" })
+        .closest("section")!,
+    );
+    expect(queue.getAllByRole("button", { pressed: false })).toHaveLength(4);
+    expect(queue.getAllByRole("button", { pressed: true })).toHaveLength(1);
+    fireEvent.click(queue.getByRole("button", { name: /^Show \d+ more$/ }));
+    expect(
+      queue.getByRole("button", { name: "Show fewer" }),
+    ).toBeInTheDocument();
+    // The arrows are in the hero's top row, with the eyebrow, not at its foot.
+    const hero = screen.getByText(/Overdue departure/).closest("section")!;
+    const next = within(hero).getByRole("button", { name: "Next" });
+    expect(next.closest("div")?.firstElementChild?.tagName).toBe("P");
   });
 
   it("a_blocked_item_shows_what_blocks_it_in_words_as_well_as_colour", () => {
@@ -639,7 +945,56 @@ describe("the night desk", () => {
     expect(steps).toHaveLength(6);
     // 2 in house now, 1 still to leave, 4 still to arrive: 5, not the card's
     // clamped 3 (a house booked past its rooms says so).
-    expect(steps[5]).toHaveTextContent("5");
+    expect(steps[5]).toHaveTextContent("3");
+  });
+
+  it("says_tonight_of_the_available_rooms_and_that_overdue_guests_are_counted_as_staying", () => {
+    view(summary(), { layout: "night" });
+    expect(screen.getByText(/3 of 5 rooms tonight, 60%/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /1 overdue guest is counted as staying until checked out\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("the_hand_over_names_the_overdue_guest_who_has_waited_longest", () => {
+    view(summary(), { layout: "night" });
+    const hand = within(
+      screen
+        .getByRole("heading", { name: "Before you hand over" })
+        .closest("section")!,
+    );
+    expect(hand.getByText("1 guest is overdue to leave")).toBeInTheDocument();
+    expect(
+      hand.getByText("Longest: Kaya, room 103, 2 days late."),
+    ).toBeInTheDocument();
+  });
+
+  it("the_seven_nights_are_columns_that_cannot_run_past_their_card", () => {
+    const base = summary({
+      booked: {
+        status: "ok",
+        data: {
+          nights: Array.from({ length: 7 }, (_, i) => ({
+            day: `2026-10-${19 + i}`,
+            booked: i,
+            inUse: 8,
+          })),
+        },
+      },
+    });
+    const { container } = view(base, { layout: "night" });
+    const columns = container.querySelectorAll("#outlook-title ~ ol > li");
+    expect(columns).toHaveLength(7);
+    for (const column of columns) expect(column.className).toContain("min-w-0");
+    // A short weekday and the day number, not the whole weekday name.
+    expect(
+      within(columns[0] as HTMLElement).getByText("Mon"),
+    ).toBeInTheDocument();
+    expect(
+      within(columns[0] as HTMLElement).getByText("19"),
+    ).toBeInTheDocument();
   });
 
   it("names_the_days_waiting_to_close_and_links_to_closing_them", () => {
@@ -690,6 +1045,7 @@ describe("the night desk", () => {
               ...a,
               state: "checked_in" as const,
             })),
+            departures: [],
             rooms: desk.rooms.filter((r) => r.state !== "out_of_service"),
             unclosed: {
               status: "ok",

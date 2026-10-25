@@ -13,11 +13,14 @@ import { DoNow } from "./do-now";
 import { RoomsBar, UnclosedDaysCard } from "./side-cards";
 import {
   ArrivalCommand,
+  blockerScreen,
   DepartureCommand,
   Eyebrow,
   FoldToggle,
+  LINK_BUTTON,
   Panel,
   StateBadge,
+  useArrivalReason,
   useCheckOutReviews,
   useElementWidth,
   usePropertyMinutes,
@@ -27,12 +30,15 @@ import {
 import {
   actionsFor,
   countsByState,
+  departureCounts,
   houseFlow,
   isToCome,
+  minutesLate,
   owedByDepartures,
   readinessOf,
   roomsByName,
   toMinutes,
+  type HouseFlow,
   type Readiness,
 } from "./model";
 
@@ -65,7 +71,11 @@ export function TimelineLayout(props: LayoutProps) {
     desk.departures,
     onChanged,
   );
-  const actions = actionsFor(desk, nowMinutes);
+  // The overdue Guests are the due-out list's, above: listing them again here
+  // made every one of them two rows with two Check out buttons (TODAY-11).
+  const actions = actionsFor(desk, nowMinutes).filter(
+    (action) => action.kind !== "overdue_departure",
+  );
   const flow =
     summary.occupancy?.status === "ok" ? summary.occupancy.data : null;
   const counts = countsByState(desk.rooms);
@@ -93,13 +103,14 @@ export function TimelineLayout(props: LayoutProps) {
         scope={scope}
         currency={summary.day.currency}
       />
-      <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">
+      <div className="grid gap-6 max-md:order-3 lg:grid-cols-[3fr_2fr]">
         <DoNow
           actions={actions}
           changed={changed}
           currency={summary.day.currency}
           desk={desk}
           locale={locale}
+          overdueAbove={departureCounts(desk).overdue}
           reviews={reviews}
           scope={scope}
         />
@@ -108,7 +119,6 @@ export function TimelineLayout(props: LayoutProps) {
             counts={counts}
             locale={locale}
             propertyId={scope.propertyId}
-            sellable={flow?.sellable ?? desk.rooms.length}
           />
           {unclosed ? (
             <UnclosedDaysCard
@@ -130,7 +140,7 @@ function Figures({
   locale,
   scope,
 }: Pick<LayoutProps, "desk" | "locale" | "scope"> & {
-  flowTonight: ReturnType<typeof houseFlow> | null;
+  flowTonight: HouseFlow | null;
 }) {
   const t = useTranslations("todayLayouts");
   const counts = countsByState(desk.rooms);
@@ -138,7 +148,7 @@ function Figures({
   const late = desk.arrivals.find(
     (a) => isToCome(a) && a.expectedArrivalPassed,
   );
-  const overdue = desk.departures.filter((d) => d.overdue).length;
+  const departures = departureCounts(desk);
   const n = (value: number) => formatNumber(value, locale);
   const items = [
     {
@@ -154,12 +164,12 @@ function Figures({
     {
       label: t("figure.checkedOut"),
       value: n(desk.departed),
-      of: n(desk.departed + desk.departures.length),
+      of: n(departures.dueToday),
       sub:
-        overdue > 0
-          ? t("figure.overdue", { count: overdue })
+        departures.overdue > 0
+          ? t("figure.overdue", { count: departures.overdue })
           : t("figure.toLeave", { count: desk.departures.length }),
-      alert: overdue > 0,
+      alert: departures.overdue > 0,
       href: todayHref(locale, "departures", scope.propertyId),
     },
     {
@@ -167,10 +177,19 @@ function Figures({
       value: n(counts.in_house),
       of: null,
       sub: flowTonight
-        ? t("figure.tonight", {
-            count: flowTonight.tonight,
-            sellable: flowTonight.sellable,
-          })
+        ? [
+            t("figure.tonight", {
+              count: flowTonight.tonight,
+              available: flowTonight.available,
+            }),
+            flowTonight.overdueStaying > 0
+              ? t("figure.tonightOverdue", {
+                  count: flowTonight.overdueStaying,
+                })
+              : null,
+          ]
+            .filter((line) => line !== null)
+            .join(" ")
         : "",
       alert: false,
       href: todayHref(locale, "rooms", scope.propertyId),
@@ -189,28 +208,28 @@ function Figures({
     },
   ];
   return (
-    <ul className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
+    <ul className="grid grid-cols-2 border-y border-line max-md:order-2 lg:grid-cols-4">
       {items.map((item) => (
         <li
           className="border-s border-line first:border-s-0 max-lg:odd:border-s-0 [&:first-child>a]:ps-0 max-lg:[&:nth-child(odd)>a]:ps-0"
           key={item.label}
         >
           <Link
-            className="block px-5 py-6 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="block px-3 py-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:px-5 sm:py-6"
             href={item.href}
           >
             <Eyebrow>{item.label}</Eyebrow>
-            <span className="mt-4 flex items-baseline gap-1.5 text-6xl leading-none font-light tracking-tight tabular-nums">
+            <span className="mt-2 flex items-baseline gap-1.5 text-4xl leading-none font-light tracking-tight tabular-nums sm:mt-4 sm:text-6xl">
               {item.value}
               {item.of ? (
-                <span className="text-3xl text-muted-foreground">
+                <span className="text-xl text-muted-foreground sm:text-3xl">
                   /{item.of}
                 </span>
               ) : null}
             </span>
             <span
               className={cn(
-                "mt-3 block min-h-10 text-sm text-muted-foreground",
+                "mt-2 block text-sm text-muted-foreground sm:mt-3 sm:min-h-10",
                 item.alert && "font-semibold text-danger",
               )}
             >
@@ -251,7 +270,7 @@ function FlowPanel({
   const rooms = roomsByName(desk.rooms);
 
   const timed = arrivals.filter((a) => a.expectedArrival !== null);
-  const untimed = arrivals.filter((a) => a.expectedArrival === null);
+  const toCome = arrivals.filter(isToCome);
   const x = (minutes: number) =>
     (Math.min(Math.max(minutes, window.from), window.to) - window.from) /
     (window.to - window.from);
@@ -297,44 +316,57 @@ function FlowPanel({
           <h2 className="text-xl font-semibold tracking-tight" id="flow-title">
             {t("flow.title")}
           </h2>
-          <div className="inline-flex rounded-full bg-muted p-1" role="group">
-            {(["next", "day"] as const).map((option) => (
-              <button
-                aria-pressed={range === option}
-                className={cn(
-                  "min-h-9 rounded-full px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                  range === option
-                    ? "bg-card text-foreground shadow-xs"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                key={option}
-                onClick={() => setRange(option)}
-                type="button"
-              >
-                {t(`flow.range.${option}`)}
-              </button>
-            ))}
-          </div>
+          {timed.length > 0 ? (
+            <div className="inline-flex rounded-full bg-muted p-1" role="group">
+              {(["next", "day"] as const).map((option) => (
+                <button
+                  aria-pressed={range === option}
+                  className={cn(
+                    "min-h-9 rounded-full px-4 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    range === option
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                  key={option}
+                  onClick={() => setRange(option)}
+                  type="button"
+                >
+                  {t(`flow.range.${option}`)}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
-        <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
-          {(
-            [
-              ["bg-primary", "onTime"],
-              ["bg-warning", "roomAtRisk"],
-              ["bg-danger", "late"],
-              ["bg-border", "done"],
-            ] as const
-          ).map(([swatch, key]) => (
-            <li className="flex items-center gap-1.5" key={key}>
-              <span
-                aria-hidden="true"
-                className={cn("size-2.5 rounded-sm", swatch)}
-              />
-              {t(`flow.legend.${key}`)}
-            </li>
-          ))}
-        </ul>
+        {timed.length > 0 ? (
+          <ul className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+            {(
+              [
+                ["bg-primary", "onTime"],
+                ["bg-warning", "roomAtRisk"],
+                ["bg-danger", "late"],
+                ["bg-border", "done"],
+              ] as const
+            ).map(([swatch, key]) => (
+              <li className="flex items-center gap-1.5" key={key}>
+                <span
+                  aria-hidden="true"
+                  className={cn("size-2.5 rounded-sm", swatch)}
+                />
+                {t(`flow.legend.${key}`)}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
+
+      <ArrivalsToCome
+        arrivals={toCome}
+        changed={changed}
+        locale={locale}
+        nowMinutes={nowMinutes}
+        rooms={rooms}
+        scope={scope}
+      />
 
       <DueOut
         changed={changed}
@@ -345,102 +377,231 @@ function FlowPanel({
         scope={scope}
       />
 
-      <div
-        className="relative mt-6 h-7 border-b border-line"
-        aria-hidden="true"
-      >
-        {hours.map((minutes) => (
-          <span
-            className="absolute -translate-x-1/2 font-mono text-[11px] text-muted-foreground rtl:translate-x-1/2"
-            key={minutes}
-            style={{ insetInlineStart: `${x(minutes) * 100}%` }}
+      {timed.length > 0 ? (
+        <>
+          <div
+            className="relative mt-6 h-12 border-b border-line"
+            aria-hidden="true"
           >
-            {cutoffTime(`${Math.floor(minutes / 60) % 24}:00`, locale)}
-          </span>
-        ))}
-        <span
-          className="absolute -top-0.5 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground rtl:translate-x-1/2"
-          style={{ insetInlineStart: `${x(nowMinutes) * 100}%` }}
-        >
-          {t("flow.now")}
+            {hours.map((minutes) => (
+              <span
+                className="absolute bottom-1.5 -translate-x-1/2 font-mono text-[11px] text-muted-foreground rtl:translate-x-1/2"
+                key={minutes}
+                style={{ insetInlineStart: `${x(minutes) * 100}%` }}
+              >
+                {cutoffTime(`${Math.floor(minutes / 60) % 24}:00`, locale)}
+              </span>
+            ))}
+            <span
+              className="absolute top-0 -translate-x-1/2 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold text-primary-foreground rtl:translate-x-1/2"
+              style={{ insetInlineStart: `${x(nowMinutes) * 100}%` }}
+            >
+              {t("flow.now")}
+            </span>
+          </div>
+          <div
+            className="relative border-b border-line"
+            ref={laneRef}
+            style={{ height: laneHeight }}
+          >
+            {hours.map((minutes) => (
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-0 w-px bg-border"
+                key={minutes}
+                style={{ insetInlineStart: `${x(minutes) * 100}%` }}
+              />
+            ))}
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 start-0 bg-muted/60"
+              style={{ width: `${x(nowMinutes) * 100}%` }}
+            />
+            <span
+              aria-hidden="true"
+              className="absolute inset-y-0 z-0 w-0.5 bg-primary"
+              style={{ insetInlineStart: `${x(nowMinutes) * 100}%` }}
+            />
+            {placed.length === 0 ? (
+              <p className="absolute inset-x-0 top-6 text-center text-sm text-muted-foreground">
+                {t("flow.noArrivals")}
+              </p>
+            ) : null}
+            {width > 0
+              ? placed.map(({ arrival, at, start, anchorEnd, top }) => (
+                  <ArrivalChip
+                    anchorEnd={anchorEnd}
+                    arrival={arrival}
+                    at={at}
+                    key={arrival.reservationId}
+                    locale={locale}
+                    nowMinutes={nowMinutes}
+                    readiness={readinessOf(arrival, rooms)}
+                    start={start}
+                    top={top}
+                    width={width}
+                    lateFrom={at < window.from ? 0 : null}
+                    nowStart={x(nowMinutes) * width}
+                  />
+                ))
+              : null}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            {range === "next" && outside > 0 ? (
+              <button
+                className="font-medium text-primary hover:underline"
+                onClick={() => setRange("day")}
+                type="button"
+              >
+                {t("flow.outside", { count: outside })}
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </Panel>
+  );
+}
+
+/** Arrivals shown before "show more". */
+const ARRIVALS_COLLAPSED = 6;
+
+/**
+ * Who is still to arrive, as rows with the command beside each: the chart
+ * below shows when, this says what to do. An arrival with no time is a row like
+ * any other (it used to be a bare link), and the check-in is offered whatever
+ * the room's state, asking in place when the room is not ready (TODAY-07,
+ * TODAY-09).
+ */
+function ArrivalsToCome({
+  arrivals,
+  changed,
+  locale,
+  nowMinutes,
+  rooms,
+  scope,
+}: {
+  arrivals: readonly ArrivalRow[];
+  changed: () => void;
+  locale: SupportedLocale;
+  nowMinutes: number;
+  rooms: ReturnType<typeof roomsByName>;
+  scope: LayoutProps["scope"];
+}) {
+  const t = useTranslations("todayLayouts");
+  const reasonOf = useArrivalReason();
+  const [expanded, setExpanded] = useState(false);
+  const listId = useId();
+  if (arrivals.length === 0) return null;
+
+  const ordered = [...arrivals].sort(
+    (a, b) =>
+      Number(b.expectedArrivalPassed) - Number(a.expectedArrivalPassed) ||
+      (a.expectedArrival === null ? 1 : 0) -
+        (b.expectedArrival === null ? 1 : 0) ||
+      toMinutes(a.expectedArrival ?? "00:00") -
+        toMinutes(b.expectedArrival ?? "00:00"),
+  );
+  const collapsible = ordered.length > ARRIVALS_COLLAPSED;
+  const visible =
+    expanded || !collapsible ? ordered : ordered.slice(0, ARRIVALS_COLLAPSED);
+
+  return (
+    <section aria-label={t("flow.arrivalsToCome")} className="mb-6">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
+        <Eyebrow>{t("flow.arrivalsToCome")}</Eyebrow>
+        <span className="text-xs text-muted-foreground">
+          {t("flow.arrivalsToComeHint")}
         </span>
       </div>
-      <div
-        className="relative border-b border-line"
-        ref={laneRef}
-        style={{ height: laneHeight }}
-      >
-        {hours.map((minutes) => (
-          <span
-            aria-hidden="true"
-            className="absolute inset-y-0 w-px bg-border"
-            key={minutes}
-            style={{ insetInlineStart: `${x(minutes) * 100}%` }}
-          />
-        ))}
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-0 start-0 bg-muted/60"
-          style={{ width: `${x(nowMinutes) * 100}%` }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-0 z-0 w-0.5 bg-primary"
-          style={{ insetInlineStart: `${x(nowMinutes) * 100}%` }}
-        />
-        {placed.length === 0 ? (
-          <p className="absolute inset-x-0 top-6 text-center text-sm text-muted-foreground">
-            {t("flow.noArrivals")}
-          </p>
-        ) : null}
-        {width > 0
-          ? placed.map(({ arrival, at, start, anchorEnd, top }) => (
-              <ArrivalChip
-                anchorEnd={anchorEnd}
-                arrival={arrival}
-                at={at}
-                changed={changed}
+      <div className="@container">
+        <ul className="grid gap-x-8 @2xl:grid-cols-2" id={listId}>
+          {visible.map((arrival) => {
+            const readiness = readinessOf(arrival, rooms);
+            const room = unitLabel(
+              arrival.unit.roomName,
+              arrival.unit.unitName,
+            );
+            const late =
+              arrival.expectedArrivalPassed && arrival.expectedArrival !== null;
+            const when = arrival.expectedArrival
+              ? late
+                ? t("flow.lateBy", {
+                    duration: duration(
+                      minutesLate(
+                        nowMinutes,
+                        toMinutes(arrival.expectedArrival),
+                      ),
+                      locale,
+                    ),
+                  })
+                : t("flow.expectedAt", {
+                    time: cutoffTime(arrival.expectedArrival, locale),
+                  })
+              : t("flow.noTime");
+            const canCheckIn = arrival.mayCheckIn && readiness !== "blocked";
+            const screen =
+              readiness === "blocked" ? blockerScreen(arrival) : "arrivals";
+            return (
+              <li
+                className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-x-3 border-t border-line py-2.5"
                 key={arrival.reservationId}
-                locale={locale}
-                nowMinutes={nowMinutes}
-                readiness={readinessOf(arrival, rooms)}
-                start={start}
-                top={top}
-                width={width}
-                lateFrom={at < window.from ? 0 : null}
-                nowStart={x(nowMinutes) * width}
-              />
-            ))
-          : null}
-      </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {untimed.map((arrival) => (
-            <li key={arrival.reservationId}>
-              <Link
-                className="hover:underline"
-                href={todayHref(locale, "arrivals", scope.propertyId)}
               >
-                <bdi className="font-semibold text-foreground">
-                  {arrival.guestName ?? arrival.reference}
-                </bdi>{" "}
-                · {unitLabel(arrival.unit.roomName, arrival.unit.unitName)} ·{" "}
-                {t("flow.noTime")}
-              </Link>
-            </li>
-          ))}
+                <bdi
+                  className="truncate font-mono text-sm text-muted-foreground"
+                  title={room}
+                >
+                  {room}
+                </bdi>
+                <div className="min-w-0">
+                  <bdi className="block truncate text-sm font-semibold">
+                    {arrival.guestName ?? arrival.reference}
+                  </bdi>
+                  <span
+                    className={cn(
+                      "block text-xs text-balance",
+                      late
+                        ? "font-semibold text-danger"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {when}
+                  </span>
+                  {readiness !== "ready" ? (
+                    <span className="block text-xs text-balance text-warning">
+                      {reasonOf(arrival, readiness)}
+                    </span>
+                  ) : null}
+                </div>
+                {canCheckIn ? (
+                  <ArrivalCommand
+                    arrival={arrival}
+                    locale={locale}
+                    onChanged={changed}
+                    readiness={readiness}
+                  />
+                ) : (
+                  <Link
+                    className={LINK_BUTTON}
+                    href={todayHref(locale, screen, scope.propertyId)}
+                  >
+                    {t(`open.${screen}`)}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
         </ul>
-        {range === "next" && outside > 0 ? (
-          <button
-            className="font-medium text-primary hover:underline"
-            onClick={() => setRange("day")}
-            type="button"
-          >
-            {t("flow.outside", { count: outside })}
-          </button>
+        {collapsible ? (
+          <FoldToggle
+            controls={listId}
+            expanded={expanded}
+            hidden={ordered.length - ARRIVALS_COLLAPSED}
+            onToggle={() => setExpanded((open) => !open)}
+          />
         ) : null}
       </div>
-    </Panel>
+    </section>
   );
 }
 
@@ -448,7 +609,6 @@ function ArrivalChip({
   anchorEnd,
   arrival,
   at,
-  changed,
   lateFrom,
   locale,
   nowMinutes,
@@ -461,7 +621,6 @@ function ArrivalChip({
   anchorEnd: boolean;
   arrival: ArrivalRow;
   at: number;
-  changed: () => void;
   /** Where the overrun bar starts when the due time is off the left edge. */
   lateFrom: number | null;
   locale: SupportedLocale;
@@ -474,6 +633,7 @@ function ArrivalChip({
   width: number;
 }) {
   const t = useTranslations("todayLayouts");
+  const reasonOf = useArrivalReason();
   const done = !isToCome(arrival);
   const late = !done && arrival.expectedArrivalPassed;
   const atRisk =
@@ -532,15 +692,8 @@ function ArrivalChip({
           </span>
         ) : atRisk ? (
           <span className="text-xs font-semibold text-warning">
-            {t("flow.roomNotReady")}
+            {reasonOf(arrival, readiness)}
           </span>
-        ) : null}
-        {!done && arrival.mayCheckIn && readiness === "ready" ? (
-          <ArrivalCommand
-            arrival={arrival}
-            locale={locale}
-            onChanged={changed}
-          />
         ) : null}
       </div>
     </>
@@ -727,13 +880,22 @@ function DueOutRow({
           </span>
         ) : null}
       </div>
-      <DepartureCommand
-        departure={departure}
-        locale={locale}
-        onChanged={changed}
-        reviews={reviews}
-        scope={scope}
-      />
+      {departure.mayCheckOut ? (
+        <DepartureCommand
+          departure={departure}
+          locale={locale}
+          onChanged={changed}
+          reviews={reviews}
+          scope={scope}
+        />
+      ) : (
+        <Link
+          className={LINK_BUTTON}
+          href={todayHref(locale, "departures", scope.propertyId)}
+        >
+          {t("open.departures")}
+        </Link>
+      )}
     </li>
   );
 }

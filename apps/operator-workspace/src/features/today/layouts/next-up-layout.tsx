@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
@@ -18,15 +18,20 @@ import {
 } from "./model";
 import {
   ArrivalCommand,
+  blockerScreen,
   DepartureCommand,
+  FoldToggle,
   Panel,
   StateBadge,
+  useArrivalReason,
   useCheckOutReviews,
   usePropertyMinutes,
   type LayoutProps,
 } from "./parts";
 
 const LANE_ROWS = 4;
+/** Queue rows shown before "show more"; the chosen one is always among them. */
+const QUEUE_COLLAPSED = 5;
 const DAY_MS = 86_400_000;
 
 /** Whole days between two `YYYY-MM-DD` business dates. */
@@ -55,12 +60,20 @@ export function NextUpLayout(props: LayoutProps) {
   );
   const actions = actionsFor(desk, nowMinutes);
   const [chosen, setChosen] = useState(0);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const queueId = useId();
   const index = Math.min(chosen, Math.max(0, actions.length - 1));
   const current = actions[index];
+  const queue = actions
+    .map((action, position) => ({ action, position }))
+    .filter(
+      ({ position }) =>
+        queueOpen || position < QUEUE_COLLAPSED || position === index,
+    );
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid gap-6 lg:grid-cols-[5fr_4fr]">
+      <div className="grid items-start gap-6 lg:grid-cols-[5fr_4fr]">
         {current ? (
           <Hero
             action={current}
@@ -95,8 +108,8 @@ export function NextUpLayout(props: LayoutProps) {
           <p className="mt-1 mb-3 px-5 text-sm text-muted-foreground">
             {t("nextUp.queueHint")}
           </p>
-          <ol>
-            {actions.map((action, position) => (
+          <ol id={queueId}>
+            {queue.map(({ action, position }) => (
               <li
                 key={`${action.kind}-${action.arrival?.reservationId ?? action.departure?.stayId}`}
               >
@@ -137,6 +150,16 @@ export function NextUpLayout(props: LayoutProps) {
               </li>
             ))}
           </ol>
+          {actions.length > QUEUE_COLLAPSED ? (
+            <div className="px-3">
+              <FoldToggle
+                controls={queueId}
+                expanded={queueOpen}
+                hidden={actions.length - QUEUE_COLLAPSED}
+                onToggle={() => setQueueOpen((open) => !open)}
+              />
+            </div>
+          ) : null}
         </Panel>
       </div>
       <Lanes {...props} />
@@ -187,6 +210,14 @@ function Hero({
   const rooms = roomsByName(desk.rooms);
   const { arrival, departure } = action;
   const readiness = arrival ? readinessOf(arrival, rooms) : null;
+  const screen =
+    arrival && readiness === "blocked"
+      ? blockerScreen(arrival)
+      : action.kind === "room_at_risk"
+        ? "housekeeping"
+        : departure
+          ? "departures"
+          : "arrivals";
   const length = arrival ? nights(arrival.startsOn, arrival.endsOn) : null;
   const daysLate = departure?.endsOn
     ? daysBetween(departure.endsOn, businessDate)
@@ -226,7 +257,10 @@ function Hero({
       label: t("nextUp.checkRoom", {
         room: unitLabel(arrival.unit.roomName, arrival.unit.unitName),
       }),
-      value: t(`state.${readiness}`),
+      value:
+        readiness === "blocked" && arrival.blocker
+          ? t(`blocker.${arrival.blocker}`)
+          : t(`state.${readiness}`),
     });
     checks.push({
       ok: arrival.expectedArrival !== null,
@@ -269,9 +303,34 @@ function Hero({
       aria-live="polite"
       className="flex min-h-[32rem] flex-col rounded-[2rem] bg-primary p-7 text-primary-foreground shadow-raised md:p-9"
     >
-      <p className="text-[10px] font-bold tracking-[0.2em] text-primary-foreground/70 uppercase">
-        {t(`nextUp.eyebrow.${action.kind}`, { room: eyebrowRoom })}
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[10px] font-bold tracking-[0.2em] text-primary-foreground/70 uppercase">
+          {t(`nextUp.eyebrow.${action.kind}`, { room: eyebrowRoom })}
+        </p>
+        {single ? null : (
+          <span className="flex gap-2">
+            <button
+              aria-label={t("nextUp.previous")}
+              className="grid size-10 place-items-center rounded-full border border-primary-foreground/40 hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
+              onClick={onPrevious}
+              type="button"
+            >
+              <ArrowLeft aria-hidden="true" className="size-4 rtl:rotate-180" />
+            </button>
+            <button
+              aria-label={t("nextUp.next")}
+              className="grid size-10 place-items-center rounded-full border border-primary-foreground/40 hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
+              onClick={onNext}
+              type="button"
+            >
+              <ArrowRight
+                aria-hidden="true"
+                className="size-4 rtl:rotate-180"
+              />
+            </button>
+          </span>
+        )}
+      </div>
       <p className="mt-6 flex flex-wrap items-baseline gap-x-4">
         <span className="text-7xl leading-none font-extralight tracking-tight tabular-nums md:text-8xl">
           {big}
@@ -323,7 +382,8 @@ function Hero({
         ))}
       </ul>
       <div className="mt-auto flex flex-wrap items-center gap-3">
-        {departure || (arrival && readiness === "ready") ? (
+        {departure ||
+        (arrival && arrival.mayCheckIn && readiness !== "blocked") ? (
           // The command's own button is the theme's primary, which is the
           // hero's own ground: it gets a light pill to sit on.
           <div className="rounded-full bg-primary-foreground p-1">
@@ -340,49 +400,17 @@ function Hero({
                 arrival={arrival}
                 locale={locale}
                 onChanged={changed}
+                {...(readiness ? { readiness } : {})}
               />
             ) : null}
           </div>
         ) : null}
         <Link
           className="inline-flex min-h-10 items-center rounded-full border border-primary-foreground/40 px-5 text-sm font-medium transition-colors hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
-          href={
-            action.kind === "room_at_risk"
-              ? todayHref(locale, "housekeeping", scope.propertyId)
-              : departure
-                ? todayHref(locale, "departures", scope.propertyId)
-                : todayHref(locale, "arrivals", scope.propertyId)
-          }
+          href={todayHref(locale, screen, scope.propertyId)}
         >
-          {action.kind === "room_at_risk"
-            ? t("open.housekeeping")
-            : departure
-              ? t("open.departures")
-              : t("open.arrivals")}
+          {t(`open.${screen}`)}
         </Link>
-        {single ? null : (
-          <span className="ms-auto flex gap-2">
-            <button
-              aria-label={t("nextUp.previous")}
-              className="grid size-10 place-items-center rounded-full border border-primary-foreground/40 hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
-              onClick={onPrevious}
-              type="button"
-            >
-              <ArrowLeft aria-hidden="true" className="size-4 rtl:rotate-180" />
-            </button>
-            <button
-              aria-label={t("nextUp.next")}
-              className="grid size-10 place-items-center rounded-full border border-primary-foreground/40 hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
-              onClick={onNext}
-              type="button"
-            >
-              <ArrowRight
-                aria-hidden="true"
-                className="size-4 rtl:rotate-180"
-              />
-            </button>
-          </span>
-        )}
       </div>
     </section>
   );
@@ -390,6 +418,7 @@ function Hero({
 
 function Lanes({ desk, locale, scope, summary }: LayoutProps) {
   const t = useTranslations("todayLayouts");
+  const reasonOf = useArrivalReason();
   const rooms = roomsByName(desk.rooms);
   const toCome = desk.arrivals.filter(isToCome);
   const inHouse = desk.rooms
@@ -429,6 +458,11 @@ function Lanes({ desk, locale, scope, summary }: LayoutProps) {
                   ? cutoffTime(arrival.expectedArrival, locale)
                   : t("house.noTime")}
               </span>
+              {readinessOf(arrival, rooms) === "blocked" ? (
+                <span className="block text-xs text-warning">
+                  {reasonOf(arrival, "blocked")}
+                </span>
+              ) : null}
             </span>
             <StateBadge state={readinessOf(arrival, rooms)} />
           </li>
