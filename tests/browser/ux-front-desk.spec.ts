@@ -316,10 +316,12 @@ test.describe("departures say what a Guest owes and what check-out will do (RANZ
     await page.getByRole("menuitem", { name: "Change departure" }).click();
     const dialog = page.getByRole("dialog", { name: "Change departure" });
     await expect(dialog).toContainText("This Guest is 4 days past");
-    await expect(dialog).toContainText("Pick the day they now leave");
+    await expect(dialog).toContainText(
+      "Tomorrow is filled in as the day they now leave",
+    );
     await expect(
       dialog.getByRole("button", { name: "Save departure" }),
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 
   test("an_overdue_guest_owes_the_nights_check_out_will_charge_on_the_row_and_in_the_owing_filter", async ({
