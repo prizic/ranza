@@ -104,7 +104,7 @@ for (const [locale, say] of [
       title: "Your role can't open this page",
       today: "Go to Today",
       mentions:
-        /Finance needs .+ Ask whoever manages staff in your Organization/s,
+        /Finance (needs|opens for) .+ ask whoever manages staff in your Organization/is,
     },
   ],
   [
