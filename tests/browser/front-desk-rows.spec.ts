@@ -389,9 +389,10 @@ test("a reader who may book and neither check in nor out sees the rows and has n
     leaving.getByRole("button", { name: /^Check .* out$/ }),
   ).toHaveCount(0);
   const leavingMenu = await openMenu(page, leaving);
+  // This reader has no Finance page, so the Folio is not offered: a link that
+  // is then refused is worse than none (ARRIVALS-15).
   await expect(leavingMenu.getByRole("menuitem")).toHaveText([
     words.openReservation,
-    words.openFolio,
     words.showOnRoomMap,
   ]);
 });
