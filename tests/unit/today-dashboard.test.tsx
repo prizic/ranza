@@ -818,6 +818,19 @@ describe("the day, as the UX audit found it", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/Couldn't refresh/);
   });
 
+  it("a_tab_that_is_already_offline_when_it_opens_says_its_figures_are_old", () => {
+    // The offline event fired before this page hydrated, so nothing here saw it.
+    const offline = vi
+      .spyOn(window.navigator, "onLine", "get")
+      .mockReturnValue(false);
+    try {
+      view(frontDesk(), "en");
+      expect(screen.getByRole("status")).toHaveTextContent(/Couldn't refresh/);
+    } finally {
+      offline.mockRestore();
+    }
+  });
+
   it("the_overdue_guest_is_a_number_of_days_on_the_tile_the_row_and_the_card", () => {
     const summary = frontDesk();
     view(

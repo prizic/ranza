@@ -118,9 +118,12 @@ export function TodayDashboard({
   }
   // A refresh the browser holds back while it is offline is not failing, so
   // nothing reports it; but the figures on screen are going stale all the same.
+  // The manager only learns of the browser going offline from the event, which
+  // a tab that went offline before this page hydrated has already missed, so
+  // the browser is asked as well.
   const online = useSyncExternalStore(
     onlineManager.subscribe.bind(onlineManager),
-    () => onlineManager.isOnline(),
+    () => onlineManager.isOnline() && navigator.onLine,
     () => true,
   );
   const paused = !online || query.fetchStatus === "paused";
