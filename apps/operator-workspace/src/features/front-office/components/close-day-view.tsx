@@ -44,6 +44,9 @@ import { CloseDayCheckOut } from "./close-day-check-out";
 import { CloseDayDialog } from "./close-day-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
+/** How many waiting days are listed with what holds each (a month of them). */
+const WAITING_DAYS_SHOWN = 31;
+
 /**
  * Close the day (blueprint 6.4, ADR 0034): the day waiting to be closed, what
  * still holds it up, and the recent closes.
@@ -178,18 +181,20 @@ export function CloseDayView({
                 <div className="grid gap-1 text-step--1">
                   <p className="font-medium">{t("closeDay.holdsByDay")}</p>
                   <ul className="grid gap-0.5 text-muted-foreground">
-                    {day.waitingDays.slice(0, 7).map((waiting) => (
-                      <li key={waiting.date}>
-                        {t("closeDay.dayOpen", {
-                          date: shortDay(waiting.date, locale),
-                          n: waiting.openItems,
-                        })}
-                      </li>
-                    ))}
-                    {day.waitingDays.length > 7 ? (
+                    {day.waitingDays
+                      .slice(0, WAITING_DAYS_SHOWN)
+                      .map((waiting) => (
+                        <li key={waiting.date}>
+                          {t("closeDay.dayOpen", {
+                            date: shortDay(waiting.date, locale),
+                            n: waiting.openItems,
+                          })}
+                        </li>
+                      ))}
+                    {day.waitingDays.length > WAITING_DAYS_SHOWN ? (
                       <li>
                         {t("closeDay.moreDays", {
-                          n: day.waitingDays.length - 7,
+                          n: day.waitingDays.length - WAITING_DAYS_SHOWN,
                         })}
                       </li>
                     ) : null}
@@ -234,6 +239,7 @@ export function CloseDayView({
                   openItems={open}
                   propertyId={day.propertyId}
                   waitingMany={day.waiting > 1}
+                  alongsideAll={Boolean(sameItemsEveryDay && lastWaiting)}
                 />
               </div>
             ) : (

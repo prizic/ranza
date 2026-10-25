@@ -179,6 +179,7 @@ describe("every catalogue parses", () => {
                 guest: "x",
                 height: 64,
                 hours: 24,
+                inHouse: "x",
                 label: "x",
                 last: "140",
                 later: "₺1.500,00",

@@ -155,7 +155,7 @@ export function UndoCheckInDialog({
           <DialogMasthead
             art="/illustrations/dialogs/undo-check-in.svg"
             eyebrow={t("undoCheckInTitle")}
-            facts={`${t("unit")} ${unitName}`}
+            facts={`${t("roomWord")} ${unitName}`}
             heading={guestName}
           />
 

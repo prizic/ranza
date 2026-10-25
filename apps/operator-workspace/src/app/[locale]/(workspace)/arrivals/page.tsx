@@ -15,7 +15,10 @@ import {
 } from "../../../../server/viewer";
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
-import { frontDeskProperty } from "../../../../server/front-desk";
+import {
+  frontDeskProperty,
+  frontDeskReach,
+} from "../../../../server/front-desk";
 import { parseArrivalFilter } from "../../../../features/today/views";
 
 export async function generateMetadata({
@@ -95,8 +98,10 @@ export default async function ArrivalsPage({
   const client = requestQueryClient();
   await client.prefetchQuery({
     queryKey: frontOfficeKeys.arrivals(scope),
-    queryFn: () => arrivals(property.propertyId),
+    queryFn: () => arrivals(property.propertyId, { withMissed: true }),
   });
+
+  const reach = await frontDeskReach(property.propertyId);
 
   return (
     <>
@@ -118,6 +123,7 @@ export default async function ArrivalsPage({
       </div>
       <Hydrated client={client}>
         <LiveArrivals
+          reach={reach}
           allHref={`${localizeHref(locale, "arrivals")}?property=${property.propertyId}`}
           filter={parseArrivalFilter(search.show)}
           locale={locale}

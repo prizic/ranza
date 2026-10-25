@@ -438,7 +438,7 @@ export function ChangeBookingDialog({
           <DialogMasthead
             art="/illustrations/dialogs/change-booking.svg"
             eyebrow={move ? t("roomCalendar.moveBooking") : t("changeBooking")}
-            facts={`${booking.reference} · ${t("unit")} ${booking.unitLabel}`}
+            facts={`${booking.reference} · ${t("roomWord")} ${booking.unitLabel}`}
             heading={booking.guestName}
           />
 

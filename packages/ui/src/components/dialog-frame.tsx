@@ -777,7 +777,9 @@ export function ArrowButton({
           "grid size-10 place-content-center rounded-full",
           danger
             ? "bg-destructive/10 text-destructive"
-            : "bg-primary/15 text-foreground",
+            : // Light on the near-black pill while it can be pressed, so the
+              // arrow keeps its contrast; the muted pill keeps the soft chip.
+              "bg-background text-foreground group-disabled/button:bg-primary/15",
         )}
       >
         <ArrowRight aria-hidden="true" className="size-4.5 rtl:-scale-x-100" />

@@ -15,6 +15,7 @@ import {
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { fetchDepartures } from "../queries";
 import { DeparturesTable } from "./departures-table";
+import type { FrontDeskReach } from "../reach";
 import { ListFreshness } from "./list-freshness";
 
 /**
@@ -28,6 +29,7 @@ export function LiveDepartures({
   allHref,
   filter,
   locale,
+  reach,
   scope,
   timeZone,
   view,
@@ -37,6 +39,8 @@ export function LiveDepartures({
   /** The part of the day a figure on Today counted (TD-S5-01). */
   filter: DepartureFilter | null;
   locale: SupportedLocale;
+  /** Which of the pages a row links to the viewer can open. */
+  reach: FrontDeskReach;
   scope: Scope;
   /** The Property's own clock, which the freshness line is told in. */
   timeZone: string;
@@ -57,43 +61,53 @@ export function LiveDepartures({
   const first = rows[0];
   const viewOnly =
     rows.length > 0 && rows.every((departure) => !departure.mayCheckOut);
+  // One row: who is due, narrowed to who owes, or everybody in house. Two
+  // rows said "Due and overdue" twice and left three ways back from a
+  // narrowing (ARRIVALS-13).
   const chips = [
-    { href: allHref, label: t("departuresChipAll"), filter: null },
+    {
+      href: allHref,
+      label: t("departuresChipAll"),
+      active: view === "due" && filter === null,
+    },
     {
       href: `${allHref}&show=owing`,
       label: t("departuresChipOwing"),
-      filter: "owing",
+      active: view === "due" && filter === "owing",
     },
     {
       href: `${allHref}&show=overdue_owing`,
       label: t("departuresChipOverdueOwing"),
-      filter: "overdue_owing",
+      active: view === "due" && filter === "overdue_owing",
+    },
+    {
+      href: `${allHref}&view=in_house`,
+      label: t("departuresInHouse"),
+      active: view === "in_house",
     },
   ] as const;
   return (
     <>
-      {view === "due" ? (
-        <nav
-          aria-label={t("departuresFilters")}
-          className="mt-3 flex flex-wrap gap-2"
-        >
-          {chips.map((chip) => (
-            <Link
-              aria-current={chip.filter === filter ? "page" : undefined}
-              className={
-                chip.filter === filter
-                  ? "inline-flex min-h-8 items-center rounded-full border border-primary bg-primary/10 px-3 text-step--1 font-medium"
-                  : "inline-flex min-h-8 items-center rounded-full border px-3 text-step--1 text-muted-foreground hover:text-foreground"
-              }
-              href={chip.href}
-              key={chip.label}
-              prefetch={false}
-            >
-              {chip.label}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
+      <nav
+        aria-label={t("departuresFilters")}
+        className="mt-3 flex flex-wrap gap-2"
+      >
+        {chips.map((chip) => (
+          <Link
+            aria-current={chip.active ? "page" : undefined}
+            className={
+              chip.active
+                ? "inline-flex min-h-8 items-center rounded-full border border-primary bg-primary/10 px-3 text-step--1 font-medium"
+                : "inline-flex min-h-8 items-center rounded-full border px-3 text-step--1 text-muted-foreground hover:text-foreground"
+            }
+            href={chip.href}
+            key={chip.label}
+            prefetch={false}
+          >
+            {chip.label}
+          </Link>
+        ))}
+      </nav>
       <ListFreshness
         error={error}
         locale={locale}
@@ -135,6 +149,7 @@ export function LiveDepartures({
         }
         locale={locale}
         propertyId={scope.propertyId}
+        reach={reach}
         view={view}
       />
     </>

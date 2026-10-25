@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
@@ -23,7 +24,12 @@ import {
   type ColumnHeaderLabels,
   type StatusTone,
 } from "@ranza/ui";
-import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
+import {
+  formatDate,
+  formatMoney,
+  localizeHref,
+  type SupportedLocale,
+} from "@ranza/i18n";
 import { owedOnFolio } from "../../../lib/owed";
 import type { ArrivalRow } from "../../../server/viewer";
 import { useSortLabels } from "../../../lib/table-labels";
@@ -34,6 +40,7 @@ import { unitLabel } from "../unit-label";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { FrontDeskRowMenu } from "./row-menu";
+import type { FrontDeskReach } from "../reach";
 import { CopyReferenceButton } from "./copy-reference-button";
 
 /**
@@ -154,7 +161,7 @@ function ExpectedArrival({
   locale: SupportedLocale;
 }) {
   const t = useTranslations();
-  if (arrival.status === "checked_in") return null;
+  if (arrival.status === "checked_in" || arrival.nightsPassed) return null;
   if (arrival.expectedArrival === null) {
     return (
       <span className="block text-step--1 text-muted-foreground">
@@ -188,69 +195,414 @@ function nightsBetween(from: string, to: string): number {
 
 type Translate = ReturnType<typeof useTranslations<never>>;
 
-/*
- * Each list's columns are built once per locale and Property, not once per
- * render. A cell renderer is a component to React, so a new function on every
- * render is a new component: each reading of a list — every thirty seconds,
- * and after every check-in — mounted every row's controls afresh, taking the
- * desk's focus and any question a row was asking with it.
+/** What a row's cells need beyond the row itself. */
+interface ListContext {
+  locale: SupportedLocale;
+  propertyId: string;
+  reach: FrontDeskReach;
+  /** Too narrow for the whole row: its details stack under the name. */
+  narrow: boolean;
+}
+
+function useListContext(
+  locale: SupportedLocale,
+  propertyId: string,
+  reach: FrontDeskReach,
+  narrow: boolean,
+): ListContext {
+  const { rooms, folio, housekeeping, reservations } = reach;
+  return useMemo(
+    () => ({
+      locale,
+      propertyId,
+      narrow,
+      reach: { rooms, folio, housekeeping, reservations },
+    }),
+    [locale, propertyId, narrow, rooms, folio, housekeeping, reservations],
+  );
+}
+
+/**
+ * The Guest's name, which opens their booking where one exists. A mouse
+ * convenience: the keyboard's way to the same sheet is "Open reservation" in
+ * the row's menu, so the link is out of the tab order (ARRIVALS-09, -18). A
+ * name longer than the column is cut and carried in full by its title
+ * (ARRIVALS-01), so one guest's name cannot push the money off the screen.
  */
+function GuestName({
+  name,
+  reservationId,
+  ctx,
+}: {
+  name: string;
+  reservationId: string | null;
+  ctx: ListContext;
+}) {
+  const label = <bdi>{name}</bdi>;
+  return (
+    <p
+      className={
+        ctx.narrow
+          ? "font-medium leading-tight line-clamp-2"
+          : "max-w-72 truncate font-medium leading-none"
+      }
+      title={name}
+    >
+      {reservationId && ctx.reach.reservations ? (
+        <Link
+          className="underline-offset-4 hover:underline"
+          href={`${localizeHref(ctx.locale, "reservations")}?property=${ctx.propertyId}&open=${reservationId}`}
+          prefetch={false}
+          tabIndex={-1}
+        >
+          {label}
+        </Link>
+      ) : (
+        label
+      )}
+    </p>
+  );
+}
 
 export function useArrivalColumns(
   locale: SupportedLocale,
   propertyId: string,
+  reach: FrontDeskReach,
+  narrow: boolean,
 ): ColumnDef<ArrivalRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
-  return useMemo(
-    () => arrivalColumns(t, sort, locale, propertyId),
-    [t, sort, locale, propertyId],
+  const context = useListContext(locale, propertyId, reach, narrow);
+  return useMemo(() => arrivalColumns(t, sort, context), [t, sort, context]);
+}
+
+/**
+ * The day a booking whose nights have all passed was due, or the days it is
+ * late. The words "did not arrive" are the readiness badge's, said once.
+ */
+function ArrivalLateness({
+  arrival,
+  locale,
+}: {
+  arrival: Arrival;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  if (arrival.status === "checked_in") return null;
+  if (arrival.nightsPassed) {
+    return (
+      <span className="block text-step--1 text-muted-foreground">
+        {t("wasDueToArriveOn", { date: day(arrival.startsOn, locale) })}
+      </span>
+    );
+  }
+  return arrival.daysLate > 0 ? (
+    <span className="block text-step--1 font-semibold text-warning">
+      {t("daysLate", { n: arrival.daysLate })}
+    </span>
+  ) : null;
+}
+
+/**
+ * What the room is doing for this arrival: first whatever check-in refuses on,
+ * from the same facts; then housekeeping's answer, which is asked about at
+ * check-in and never refused (ADR 0029). A booking whose nights all passed is
+ * not about the room at all.
+ */
+function ArrivalReadiness({
+  arrival,
+  locale,
+}: {
+  arrival: ArrivalRow;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  if (arrival.status === "checked_in") {
+    return (
+      <StatusBadge icon={DoorOpen} label={t("checkedIn")} tone="success" />
+    );
+  }
+  if (arrival.nightsPassed) {
+    return (
+      <StatusBadge
+        icon={CalendarClock}
+        label={t("didNotArriveDays", { count: arrival.daysLate })}
+        tone="danger"
+      />
+    );
+  }
+  switch (arrival.checkInBlocker) {
+    case "unit_occupied":
+      return (
+        <StatusBadge
+          icon={CircleAlert}
+          label={
+            arrival.occupantLeaves === "overdue"
+              ? t("occupiedOverstay")
+              : arrival.occupantLeaves === "today"
+                ? t("occupiedDueOut")
+                : t("occupied")
+          }
+          tone="warning"
+        />
+      );
+    case "unit_blocked":
+      return (
+        <StatusBadge icon={Ban} label={t("blockedStatus")} tone="danger" />
+      );
+    case "unit_out_of_service":
+      return (
+        <div className="space-y-1">
+          <StatusBadge
+            icon={Ban}
+            label={
+              arrival.hold
+                ? `${t("outOfOrder")} · ${t("maintenance.reference", { number: arrival.hold.number })}`
+                : t("outOfOrder")
+            }
+            tone="danger"
+          />
+          {arrival.hold ? (
+            <span className="block text-step--1 text-muted-foreground">
+              {arrival.hold.expectedBackOn
+                ? t("maintenance.backOn", {
+                    date: day(arrival.hold.expectedBackOn, locale),
+                  })
+                : t("outOfOrderNoReturnDate")}
+            </span>
+          ) : null}
+        </div>
+      );
+    case "not_confirmed":
+      return (
+        <StatusBadge
+          icon={CircleDashed}
+          label={t("awaitingConfirmation")}
+          tone="info"
+        />
+      );
+    default:
+      return arrival.unitIsReady ? (
+        <StatusBadge icon={CircleCheck} label={t("ready")} tone="success" />
+      ) : (
+        // The icon is the board's for the same state: a clean room waiting
+        // for inspection is not drawn with the dirty room's spray-can.
+        <StatusBadge
+          icon={
+            arrival.unitNotReadyBecause === "awaiting_inspection"
+              ? Sparkles
+              : SprayCan
+          }
+          label={
+            arrival.unitNotReadyBecause === "awaiting_inspection"
+              ? t("roomAwaitingInspection")
+              : arrival.unitNotReadyBecause === "dirty"
+                ? t("roomDirty")
+                : t("notReady")
+          }
+          tone="warning"
+        />
+      );
+  }
+}
+
+/** The balance, or the words that there is no bill yet. */
+function ArrivalBalance({
+  arrival,
+  locale,
+}: {
+  arrival: Arrival;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  return arrival.folioId ? (
+    <Balance
+      currency={arrival.currency}
+      locale={locale}
+      minor={arrival.balanceMinor}
+    />
+  ) : (
+    <span className="text-muted-foreground">{t("noFolio")}</span>
+  );
+}
+
+function ArrivalGuest({
+  arrival,
+  ctx,
+}: {
+  arrival: ArrivalRow;
+  ctx: ListContext;
+}) {
+  const t = useTranslations();
+  const { locale, narrow } = ctx;
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-8 w-8 shrink-0 text-step--1 max-sm:hidden">
+        <AvatarFallback>{initialsOf(arrival.guestName)}</AvatarFallback>
+      </Avatar>
+      <div
+        className={
+          narrow
+            ? "min-w-0 max-w-md whitespace-normal [overflow-wrap:anywhere] max-sm:max-w-32"
+            : "min-w-0"
+        }
+      >
+        <GuestName
+          ctx={ctx}
+          name={arrival.guestName}
+          reservationId={arrival.reservationId}
+        />
+        <p className="mt-1 text-step--1 text-muted-foreground">
+          {arrival.endsOn
+            ? t("arrivalNightsUntil", {
+                count: nightsBetween(arrival.startsOn, arrival.endsOn),
+                date: day(arrival.endsOn, locale),
+              })
+            : t("openEnded")}
+        </p>
+        {narrow ? (
+          // The columns this row has no room for, said where the name is: the
+          // desk presses Check in knowing the room and whether it is ready
+          // (ARRIVALS-03).
+          <div className="mt-1.5 grid justify-items-start gap-1">
+            <p className="text-step--1">
+              <span className="font-mono tabular-nums font-medium">
+                {arrival.reference}
+              </span>
+              {" · "}
+              <span className="tabular-nums">
+                {t("roomWord")}{" "}
+                <bdi>{unitLabel(arrival.roomName, arrival.unitName)}</bdi>
+              </span>
+            </p>
+            <ArrivalReadiness arrival={arrival} locale={locale} />
+            <ArrivalLateness arrival={arrival} locale={locale} />
+            <ExpectedArrival arrival={arrival} locale={locale} />
+            {arrival.folioId ? (
+              <ArrivalBalance arrival={arrival} locale={locale} />
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function arrivalColumns(
   t: Translate,
   sort: ColumnHeaderLabels,
-  locale: SupportedLocale,
-  propertyId: string,
+  ctx: ListContext,
 ): ColumnDef<ArrivalRow, unknown>[] {
-  return [
-    {
-      accessorKey: "guestName",
-      meta: { title: t("guest") },
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          labels={sort}
-          title={t("guest")}
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 text-step--1">
-            <AvatarFallback>
-              {initialsOf(row.original.guestName)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="font-medium leading-none">
-              <bdi>{row.original.guestName}</bdi>
-            </p>
-            <p className="mt-1 text-step--1 text-muted-foreground">
-              {row.original.endsOn
-                ? t("arrivalNightsUntil", {
-                    count: nightsBetween(
-                      row.original.startsOn,
-                      row.original.endsOn,
-                    ),
-                    date: day(row.original.endsOn, locale),
-                  })
-                : t("openEnded")}
-            </p>
-          </div>
+  const { locale, propertyId, reach } = ctx;
+  const guest: ColumnDef<ArrivalRow, unknown> = {
+    accessorKey: "guestName",
+    meta: { title: t("guest") },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
+    ),
+    cell: ({ row }) => <ArrivalGuest arrival={row.original} ctx={ctx} />,
+  };
+  const action: ColumnDef<ArrivalRow, unknown> = {
+    id: "action",
+    meta: { title: t("action"), pinEnd: true },
+    enableHiding: false,
+    header: () => <span className="sr-only">{t("action")}</span>,
+    cell: ({ row }) => {
+      const arrival = row.original;
+      const label = unitLabel(arrival.roomName, arrival.unitName);
+      return (
+        <div className="flex items-center justify-end gap-1">
+          {arrival.canCheckIn && arrival.mayCheckIn ? (
+            <CheckInAction
+              guestName={arrival.guestName}
+              locale={locale}
+              reservationId={arrival.reservationId}
+              room={
+                arrival.unitIsReady
+                  ? undefined
+                  : {
+                      label,
+                      because: arrival.unitNotReadyBecause ?? "dirty",
+                    }
+              }
+            />
+          ) : arrival.stayId && arrival.mayCheckIn ? (
+            <UndoCheckInDialog
+              guestName={arrival.guestName}
+              locale={locale}
+              reservationId={arrival.reservationId}
+              stayId={arrival.stayId}
+              unitName={label}
+            />
+          ) : arrival.nightsPassed ? (
+            // A booking that cannot be checked in says what can be done with
+            // it, where the button would be.
+            <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+              {t("arrivalNightsPassedHint")}
+            </span>
+          ) : arrival.checkInBlocker ? (
+            // Where the button would be, what stands in its way, so nobody
+            // presses a button that is certain to be refused. Shown to
+            // anybody reading the row: it is information, not a control.
+            <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+              {t(`checkInBlocked.${arrival.checkInBlocker}`)}
+            </span>
+          ) : null}
+          <FrontDeskRowMenu
+            key={arrival.reservationId}
+            booking={
+              arrival.status === "checked_in"
+                ? undefined
+                : {
+                    reservationId: arrival.reservationId,
+                    reference: arrival.reference,
+                    unitLabel: label,
+                    mayCancel: arrival.mayCancel,
+                    // Every row not checked in on this list has reached its
+                    // first night, so a confirmed one may be marked a no-show.
+                    mayMarkNoShow:
+                      arrival.mayCancel && arrival.status === "confirmed",
+                    expected: arrival.expectedArrival
+                      ? {
+                          time: expectedArrivalLabel(
+                            arrival.expectedArrival,
+                            locale,
+                          ),
+                          passed: arrival.expectedArrivalPassed,
+                        }
+                      : undefined,
+                    // An early or late arrival is moved here: to today, or
+                    // to the nights the Guest now wants (AB-S1-09).
+                    change: arrival.mayAmend
+                      ? {
+                          reservationId: arrival.reservationId,
+                          reference: arrival.reference,
+                          guestName: arrival.guestName,
+                          unitLabel: label,
+                          unitId: arrival.unitId,
+                          startsOn: arrival.startsOn,
+                          endsOn: arrival.endsOn,
+                          expectedArrival: arrival.expectedArrival,
+                        }
+                      : undefined,
+                  }
+            }
+            folioId={arrival.folioId}
+            guestName={arrival.guestName}
+            housekeeping={!arrival.unitIsReady}
+            locale={locale}
+            propertyId={propertyId}
+            reach={reach}
+            reservationId={arrival.reservationId}
+            unitId={arrival.unitId}
+          />
         </div>
-      ),
+      );
     },
+  };
+  if (ctx.narrow) return [guest, action];
+  return [
+    guest,
     {
       accessorKey: "reference",
       meta: { title: t("reservation") },
@@ -269,11 +621,7 @@ function arrivalColumns(
             </span>
             <CopyReferenceButton reference={row.original.reference} />
           </div>
-          {row.original.daysLate > 0 && row.original.status !== "checked_in" ? (
-            <span className="block text-step--1 font-semibold text-warning">
-              {t("daysLate", { n: row.original.daysLate })}
-            </span>
-          ) : null}
+          <ArrivalLateness arrival={row.original} locale={locale} />
           <ExpectedArrival arrival={row.original} locale={locale} />
         </div>
       ),
@@ -310,102 +658,9 @@ function arrivalColumns(
           title={t("readiness")}
         />
       ),
-      // What the room is doing for this arrival: first whatever check-in
-      // refuses on, from the same facts; then housekeeping's answer, which
-      // is asked about at check-in and never refused (ADR 0029).
-      cell: ({ row }) => {
-        const arrival = row.original;
-        if (arrival.status === "checked_in") {
-          return (
-            <StatusBadge
-              icon={DoorOpen}
-              label={t("checkedIn")}
-              tone="success"
-            />
-          );
-        }
-        switch (arrival.checkInBlocker) {
-          case "unit_occupied":
-            return (
-              <StatusBadge
-                icon={CircleAlert}
-                label={
-                  arrival.occupantLeaves === "overdue"
-                    ? t("occupiedOverstay")
-                    : arrival.occupantLeaves === "today"
-                      ? t("occupiedDueOut")
-                      : t("occupied")
-                }
-                tone="warning"
-              />
-            );
-          case "unit_blocked":
-            return (
-              <StatusBadge
-                icon={Ban}
-                label={t("blockedStatus")}
-                tone="danger"
-              />
-            );
-          case "unit_out_of_service":
-            return (
-              <div className="space-y-1">
-                <StatusBadge
-                  icon={Ban}
-                  label={
-                    arrival.hold
-                      ? `${t("outOfOrder")} · ${t("maintenance.reference", { number: arrival.hold.number })}`
-                      : t("outOfOrder")
-                  }
-                  tone="danger"
-                />
-                {arrival.hold ? (
-                  <span className="block text-step--1 text-muted-foreground">
-                    {arrival.hold.expectedBackOn
-                      ? t("maintenance.backOn", {
-                          date: day(arrival.hold.expectedBackOn, locale),
-                        })
-                      : t("outOfOrderNoReturnDate")}
-                  </span>
-                ) : null}
-              </div>
-            );
-          case "not_confirmed":
-            return (
-              <StatusBadge
-                icon={CircleDashed}
-                label={t("awaitingConfirmation")}
-                tone="info"
-              />
-            );
-          default:
-            return arrival.unitIsReady ? (
-              <StatusBadge
-                icon={CircleCheck}
-                label={t("ready")}
-                tone="success"
-              />
-            ) : (
-              // The icon is the board's for the same state: a clean room waiting
-              // for inspection is not drawn with the dirty room's spray-can.
-              <StatusBadge
-                icon={
-                  arrival.unitNotReadyBecause === "awaiting_inspection"
-                    ? Sparkles
-                    : SprayCan
-                }
-                label={
-                  arrival.unitNotReadyBecause === "awaiting_inspection"
-                    ? t("roomAwaitingInspection")
-                    : arrival.unitNotReadyBecause === "dirty"
-                      ? t("roomDirty")
-                      : t("notReady")
-                }
-                tone="warning"
-              />
-            );
-        }
-      },
+      cell: ({ row }) => (
+        <ArrivalReadiness arrival={row.original} locale={locale} />
+      ),
     },
     {
       id: "balance",
@@ -419,160 +674,241 @@ function arrivalColumns(
         />
       ),
       // Before check-in there is no bill, and a zero would claim there is one.
-      cell: ({ row }) =>
-        row.original.folioId ? (
-          <Balance
-            currency={row.original.currency}
-            locale={locale}
-            minor={row.original.balanceMinor}
-          />
-        ) : (
-          <span className="text-muted-foreground">{t("noFolio")}</span>
-        ),
+      cell: ({ row }) => (
+        <ArrivalBalance arrival={row.original} locale={locale} />
+      ),
     },
-    {
-      id: "action",
-      meta: { title: t("action"), pinEnd: true },
-      enableHiding: false,
-      header: () => <span className="sr-only">{t("action")}</span>,
-      cell: ({ row }) => {
-        const arrival = row.original;
-        const label = unitLabel(arrival.roomName, arrival.unitName);
-        return (
-          <div className="flex items-center justify-end gap-1">
-            {arrival.canCheckIn && arrival.mayCheckIn ? (
-              <CheckInAction
-                guestName={arrival.guestName}
-                locale={locale}
-                reservationId={arrival.reservationId}
-                room={
-                  arrival.unitIsReady
-                    ? undefined
-                    : {
-                        label,
-                        because: arrival.unitNotReadyBecause ?? "dirty",
-                      }
-                }
-              />
-            ) : arrival.stayId && arrival.mayCheckIn ? (
-              <UndoCheckInDialog
-                guestName={arrival.guestName}
-                locale={locale}
-                reservationId={arrival.reservationId}
-                stayId={arrival.stayId}
-                unitName={label}
-              />
-            ) : arrival.checkInBlocker ? (
-              // Where the button would be, what stands in its way, so nobody
-              // presses a button that is certain to be refused. Shown to
-              // anybody reading the row: it is information, not a control.
-              <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
-                {t(`checkInBlocked.${arrival.checkInBlocker}`)}
-              </span>
-            ) : null}
-            <FrontDeskRowMenu
-              key={arrival.reservationId}
-              booking={
-                arrival.status === "checked_in"
-                  ? undefined
-                  : {
-                      reservationId: arrival.reservationId,
-                      reference: arrival.reference,
-                      unitLabel: label,
-                      mayCancel: arrival.mayCancel,
-                      // Every row not checked in on this list has reached its
-                      // first night, so a confirmed one may be marked a no-show.
-                      mayMarkNoShow:
-                        arrival.mayCancel && arrival.status === "confirmed",
-                      expected: arrival.expectedArrival
-                        ? {
-                            time: expectedArrivalLabel(
-                              arrival.expectedArrival,
-                              locale,
-                            ),
-                            passed: arrival.expectedArrivalPassed,
-                          }
-                        : undefined,
-                      // An early or late arrival is moved here: to today, or
-                      // to the nights the Guest now wants (AB-S1-09).
-                      change: arrival.mayAmend
-                        ? {
-                            reservationId: arrival.reservationId,
-                            reference: arrival.reference,
-                            guestName: arrival.guestName,
-                            unitLabel: label,
-                            unitId: arrival.unitId,
-                            startsOn: arrival.startsOn,
-                            endsOn: arrival.endsOn,
-                            expectedArrival: arrival.expectedArrival,
-                          }
-                        : undefined,
-                    }
-              }
-              folioId={arrival.folioId}
-              guestName={arrival.guestName}
-              housekeeping={!arrival.unitIsReady}
-              locale={locale}
-              propertyId={propertyId}
-              unitId={arrival.unitId}
-            />
-          </div>
-        );
-      },
-    },
+    action,
   ];
 }
 
 export function useDepartureColumns(
   locale: SupportedLocale,
   propertyId: string,
+  reach: FrontDeskReach,
+  narrow: boolean,
 ): ColumnDef<Departure, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
-  return useMemo(
-    () => departureColumns(t, sort, locale, propertyId),
-    [t, sort, locale, propertyId],
+  const context = useListContext(locale, propertyId, reach, narrow);
+  return useMemo(() => departureColumns(t, sort, context), [t, sort, context]);
+}
+
+/** When they leave, and how late they are. */
+function DepartureLeaves({
+  departure,
+  locale,
+}: {
+  departure: Departure;
+  locale: SupportedLocale;
+}) {
+  const t = useTranslations();
+  const { endsOn, overdue, overdueDays, early } = departure;
+  if (!endsOn) {
+    return (
+      <StatusBadge icon={CalendarClock} label={t("openEnded")} tone="neutral" />
+    );
+  }
+  if (overdue) {
+    return (
+      <div>
+        <StatusBadge
+          icon={CalendarClock}
+          label={t("overdueDays", { count: overdueDays })}
+          tone="warning"
+        />
+        <span className="mt-1 block text-step--1 text-muted-foreground">
+          {t("wasDueOn", { date: day(endsOn, locale) })}
+        </span>
+      </div>
+    );
+  }
+  if (early) {
+    return (
+      <StatusBadge
+        icon={CalendarClock}
+        label={t("plannedFor", { date: day(endsOn, locale) })}
+        tone="neutral"
+      />
+    );
+  }
+  return <StatusBadge icon={CircleCheck} label={t("today")} tone="neutral" />;
+}
+
+/**
+ * What the check-out dialog asks about: the Folio plus the nights check-out
+ * will charge, so a row never reads zero over a bill the dialog demands a
+ * reason for. The amount opens its Folio for a viewer who can open Finance,
+ * which is the question Finance reads this page to answer (ARRIVALS-17).
+ */
+function DepartureBalance({
+  departure,
+  ctx,
+}: {
+  departure: Departure;
+  ctx: ListContext;
+}) {
+  const t = useTranslations();
+  if (!departure.folioId) {
+    return <span className="text-muted-foreground">{t("noFolio")}</span>;
+  }
+  const figure = (
+    <div>
+      <Balance
+        currency={departure.currency}
+        locale={ctx.locale}
+        minor={owedOnFolio(departure).netMinor}
+      />
+      {departure.pendingNights > 0 ? (
+        <span className="block text-step--1 text-muted-foreground">
+          {t("includesNights", { count: departure.pendingNights })}
+        </span>
+      ) : null}
+    </div>
+  );
+  return ctx.reach.folio ? (
+    <Link
+      className="block underline-offset-4 hover:underline"
+      href={`${localizeHref(ctx.locale, "finance")}?property=${ctx.propertyId}&folio=${departure.folioId}`}
+      prefetch={false}
+      tabIndex={-1}
+      title={t("openFolio")}
+    >
+      {figure}
+    </Link>
+  ) : (
+    figure
+  );
+}
+
+function DepartureGuest({
+  departure,
+  ctx,
+}: {
+  departure: Departure;
+  ctx: ListContext;
+}) {
+  const t = useTranslations();
+  const name = departure.guestName || t("noGuestRecorded");
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-8 w-8 shrink-0 text-step--1 max-sm:hidden">
+        <AvatarFallback>{initialsOf(departure.guestName)}</AvatarFallback>
+      </Avatar>
+      <div
+        className={
+          ctx.narrow
+            ? "min-w-0 max-w-md whitespace-normal [overflow-wrap:anywhere] max-sm:max-w-32"
+            : "min-w-0"
+        }
+      >
+        <GuestName
+          ctx={ctx}
+          name={name}
+          reservationId={departure.reservationId}
+        />
+        {/* "Guest stay" under every name said nothing; only the other kind of
+            stay is worth saying (ARRIVALS-14). */}
+        {departure.stayType === "guest" ? null : (
+          <p className="mt-1 text-step--1 text-muted-foreground">
+            {t(`stayType.${departure.stayType}`)}
+          </p>
+        )}
+        {ctx.narrow ? (
+          // Room, lateness and what they owe, where the name is: the columns
+          // that held them have no room here (ARRIVALS-02).
+          <div className="mt-1.5 grid justify-items-start gap-1">
+            <p className="text-step--1">
+              {departure.reference ? (
+                <>
+                  <span className="font-mono tabular-nums font-medium">
+                    {departure.reference}
+                  </span>
+                  {" · "}
+                </>
+              ) : null}
+              <span className="tabular-nums">
+                {t("roomWord")}{" "}
+                <bdi>{unitLabel(departure.roomName, departure.unitName)}</bdi>
+              </span>
+            </p>
+            <DepartureLeaves departure={departure} locale={ctx.locale} />
+            <DepartureBalance ctx={ctx} departure={departure} />
+          </div>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
 function departureColumns(
   t: Translate,
   sort: ColumnHeaderLabels,
-  locale: SupportedLocale,
-  propertyId: string,
+  ctx: ListContext,
 ): ColumnDef<Departure, unknown>[] {
-  return [
-    {
-      accessorKey: "guestName",
-      meta: { title: t("guest") },
-      header: ({ column }) => (
-        <DataTableColumnHeader
-          column={column}
-          labels={sort}
-          title={t("guest")}
+  const { locale, propertyId, reach } = ctx;
+  const guest: ColumnDef<Departure, unknown> = {
+    accessorKey: "guestName",
+    meta: { title: t("guest") },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
+    ),
+    cell: ({ row }) => <DepartureGuest ctx={ctx} departure={row.original} />,
+  };
+  const action: ColumnDef<Departure, unknown> = {
+    id: "action",
+    meta: { title: t("action"), pinEnd: true },
+    enableHiding: false,
+    header: () => <span className="sr-only">{t("action")}</span>,
+    cell: ({ row }) => (
+      <div className="flex items-center justify-end gap-1">
+        {row.original.mayCheckOut ? (
+          // Keyed by the Stay, so a dialog can never outlive the row it
+          // was opened on and submit for whichever row took its place. The
+          // menu beside it is keyed by the Stay too, under its own suffix:
+          // two siblings sharing a key is a React error on every render.
+          <CheckOutDialog
+            canOpenFolio={reach.folio}
+            departure={row.original}
+            key={`${row.original.stayId}:check-out`}
+            locale={locale}
+            propertyId={propertyId}
+          />
+        ) : null}
+        <FrontDeskRowMenu
+          folioId={row.original.folioId}
+          guestName={row.original.guestName || t("noGuestRecorded")}
+          key={`${row.original.stayId}:menu`}
+          locale={locale}
+          propertyId={propertyId}
+          reach={reach}
+          reservationId={row.original.reservationId}
+          stay={
+            row.original.mayAmend
+              ? {
+                  stayId: row.original.stayId,
+                  reference: row.original.reference,
+                  guestName: row.original.guestName || t("noGuestRecorded"),
+                  unitLabel: unitLabel(
+                    row.original.roomName,
+                    row.original.unitName,
+                  ),
+                  startsOn: row.original.startsOn,
+                  endsOn: row.original.endsOn,
+                  unpriced:
+                    row.original.stayType === "guest" &&
+                    row.original.nightlyRateMinor === null,
+                }
+              : undefined
+          }
+          unitId={row.original.unitId}
         />
-      ),
-      cell: ({ row }) => {
-        const name = row.original.guestName || t("noGuestRecorded");
-        return (
-          <div className="flex items-center gap-3">
-            <Avatar className="h-8 w-8 text-step--1">
-              <AvatarFallback>
-                {initialsOf(row.original.guestName)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <p className="font-medium leading-none">
-                <bdi>{name}</bdi>
-              </p>
-              <p className="mt-1 text-step--1 text-muted-foreground">
-                {t(`stayType.${row.original.stayType}`)}
-              </p>
-            </div>
-          </div>
-        );
-      },
-    },
+      </div>
+    ),
+  };
+  if (ctx.narrow) return [guest, action];
+  return [
+    guest,
     {
       accessorKey: "reference",
       meta: { title: t("reservation") },
@@ -627,44 +963,9 @@ function departureColumns(
           title={t("leaves")}
         />
       ),
-      cell: ({ row }) => {
-        const { endsOn, overdue, overdueDays, early } = row.original;
-        if (!endsOn) {
-          return (
-            <StatusBadge
-              icon={CalendarClock}
-              label={t("openEnded")}
-              tone="neutral"
-            />
-          );
-        }
-        if (overdue) {
-          return (
-            <div>
-              <StatusBadge
-                icon={CalendarClock}
-                label={t("overdueDays", { count: overdueDays })}
-                tone="warning"
-              />
-              <span className="mt-1 block text-step--1 text-muted-foreground">
-                {t("wasDueOn", { date: day(endsOn, locale) })}
-              </span>
-            </div>
-          );
-        }
-        if (early) {
-          return (
-            <StatusBadge
-              icon={CalendarClock}
-              label={t("plannedFor", { date: day(endsOn, locale) })}
-              tone="neutral"
-            />
-          );
-        }
-        return (
-          <StatusBadge icon={CircleCheck} label={t("today")} tone="neutral" />
-        );
-      },
+      cell: ({ row }) => (
+        <DepartureLeaves departure={row.original} locale={locale} />
+      ),
     },
     {
       id: "balance",
@@ -680,72 +981,11 @@ function departureColumns(
           title={t("balance")}
         />
       ),
-      cell: ({ row }) =>
-        row.original.folioId ? (
-          <div>
-            <Balance
-              currency={row.original.currency}
-              locale={locale}
-              minor={owedOnFolio(row.original).netMinor}
-            />
-            {row.original.pendingNights > 0 ? (
-              <span className="block text-step--1 text-muted-foreground">
-                {t("includesNights", { count: row.original.pendingNights })}
-              </span>
-            ) : null}
-          </div>
-        ) : (
-          <span className="text-muted-foreground">{t("noFolio")}</span>
-        ),
-    },
-    {
-      id: "action",
-      meta: { title: t("action"), pinEnd: true },
-      enableHiding: false,
-      header: () => <span className="sr-only">{t("action")}</span>,
       cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          {row.original.mayCheckOut ? (
-            // Keyed by the Stay, so a dialog can never outlive the row it
-            // was opened on and submit for whichever row took its place. The
-            // menu beside it is keyed by the Stay too, under its own suffix:
-            // two siblings sharing a key is a React error on every render.
-            <CheckOutDialog
-              departure={row.original}
-              key={`${row.original.stayId}:check-out`}
-              locale={locale}
-              propertyId={propertyId}
-            />
-          ) : null}
-          <FrontDeskRowMenu
-            folioId={row.original.folioId}
-            guestName={row.original.guestName || t("noGuestRecorded")}
-            key={`${row.original.stayId}:menu`}
-            locale={locale}
-            propertyId={propertyId}
-            stay={
-              row.original.mayAmend
-                ? {
-                    stayId: row.original.stayId,
-                    reference: row.original.reference,
-                    guestName: row.original.guestName || t("noGuestRecorded"),
-                    unitLabel: unitLabel(
-                      row.original.roomName,
-                      row.original.unitName,
-                    ),
-                    startsOn: row.original.startsOn,
-                    endsOn: row.original.endsOn,
-                    unpriced:
-                      row.original.stayType === "guest" &&
-                      row.original.nightlyRateMinor === null,
-                  }
-                : undefined
-            }
-            unitId={row.original.unitId}
-          />
-        </div>
+        <DepartureBalance ctx={ctx} departure={row.original} />
       ),
     },
+    action,
   ];
 }
 

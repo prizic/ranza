@@ -121,7 +121,7 @@ export function EndBookingDialog({
           <DialogMasthead
             art={`/illustrations/dialogs/${cancelling ? "cancel-booking" : "no-show"}.svg`}
             eyebrow={cancelling ? t("cancelBookingTitle") : t("noShowTitle")}
-            facts={`${reference} · ${t("unit")} ${unitLabel}`}
+            facts={`${reference} · ${t("roomWord")} ${unitLabel}`}
             heading={guestName}
           />
 

@@ -200,9 +200,10 @@ test("an_in_house_guest_is_extended_from_departures", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Change departure" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Change departure" });
-  await expect(
-    dialog.getByText("That is already the departure."),
-  ).toBeVisible();
+  // It opens on one more night, priced, and says nothing is wrong until the
+  // desk has chosen the departure it already has (ARRIVALS-07).
+  await expect(dialog.getByText(/^1 more night/)).toBeVisible();
+  await expect(dialog.getByText("That is already the departure.")).toBeHidden();
   await dialog.getByRole("button", { name: /^Departure/ }).click();
   await pickDay(page, propertyDay(4));
   await expect(dialog.getByText(/^2 more nights/)).toBeVisible();

@@ -107,6 +107,9 @@ const save = () =>
 const hidden = (name: string) =>
   document.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value;
 
+/** The dialog has read the Stay and opened its field on one more night. */
+const ready = () => waitFor(() => expect(hidden("endsOn")).toBe("2026-10-01"));
+
 function pick(iso: string) {
   fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
   const day = document.querySelector<HTMLButtonElement>(
@@ -120,10 +123,7 @@ describe("the Change departure dialog", () => {
   it("shows the arrival, lets only the departure move, and says what an extension costs", async () => {
     answering(preview());
     open();
-    expect(
-      await screen.findByText(messages.en.changeDepartureNothing),
-    ).toBeInTheDocument();
-    expect(save()).toBeDisabled();
+    await ready();
     expect(
       screen.queryByRole("button", { name: /^Arrival/ }),
     ).not.toBeInTheDocument();
@@ -143,7 +143,7 @@ describe("the Change departure dialog", () => {
       preview({ blocker: "booked", conflictReference: "RXYZ789" }),
     );
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     pick("2026-10-03");
     expect(
       await screen.findByText(/Booking RXYZ789 holds some of those nights/),
@@ -154,7 +154,7 @@ describe("the Change departure dialog", () => {
   it("a Guest's departure cleared is asked for, not shown as open-ended", async () => {
     const fetch = answering(preview());
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     const reads = fetch.mock.calls.length;
 
     fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
@@ -198,7 +198,7 @@ describe("the Change departure dialog", () => {
       }),
     );
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     pick("2026-10-02");
     expect(
       await screen.findByText(
@@ -211,7 +211,7 @@ describe("the Change departure dialog", () => {
   it("a Resident's end can be taken away", async () => {
     answering(preview({ stayType: "resident" }));
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(
@@ -224,9 +224,13 @@ describe("the Change departure dialog", () => {
     // Somebody else moves the departure to 4 October while this desk is
     // choosing 2 October: the read after the pick names version 2, and the
     // field is refilled rather than saved over it.
-    answering(preview(), preview({ endsOn: "2026-10-04", version: 2 }));
+    answering(
+      preview(),
+      preview(),
+      preview({ endsOn: "2026-10-04", version: 2 }),
+    );
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     expect(hidden("version")).toBe("1");
     pick("2026-10-02");
 
@@ -242,7 +246,7 @@ describe("the Change departure dialog", () => {
     const fetch = answering(preview());
     changeDeparture.mockResolvedValueOnce("changed");
     open();
-    await screen.findByText(messages.en.changeDepartureNothing);
+    await ready();
     pick("2026-10-02");
     await waitFor(() => expect(save()).toBeEnabled());
     const reads = fetch.mock.calls.length;
@@ -251,5 +255,34 @@ describe("the Change departure dialog", () => {
       await screen.findByText(messages.en.changeBookingChanged),
     ).toBeInTheDocument();
     await waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(reads));
+  });
+
+  it("opens_on_one_more_night_priced_and_ready_to_save_without_an_error_under_the_field", async () => {
+    answering(preview());
+    open();
+    await ready();
+    expect(
+      await screen.findByText(/^1 more night at .*1,500\.00 each$/),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(save()).toBeEnabled());
+    expect(
+      screen.queryByText(messages.en.changeDepartureNothing),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(messages.en.changeDepartureHintDate),
+    ).not.toBeInTheDocument();
+
+    // Choosing the day it already is answers the choice, and says so.
+    fireEvent.click(screen.getByRole("button", { name: /^Departure/ }));
+    fireEvent.click(screen.getByRole("button", { name: /previous month/i }));
+    fireEvent.click(
+      document.querySelector<HTMLButtonElement>(
+        'td:not([data-outside]) [data-day="2026-09-30"]',
+      )!,
+    );
+    expect(
+      await screen.findByText(messages.en.changeDepartureNothing),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(save()).toBeDisabled());
   });
 });

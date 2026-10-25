@@ -7,6 +7,9 @@ import { DataTable, EmptyState } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { useDepartureColumns } from "./columns";
+import { REACHES_EVERYTHING, type FrontDeskReach } from "../reach";
+import { useOverflowing } from "../use-overflowing";
+
 
 /**
  * The Stays a front desk may check out: due and overdue ones first, or
@@ -24,6 +27,7 @@ export function DeparturesTable({
   filtered,
   locale,
   propertyId,
+  reach = REACHES_EVERYTHING,
   view,
 }: {
   departures: readonly Departure[];
@@ -33,13 +37,16 @@ export function DeparturesTable({
   view: DepartureView;
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
+  /** Which of the pages a row links to the viewer can open. */
+  reach?: FrontDeskReach;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useDepartureColumns(locale, propertyId);
+  const [listRef, narrow] = useOverflowing<HTMLDivElement>(departures);
+  const columns = useDepartureColumns(locale, propertyId, reach, narrow);
 
   return (
-    <div className="mt-4">
+    <div className="mt-4" ref={listRef}>
       <DataTable
         caption={t("departures")}
         columns={columns}
@@ -76,6 +83,16 @@ export function DeparturesTable({
         labels={{
           ...labels,
           searchBy: () => t("searchGuestRoomReference"),
+          // A search that finds nobody among those due says where else to
+          // look, because the Guest who is in house but not leaving today is
+          // exactly who it will not find (ARRIVALS-13).
+          ...(view === "due"
+            ? {
+                noMatches: t("departuresNoMatchesDue", {
+                  inHouse: t("departuresInHouse"),
+                }),
+              }
+            : {}),
         }}
         getRowId={(row) => row.stayId}
         pageSize={50}

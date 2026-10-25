@@ -453,12 +453,17 @@ export async function entitledPropertiesByCapability(
  */
 export async function arrivals(
   propertyId: string,
+  options: { withMissed?: boolean } = {},
 ): Promise<readonly ArrivalRow[]> {
   const viewer = await currentViewer();
   if (!viewer) return [];
+  // `withMissed` adds the bookings whose nights all passed unarrived, for the
+  // screen where the desk resolves them; Today and the board keep counting only
+  // what is due (ARRIVALS-10).
   const list = await getComposition().reservations.listArrivals(
     viewer.userId,
     propertyId,
+    options,
   );
   // The request is asked about only when a room on the list is out of order.
   if (!list.some((row) => row.checkInBlocker === "unit_out_of_service")) {

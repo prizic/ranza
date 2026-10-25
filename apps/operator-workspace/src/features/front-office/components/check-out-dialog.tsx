@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AlarmClock, ArrowUpRight, Info, LogOut } from "lucide-react";
@@ -39,6 +39,11 @@ import {
   checkOutStay,
   type CheckOutOutcome,
 } from "../../../server/front-office";
+import {
+  checkOutMarker,
+  focusCheckOutOf,
+  nextCheckOutAfter,
+} from "../check-out-focus";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
 
@@ -77,11 +82,14 @@ function day(iso: string, locale: SupportedLocale): string {
 }
 
 export function CheckOutDialog({
+  canOpenFolio = true,
   departure,
   locale,
   onDone,
   propertyId,
 }: {
+  /** Whether the viewer can open the Folio: the link is not offered to one who cannot. */
+  canOpenFolio?: boolean;
   departure: Departure;
   locale: SupportedLocale;
   /** Called once the Guest is out: Today refreshes its figures (TD-S2-02). */
@@ -89,8 +97,17 @@ export function CheckOutDialog({
   propertyId: string;
 }) {
   const t = useTranslations();
+  const trigger = useRef<HTMLButtonElement>(null);
   const [outcome, act, pending] = useActionState<CheckOutOutcome, FormData>(
-    checkOutStay,
+    async (previous, data) => {
+      // The next row's button is found before the action runs: this row is
+      // gone when it answers, and the keyboard goes on to the next Guest
+      // rather than back to the top of the page (ARRIVALS-18).
+      const next = nextCheckOutAfter(trigger.current);
+      const result = await checkOutStay(previous, data);
+      if (result === "done" && next) focusCheckOutOf(next);
+      return result;
+    },
     "idle",
   );
   const [acknowledged, setAcknowledged] = useState(false);
@@ -117,7 +134,8 @@ export function CheckOutDialog({
     : departure.early
       ? t("checkOutStatusEarly")
       : t("checkOutStatusOnSchedule");
-  const folioHref = departure.folioId
+  const folioHref =
+    departure.folioId && canOpenFolio
     ? `${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`
     : null;
   // A new tab when money is owed: the Folio is where it is settled, and
@@ -176,7 +194,9 @@ export function CheckOutDialog({
       <DialogTrigger asChild>
         <Button
           aria-label={t("checkOutFor", { guest: isolate(name) })}
+          ref={trigger}
           size="sm"
+          {...checkOutMarker(departure.stayId)}
         >
           <LogOut aria-hidden="true" />
           {t("checkOut")}
@@ -188,7 +208,7 @@ export function CheckOutDialog({
           <DialogMasthead
             art="/illustrations/check-out/key.svg"
             eyebrow={t("checkOutTitle")}
-            facts={`${t("unit")} ${room} · ${leaving}`}
+            facts={`${t("roomWord")} ${room} · ${leaving}`}
             heading={name}
           />
 
@@ -197,16 +217,27 @@ export function CheckOutDialog({
               {t("checkOutSummary")}
             </DialogDescription>
 
+            {/* The one irreversible act of the day says so where it is read,
+                before the figure and the reason box that sit below the fold of
+                a long dialog (ARRIVALS-05). */}
+            <DialogNotice icon={LogOut}>
+              {departure.roomWillBeDirty
+                ? t("checkOutFinalDirty")
+                : t("checkOutFinal")}
+            </DialogNotice>
+
             {departure.overdue && departure.endsOn ? (
+              // One sentence for the booking in front of the desk: an unpriced
+              // booking is not charged for its extra nights, and saying both
+              // that they are and that they are not was a contradiction
+              // (ARRIVALS-04).
               <DialogNotice icon={AlarmClock}>
-                {t("checkOutOverdue", {
+                {t(unpriced ? "checkOutOverdueUnpriced" : "checkOutOverdue", {
                   count: departure.overdueDays,
                   date: day(departure.endsOn, locale),
                 })}
               </DialogNotice>
-            ) : null}
-
-            {unpriced ? (
+            ) : unpriced ? (
               <DialogNotice icon={Info}>{t("checkOutUnpriced")}</DialogNotice>
             ) : null}
 
@@ -239,13 +270,18 @@ export function CheckOutDialog({
               <DialogSettled
                 title={
                   departure.folioId
-                    ? t("checkOutNothingOwedTitle")
+                    ? unpriced
+                      ? t("checkOutNothingChargedTitle")
+                      : t("checkOutNothingOwedTitle")
                     : t("noFolio")
                 }
               >
                 {departure.folioId ? (
                   <>
-                    {t("checkOutNothingOwedBody")} {folioLink}
+                    {unpriced
+                      ? t("checkOutNothingChargedBody")
+                      : t("checkOutNothingOwedBody")}{" "}
+                    {folioLink}
                   </>
                 ) : (
                   t("checkOutNoFolioBody")
@@ -315,10 +351,6 @@ export function CheckOutDialog({
                   onPick={setReason}
                 />
               </DialogSection>
-            ) : null}
-
-            {departure.roomWillBeDirty ? (
-              <DialogNotice>{t("checkOutRoomDirty")}</DialogNotice>
             ) : null}
 
             {message ? (

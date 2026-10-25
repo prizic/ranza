@@ -30,5 +30,5 @@ export async function GET(request: Request): Promise<Response> {
   // them nothing, which is the same thing an unreachable Property tells them.
   if (!UUID.test(property)) return Response.json({ arrivals: [] });
 
-  return Response.json({ arrivals: await arrivals(property) });
+  return Response.json({ arrivals: await arrivals(property, { withMissed: true }) });
 }

@@ -9,6 +9,9 @@ import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import type { ArrivalRow } from "../../../server/viewer";
 import { useTableLabels } from "../../../lib/table-labels";
 import { useArrivalColumns } from "./columns";
+import { REACHES_EVERYTHING, type FrontDeskReach } from "../reach";
+import { useOverflowing } from "../use-overflowing";
+
 
 /**
  * The order a desk works the list in: Guests already late first, then by the
@@ -41,15 +44,19 @@ export function ArrivalsTable({
   arrivals,
   locale,
   propertyId,
+  reach = REACHES_EVERYTHING,
 }: {
   arrivals: readonly ArrivalRow[];
   locale: SupportedLocale;
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
+  /** Which of the pages a row links to the viewer can open. */
+  reach?: FrontDeskReach;
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const allColumns = useArrivalColumns(locale, propertyId);
+  const [listRef, narrow] = useOverflowing<HTMLDivElement>(arrivals);
+  const allColumns = useArrivalColumns(locale, propertyId, reach, narrow);
   const ordered = useMemo(() => inWorkingOrder(arrivals), [arrivals]);
   // Nobody has a Folio before check-in, so the column would read "No Folio" on
   // every row and spend its width on a constant: it is left out until a row has
@@ -60,7 +67,7 @@ export function ArrivalsTable({
     [allColumns, anyFolio],
   );
   return (
-    <div className="mt-4">
+    <div className="mt-4" ref={listRef}>
       <DataTable
         caption={t("arrivals")}
         columns={columns}

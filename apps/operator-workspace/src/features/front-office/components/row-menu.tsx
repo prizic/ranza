@@ -10,6 +10,7 @@ import {
   CalendarX,
   DoorClosed,
   DoorOpen,
+  FileText,
   MoreHorizontal,
   Receipt,
   SprayCan,
@@ -34,6 +35,7 @@ import {
 } from "./change-departure-dialog";
 import { EndBookingDialog, type EndBookingKind } from "./end-booking-dialog";
 import { MoveGuestDialog } from "./move-guest-dialog";
+import { REACHES_EVERYTHING, type FrontDeskReach } from "../reach";
 
 /**
  * A booking the row may end, and whether each way of ending it is offered.
@@ -61,9 +63,14 @@ export interface EndableBooking {
  * Folio when there is one, and the room map. Both name the row's Property, so
  * following one never switches the Property being worked in, and neither is
  * prefetched: a menu item is one request, read on the click. It used to
- * offer a reservation page, a profile and an inventory bed map, none of which
- * is built — the profile opened the staff roster — and a menu of links that
- * do not do what they say is worse than a shorter one.
+ * offer a profile and an inventory bed map, neither of which is built — the
+ * profile opened the staff roster — and a menu of links that do not do what
+ * they say is worse than a shorter one. The reservation it opens is the
+ * Reservations list's own sheet, for the Guest's booking, balance and notes.
+ *
+ * A link is offered only to a viewer who can open where it leads: Finance has
+ * no Rooms page, and a menu item that is then refused is worse than none
+ * (ARRIVALS-15).
  */
 export function FrontDeskRowMenu({
   booking,
@@ -73,6 +80,8 @@ export function FrontDeskRowMenu({
   housekeeping = false,
   locale,
   propertyId,
+  reach = REACHES_EVERYTHING,
+  reservationId,
   stay,
   unitId,
 }: {
@@ -90,6 +99,10 @@ export function FrontDeskRowMenu({
   housekeeping?: boolean;
   locale: SupportedLocale;
   propertyId: string;
+  /** Which of the pages this menu links to the viewer can open. */
+  reach?: FrontDeskReach;
+  /** The booking behind the row, when there is one, for "Open reservation". */
+  reservationId?: string | null | undefined;
   unitId?: string | null | undefined;
 }) {
   const t = useTranslations();
@@ -99,6 +112,15 @@ export function FrontDeskRowMenu({
   const [moving, setMoving] = useState(false);
   const bookingActions =
     booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
+  const offersReservation = Boolean(reservationId) && reach.reservations;
+  const offersFolio = Boolean(folioId) && reach.folio;
+  const offersHousekeeping = housekeeping && reach.housekeeping;
+  const hasLinks =
+    offersReservation ||
+    offersFolio ||
+    checkOutDue ||
+    reach.rooms ||
+    offersHousekeeping;
 
   // The dialogs are opened from a menu item that is gone by the time they
   // close, so focus has nowhere to return to and falls to the page. It returns
@@ -118,6 +140,9 @@ export function FrontDeskRowMenu({
     return () => clearTimeout(timer);
   }, [dialogOpen]);
 
+  // Nothing to offer is no menu: an empty one is a button that opens nothing.
+  if (!hasLinks && !bookingActions && !stay) return null;
+
   return (
     <>
       <DropdownMenu>
@@ -133,7 +158,18 @@ export function FrontDeskRowMenu({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {folioId ? (
+          {offersReservation ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`${localizeHref(locale, "reservations")}?property=${propertyId}&open=${reservationId}`}
+                prefetch={false}
+              >
+                <FileText className="size-4" />
+                <span>{t("openReservation")}</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {offersFolio ? (
             <DropdownMenuItem asChild>
               <Link
                 href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${folioId}`}
@@ -155,16 +191,18 @@ export function FrontDeskRowMenu({
               </Link>
             </DropdownMenuItem>
           ) : null}
-          <DropdownMenuItem asChild>
-            <Link
-              href={`${localizeHref(locale, "rooms")}?property=${propertyId}${unitId ? `&unit=${unitId}` : ""}`}
-              prefetch={false}
-            >
-              <BedDouble className="size-4" />
-              <span>{t("showOnRoomMap")}</span>
-            </Link>
-          </DropdownMenuItem>
-          {housekeeping ? (
+          {reach.rooms ? (
+            <DropdownMenuItem asChild>
+              <Link
+                href={`${localizeHref(locale, "rooms")}?property=${propertyId}${unitId ? `&unit=${unitId}` : ""}`}
+                prefetch={false}
+              >
+                <BedDouble className="size-4" />
+                <span>{t("showOnRoomMap")}</span>
+              </Link>
+            </DropdownMenuItem>
+          ) : null}
+          {offersHousekeeping ? (
             <DropdownMenuItem asChild>
               <Link
                 href={`${localizeHref(locale, "housekeeping")}?property=${propertyId}`}
@@ -175,7 +213,9 @@ export function FrontDeskRowMenu({
               </Link>
             </DropdownMenuItem>
           ) : null}
-          {bookingActions || stay ? <DropdownMenuSeparator /> : null}
+          {hasLinks && (bookingActions || stay) ? (
+            <DropdownMenuSeparator />
+          ) : null}
           {stay ? (
             <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
               <CalendarRange className="size-4" />

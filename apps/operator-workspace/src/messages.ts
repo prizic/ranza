@@ -182,6 +182,7 @@ export interface Messages {
   guest: string;
   period: string;
   unit: string;
+  roomWord: string;
   action: string;
   status: string;
   departure: string;
@@ -215,12 +216,15 @@ export interface Messages {
     "not_confirmed" | "unit_blocked" | "unit_out_of_service" | "unit_occupied",
     string
   >;
+  arrivalNightsPassedHint: string;
   checkOutFor: string;
   checkOutInDepartures: string;
   checkOutTitle: string;
   checkOutSummary: string;
-  checkOutRoomDirty: string;
+  checkOutFinal: string;
+  checkOutFinalDirty: string;
   checkOutOverdue: string;
+  checkOutOverdueUnpriced: string;
   checkOutOwesFirst: string;
   checkOutStatusEarly: string;
   checkOutStatusOnSchedule: string;
@@ -253,26 +257,28 @@ export interface Messages {
   checkOutDueLabel: string;
   checkOutNothingOwedTitle: string;
   checkOutNothingOwedBody: string;
+  checkOutNothingChargedTitle: string;
+  checkOutNothingChargedBody: string;
   checkOutNoFolioBody: string;
   checkOutReasonPlaceholder: string;
   checkOutReasonWillPayLater: string;
   checkOutReasonCompanyInvoice: string;
   checkOutReasonDisputed: string;
-  departuresViews: string;
   departuresFilters: string;
   inHouseAt: string;
-  departuresDue: string;
   departuresInHouse: string;
   nobodyInHouseTitle: string;
   nobodyInHouseDescription: string;
   noGuestRecorded: string;
   walkIn: string;
   showOnRoomMap: string;
+  openReservation: string;
   noDeparturesTitle: string;
   noDeparturesDescription: string;
   departuresFilteredEmptyTitle: string;
   departuresFilteredEmptyHint: string;
   departuresShowAll: string;
+  departuresNoMatchesDue: string;
   departuresChipAll: string;
   departuresChipOwing: string;
   departuresChipOverdueOwing: string;
@@ -3350,6 +3356,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     guest: "Misafir",
     period: "Konaklama",
     unit: "Birim",
+    roomWord: "Oda",
     action: "İşlem",
     status: "Durum",
     departure: "Çıkış",
@@ -3389,15 +3396,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       unit_out_of_service: "Birim hizmet dışı. Başka birim seçin.",
       unit_occupied: "Birimde hâlâ konaklayan var. Önce onun çıkışını yapın.",
     },
+    arrivalNightsPassedHint:
+      "Tüm geceleri geçti. Gelmedi olarak işaretleyin ya da iptal edin; misafir geldiyse önce rezervasyonu değiştirin.",
     checkOutFor: "{guest} için çıkış yap",
     checkOutInDepartures: "Çıkış yap (Çıkışlar sayfası açılır)",
     checkOutTitle: "Çıkış yap",
-    checkOutSummary:
-      "Misafir ayrılır. Çıkış geri alınamaz; önce hesabı kontrol edin.",
-    checkOutRoomDirty:
-      "Oda kirli olarak işaretlenir; temizlik yapıldıktan sonra yeniden verilebilir.",
+    checkOutSummary: "Hesabı kontrol edin, sonra çıkışı onaylayın.",
+    checkOutFinal: "Çıkış geri alınamaz.",
+    checkOutFinalDirty:
+      "Çıkış geri alınamaz. Oda kirli olarak işaretlenir; temizlik yapıldıktan sonra yeniden verilebilir.",
     checkOutOverdue:
       "Misafir {count, plural, one {# gün} other {# gün}} gecikmiş (planlanan çıkış {date}). Çıkış bugün olarak kaydedilir ve o günden bu yana geçen geceler hesaba işlenir.",
+    checkOutOverdueUnpriced:
+      "Misafir {count, plural, one {# gün} other {# gün}} gecikmiş (planlanan çıkış {date}). Çıkış bugün olarak kaydedilir. Rezervasyonun fiyatı yok, bu yüzden fazladan geceler için ücret yazılmaz.",
     checkOutOwesFirst:
       "{balance} borç var. Önce hesap üzerinden ödemeyi alın ya da bir gerekçeyle açık bırakın.",
     checkOutStatusEarly: "Erken ayrılıyor",
@@ -3434,16 +3445,17 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutDueLabel: "Çıkışta ödenecek",
     checkOutNothingOwedTitle: "Ödenecek bir şey yok",
     checkOutNothingOwedBody: "Hesap borçsuz. Bir dokunuşla çıkış yapılır.",
+    checkOutNothingChargedTitle: "Hiçbir şey ücretlendirilmedi",
+    checkOutNothingChargedBody:
+      "Hesapta ücret yok. Bir dokunuşla çıkış yapılır.",
     checkOutNoFolioBody:
       "Bu konaklama için hesap yok, kapatılacak bir şey de yok.",
     checkOutReasonPlaceholder: "Örneğin: Misafir yarın havale ile ödeyecek",
     checkOutReasonWillPayLater: "Sonra ödeyecek",
     checkOutReasonCompanyInvoice: "Şirkete fatura",
     checkOutReasonDisputed: "İtiraz ediyor",
-    departuresViews: "Çıkış listesi görünümleri",
     departuresFilters: "Çıkış listesi filtreleri",
     inHouseAt: "Şu anda konaklayanlar:",
-    departuresDue: "Bugün ve gecikenler",
     departuresInHouse: "Konaklayan herkes",
     nobodyInHouseTitle: "Konaklayan kimse yok",
     nobodyInHouseDescription:
@@ -3451,6 +3463,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     noGuestRecorded: "Kayıtlı misafir yok",
     walkIn: "Rezervasyonsuz",
     showOnRoomMap: "Oda haritasında göster",
+    openReservation: "Rezervasyonu aç",
     noDeparturesTitle: "Bugün çıkış yok",
     noDeparturesDescription:
       "Bu tesiste bugün ayrılması beklenen bir konaklama bulunmuyor.",
@@ -3458,6 +3471,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     departuresFilteredEmptyHint:
       "{others, plural, =0 {Bugün çıkacak başka kimse de yok.} one {Çıkışı gelmiş ya da geçmiş # misafir daha var.} other {Çıkışı gelmiş ya da geçmiş # misafir daha var.}}",
     departuresShowAll: "Hepsini göster",
+    departuresNoMatchesDue:
+      "Çıkışı gelenler arasında eşleşen yok. Konaklayıp bugün çıkmayan misafirler “{inHouse}” altındadır.",
     departuresChipAll: "Çıkışı gelenler",
     departuresChipOwing: "Bakiyeli",
     departuresChipOverdueOwing: "Gecikmiş ve bakiyeli",
@@ -6963,6 +6978,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     guest: "Guest",
     period: "Stay",
     unit: "Unit",
+    roomWord: "Room",
     action: "Action",
     status: "Status",
     departure: "Departure",
@@ -7001,15 +7017,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       unit_out_of_service: "The Unit is out of order. Choose another.",
       unit_occupied: "Somebody is still in the room. Check them out first.",
     },
+    arrivalNightsPassedHint:
+      "Every night has passed. Mark it a no-show or cancel it; if the Guest has come after all, change the booking first.",
     checkOutFor: "Check {guest} out",
     checkOutInDepartures: "Check out (opens Departures)",
     checkOutTitle: "Check out",
-    checkOutSummary:
-      "The Guest leaves. A check-out cannot be taken back, so review the bill first.",
-    checkOutRoomDirty:
-      "The room is marked dirty and can be let again once housekeeping has cleaned it.",
+    checkOutSummary: "Review the bill, then confirm the check-out.",
+    checkOutFinal: "A check-out cannot be taken back.",
+    checkOutFinalDirty:
+      "A check-out cannot be taken back. The room is marked dirty and can be let again once housekeeping has cleaned it.",
     checkOutOverdue:
       "This Guest is {count, plural, one {# day} other {# days}} overdue, since {date}. The departure is recorded as today, and the nights since then are charged to the bill.",
+    checkOutOverdueUnpriced:
+      "This Guest is {count, plural, one {# day} other {# days}} overdue, since {date}. The departure is recorded as today. The booking has no price, so nothing is charged for the extra nights.",
     checkOutOwesFirst:
       "{balance} is owed. Collect payment on the Folio first, or leave it open with a reason.",
     checkOutStatusEarly: "Leaving early",
@@ -7047,6 +7067,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutNothingOwedTitle: "Nothing to pay",
     checkOutNothingOwedBody:
       "Their Folio is settled. One press and they are checked out.",
+    checkOutNothingChargedTitle: "Nothing was charged",
+    checkOutNothingChargedBody:
+      "The Folio holds no charge. One press and they are checked out.",
     checkOutNoFolioBody:
       "There is no Folio for this stay, so there is nothing to settle.",
     checkOutReasonPlaceholder:
@@ -7054,10 +7077,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutReasonWillPayLater: "Will pay later",
     checkOutReasonCompanyInvoice: "Company invoice",
     checkOutReasonDisputed: "Disputed",
-    departuresViews: "Departure views",
     departuresFilters: "Departure filters",
     inHouseAt: "In house at",
-    departuresDue: "Due and overdue",
     departuresInHouse: "Everybody in house",
     nobodyInHouseTitle: "Nobody is in house",
     nobodyInHouseDescription:
@@ -7065,12 +7086,15 @@ export const messages: Record<SupportedLocale, Messages> = {
     noGuestRecorded: "No Guest recorded",
     walkIn: "No Reservation",
     showOnRoomMap: "Show on the room map",
+    openReservation: "Open reservation",
     noDeparturesTitle: "No departures today",
     noDeparturesDescription: "Nobody is due to leave this Property today.",
     departuresFilteredEmptyTitle: "Nobody on this list owes anything",
     departuresFilteredEmptyHint:
       "{others, plural, =0 {Nobody else is due out either.} one {# other Guest is due out or overdue.} other {# other Guests are due out or overdue.}}",
     departuresShowAll: "Show all",
+    departuresNoMatchesDue:
+      "Nobody due matches. A Guest who is in house but not leaving today is under “{inHouse}”.",
     departuresChipAll: "Due and overdue",
     departuresChipOwing: "Owing",
     departuresChipOverdueOwing: "Overdue and owing",
@@ -10586,6 +10610,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     guest: "الضيف",
     period: "الإقامة",
     unit: "الوحدة",
+    roomWord: "الغرفة",
     action: "إجراء",
     status: "الحالة",
     departure: "المغادرة",
@@ -10624,15 +10649,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       unit_out_of_service: "الوحدة خارج الخدمة. اختر وحدة أخرى.",
       unit_occupied: "لا يزال هناك ضيف في الغرفة. سجّل مغادرته أولًا.",
     },
+    arrivalNightsPassedHint:
+      "انقضت كل الليالي. سجّله كعدم حضور أو ألغِه؛ وإن حضر الضيف بعد كل شيء فعدّل الحجز أولًا.",
     checkOutFor: "تسجيل مغادرة {guest}",
     checkOutInDepartures: "تسجيل المغادرة (يفتح صفحة المغادرة)",
     checkOutTitle: "تسجيل المغادرة",
-    checkOutSummary:
-      "يغادر الضيف. لا يمكن التراجع عن المغادرة، لذا راجع الحساب أولًا.",
-    checkOutRoomDirty:
-      "تُعلَّم الغرفة كغرفة متسخة، ويمكن تأجيرها من جديد بعد أن ينظّفها التدبير الفندقي.",
+    checkOutSummary: "راجع الحساب، ثم أكّد المغادرة.",
+    checkOutFinal: "لا يمكن التراجع عن المغادرة.",
+    checkOutFinalDirty:
+      "لا يمكن التراجع عن المغادرة. تُعلَّم الغرفة كغرفة متسخة، ويمكن تأجيرها من جديد بعد أن ينظّفها التدبير الفندقي.",
     checkOutOverdue:
       "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم، وتُحتسب الليالي منذ ذلك الحين على الحساب.",
+    checkOutOverdueUnpriced:
+      "تأخر هذا الضيف {count, plural, one {يومًا واحدًا} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} عن موعد {date}. تُسجَّل المغادرة اليوم. الحجز بلا سعر، لذا لا تُحتسب أي ليالٍ إضافية.",
     checkOutOwesFirst:
       "هناك {balance} مستحق. حصّل الدفعة على الحساب أولًا، أو اتركه مفتوحًا مع ذكر السبب.",
     checkOutStatusEarly: "مغادرة مبكرة",
@@ -10666,27 +10695,30 @@ export const messages: Record<SupportedLocale, Messages> = {
     checkOutDueLabel: "المستحق عند المغادرة",
     checkOutNothingOwedTitle: "لا شيء للدفع",
     checkOutNothingOwedBody: "الحساب مسدد. بضغطة واحدة تتم المغادرة.",
+    checkOutNothingChargedTitle: "لم يُحتسب أي مبلغ",
+    checkOutNothingChargedBody: "لا مبلغ على الحساب. بضغطة واحدة تتم المغادرة.",
     checkOutNoFolioBody: "لا يوجد حساب لهذه الإقامة، فلا شيء للتسوية.",
     checkOutReasonPlaceholder: "مثال: سيدفع النزيل بالتحويل غدًا",
     checkOutReasonWillPayLater: "سيدفع لاحقًا",
     checkOutReasonCompanyInvoice: "فاتورة للشركة",
     checkOutReasonDisputed: "معترض عليه",
-    departuresViews: "عروض قائمة المغادرة",
     departuresFilters: "مرشحات المغادرة",
     inHouseAt: "المقيمون حاليًا في",
-    departuresDue: "المستحقة والمتأخرة",
     departuresInHouse: "جميع الضيوف المقيمين",
     nobodyInHouseTitle: "لا يوجد نزلاء مقيمون",
     nobodyInHouseDescription: "لا يوجد ضيف مسجَّل الوصول في هذا العقار حاليًا.",
     noGuestRecorded: "لا يوجد ضيف مسجَّل",
     walkIn: "بلا حجز",
     showOnRoomMap: "عرض على خريطة الغرف",
+    openReservation: "فتح الحجز",
     noDeparturesTitle: "لا توجد مغادرات اليوم",
     noDeparturesDescription: "لا أحد من المقرر أن يغادر هذه المنشأة اليوم.",
     departuresFilteredEmptyTitle: "لا أحد في هذه القائمة عليه مستحقات",
     departuresFilteredEmptyHint:
       "{others, plural, =0 {ولا أحد غيرهم مستحق المغادرة.} one {هناك ضيف آخر حان موعد مغادرته أو تأخر.} two {هناك ضيفان آخران حان موعد مغادرتهما أو تأخرا.} few {هناك # ضيوف آخرون حان موعد مغادرتهم أو تأخروا.} many {هناك # ضيفًا آخر حان موعد مغادرتهم أو تأخروا.} other {هناك # ضيف آخر حان موعد مغادرتهم أو تأخروا.}}",
     departuresShowAll: "عرض الكل",
+    departuresNoMatchesDue:
+      "لا يطابق أحد ممن حان موعد مغادرتهم. الضيف المقيم الذي لا يغادر اليوم تجده ضمن «{inHouse}».",
     departuresChipAll: "المستحقون والمتأخرون",
     departuresChipOwing: "عليهم مستحقات",
     departuresChipOverdueOwing: "متأخرون وعليهم مستحقات",

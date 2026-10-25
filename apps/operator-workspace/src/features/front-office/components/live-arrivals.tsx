@@ -8,6 +8,7 @@ import { ListFilterNotice } from "../../today/components/list-filter-notice";
 import { inArrivalFilter, type ArrivalFilter } from "../../today/views";
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { ArrivalsTable } from "./arrivals-table";
+import type { FrontDeskReach } from "../reach";
 import { ListFreshness } from "./list-freshness";
 
 /**
@@ -45,6 +46,7 @@ export function LiveArrivals({
   allHref,
   filter,
   locale,
+  reach,
   scope,
   timeZone,
 }: {
@@ -53,6 +55,8 @@ export function LiveArrivals({
   /** The part of the day a figure on Today counted (TD-S5-01). */
   filter: ArrivalFilter | null;
   locale: SupportedLocale;
+  /** Which of the pages a row links to the viewer can open. */
+  reach: FrontDeskReach;
   scope: Scope;
   /** The Property's own clock, which the freshness line is told in. */
   timeZone: string;
@@ -73,8 +77,12 @@ export function LiveArrivals({
   // `data` is present on first paint because the route prefetched it and
   // `Hydrated` handed it over. A 401 or a refusal leaves the last good rows on
   // screen rather than blanking a working list.
-  const rows = (data ?? []).filter((arrival) =>
-    inArrivalFilter(filter, arrival),
+  // "To come" is Today's figure, which counts what is due; a booking whose
+  // nights all passed is on the unnarrowed list only, so the two agree.
+  const rows = (data ?? []).filter(
+    (arrival) =>
+      inArrivalFilter(filter, arrival) &&
+      (filter === null || !arrival.nightsPassed),
   );
   // Nobody is offered a button they may not press: a viewer with the front desk
   // but not check-in sees the whole list, and is told why it has no actions.
@@ -106,6 +114,7 @@ export function LiveArrivals({
         arrivals={rows}
         locale={locale}
         propertyId={scope.propertyId}
+        reach={reach}
       />
     </>
   );

@@ -381,7 +381,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
   async function listArrivals(
     userId: string,
     propertyId: string,
+    options: { withMissed?: boolean } = {},
   ): Promise<Arrival[]> {
+    const withMissed = options.withMissed === true;
     const rows = await withOrganizationContext(
       deps.db,
       { userId },
@@ -458,6 +460,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
                 and (reservation.ends_on is null
                      or reservation.ends_on > today.day)
               )
+              -- A booking whose every night passed without the Guest arriving:
+              -- nothing above lists it any more, and the desk had no list of
+              -- the Guests who never came (ARRIVALS-10). Only when asked for,
+              -- so Today's figures keep counting what they always counted.
+              or (
+                ${withMissed}::boolean
+                and reservation.status in ('requested', 'confirmed')
+                and reservation.starts_on < today.day
+                and reservation.ends_on <= today.day
+              )
             )
             and app.can_use_capability(
               reservation.property_id,
@@ -498,6 +510,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             and unit_status not in ('blocked', 'out_of_service')
             and not occupied                          as "canCheckIn",
           case
+            when ends_on <= today                     then null
             when status = 'requested'                 then 'not_confirmed'
             when status <> 'confirmed' or not dated_for_today then null
             when unit_status = 'blocked'              then 'unit_blocked'
@@ -514,6 +527,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           stay_id                                     as "stayId",
           folio_id                                    as "folioId",
           greatest(0, (today - starts_on))::int       as "daysLate",
+          status in ('requested', 'confirmed')
+            and coalesce(ends_on <= today, false)     as "nightsPassed",
           to_char(expected_arrival_time, 'HH24:MI')   as "expectedArrival",
           -- The booking's own day and the Property's own clock, against the
           -- database's now(): a date and a time of day make a wall-clock time,

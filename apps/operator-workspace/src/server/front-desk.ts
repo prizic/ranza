@@ -2,7 +2,10 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { EntitledProperty } from "@ranza/core";
+import type { FrontDeskReach } from "../features/front-office/reach";
 import { chooseProperty, PROPERTY_COOKIE } from "../lib/property-choice";
+import { gateOf } from "../lib/screens";
+import { screenPropertiesByGate } from "./viewer";
 
 /** The Property remembered on this device, unchecked (OA-S3-05). */
 export async function rememberedProperty(): Promise<string | undefined> {
@@ -70,4 +73,29 @@ export function withProperty(
   }
   query.set("property", propertyId);
   return `${here}?${query.toString()}`;
+}
+
+/**
+ * Whether the viewer can open, at this Property, each page a front-desk row
+ * links to — asked with the rail's own gates, in one read, so a row never
+ * offers a page that then refuses (ARRIVALS-15).
+ */
+export async function frontDeskReach(
+  propertyId: string,
+): Promise<FrontDeskReach> {
+  const [rooms, folio, housekeeping, reservations] =
+    await screenPropertiesByGate([
+      gateOf("rooms"),
+      gateOf("finance"),
+      gateOf("housekeeping"),
+      gateOf("reservations"),
+    ]);
+  const reaches = (properties: typeof rooms) =>
+    (properties ?? []).some((property) => property.propertyId === propertyId);
+  return {
+    rooms: reaches(rooms),
+    folio: reaches(folio),
+    housekeeping: reaches(housekeeping),
+    reservations: reaches(reservations),
+  };
 }

@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { CalendarCheck } from "lucide-react";
+import { CalendarCheck, TriangleAlert } from "lucide-react";
 import {
   ArrowButton,
   Button,
@@ -62,7 +62,7 @@ export function CloseDayDialog(props: CloseDayFormProps) {
   const router = useRouter();
   const label = props.all
     ? t("closeDay.closeAll", { n: props.all.count })
-    : props.waitingMany
+    : props.alongsideAll
       ? t("closeDay.closeOnly", { date: props.dayLabel })
       : t("closeDay.close", { date: props.dayLabel });
 
@@ -96,6 +96,12 @@ interface CloseDayFormProps {
    * hold every one of them (CLOSE-01); absent for the oldest day on its own.
    */
   all?: { count: number; from: string; to: string } | undefined;
+  /**
+   * "Close all" is offered next to this button, which is then "only" the
+   * oldest day. Where it is not, "only" would name an alternative that is not
+   * there (ARRIVALS-11).
+   */
+  alongsideAll?: boolean;
   businessDate: string;
   dayLabel: string;
   /** What the close of this day will charge, as the room nights card says it. */
@@ -177,6 +183,14 @@ function CloseDayForm({
         <input name="property" type="hidden" value={propertyId} />
         <input name="day" type="hidden" value={businessDate} />
 
+        {/* The one thing a close cannot be undone for is said first and on
+            its own, above anything asked of the desk (ARRIVALS-12). */}
+        <div className={openItems > 0 ? "pt-5" : undefined}>
+          <DialogNotice icon={TriangleAlert}>
+            {t("closeDay.final")}
+          </DialogNotice>
+        </div>
+
         {openItems === 0 ? (
           <DialogSettled title={t("closeDay.quietTitle")}>
             {all ? t("closeDay.dialogAllQuiet") : t("closeDay.dialogQuiet")}
@@ -218,14 +232,12 @@ function CloseDayForm({
 
         <div className={openItems > 0 ? "py-5" : undefined}>
           <DialogNotice>
-            {t("closeDay.dialogCharges")}
+            <span className="block">{t("closeDay.dialogCharges")}</span>
             {charges ? (
-              <>
-                {" "}
-                <bdi className="font-medium tabular-nums">{charges}</bdi>
-              </>
-            ) : null}{" "}
-            {t("closeDay.final")}
+              <bdi className="mt-1 block font-medium tabular-nums">
+                {charges}
+              </bdi>
+            ) : null}
           </DialogNotice>
         </div>
 

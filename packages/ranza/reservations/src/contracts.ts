@@ -137,6 +137,12 @@ export interface Arrival {
   folioId: string | null;
   daysLate: number;
   /**
+   * Every night of the booking has passed and the Guest never arrived. Such a
+   * booking cannot be checked in; it is listed only when asked for, so the desk
+   * can mark it a no-show or cancel it from the screen it works on (ARRIVALS-10).
+   */
+  nightsPassed: boolean;
+  /**
    * When the Guest said they would arrive on `startsOn`, as `HH:MM` on the
    * Property's own clock; null when nobody said.
    */

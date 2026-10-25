@@ -558,6 +558,42 @@ describe("arrivals that are no longer arriving", () => {
       CheckInError,
     );
   });
+
+  /**
+   * The Arrivals screen asks for the bookings whose nights have all passed, so
+   * the desk can mark them no-show or cancel them from where they are working
+   * (ARRIVALS-10). They arrive flagged, with check-in declined — and with no
+   * blocker named, because the room is not the reason — and nothing else about
+   * who is listed changes.
+   */
+  it("lists a booking whose nights have all passed only when asked, flagged and not checkable", async () => {
+    const asked = mine(
+      await reservations.listArrivals(MEMBER, PROPERTY, { withMissed: true }),
+    );
+    expect(asked.map((arrival) => arrival.guestName).sort()).toEqual([
+      "Already Here",
+      "Never Came",
+      "One Day Late",
+    ]);
+    const missed = asked.find((arrival) => arrival.reservationId === EXPIRED);
+    expect(missed).toMatchObject({
+      nightsPassed: true,
+      canCheckIn: false,
+      checkInBlocker: null,
+      daysLate: 14,
+    });
+    expect(
+      asked
+        .filter((arrival) => arrival.reservationId !== EXPIRED)
+        .map((arrival) => arrival.nightsPassed),
+    ).toEqual([false, false]);
+
+    expect(
+      mine(await reservations.listArrivals(MEMBER, PROPERTY)).map(
+        (arrival) => arrival.reservationId,
+      ),
+    ).not.toContain(EXPIRED);
+  });
 });
 
 /**

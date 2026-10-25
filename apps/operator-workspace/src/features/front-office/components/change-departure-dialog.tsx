@@ -141,9 +141,13 @@ export function ChangeDepartureDialog({
     (move ? move.endsOn : stay.endsOn) ?? undefined,
   );
   const [note, setNote] = useState("");
+  // The "that is already the departure" line answers a choice, so it waits for
+  // one: shown on opening it is an error under a field nobody has touched.
+  const [touched, setTouched] = useState(false);
   const [read, setRead] = useState<Read>({ state: "loading" });
   const [generation, setGeneration] = useState(0);
-  const resetFromPreview = useRef(move === undefined);
+  const proposed = move !== undefined;
+  const resetFromPreview = useRef(!proposed);
   const pinnedRef = useRef<number | null>(null);
   const [pinned, setPinned] = useState<{
     version: number;
@@ -212,6 +216,12 @@ export function ChangeDepartureDialog({
             setOverdueSince(fresh.endsOn);
             setEndsOn(tomorrowOf(fresh.today));
             setResets((n) => n + 1);
+          } else if (!proposed && fresh.endsOn !== null) {
+            // One more night is the commonest change, so the field opens on
+            // it, previewed and priced, and Save is the confirm (ARRIVALS-07).
+            resetFromPreview.current = false;
+            setEndsOn(tomorrowOf(fresh.endsOn));
+            setResets((n) => n + 1);
           }
         }
         if (resetFromPreview.current || stale) {
@@ -237,7 +247,7 @@ export function ChangeDepartureDialog({
         setRead({ state: "failed" });
       });
     return () => controller.abort();
-  }, [open, needsEnd, stay.stayId, stay.endsOn, endsOn, generation]);
+  }, [open, needsEnd, stay.stayId, stay.endsOn, endsOn, generation, proposed]);
 
   const preview = read.state === "ready" ? read.preview : null;
   const was = pinned?.endsOn ?? null;
@@ -326,7 +336,7 @@ export function ChangeDepartureDialog({
           <DialogMasthead
             art="/illustrations/dialogs/change-departure.svg"
             eyebrow={t("changeDeparture")}
-            facts={[stay.reference, `${t("unit")} ${stay.unitLabel}`]
+            facts={[stay.reference, `${t("roomWord")} ${stay.unitLabel}`]
               .filter(Boolean)
               .join(" · ")}
             heading={stay.guestName}
@@ -425,7 +435,10 @@ export function ChangeDepartureDialog({
                 lockFrom
                 minSpan={1}
                 names={{ from: "startsOn", to: "endsOn" }}
-                onChange={(range) => setEndsOn(range.to)}
+                onChange={(range) => {
+                  setTouched(true);
+                  setEndsOn(range.to);
+                }}
                 today={preview?.today}
               />
               <div aria-live="polite" className="grid gap-2">
@@ -435,7 +448,7 @@ export function ChangeDepartureDialog({
                   </p>
                 ) : null}
                 {readMessage ? <FormError>{readMessage}</FormError> : null}
-                {unchanged ? (
+                {unchanged && touched ? (
                   <p className="m-0 text-step--1 text-muted-foreground">
                     {t("changeDepartureNothing")}
                   </p>

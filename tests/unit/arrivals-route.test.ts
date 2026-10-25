@@ -74,6 +74,8 @@ describe("GET arrivals", () => {
     const response = await GET(get(`?property=${PROPERTY}`));
 
     expect(await response.json()).toEqual({ arrivals: [] });
-    expect(arrivals).toHaveBeenCalledWith(PROPERTY);
+    // The list the desk works from carries the bookings whose nights have all
+    // passed, so they can be marked no-show or cancelled from there.
+    expect(arrivals).toHaveBeenCalledWith(PROPERTY, { withMissed: true });
   });
 });
