@@ -320,6 +320,57 @@ test("role ticks are saved together, after saying who is signed out", async ({
   await page.screenshot({ path: path.join(EVIDENCE, "roles-grid.png") });
 });
 
+/**
+ * The roles grid takes a refreshed answer in place. A colleague editing a role,
+ * or this person's own save, sends the page fresh data; rebuilding the grid for
+ * it closed a row menu that had just been opened, and CI met the menu item
+ * "detached from the DOM" between opening it and pressing it.
+ */
+test("a role changed elsewhere appears without closing the row menu that is open", async ({
+  page,
+}) => {
+  const propertyId = testProperty();
+  const suffix = randomUUID().slice(0, 8);
+  const roleName = `Refreshed desk ${suffix}`;
+  psql(
+    `insert into public.staff_roles
+       (scope_id, key, organization_id, name, permissions, status)
+     select organization_id, 'refreshed_desk_${suffix}', organization_id, '${roleName}',
+            array['front_desk.check_in'], 'active'
+       from public.properties where id = '${propertyId}'`,
+  );
+
+  await signIn(page);
+  await page.goto(`/en/people?property=${propertyId}`);
+  await page
+    .getByRole("tab", { exact: true, name: "What each role can do" })
+    .click();
+  // By its attribute, not its role: an open menu hides the rest of the page
+  // from the accessibility tree.
+  const tick = page.locator(
+    `[role="checkbox"][aria-label^="${roleName}: Open and close a Folio"]`,
+  );
+  await expect(tick).not.toBeChecked();
+
+  await page.getByRole("button", { name: `Actions: ${roleName}` }).click();
+  const item = page.getByRole("menuitem", { name: "Stop offering" });
+  await expect(item).toBeVisible();
+
+  psql(
+    `update public.staff_roles
+        set permissions = array['front_desk.check_in', 'finance.manage_folio']
+      where key = 'refreshed_desk_${suffix}'`,
+  );
+  await page.evaluate(() =>
+    (
+      window as unknown as { next: { router: { refresh: () => void } } }
+    ).next.router.refresh(),
+  );
+
+  await expect(tick).toBeChecked();
+  await expect(item).toBeVisible();
+});
+
 test("a new role can start from an existing one and is listed by section", async ({
   page,
 }) => {
