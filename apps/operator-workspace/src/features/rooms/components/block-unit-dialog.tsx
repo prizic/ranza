@@ -338,7 +338,7 @@ export function BlockUnitDialog({
               {calendarLink}
 
               <DialogSection
-                hint={`${t("blockReasonHint")} ${t("blockNotifiesNobody")}`}
+                hint={`${bed ? t("blockReasonHintBed") : t("blockReasonHint")} ${t("blockNotifiesNobody")}`}
                 labelFor="reason"
                 tag={{ label: t("dialogTagRequired"), required: true }}
                 title={t("blockReason")}

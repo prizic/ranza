@@ -922,6 +922,7 @@ export interface Messages {
   unblockingBed: string;
   blockReason: string;
   blockReasonHint: string;
+  blockReasonHintBed: string;
   blockRoom: string;
   unblockRoom: string;
   manageUnit: string;
@@ -4243,7 +4244,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockingBed: "Açılıyor...",
     blockReason: "Kapatma nedeni",
     blockReasonHint:
-      "Neden kapalı olduğunu belirten en az 3 karakterlik açıklama.",
+      "Odanın neden kapalı olduğunu belirten en az 3 karakterlik açıklama.",
+    blockReasonHintBed:
+      "Yatağın neden kapalı olduğunu belirten en az 3 karakterlik açıklama.",
     blockRoom: "Odayı kapat",
     unblockRoom: "Odayı aç",
     manageUnit: "Bildir veya kapat",
@@ -7875,7 +7878,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockingBed: "Unblocking...",
     blockReason: "Reason for block",
     blockReasonHint:
-      "A brief reason (at least 3 characters) why this room or bed is unavailable.",
+      "A brief reason (at least 3 characters) why this room is unavailable.",
+    blockReasonHintBed:
+      "A brief reason (at least 3 characters) why this bed is unavailable.",
     blockRoom: "Block room",
     unblockRoom: "Unblock room",
     manageUnit: "Report or block",
@@ -11473,8 +11478,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     unblockBed: "فتح السرير",
     unblockingBed: "جارٍ الفتح...",
     blockReason: "سبب الإغلاق",
-    blockReasonHint:
-      "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الغرفة أو هذا السرير.",
+    blockReasonHint: "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذه الغرفة.",
+    blockReasonHintBed: "سبب موجز (لا يقل عن 3 أحرف) لعدم توفر هذا السرير.",
     blockRoom: "إغلاق الغرفة",
     unblockRoom: "فتح الغرفة",
     manageUnit: "إبلاغ أو إغلاق",
