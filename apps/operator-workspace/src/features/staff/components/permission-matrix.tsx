@@ -47,6 +47,35 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((key) => b.includes(key));
 }
 
+type Permissions = Readonly<Record<string, readonly string[]>>;
+
+function permissionsByRole(roles: readonly Role[]): Permissions {
+  return Object.fromEntries(
+    roles.map((role) => [roleId(role), role.permissions]),
+  );
+}
+
+/**
+ * The ticks to show once the server has said what each role holds: its answer
+ * for every role, except where somebody has ticked something and not yet saved
+ * it, which stays theirs.
+ */
+export function keepUnsavedTicks(
+  baseline: Permissions,
+  draft: Permissions,
+  served: Permissions,
+): Permissions {
+  return Object.fromEntries(
+    Object.entries(served).map(([id, permissions]) => {
+      const ticked = draft[id];
+      return [
+        id,
+        ticked && !sameSet(ticked, baseline[id] ?? []) ? ticked : permissions,
+      ];
+    }),
+  );
+}
+
 type Pending = { kind: "save" } | { kind: "retire"; role: Role } | null;
 
 /**
@@ -99,11 +128,21 @@ export function PermissionMatrix({
   const authored = roles.filter((role) => role.organizationId !== null);
   const ordered = [...shipped, ...authored];
 
-  const [baseline, setBaseline] = useState<Record<string, readonly string[]>>(
-    () =>
-      Object.fromEntries(roles.map((role) => [roleId(role), role.permissions])),
-  );
+  const served = permissionsByRole(roles);
+  const servedSignature = JSON.stringify(served);
+  const [seen, setSeen] = useState(servedSignature);
+  const [baseline, setBaseline] = useState(served);
   const [draft, setDraft] = useState(baseline);
+  // The server's answer changes after a save, and when somebody else edits a
+  // role. Taking it in here rather than remounting the grid keeps an open
+  // menu, the section filter and ticks not yet saved where they were: a
+  // remount closed the menu under a press that landed between the save and
+  // the refresh that followed it.
+  if (seen !== servedSignature) {
+    setSeen(servedSignature);
+    setBaseline(served);
+    setDraft(keepUnsavedTicks(baseline, draft, served));
+  }
 
   const dirty = authored.filter(
     (role) => !sameSet(draft[roleId(role)] ?? [], baseline[roleId(role)] ?? []),

@@ -107,12 +107,6 @@ export function StaffScreen({
 
         <TabsContent className="min-w-0" value="roles">
           <PermissionMatrix
-            key={roles
-              .map(
-                (role) =>
-                  `${role.organizationId}:${role.key}:${role.status}:${role.permissions.join(",")}`,
-              )
-              .join("|")}
             holdersOf={holdersOf}
             locale={locale}
             mayDefineRoles={mayDefineRoles}
