@@ -3,6 +3,7 @@
 import {
   startTransition,
   useActionState,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -101,13 +102,17 @@ export function HousekeepingBoard({
     }
   }, [outcome]);
 
-  function mark(unitIds: string[], status: HousekeepingStatus) {
-    const form = new FormData();
-    form.set("locale", locale);
-    form.set("status", status);
-    for (const unitId of unitIds) form.append("unitId", unitId);
-    startTransition(() => dispatch(form));
-  }
+  // Stable, so the columns that call it are not rebuilt on every render.
+  const mark = useCallback(
+    (unitIds: string[], status: HousekeepingStatus) => {
+      const form = new FormData();
+      form.set("locale", locale);
+      form.set("status", status);
+      for (const unitId of unitIds) form.append("unitId", unitId);
+      startTransition(() => dispatch(form));
+    },
+    [dispatch, locale],
+  );
 
   const columns = useHousekeepingColumns({
     locale,
@@ -130,11 +135,27 @@ export function HousekeepingBoard({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 sm:gap-4">
+      {/* On a phone the status chips below already carry these three counts,
+          and are the controls that filter by them, so they are said once
+          (HOUSEKEEPING-05): two tiles in one row, the first room on the
+          first screen. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-4">
         <Tally label={t("statRooms")} value={board.counts.rooms} />
-        <Tally label={t("statDirty")} value={board.counts.dirty} />
-        <Tally label={t("statClean")} value={board.counts.clean} />
-        <Tally label={t("statInspected")} value={board.counts.inspected} />
+        <Tally
+          className="max-sm:hidden"
+          label={t("statDirty")}
+          value={board.counts.dirty}
+        />
+        <Tally
+          className="max-sm:hidden"
+          label={t("statClean")}
+          value={board.counts.clean}
+        />
+        <Tally
+          className="max-sm:hidden"
+          label={t("statInspected")}
+          value={board.counts.inspected}
+        />
         <Tally label={t("statReady")} value={readyToLet} />
       </div>
 
@@ -172,12 +193,17 @@ export function HousekeepingBoard({
                       const Icon = STATUS_LOOK[status].icon;
                       return (
                         <Button
+                          aria-label={t(MARK_LABEL[status])}
                           className={cn(
-                            "min-h-11 md:min-h-0",
+                            // Icons alone on a phone, so the bar stays one
+                            // short row over the list (HOUSEKEEPING-03); the
+                            // word returns from `sm`.
+                            "min-h-11 max-sm:size-11 max-sm:px-0 md:min-h-0",
                             // A room marked dirty is the mark to undo what the
                             // other two did: kept apart so a thumb aiming at
                             // Mark clean cannot land on it.
-                            status === "dirty" && "ms-4 border-dashed",
+                            status === "dirty" &&
+                              "ms-4 border-dashed max-sm:ms-2",
                           )}
                           disabled={pending || tooMany}
                           key={status}
@@ -192,7 +218,9 @@ export function HousekeepingBoard({
                           variant="outline"
                         >
                           <Icon aria-hidden="true" className="size-4" />
-                          {pending ? t("saving") : t(MARK_LABEL[status])}
+                          <span className="max-sm:sr-only">
+                            {pending ? t("saving") : t(MARK_LABEL[status])}
+                          </span>
                         </Button>
                       );
                     })}
@@ -265,9 +293,17 @@ function floorOrder(floor: string): number {
  * One count above the board. Small on a phone, where five of the larger
  * tiles once took the whole first screen before the first room (HK-03).
  */
-function Tally({ label, value }: { label: string; value: number }) {
+function Tally({
+  className,
+  label,
+  value,
+}: {
+  className?: string;
+  label: string;
+  value: number;
+}) {
   return (
-    <div className="rounded-2xl border bg-card p-3 sm:p-4">
+    <div className={cn("rounded-2xl border bg-card p-3 sm:p-4", className)}>
       <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
         {label}
       </p>

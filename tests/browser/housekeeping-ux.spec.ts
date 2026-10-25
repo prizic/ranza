@@ -112,10 +112,15 @@ test("a phone says a mark landed where it can be seen, and the stale-link page p
   });
 
   // MAINT-10: a problem is reported from the row, with the room already chosen.
-  await page
-    .getByRole("row", { name: /101/ })
-    .getByRole("link", { name: "Report a problem" })
-    .click();
+  // On a phone the grey line under the room number is gone (HOUSEKEEPING-06):
+  // the row's menu is the one place a thumb aims at.
+  await expect(
+    page
+      .getByRole("row", { name: /101/ })
+      .getByRole("link", { name: "Report a problem" }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "Actions for 101" }).click();
+  await page.getByRole("menuitem", { name: "Report a problem" }).click();
   await expect(page).toHaveURL(/\/en\/maintenance\?property=.*&report=/);
   await expect(page.getByRole("dialog")).toContainText("101");
 

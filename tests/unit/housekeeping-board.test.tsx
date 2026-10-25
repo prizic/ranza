@@ -8,7 +8,13 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -24,6 +30,13 @@ import type { RoomDay } from "../../apps/operator-workspace/src/server/housekeep
 const markRooms = vi.fn();
 vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
   markRooms: (...args: unknown[]) => markRooms(...args),
+}));
+
+// The row menu navigates with the app router, which a unit test does not mount.
+const push = vi.fn();
+const router = { push };
+vi.mock("../../apps/operator-workspace/node_modules/next/navigation", () => ({
+  useRouter: () => router,
 }));
 
 const { HousekeepingBoard } =
@@ -105,6 +118,7 @@ Element.prototype.scrollIntoView = vi.fn();
 afterEach(() => {
   cleanup();
   markRooms.mockReset();
+  push.mockReset();
 });
 
 describe("the housekeeping board", () => {
@@ -406,5 +420,115 @@ describe("the housekeeping board", () => {
     expect(
       screen.queryByRole("link", { name: "Report a problem" }),
     ).not.toBeInTheDocument();
+  });
+  it("says on a phone whether anybody is in the room, beside its status (HOUSEKEEPING-04)", () => {
+    const occupied = room({
+      unitId: "dd000004-0000-4000-8000-000000000002",
+      name: "102",
+      inHouse: true,
+    });
+    const closed = room({
+      unitId: "dd000004-0000-4000-8000-000000000003",
+      name: "103",
+      outOfService: true,
+    });
+    show(boardOf([room({}), occupied, closed], true));
+    // The block the room cell draws under a phone's first column; from `md` the
+    // Occupancy column says the same, and this one is not drawn.
+    const underRoom = (name: RegExp) =>
+      screen
+        .getByRole("row", { name })
+        .querySelector<HTMLElement>(".md\\:hidden")!;
+    expect(underRoom(/101/)).toHaveTextContent("Vacant");
+    expect(underRoom(/102/)).toHaveTextContent("Guest in house");
+    expect(underRoom(/103/)).toHaveTextContent("Out of service");
+  });
+
+  it("says the three status counts once on a phone, where the chips carry them (HOUSEKEEPING-05)", () => {
+    show(boardOf([room({}), room({ name: "102", status: "clean" })], true));
+    const tile = (label: string) =>
+      screen.getAllByText(label).find((node) => node.tagName === "P")!
+        .parentElement!;
+    for (const label of ["Dirty", "Clean", "Inspected"]) {
+      expect(tile(label)).toHaveClass("max-sm:hidden");
+    }
+    expect(tile("Rooms")).not.toHaveClass("max-sm:hidden");
+    expect(tile("Ready to let")).not.toHaveClass("max-sm:hidden");
+  });
+
+  it("keeps the bulk bar to icons on a phone, each button still named (HOUSEKEEPING-03)", () => {
+    show(boardOf([room({})], true));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select row" }));
+    for (const name of ["Mark clean", "Mark inspected", "Mark dirty"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveClass("max-sm:size-11");
+      expect(within(button).getByText(name)).toHaveClass("max-sm:sr-only");
+    }
+  });
+
+  it("reaches Report a problem from the row menu, and leaves the inline link to a desktop (HOUSEKEEPING-06)", async () => {
+    show(boardOf([room({})], true), "en", {}, "/en/maintenance?report=");
+    expect(screen.getByRole("link", { name: "Report a problem" })).toHaveClass(
+      "max-md:hidden",
+    );
+
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for 101" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Report a problem" }),
+    );
+    expect(push).toHaveBeenCalledWith(
+      "/en/maintenance?report=dd000004-0000-4000-8000-000000000001",
+    );
+  });
+
+  it("keeps the link on a phone for somebody with no menu to find it in (HOUSEKEEPING-06)", () => {
+    show(boardOf([room({})], false), "en", {}, "/en/maintenance?report=");
+    const link = screen.getByRole("link", { name: "Report a problem" });
+    expect(link).not.toHaveClass("max-md:hidden");
+    expect(link).toHaveClass("pointer-coarse:py-3");
+  });
+
+  it("does not remount a row's menu when the board renders again with nothing changed", () => {
+    const rooms = [room({})];
+    const days = {};
+    const board = boardOf(rooms, true);
+    cleanup();
+    const view = render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <HousekeepingBoard
+          allHref=""
+          board={board}
+          days={days}
+          locale="en"
+          markLimit={60}
+          narrowed={null}
+          propertyName="Deniz Otel"
+          reportHref={null}
+          timeZone="Europe/Istanbul"
+        />
+      </NextIntlClientProvider>,
+    );
+    const before = screen.getByRole("button", { name: "Actions for 101" });
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <HousekeepingBoard
+          allHref=""
+          board={board}
+          days={days}
+          locale="en"
+          markLimit={60}
+          narrowed={null}
+          propertyName="Deniz Otel"
+          reportHref={null}
+          timeZone="Europe/Istanbul"
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Actions for 101" })).toBe(
+      before,
+    );
   });
 });
