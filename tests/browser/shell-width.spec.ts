@@ -138,9 +138,10 @@ test("a table wider than its box shows that more lies sideways", async ({
   const propertyId = testProperty();
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
-  await aGuestInHouse(page, propertyId);
 
-  await page.goto(`/en/audit-log?property=${propertyId}`);
+  // The audit log used to be this table and is a card per record on a phone
+  // now (DATA-06); the Housekeeping board's is still wider than a phone.
+  await page.goto(`/en/housekeeping?property=${propertyId}`);
   const frame = page.locator('[data-slot="table-container"]').locator("..");
   await expect(frame.locator("tbody tr").first()).toBeVisible();
   await expect(
@@ -148,7 +149,7 @@ test("a table wider than its box shows that more lies sideways", async ({
     "a table that runs past the window says there is more to the end",
   ).toHaveAttribute("data-cue-end", "true");
   await expect(frame).toHaveAttribute("data-cue-start", "false");
-  await page.screenshot({ path: path.join(EVIDENCE, "phone-audit-cue.png") });
+  await page.screenshot({ path: path.join(EVIDENCE, "phone-table-cue.png") });
 
   await frame
     .locator('[data-slot="table-container"]')
@@ -214,8 +215,12 @@ test("the audit log on a phone folds its filters and shows who did it", async ({
   );
 
   // Who did it is in the row, in view, without scrolling it sideways.
-  const who = first.getByText(/^Who:/);
+  const who = first.locator('[data-label="Who"]');
   await expect(who).toBeVisible();
+  await expect(
+    page.getByRole("columnheader", { name: "Who" }),
+    "a card carries its own labels, so there is no heading row",
+  ).toBeHidden();
   const where = await who.boundingBox();
   expect(where!.x + where!.width).toBeLessThanOrEqual(390);
   await page.screenshot({
@@ -230,7 +235,10 @@ test("the audit log on a phone folds its filters and shows who did it", async ({
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(filters).toBeHidden();
   await expect(page.getByLabel("Search", { exact: true })).toBeVisible();
-  await expect(first.getByText(/^Who:/)).toBeHidden();
+  await expect(
+    page.getByRole("columnheader", { name: "Who" }),
+    "the heading row comes back where the table has room for columns",
+  ).toBeVisible();
 });
 
 test("the phone's bottom bar names every destination it offers, and Arabic names Housekeeping as the product does", async ({

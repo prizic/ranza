@@ -280,7 +280,11 @@ test("a correction is traced to the person who made it and the reason they gave"
       // When: the Property's wall clock, not the server's and not UTC.
       const id = recordIdFor(reason);
       const wallClock = psql(
-        `select to_char(occurred_at at time zone '${timeZone}', 'Mon FMDD, YYYY, HH24:MI')
+        // A time in the current year carries no year (AL-S2-09).
+        `select to_char(occurred_at at time zone '${timeZone}',
+                  case when extract(year from occurred_at at time zone '${timeZone}')
+                            = extract(year from now() at time zone '${timeZone}')
+                       then 'Mon FMDD, HH24:MI' else 'Mon FMDD, YYYY, HH24:MI' end)
            from audit.records where id = '${id}'`,
       );
       const utcClock = psql(
@@ -687,8 +691,12 @@ test("the reason is cut by its own cell, the time says which clock it is on, and
 
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(
-    page.getByRole("columnheader", { name: /^When \(Europe\/Istanbul\)$/ }),
+    page.getByRole("columnheader", { name: /^When \(.+ time\)$/ }),
   ).toBeVisible();
+  // A Property's name, never the zone's id (DATA-08).
+  await expect(
+    page.getByRole("columnheader", { name: /^When/ }),
+  ).not.toContainText("Europe/");
 
   // The export is one link away, carrying the days being looked at.
   await page.goto(
@@ -724,7 +732,8 @@ test("a phone reads who did what on the list, and the Arabic list turns its arro
   await page.setViewportSize({ width: 375, height: 800 });
   await page.goto(`/en/audit-log?property=${propertyId}&q=ux75+${tag}`);
   await expect(page.getByText("Off → On")).toBeVisible();
-  await expect(page.getByText(/^Who: /)).toBeVisible();
+  // A card per record, with who labelled (DATA-06).
+  await expect(page.locator('[data-label="Who"]').first()).toBeVisible();
   const fits = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth,
   );
