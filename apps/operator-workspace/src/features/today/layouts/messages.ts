@@ -121,7 +121,7 @@ const en = {
     title: "Rooms",
     open: "Open the board",
     vacant:
-      "{vacant, plural, one {# vacant room} other {# vacant rooms}} tonight, {ready} ready to sell.",
+      "{free, plural, one {# vacant room} other {# vacant rooms}} tonight, {count} ready to sell.",
     note: "Dirty and awaiting inspection count empty rooms only.",
   },
   unclosed: {
@@ -393,7 +393,7 @@ const tr: TodayLayoutsMessages = {
     title: "Odalar",
     open: "Panoyu aç",
     vacant:
-      "Bu gece {vacant, plural, other {# oda boş}}, {ready} tanesi satışa hazır.",
+      "Bu gece {free, plural, other {# oda boş}}, {count} tanesi satışa hazır.",
     note: "Kirli ve kontrol bekleyen sayıları yalnızca boş odaları sayar.",
   },
   unclosed: {
@@ -657,7 +657,7 @@ const ar: TodayLayoutsMessages = {
     title: "الغرف",
     open: "افتح اللوحة",
     vacant:
-      "{vacant, plural, zero {لا غرف شاغرة} one {غرفة شاغرة واحدة} two {غرفتان شاغرتان} few {# غرف شاغرة} many {# غرفة شاغرة} other {# غرفة شاغرة}} الليلة، {ready} جاهزة للبيع.",
+      "{free, plural, zero {لا غرف شاغرة} one {غرفة شاغرة واحدة} two {غرفتان شاغرتان} few {# غرف شاغرة} many {# غرفة شاغرة} other {# غرفة شاغرة}} الليلة، {count} جاهزة للبيع.",
     note: "المتسخة وبانتظار الفحص تُحتسب من الغرف الشاغرة فقط.",
   },
   unclosed: {

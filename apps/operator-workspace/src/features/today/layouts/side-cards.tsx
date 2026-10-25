@@ -48,7 +48,7 @@ export function RoomsBar({
         </OpenLink>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        {t("rooms.vacant", { vacant, ready: counts.ready })}
+        {t("rooms.vacant", { free: vacant, count: counts.ready })}
       </p>
       <div
         className="my-5 flex h-4 gap-0.5 overflow-hidden rounded-full"
