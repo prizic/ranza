@@ -96,9 +96,11 @@ test("says why the Organization cannot be renamed from here", async ({
 
   await expect(page.getByLabel("Organization name")).toBeDisabled();
   await expect(
-    page.getByText(
-      "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
-    ),
+    page
+      .locator("#organization")
+      .getByText(
+        "This applies to every Property, so only an Owner, or a role with access to every Property, can change it.",
+      ),
   ).toBeVisible();
 });
 
