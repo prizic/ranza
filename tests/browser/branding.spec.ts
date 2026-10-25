@@ -550,7 +550,7 @@ test("BR-S1-40: the Workspace's logo route answers 401 without a session and 404
   }
 });
 
-test("BR-S1-42: a logo of 600 KB and one of 2 MB are each told they are too large the moment they are chosen", async ({
+test("BR-S1-43: a logo of 600 KB and one of 2 MB are each told they are too large the moment they are chosen", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);

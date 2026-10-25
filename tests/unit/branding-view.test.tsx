@@ -95,7 +95,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("choosing a logo", () => {
-  it("CONFIGURATION-01: a logo shorter than the minimum is refused on the spot, with its size and the limit, and cannot be saved", async () => {
+  it("BR-S1-43: a logo shorter than the minimum is refused on the spot, with its size and the limit, and cannot be saved (CONFIGURATION-01)", async () => {
     readImageSize.mockResolvedValue({ width: 300, height: 64 });
     show();
     choose(png());
@@ -111,7 +111,7 @@ describe("choosing a logo", () => {
     );
   });
 
-  it("CONFIGURATION-01: a logo of the right size says it is usable, and can be saved", async () => {
+  it("BR-S1-43: a logo of the right size says it is usable, and can be saved (CONFIGURATION-01)", async () => {
     readImageSize.mockResolvedValue({ width: 320, height: 160 });
     show();
     choose(png());
@@ -121,7 +121,7 @@ describe("choosing a logo", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
-  it("CONFIGURATION-01: a file that is not an image is refused without being decoded", async () => {
+  it("BR-S1-43: a file that is not an image is refused without being decoded (CONFIGURATION-01)", async () => {
     show();
     choose(new File(["x"], "logo.pdf", { type: "application/pdf" }));
     expect(
@@ -131,7 +131,7 @@ describe("choosing a logo", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("CONFIGURATION-01: a second choice replaces the first, even when the first is read last", async () => {
+  it("BR-S1-43: a second choice replaces the first, even when the first is read last (CONFIGURATION-01)", async () => {
     let finishFirst: (size: {
       width: number;
       height: number;
@@ -152,7 +152,7 @@ describe("choosing a logo", () => {
 });
 
 describe("leaving with a draft", () => {
-  it("CONFIGURATION-02: a link is asked about while a colour or a logo is unsaved, and stopped on no", async () => {
+  it("BR-S1-44: a link is asked about while a colour or a logo is unsaved, and stopped on no (CONFIGURATION-02)", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     readImageSize.mockResolvedValue({ width: 320, height: 160 });
     show();
@@ -167,7 +167,7 @@ describe("leaving with a draft", () => {
     confirm.mockRestore();
   });
 
-  it("CONFIGURATION-02: a link is not asked about when nothing is unsaved", () => {
+  it("BR-S1-44: a link is not asked about when nothing is unsaved (CONFIGURATION-02)", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     show();
     expect(fireEvent.click(screen.getByRole("link", { name: "Today" }))).toBe(
@@ -179,7 +179,7 @@ describe("leaving with a draft", () => {
 });
 
 describe("resetting the brand", () => {
-  it("CONFIGURATION-04: names what goes, runs nothing until confirmed, and keeps the brand on Keep", async () => {
+  it("BR-S1-45: names what goes, runs nothing until confirmed, and keeps the brand on Keep (CONFIGURATION-04)", async () => {
     show(SAVED_BRAND);
     fireEvent.click(screen.getByRole("button", { name: "Reset to default" }));
     const dialog = await screen.findByRole("dialog");
@@ -206,7 +206,7 @@ describe("resetting the brand", () => {
     await waitFor(() => expect(resetBranding).toHaveBeenCalledTimes(1));
   });
 
-  it("CONFIGURATION-04: there is nothing to reset on a brand that is already the default", () => {
+  it("BR-S1-45: there is nothing to reset on a brand that is already the default (CONFIGURATION-04)", () => {
     show();
     expect(
       screen.getByRole("button", { name: "Reset to default" }),
@@ -215,7 +215,7 @@ describe("resetting the brand", () => {
 });
 
 describe("a brand without a colour (CONFIGURATION-05)", () => {
-  it("draws the well dashed, in the theme's own green, not as a solid swatch", () => {
+  it("BR-S1-46: draws the well dashed, in the theme's own green, not as a solid swatch (CONFIGURATION-05)", () => {
     show();
     const well = screen.getByTestId("brand-color-well");
     expect(well.className).toContain("border-dashed");

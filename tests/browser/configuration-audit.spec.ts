@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createTranslator } from "next-intl";
 
 import { test } from "./hydration";
@@ -56,66 +56,71 @@ function translate(locale: "en" | "ar") {
   return createTranslator({ locale, messages: messages[locale] as never });
 }
 
-for (const locale of ["en", "ar"] as const) {
+async function refusesAShortLogo(page: Page, locale: "en" | "ar") {
   const t = translate(locale);
-
-  test(`CONFIGURATION-01: a logo below the minimum height is refused on the spot, with its size and the limit (${locale})`, async ({
-    page,
-  }) => {
-    await signIn(page, OWNER_EMAIL);
-    await page.goto(`/${locale}/branding?property=${propertyId()}`);
-    const save = page.getByRole("button", {
-      name: t("branding.save"),
-      exact: true,
-    });
-    const picker = page.getByLabel(t("branding.logoLabel"));
-
-    // Chosen again until the page has taken it: a file offered before the page
-    // hydrates is lost.
-    await expect(async () => {
-      await picker.setInputFiles({
-        name: "short-logo.png",
-        mimeType: "image/png",
-        buffer: aLogoOf(300, 64),
-      });
-      await expect(
-        page.getByText(
-          t("branding.logoChosenErrors.too_small", {
-            height: 64,
-            minimum: 128,
-          }),
-        ),
-      ).toBeVisible({ timeout: 1_500 });
-    }).toPass({ timeout: 30_000 });
-    await expect(save).toBeDisabled();
-    await expect(page.getByText(t("branding.logoBlocksSave"))).toBeVisible();
-    await expect(page.getByTestId("logo-facts")).toContainText(
-      "short-logo.png",
-    );
-    await expect(page.getByText(t("branding.logoUsable"))).toHaveCount(0);
-    await page.getByTestId("logo-facts").scrollIntoViewIfNeeded();
-    await page.screenshot({
-      path: path.join(EVIDENCE, `branding-logo-too-short-${locale}.png`),
-    });
-
-    // A right-sized one replaces it, and Save is on.
-    await picker.setInputFiles({
-      name: "logo.png",
-      mimeType: "image/png",
-      buffer: aLogo(),
-    });
-    await expect(page.getByText(t("branding.logoUsable"))).toBeVisible();
-    await expect(save).toBeEnabled();
-    await expect(page.getByTestId("logo-facts")).toContainText("logo.png");
-    const saved = psql(
-      `select count(*) from public.organization_brand_logos
-        where organization_id = '${theOrganization()}' and content is not null`,
-    );
-    expect(saved).toBe("0");
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/${locale}/branding?property=${propertyId()}`);
+  const save = page.getByRole("button", {
+    name: t("branding.save"),
+    exact: true,
   });
+  const picker = page.getByLabel(t("branding.logoLabel"));
+
+  // Chosen again until the page has taken it: a file offered before the page
+  // hydrates is lost.
+  await expect(async () => {
+    await picker.setInputFiles({
+      name: "short-logo.png",
+      mimeType: "image/png",
+      buffer: aLogoOf(300, 64),
+    });
+    await expect(
+      page.getByText(
+        t("branding.logoChosenErrors.too_small", {
+          height: 64,
+          minimum: 128,
+        }),
+      ),
+    ).toBeVisible({ timeout: 1_500 });
+  }).toPass({ timeout: 30_000 });
+  await expect(save).toBeDisabled();
+  await expect(page.getByText(t("branding.logoBlocksSave"))).toBeVisible();
+  await expect(page.getByTestId("logo-facts")).toContainText("short-logo.png");
+  await expect(page.getByText(t("branding.logoUsable"))).toHaveCount(0);
+  await page.getByTestId("logo-facts").scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: path.join(EVIDENCE, `branding-logo-too-short-${locale}.png`),
+  });
+
+  // A right-sized one replaces it, and Save is on.
+  await picker.setInputFiles({
+    name: "logo.png",
+    mimeType: "image/png",
+    buffer: aLogo(),
+  });
+  await expect(page.getByText(t("branding.logoUsable"))).toBeVisible();
+  await expect(save).toBeEnabled();
+  await expect(page.getByTestId("logo-facts")).toContainText("logo.png");
+  const saved = psql(
+    `select count(*) from public.organization_brand_logos
+      where organization_id = '${theOrganization()}' and content is not null`,
+  );
+  expect(saved).toBe("0");
 }
 
-test("CONFIGURATION-02: following Back with an unsaved colour asks first, and keeps the draft on no", async ({
+test("BR-S1-43: a logo below the minimum height is refused on the spot, with its size and the limit (CONFIGURATION-01, en)", async ({
+  page,
+}) => {
+  await refusesAShortLogo(page, "en");
+});
+
+test("BR-S1-43: a logo below the minimum height is refused on the spot, with its size and the limit (CONFIGURATION-01, ar)", async ({
+  page,
+}) => {
+  await refusesAShortLogo(page, "ar");
+});
+
+test("BR-S1-44: following Back with an unsaved colour asks first, and keeps the draft on no (CONFIGURATION-02)", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
@@ -140,7 +145,7 @@ test("CONFIGURATION-02: following Back with an unsaved colour asks first, and ke
   await expect(page).not.toHaveURL(/\/branding/);
 });
 
-test("CONFIGURATION-04: Reset names what goes, changes nothing until it is confirmed, and is off when there is nothing to reset", async ({
+test("BR-S1-45: Reset names what goes, changes nothing until it is confirmed, and is off when there is nothing to reset (CONFIGURATION-04)", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
@@ -181,7 +186,7 @@ test("CONFIGURATION-04: Reset names what goes, changes nothing until it is confi
   ).toBe("none");
 });
 
-test("CONFIGURATION-05, -06, -03: no colour is a dashed theme-green well, the verdict is in plain words with the numbers a click away, and the preview is a Portal", async ({
+test("BR-S1-46: no colour is a dashed theme-green well, the verdict is in plain words with the numbers a click away, and the preview is a Portal (CONFIGURATION-05, -06, -03)", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
@@ -218,7 +223,7 @@ test("CONFIGURATION-05, -06, -03: no colour is a dashed theme-green well, the ve
   });
 });
 
-test("CONFIGURATION-07: on a phone the preview is in view while the colour is typed", async ({
+test("BR-S1-47: on a phone the preview is in view while the colour is typed (CONFIGURATION-07)", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);
@@ -243,7 +248,7 @@ test("CONFIGURATION-07: on a phone the preview is in view while the colour is ty
   });
 });
 
-test("CONFIGURATION-08: the logo field is a button, in Arabic too, and says which file is chosen", async ({
+test("BR-S1-43: the logo field is a button, in Arabic too, and says which file is chosen (CONFIGURATION-08)", async ({
   page,
 }) => {
   await signIn(page, OWNER_EMAIL);

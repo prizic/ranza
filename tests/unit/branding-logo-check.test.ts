@@ -24,7 +24,7 @@ const limits = {
 };
 
 describe("a logo that was just chosen", () => {
-  it("is refused when it is empty, too heavy, a vector or not an image, before it is decoded", () => {
+  it("BR-S1-43: is refused when it is empty, too heavy, a vector or not an image, before it is decoded", () => {
     expect(fileProblem({ type: "image/png", size: 0 }, limits)).toBe("empty");
     expect(
       fileProblem({ type: "image/png", size: LOGO_MAX_BYTES + 1 }, limits),
@@ -40,7 +40,7 @@ describe("a logo that was just chosen", () => {
     ).toBeNull();
   });
 
-  it("is refused when it is shorter than the module's minimum, at the pixel", () => {
+  it("BR-S1-43: is refused when it is shorter than the module's minimum, at the pixel", () => {
     expect(
       imageProblem({ width: 300, height: LOGO_MIN_HEIGHT - 1 }, limits),
     ).toBe("too_small");
@@ -49,7 +49,7 @@ describe("a logo that was just chosen", () => {
     ).toBeNull();
   });
 
-  it("is refused when either side passes the maximum, and one that cannot be decoded is corrupt", () => {
+  it("BR-S1-43: is refused when either side passes the maximum, and one that cannot be decoded is corrupt", () => {
     expect(
       imageProblem(
         { width: LOGO_MAX_DIMENSION + 1, height: LOGO_MIN_HEIGHT },
