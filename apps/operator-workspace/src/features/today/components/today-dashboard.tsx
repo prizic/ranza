@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { cn } from "@ranza/ui";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import type { Section, TodaySummary } from "../../../server/today-derive";
 import { clockAt, money, percent } from "../format";
@@ -231,9 +232,23 @@ export function TodayDashboard({
   );
 }
 
-function Grid({ children }: { children: ReactNode }) {
+function Grid({
+  children,
+  fit = false,
+}: {
+  children: ReactNode;
+  /** Fill the row with however many tiles there are, instead of leaving a gap at four columns. */
+  fit?: boolean;
+}) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-3 md:gap-4",
+        fit
+          ? "lg:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]"
+          : "lg:grid-cols-4",
+      )}
+    >
       {children}
     </div>
   );
@@ -322,6 +337,10 @@ function Tiles({
   const occupancy = (
     <Tile key="occupancy" onRetry={onRetry} section={summary.occupancy}>
       {(data, stale) => {
+        const overdueStaying =
+          summary.departures?.status === "ok"
+            ? summary.departures.data.overdue
+            : 0;
         const now = percent(data.inHouse, data.sellable, locale);
         const tonight = percent(data.expectedTonight, data.available, locale);
         return (
@@ -352,11 +371,18 @@ function Tiles({
             sub={
               tonight === null
                 ? null
-                : t("expectedTonight", {
-                    count: n(data.expectedTonight),
-                    of: n(data.available),
-                    value: tonight,
-                  })
+                : [
+                    t("expectedTonight", {
+                      count: n(data.expectedTonight),
+                      of: n(data.available),
+                      value: tonight,
+                    }),
+                    overdueStaying > 0
+                      ? t("tonightOverdue", { count: overdueStaying })
+                      : null,
+                  ]
+                    .filter((line) => line !== null)
+                    .join(" ")
             }
           >
             {now ?? "—"}
@@ -431,6 +457,13 @@ function Tiles({
                 label={t("toClean")}
                 opens={t("dirty")}
                 stale={stale}
+                sub={
+                  rooms.waitingOnGuests > 0
+                    ? t("waitingOnGuestsCount", {
+                        count: rooms.waitingOnGuests,
+                      })
+                    : null
+                }
               >
                 {n(rooms.dirty)}
               </StatTile>
@@ -463,7 +496,7 @@ function Tiles({
 
   if (summary.focus === "finance") {
     return (
-      <Grid>
+      <Grid fit>
         <Tile onRetry={onRetry} section={summary.money}>
           {(data, stale) => (
             <>
@@ -474,6 +507,7 @@ function Tiles({
                   icon={LogOut}
                   label={t("owedOnDepartures")}
                   opens={t("departures")}
+                  compact
                   stale={stale}
                   sub={t("guests", { count: data.leaving.owing })}
                 >
@@ -486,17 +520,11 @@ function Tiles({
                 label={t("openFolios")}
                 opens={t("allFolios")}
                 stale={stale}
+                sub={t("openFoliosBalance", {
+                  amount: money(data.openBalance, currency, locale),
+                })}
               >
                 {n(data.openFolios)}
-              </StatTile>
-              <StatTile
-                href={href("finance", { show: "open" })}
-                icon={Wallet}
-                label={t("openBalance")}
-                opens={t("allFolios")}
-                stale={stale}
-              >
-                {money(data.openBalance, currency, locale)}
               </StatTile>
               {data.leaving ? (
                 <StatTile

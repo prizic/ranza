@@ -463,6 +463,8 @@ describe("the figures", () => {
       available: 10,
       inHouse: 6,
       expectedTonight: 6,
+      leavingTonight: 1,
+      arrivingTonight: 1,
     });
     expect(
       occupancyFrom(
@@ -482,6 +484,8 @@ describe("the figures", () => {
       available: 0,
       inHouse: 0,
       expectedTonight: 0,
+      leavingTonight: 1,
+      arrivingTonight: 0,
     });
   });
 
@@ -643,7 +647,45 @@ describe("needs attention", () => {
           ]),
         ),
       }),
-    ).toEqual(["not_ready", "blocked", "overdue", "balance", "out_of_service"]);
+    ).toEqual(["overdue", "blocked", "not_ready", "balance", "out_of_service"]);
+  });
+});
+
+describe("what leads the attention row", () => {
+  const order = (permissions: string[], overrides: Partial<TodayInput>) =>
+    deriveToday(input(permissions, overrides)).attention.items.map(
+      (item) => item.kind,
+    );
+  const repair = ok(maintenance({ urgent: [urgent({})] }));
+
+  it("finance_starts_with_the_money_and_a_repair_never_leads_it", () => {
+    // TODAY-06: Finance's row led with an urgent repair, then overdue Guests.
+    const kinds = order([...FINANCE, "front_desk.check_out", ...REPORTS], {
+      departures: ok([
+        departure({ overdue: true, endsOn: "2026-09-24", balanceMinor: 5000 }),
+      ]),
+      maintenance: repair,
+    });
+    expect(kinds.indexOf("overdue")).toBeLessThan(
+      kinds.indexOf("urgent_repair"),
+    );
+    expect(kinds).toContain("urgent_repair");
+  });
+
+  it("housekeeping_starts_with_the_rooms_to_get_ready_and_ends_with_rooms_out_of_service", () => {
+    const kinds = order([...HOUSEKEEPING, ...REPORTS], {
+      arrivals: ok([arrival({ unitIsReady: false })]),
+      maintenance: repair,
+      units: ok(
+        map([
+          unit({
+            status: "out_of_service",
+            state: { kind: "out_of_service" },
+          }),
+        ]),
+      ),
+    });
+    expect(kinds).toEqual(["not_ready", "urgent_repair", "out_of_service"]);
   });
 });
 
@@ -699,14 +741,14 @@ describe("maintenance", () => {
     expect(
       items(HOUSEKEEPING, { maintenance: read }).map((item) => item.kind),
     ).not.toContain("urgent_repair");
-    // Ranked after the arrivals, before the departures.
+    // The desk's own Guests lead; a repair comes after them (TODAY-06).
     expect(
       items([...FRONT_DESK, ...REPORTS], {
         arrivals: ok([arrival({ unitIsReady: false })]),
         departures: ok([departure({ overdue: true, balanceMinor: 0 })]),
         maintenance: ok(maintenance({ urgent: [urgent({})] })),
       }).map((item) => item.kind),
-    ).toEqual(["not_ready", "urgent_repair", "overdue"]);
+    ).toEqual(["overdue", "not_ready", "urgent_repair"]);
   });
 
   it("a_hold_past_its_return_needs_attention_once", () => {
@@ -1015,9 +1057,10 @@ describe("clean first", () => {
     expect(queue.map((row) => [row.unitId, row.priority])).toEqual([
       ["arr", "arrival"],
       ["insp", "inspect_for_arrival"],
-      ["leave", "leaving"],
       ["q-old", "queue"],
       ["q-new", "queue"],
+      // Cannot be cleaned until the Guest has gone, so it comes last (TODAY-05).
+      ["leave", "leaving"],
     ]);
   });
 });
@@ -1244,6 +1287,54 @@ describe("reading it", () => {
     );
     expect(summary?.attention.complete).toBe(false);
     expect(report).toHaveBeenCalledWith("daysWaiting", failure);
+  });
+});
+
+describe("dirty and awaiting inspection count empty rooms only", () => {
+  // TODAY-03: a room with a Guest in it was "dirty" on one screen and "in
+  // house" on another, so the same word counted 2 here and 12 there.
+  const rooms = board([
+    room({ unitId: "empty-dirty", name: "101", status: "dirty", ready: false }),
+    room({
+      unitId: "guest-dirty",
+      name: "102",
+      status: "dirty",
+      ready: false,
+      inHouse: true,
+    }),
+    room({ unitId: "empty-wait", name: "103", status: "clean", ready: false }),
+    room({
+      unitId: "guest-wait",
+      name: "104",
+      status: "clean",
+      ready: false,
+      inHouse: true,
+    }),
+    room({
+      unitId: "empty-ready",
+      name: "105",
+      status: "inspected",
+      ready: true,
+    }),
+  ]);
+
+  it("a_room_with_a_guest_in_it_is_in_house_and_in_neither_list", () => {
+    const opened = (filter: RoomFilter) =>
+      roomsInFilter(filter, rooms, [], []).map((r) => r.unitId);
+    expect(opened("dirty")).toEqual(["empty-dirty"]);
+    expect(opened("awaiting_inspection")).toEqual(["empty-wait"]);
+    const card = roomsFrom(rooms, [], []);
+    expect(card.dirty + card.awaitingInspection + card.ready).toBe(3);
+  });
+
+  it("a_dirty_room_a_guest_is_leaving_comes_last_and_is_counted_apart", () => {
+    const leaving = [departure({ unitName: "102" })];
+    const card = roomsFrom(rooms, [], leaving);
+    expect(card.waitingOnGuests).toBe(1);
+    expect(card.cleanFirst.map((row) => row.priority)).toEqual([
+      "queue",
+      "leaving",
+    ]);
   });
 });
 

@@ -138,6 +138,10 @@ export interface OccupancyCard {
    * today (an overdue Guest does not), plus the arrivals that hold a room.
    */
   expectedTonight: number;
+  /** The Guests `expectedTonight` takes out: due to leave today and still here. */
+  leavingTonight: number;
+  /** The arrivals `expectedTonight` adds: those that put a Guest in a room tonight. */
+  arrivingTonight: number;
 }
 
 export type CleanPriority =
@@ -173,6 +177,8 @@ export interface RoomsCard {
   arrivalsWaiting: number;
   cleanFirst: readonly CleanRow[];
   cleanFirstTotal: number;
+  /** Of those, the rooms a Guest is still in: cleaned once they have left. */
+  waitingOnGuests: number;
   /** Whether the viewer holds housekeeping.update_status (TD-S2-03, TD-S2-04). */
   mayMark: boolean;
 }
@@ -531,29 +537,31 @@ export function occupancyFrom(
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
 ): OccupancyCard {
+  const arriving = arrivals.filter(holdsTonight).length;
+  const leaving = departures.filter(leavesTonight).length;
   return {
     sellable: counts.sellable,
     available: availableUnits(counts),
     inHouse: counts.inHouse,
-    expectedTonight: expectedTonight(
-      counts,
-      arrivals.filter(holdsTonight).length,
-      departures.filter(leavesTonight).length,
-    ),
+    expectedTonight: expectedTonight(counts, arriving, leaving),
+    leavingTonight: leaving,
+    arrivingTonight: arriving,
   };
 }
 
 const PRIORITY_ORDER: Record<CleanPriority, number> = {
   arrival: 0,
   inspect_for_arrival: 1,
-  leaving: 2,
-  queue: 3,
+  queue: 2,
+  leaving: 3,
 };
 
 /**
  * Rooms ordered by who needs them (TD-S1-21): a dirty room somebody arrives
- * into today, then a cleaned room still to be inspected for an arrival, then a
- * room a Guest leaves today, then the rest, longest dirty first.
+ * into today, then a cleaned room still to be inspected for an arrival, then
+ * the rest, longest dirty first. A room a Guest leaves today comes last: it
+ * cannot be cleaned until they have gone, so it is not work somebody can start,
+ * and three of the first six rows were exactly that (TODAY-05).
  */
 export function cleanFirst(
   board: HousekeepingBoard,
@@ -661,6 +669,7 @@ export function roomsFrom(
     arrivalsWaiting: count("for_arrival"),
     cleanFirst: queue.slice(0, LIST_LIMIT),
     cleanFirstTotal: queue.length,
+    waitingOnGuests: queue.filter((row) => row.priority === "leaving").length,
     mayMark: board.mayMark,
   };
 }
@@ -782,16 +791,61 @@ function notReadyReason(
   return room.status === "dirty" ? "dirty" : "awaiting_inspection";
 }
 
-const ATTENTION_ORDER: Record<AttentionKind, number> = {
-  days_waiting: 0,
-  not_ready: 1,
-  blocked: 2,
-  urgent_repair: 3,
-  overdue: 4,
-  balance: 5,
-  overdue_return: 6,
-  out_of_service: 7,
+/**
+ * What leads the row, by whose work it is (TODAY-06). The desk starts with its
+ * own Guests, the ones overdue to leave and the ones who cannot be checked in;
+ * Finance starts with the money; Housekeeping with the rooms. Another
+ * department's items follow, so they are never the first thing somebody sees
+ * of a day that is not theirs. Days waiting to be closed stay the desk's first.
+ */
+const ATTENTION_ORDER: Record<
+  "desk" | "finance" | "housekeeping",
+  readonly AttentionKind[]
+> = {
+  desk: [
+    "days_waiting",
+    "overdue",
+    "blocked",
+    "not_ready",
+    "balance",
+    "urgent_repair",
+    "overdue_return",
+    "out_of_service",
+  ],
+  finance: [
+    "overdue",
+    "balance",
+    "days_waiting",
+    "blocked",
+    "not_ready",
+    "urgent_repair",
+    "overdue_return",
+    "out_of_service",
+  ],
+  housekeeping: [
+    "days_waiting",
+    "not_ready",
+    "urgent_repair",
+    "overdue_return",
+    "out_of_service",
+    "overdue",
+    "blocked",
+    "balance",
+  ],
 };
+
+function attentionRank(grants: Grants): (kind: AttentionKind) => number {
+  const focus = focusFor(grants);
+  const order =
+    ATTENTION_ORDER[
+      focus === "manager" || focus === "front_desk"
+        ? "desk"
+        : focus === "finance"
+          ? "finance"
+          : "housekeeping"
+    ];
+  return (kind) => order.indexOf(kind);
+}
 
 type Hold = TodayMaintenance["holds"][number];
 
@@ -897,9 +951,10 @@ function maintenanceAttention(
 
 /**
  * What needs somebody, across everything the viewer's permissions touch
- * (TD-S1-13 to TD-S1-17), ordered by urgency. A departure both overdue and
- * owing is one item, not two. Days waiting to be closed lead (TD-S7-11): they
- * are the night's work left undone, and the screen never folds them away.
+ * (TD-S1-13 to TD-S1-17), ordered by whose work it is (TODAY-06). A departure
+ * both overdue and owing is one item, not two. Days waiting to be closed lead
+ * the desk's (TD-S7-11): they are the night's work left undone, and the screen
+ * never folds them away.
  */
 export function attentionFrom(
   grants: Grants,
@@ -1034,9 +1089,8 @@ export function attentionFrom(
     }
   }
 
-  return items.sort(
-    (a, b) => ATTENTION_ORDER[a.kind] - ATTENTION_ORDER[b.kind],
-  );
+  const rank = attentionRank(grants);
+  return items.sort((a, b) => rank(a.kind) - rank(b.kind));
 }
 
 function valueOf<T>(read: Read<T> | undefined, fallback: T): T {

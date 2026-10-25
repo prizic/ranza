@@ -223,7 +223,9 @@ export function inFolioFilter(
  * other list. A room out of service is in none of them but `out_of_service`:
  * nobody cleans or lets it (TD-S1-17). Ready means a Guest can be put in the
  * room tonight, so housekeeping calling it ready is not enough: nobody may be
- * in it (RANZ-57).
+ * in it (RANZ-57). The same goes for dirty and awaiting inspection: a room with
+ * a Guest in it is in house, not on either list, so every figure with one of
+ * these names counts the same rooms on every screen (TODAY-03).
  */
 export function inRoomFilter(
   filter: Exclude<RoomFilter, "for_arrival" | "clean_first">,
@@ -237,8 +239,8 @@ export function inRoomFilter(
     case "ready":
       return room.ready && !room.inHouse;
     case "awaiting_inspection":
-      return room.status === "clean" && !room.ready;
+      return room.status === "clean" && !room.ready && !room.inHouse;
     case "dirty":
-      return room.status === "dirty";
+      return room.status === "dirty" && !room.inHouse;
   }
 }

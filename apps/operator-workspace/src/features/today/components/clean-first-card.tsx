@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -92,42 +93,49 @@ export function CleanFirstCard({
       ) : (
         <>
           <ul className="grid gap-2">
-            {rooms.data.cleanFirst.map((row) => {
+            {rooms.data.cleanFirst.map((row, index) => {
               const priority = PRIORITY[row.priority];
+              const startsWaiting =
+                row.priority === "leaving" &&
+                rooms.data.cleanFirst[index - 1]?.priority !== "leaving";
               return (
-                <li
-                  className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-muted/60 pe-3 transition-colors hover:bg-muted"
-                  key={row.unitId}
-                >
-                  <Link
-                    className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    href={href}
-                    prefetch={false}
-                  >
-                    <span className="min-w-24 flex-1">
-                      <span className="block font-semibold tabular-nums">
-                        <bdi>{row.name}</bdi>
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {row.floor === null
-                          ? t("noFloor")
-                          : t("floor", { floor: row.floor })}
-                      </span>
-                    </span>
-                    <StatusBadge
-                      icon={priority.icon}
-                      label={t(priority.label as "priorityArrival")}
-                      tone={priority.tone}
-                    />
-                  </Link>
-                  {rooms.data.mayMark ? (
-                    <MarkRoomAction
-                      locale={locale}
-                      onDone={onChanged}
-                      room={row}
-                    />
+                <Fragment key={row.unitId}>
+                  {startsWaiting ? (
+                    <li className="mt-2 px-1 text-xs font-semibold text-muted-foreground">
+                      {t("waitingOnGuests")}
+                    </li>
                   ) : null}
-                </li>
+                  <li className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-muted/60 pe-3 transition-colors hover:bg-muted">
+                    <Link
+                      className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl px-4 py-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                      href={href}
+                      prefetch={false}
+                    >
+                      <span className="min-w-24 flex-1">
+                        <span className="block font-semibold tabular-nums">
+                          <bdi>{row.name}</bdi>
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {row.floor === null
+                            ? t("noFloor")
+                            : t("floor", { floor: row.floor })}
+                        </span>
+                      </span>
+                      <StatusBadge
+                        icon={priority.icon}
+                        label={t(priority.label as "priorityArrival")}
+                        tone={priority.tone}
+                      />
+                    </Link>
+                    {rooms.data.mayMark ? (
+                      <MarkRoomAction
+                        locale={locale}
+                        onDone={onChanged}
+                        room={row}
+                      />
+                    ) : null}
+                  </li>
+                </Fragment>
               );
             })}
           </ul>

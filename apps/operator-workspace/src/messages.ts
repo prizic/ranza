@@ -1912,12 +1912,16 @@ export interface Messages {
     occupancy: string;
     inHouseOf: string;
     expectedTonight: string;
+    /** Said under tonight's figure when overdue Guests are counted as staying. */
+    tonightOverdue: string;
     /** Between a figure and the whole it is of: 3 / 9, or 3 من 9 where a slash reads either way. */
     ofSeparator: string;
     noUnits: string;
     roomsReadyForArrivals: string;
     roomsNotReadyYet: string;
     toClean: string;
+    waitingOnGuestsCount: string;
+    waitingOnGuests: string;
     awaitingInspection: string;
     readyRooms: string;
     arrivalsWaiting: string;
@@ -1925,7 +1929,7 @@ export interface Messages {
     owedOnDepartures: string;
     guests: string;
     openFolios: string;
-    openBalance: string;
+    openFoliosBalance: string;
     overdueOwing: string;
     movements: string;
     tabArrivals: string;
@@ -1957,6 +1961,7 @@ export interface Messages {
     awaiting: string;
     dirty: string;
     roomsByFloor: string;
+    roomsEmptyOnly: string;
     floorReady: string;
     owing: string;
     largestBalances: string;
@@ -4307,20 +4312,25 @@ export const messages: Record<SupportedLocale, Messages> = {
       occupancy: "Doluluk",
       inHouseOf: "Konaklayan · {count} / {of}",
       expectedTonight: "Bu gece beklenen {count} / {of} uygun oda ({value})",
+      tonightOverdue:
+        "{count, plural, other {# gecikmiş misafir}} çıkış yapana kadar konaklıyor sayılır.",
       ofSeparator: "/",
       noUnits: "Kiralanacak birim yok",
       roomsReadyForArrivals: "Bekleyen gelişe hazır oda",
       roomsNotReadyYet:
         "{count, plural, one {# oda henüz hazır değil} other {# oda henüz hazır değil}}",
       toClean: "Temizlenecek",
+      waitingOnGuestsCount:
+        "{count, plural, other {# oda daha misafirin çıkmasını bekliyor}}",
+      waitingOnGuests: "Misafirin çıkmasını bekleyenler",
       awaitingInspection: "Kontrol bekliyor",
       readyRooms: "Hazır oda",
       arrivalsWaiting: "Oda bekleyen geliş",
       arrivalRooms: "Geliş odaları",
-      owedOnDepartures: "Bugün ayrılanlarda bakiye",
+      owedOnDepartures: "Ayrılan ve gecikmiş misafirlerin borcu",
       guests: "{count, plural, one {# misafir} other {# misafir}}",
       openFolios: "Açık folyo",
-      openBalance: "Açık folyolarda bakiye",
+      openFoliosBalance: "Bakiye {amount}",
       overdueOwing: "Gecikmiş, bakiyeli",
       movements: "Bugünkü hareket",
       tabArrivals: "Gelişler · {count}",
@@ -4353,6 +4363,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaiting: "Temiz, kontrol bekliyor",
       dirty: "Kirli",
       roomsByFloor: "Katlara göre hazır odalar",
+      roomsEmptyOnly:
+        "Kirli ve kontrol bekleyen sayıları yalnızca boş odaları sayar.",
       floorReady: "{count} / {of}",
       owing: "Bakiyesiyle ayrılanlar",
       largestBalances: "En yüksek açık bakiyeler",
@@ -7772,20 +7784,25 @@ export const messages: Record<SupportedLocale, Messages> = {
       inHouseOf: "In house · {count} / {of}",
       expectedTonight:
         "Expected tonight {count} / {of} available rooms ({value})",
+      tonightOverdue:
+        "Counts {count, plural, one {# overdue Guest} other {# overdue Guests}} as staying until checked out.",
       ofSeparator: "/",
       noUnits: "No units to let",
       roomsReadyForArrivals: "Rooms ready for waiting arrivals",
       roomsNotReadyYet:
         "{count, plural, one {# room not ready yet} other {# rooms not ready yet}}",
       toClean: "To clean",
+      waitingOnGuestsCount:
+        "{count, plural, one {# more waiting on a Guest} other {# more waiting on Guests}}",
+      waitingOnGuests: "Waiting for the Guest to leave",
       awaitingInspection: "Awaiting inspection",
       readyRooms: "Ready rooms",
       arrivalsWaiting: "Arrivals waiting on a room",
       arrivalRooms: "Arrival rooms",
-      owedOnDepartures: "Balance on today's departures",
+      owedOnDepartures: "Owed by Guests leaving or overdue",
       guests: "{count, plural, one {# Guest} other {# Guests}}",
       openFolios: "Open Folios",
-      openBalance: "Balance across open Folios",
+      openFoliosBalance: "Balance {amount}",
       overdueOwing: "Overdue with a balance",
       movements: "Today's movements",
       tabArrivals: "Arrivals · {count}",
@@ -7820,6 +7837,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaiting: "Clean, awaiting inspection",
       dirty: "Dirty",
       roomsByFloor: "Ready rooms by floor",
+      roomsEmptyOnly: "Dirty and awaiting inspection count empty rooms only.",
       floorReady: "{count} / {of}",
       owing: "Leaving with a balance",
       largestBalances: "Largest open balances",
@@ -11198,21 +11216,26 @@ export const messages: Record<SupportedLocale, Messages> = {
       occupancy: "الإشغال",
       inHouseOf: "المقيمون · {count} من {of}",
       expectedTonight: "المتوقع الليلة {count} من {of} غرفة متاحة ({value})",
+      tonightOverdue:
+        "يُحتسب {count, plural, zero {لا ضيف متأخر} one {ضيف متأخر واحد} two {ضيفان متأخران} few {# ضيوف متأخرين} many {# ضيفًا متأخرًا} other {# ضيف متأخر}} مقيمًا حتى تسجيل خروجه.",
       ofSeparator: "من",
       noUnits: "لا وحدات للتأجير",
       roomsReadyForArrivals: "غرف جاهزة للقادمين",
       roomsNotReadyYet:
         "{count, plural, zero {كل الغرف جاهزة} one {غرفة واحدة غير جاهزة} two {غرفتان غير جاهزتين} few {# غرف غير جاهزة} many {# غرفة غير جاهزة} other {# غرفة غير جاهزة}}",
       toClean: "للتنظيف",
+      waitingOnGuestsCount:
+        "{count, plural, zero {لا غرف تنتظر نزلاء} one {غرفة أخرى تنتظر نزيلًا} two {غرفتان أخريان تنتظران نزيلين} few {# غرف أخرى تنتظر نزلاء} many {# غرفة أخرى تنتظر نزلاء} other {# غرفة أخرى تنتظر نزلاء}}",
+      waitingOnGuests: "بانتظار مغادرة النزيل",
       awaitingInspection: "بانتظار الفحص",
       readyRooms: "غرف جاهزة",
       arrivalsWaiting: "قادمون بانتظار غرفة",
       arrivalRooms: "غرف الوصول",
-      owedOnDepartures: "رصيد مغادري اليوم",
+      owedOnDepartures: "مستحق على المغادرين والمتأخرين",
       guests:
         "{count, plural, zero {لا ضيوف} one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
       openFolios: "فواتير مفتوحة",
-      openBalance: "الرصيد في الفواتير المفتوحة",
+      openFoliosBalance: "الرصيد {amount}",
       overdueOwing: "متأخرون برصيد",
       movements: "حركة اليوم",
       tabArrivals: "الوصول · {count}",
@@ -11248,6 +11271,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       awaiting: "نظيفة، بانتظار الفحص",
       dirty: "متسخة",
       roomsByFloor: "الغرف الجاهزة حسب الطابق",
+      roomsEmptyOnly: "المتسخة وبانتظار الفحص تُحتسب من الغرف الشاغرة فقط.",
       floorReady: "{count} من {of}",
       owing: "يغادرون برصيد",
       largestBalances: "أعلى الأرصدة المفتوحة",

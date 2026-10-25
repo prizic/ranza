@@ -14,6 +14,7 @@ import { cn } from "@ranza/ui";
 export function StatTile({
   accent = false,
   children,
+  compact = false,
   href,
   icon: Icon,
   label,
@@ -24,6 +25,8 @@ export function StatTile({
 }: {
   accent?: boolean;
   children: ReactNode;
+  /** A figure that is an amount of money: smaller, so a long one does not break the tile. */
+  compact?: boolean;
   href: string;
   icon: LucideIcon;
   label: string;
@@ -56,7 +59,12 @@ export function StatTile({
         </span>
       </span>
       <span className="mt-5 block">
-        <span className="block text-4xl leading-none font-light tracking-tight tabular-nums md:text-5xl">
+        <span
+          className={cn(
+            "block leading-none font-light tracking-tight tabular-nums",
+            compact ? "text-3xl md:text-4xl" : "text-4xl md:text-5xl",
+          )}
+        >
           {children}
         </span>
         <span className="mt-2 block text-xs font-medium tracking-wider text-muted-foreground uppercase">

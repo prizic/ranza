@@ -24,7 +24,12 @@ import { unitLabel } from "../../front-office/unit-label";
 import { todayHref } from "../links";
 import { money, shortDay } from "../format";
 
-/** How many show before the rest fold into "N more" (TD-S1-18). */
+/**
+ * How many room items show before the rest fold into "N more" (TD-S1-18). The
+ * four are the first of each kind before they are the first four items, so
+ * eight overdue Guests cannot hide the one blocked arrival behind them
+ * (TODAY-06).
+ */
 export const ATTENTION_SHOWN = 4;
 
 const KIND: Record<
@@ -55,6 +60,30 @@ const BLOCKER = {
   unit_out_of_service: "blockerUnitOutOfService",
   unit_occupied: "blockerUnitOccupied",
 } as const;
+
+/**
+ * The room items to show: all of them once opened, otherwise the first of each
+ * kind (in the order given, so the most urgent kinds win a short row) and then
+ * the next items in order, up to `ATTENTION_SHOWN` in all.
+ */
+function foldedRooms(
+  rooms: readonly AttentionItem[],
+  expanded: boolean,
+): readonly AttentionItem[] {
+  if (expanded) return rooms;
+  const picked = new Set(
+    rooms
+      .filter(
+        (item, index) => rooms.findIndex((o) => o.kind === item.kind) === index,
+      )
+      .slice(0, ATTENTION_SHOWN),
+  );
+  for (const item of rooms) {
+    if (picked.size >= ATTENTION_SHOWN) break;
+    picked.add(item);
+  }
+  return rooms.filter((item) => picked.has(item));
+}
 
 export function AttentionQueue({
   complete,
@@ -105,10 +134,7 @@ export function AttentionQueue({
   // they never take one of the places a room's item would have (TD-S7-11).
   const backlog = items.filter((item) => item.kind === "days_waiting");
   const rooms = items.filter((item) => item.kind !== "days_waiting");
-  const shown = [
-    ...backlog,
-    ...(expanded ? rooms : rooms.slice(0, ATTENTION_SHOWN)),
-  ];
+  const shown = [...backlog, ...foldedRooms(rooms, expanded)];
   const hidden = items.length - shown.length;
 
   function detail(item: AttentionItem): string | null {

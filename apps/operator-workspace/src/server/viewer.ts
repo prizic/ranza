@@ -1071,11 +1071,27 @@ export async function billingNotices(): Promise<readonly BillingNotice[]> {
  */
 export async function todaySummary(
   propertyId: string,
+  /**
+   * Handed the departures this read already made, whole: the check-out dialog
+   * reviews exactly these, so a page that sends them with its first paint shows
+   * the Check out buttons in the HTML instead of after a second read (TODAY-20).
+   */
+  onDepartures?: (rows: readonly Departure[]) => void,
 ): Promise<TodaySummary | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
+  const reads = todayReads(getComposition(), viewer.userId);
   return readTodaySummary(
-    todayReads(getComposition(), viewer.userId),
+    onDepartures
+      ? {
+          ...reads,
+          departures: async (id) => {
+            const rows = await reads.departures(id);
+            onDepartures(rows);
+            return rows;
+          },
+        }
+      : reads,
     propertyId,
     {
       frontDesk: FRONT_DESK_CAPABILITY,

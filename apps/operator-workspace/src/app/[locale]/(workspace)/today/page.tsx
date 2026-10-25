@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { formatTime, isSupportedLocale, localizeHref } from "@ranza/i18n";
+import type { Departure } from "@ranza/reservations";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import {
@@ -16,6 +17,7 @@ import {
   parseLayout,
 } from "../../../../features/today/layouts/model";
 import { todayKeys } from "../../../../features/today/query-keys";
+import { frontOfficeKeys } from "../../../../features/front-office/query-keys";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 
@@ -76,7 +78,10 @@ export default async function TodayPage({
   );
   if (!property) redirect(localizeHref(locale, "today"));
 
-  const summary = await todaySummary(property.propertyId);
+  let dueDepartures: readonly Departure[] | undefined;
+  const summary = await todaySummary(property.propertyId, (rows) => {
+    dueDepartures = rows;
+  });
   // Today withdrawn between the list above and this read: the same answer as
   // having no Property with it.
   if (!summary) return noProperty;
@@ -88,6 +93,14 @@ export default async function TodayPage({
   };
   const client = requestQueryClient();
   client.setQueryData(todayKeys.summary(scope), summary);
+  // The bills a Check out button reviews are the departures just read, so the
+  // buttons are in the first HTML rather than arriving after a second read.
+  if (dueDepartures) {
+    client.setQueryData(
+      frontOfficeKeys.departures(scope, "due"),
+      dueDepartures,
+    );
+  }
 
   const now = new Date();
   const hour = Number(

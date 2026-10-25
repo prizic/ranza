@@ -80,6 +80,7 @@ const ROOMS = {
       },
     ],
     cleanFirstTotal: 12,
+    waitingOnGuests: 3,
     mayMark: true,
   },
 };
@@ -145,7 +146,14 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
     },
     occupancy: {
       status: "ok",
-      data: { sellable: 96, available: 96, inHouse: 79, expectedTonight: 85 },
+      data: {
+        sellable: 96,
+        available: 96,
+        inHouse: 79,
+        expectedTonight: 85,
+        leavingTonight: 0,
+        arrivingTonight: 6,
+      },
     },
     rooms: ROOMS,
     attention: {
@@ -298,6 +306,41 @@ describe("needs attention", () => {
       within(section).getByRole("button", { name: "2 tane daha" }),
     );
     expect(within(section).getAllByRole("link")).toHaveLength(6);
+  });
+});
+
+describe("the folded attention row", () => {
+  const overdue = (index: number) =>
+    item({
+      kind: "overdue",
+      dueOn: "2026-09-24",
+      unit: { unitName: `3${index}0`, roomName: null },
+      guestName: `Guest ${index}`,
+    });
+
+  it("shows_the_first_of_every_kind_so_a_long_run_of_one_hides_none_of_the_rest", () => {
+    // TODAY-06: eight overdue Guests used to push the blocked arrival and the
+    // Guest leaving with a balance behind a "more" button.
+    const items = [
+      ...Array.from({ length: 8 }, (_, index) => overdue(index)),
+      item({ kind: "blocked", blocker: "unit_blocked" }),
+      item({
+        kind: "balance",
+        balance: { amountMinor: 5000, currency: "TRY" },
+      }),
+    ];
+    view(frontDesk({ attention: { items, complete: true } }), "en");
+    const section = screen.getByRole("region", { name: /Needs attention/ });
+    const links = within(section).getAllByRole("link");
+    // Still four cards: the first overdue Guest, the blocked arrival and the
+    // Guest leaving with a balance, then the next overdue one; six sit behind
+    // the button.
+    expect(links).toHaveLength(4);
+    expect(within(section).getByText("Can't check in")).toBeInTheDocument();
+    expect(within(section).getByText("Leaving with a balance")).toBeInTheDocument();
+    expect(
+      within(section).getByRole("button", { name: "6 more" }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -540,6 +583,61 @@ describe("right to left", () => {
   });
 });
 
+describe("the finance tiles", () => {
+  const finance = (leaving: boolean): TodaySummary => ({
+    day: DAY,
+    focus: "finance",
+    mayBook: false,
+    money: {
+      status: "ok",
+      data: {
+        openFolios: 30,
+        openBalance: [{ amountMinor: 6633500, currency: "TRY" }],
+        largest: [],
+        ...(leaving
+          ? {
+              leaving: {
+                owed: [{ amountMinor: 2000000, currency: "TRY" }],
+                owing: 4,
+                overdueOwing: 2,
+                overdueBalance: [{ amountMinor: 900000, currency: "TRY" }],
+                rows: [],
+              },
+            }
+          : {}),
+      },
+    },
+    attention: { items: [], complete: true },
+  });
+
+  it("open_folios_and_their_balance_are_one_tile_not_two_that_open_the_same_list", () => {
+    // TODAY-17: two tiles shared the eyebrow "All Folios" and one list.
+    view(finance(true), "en");
+    expect(screen.getAllByText("All Folios", { exact: true })).toHaveLength(1);
+    const tile = screen.getByRole("link", { name: /Open Folios/ });
+    expect(tile).toHaveTextContent("30");
+    expect(tile).toHaveTextContent("Balance TRY 66,335.00");
+  });
+
+  it("the_departures_tile_says_it_is_owed_by_guests_leaving_or_overdue", () => {
+    view(finance(true), "en");
+    expect(
+      screen.getByText("Owed by Guests leaving or overdue"),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("the housekeeping tiles", () => {
+  it("to_clean_says_how_many_more_rooms_wait_on_a_guest_leaving", () => {
+    // TODAY-05: a room a Guest is still in is not work somebody can start.
+    view(housekeeping(), "en");
+    expect(screen.getByText("3 more waiting on Guests")).toBeInTheDocument();
+    expect(
+      screen.getByText("Dirty and awaiting inspection count empty rooms only."),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("the finance card", () => {
   it("says so when no open Folio is owed anything, rather than an empty list", () => {
     view({
@@ -762,13 +860,28 @@ describe("the day, as the UX audit found it", () => {
       frontDesk({
         occupancy: {
           status: "ok",
-          data: { sellable: 11, available: 9, inHouse: 4, expectedTonight: 5 },
+          data: {
+            sellable: 11,
+            available: 9,
+            inHouse: 4,
+            expectedTonight: 5,
+            leavingTonight: 0,
+            arrivingTonight: 1,
+          },
         },
       }),
       "en",
     );
     expect(
-      screen.getByText("Expected tonight 5 / 9 available rooms (56%)"),
+      screen.getByText(/Expected tonight 5 \/ 9 available rooms \(56%\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("tonight_says_that_an_overdue_guest_is_counted_as_staying", () => {
+    // The fixture's departures card has one overdue Guest (TODAY-01).
+    view(frontDesk(), "en");
+    expect(
+      screen.getByText(/Counts 1 overdue Guest as staying until checked out\./),
     ).toBeInTheDocument();
   });
 

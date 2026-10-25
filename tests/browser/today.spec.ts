@@ -486,7 +486,9 @@ test.describe("every number on Today opens the list that explains it", () => {
       // 101 and 103 are inspected, and 103 has a Guest in it: only 101 is a
       // room a Guest can be put in tonight.
       { row: "Ready", filter: "ready", expected: 1 },
-      { row: "Clean, awaiting inspection", filter: "awaiting", expected: 5 },
+      // 201 to 203 have Guests in them and no status of their own: in house,
+      // so not awaiting inspection (TODAY-03). The list counts the same two.
+      { row: "Clean, awaiting inspection", filter: "awaiting", expected: 2 },
       { row: "Dirty", filter: "dirty", expected: 2 },
       { row: "Out of service", filter: "out", expected: 2 },
     ];
@@ -592,7 +594,8 @@ test.describe("every number on Today opens the list that explains it", () => {
 
     const figures: [string | RegExp, number, string][] = [
       ["To clean", 2, "housekeeping"],
-      ["Awaiting inspection", 5, "housekeeping"],
+      // Empty rooms only: the Guests in 201 to 203 are in house (TODAY-03).
+      ["Awaiting inspection", 2, "housekeeping"],
       ["Arrivals waiting on a room", 1, "housekeeping"],
     ];
     for (const [label, expected, segment] of figures) {
@@ -624,7 +627,7 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const { owing, openFolios } = day.expected;
 
-    const owed = figure(page, "departures", "Balance on today's departures");
+    const owed = figure(page, "departures", "Owed by Guests leaving or overdue");
     const owedText = await owed.innerText();
     expect(integers(owedText).at(-1)).toBe(owing.guests);
     expect(owedText).toContain("255");
@@ -643,15 +646,12 @@ test.describe("every number on Today opens the list that explains it", () => {
     expect((await notice(page)).text).toContain("75");
 
     await openToday(page);
+    // One tile for the count and what is owed across them (TODAY-17).
     const folios = figure(page, "finance", "Open Folios");
-    expect(integers(await folios.innerText())[0]).toBe(openFolios);
+    const foliosText = await folios.innerText();
+    expect(integers(foliosText)[0]).toBe(openFolios);
+    expect(foliosText).toContain("255");
     await follow(page, folios);
-    expect(await listed(page)).toBe(openFolios);
-    await expect(openTab(page)).toHaveAttribute("aria-current", "page");
-
-    await openToday(page);
-    const balance = figure(page, "finance", "Balance across open Folios");
-    await follow(page, balance);
     expect(await listed(page)).toBe(openFolios);
     await expect(openTab(page)).toHaveAttribute("aria-current", "page");
     expect(await balancesListed(page)).toBe(255);

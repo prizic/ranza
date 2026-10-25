@@ -128,6 +128,9 @@ function Breakdown({
           </li>
         ))}
       </ul>
+      <p className="mt-3 text-xs text-muted-foreground">
+        {t("roomsEmptyOnly")}
+      </p>
       {rooms.floors.length > 1 ? (
         <section
           aria-label={t("roomsByFloor")}
