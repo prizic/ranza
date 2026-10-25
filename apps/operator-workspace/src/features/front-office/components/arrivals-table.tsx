@@ -12,7 +12,6 @@ import { useArrivalColumns } from "./columns";
 import { REACHES_EVERYTHING, type FrontDeskReach } from "../reach";
 import { useOverflowing } from "../use-overflowing";
 
-
 /**
  * The order a desk works the list in: Guests already late first, then by the
  * time they said they would come (nobody-said last), then by room — and those

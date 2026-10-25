@@ -10,7 +10,6 @@ import { useDepartureColumns } from "./columns";
 import { REACHES_EVERYTHING, type FrontDeskReach } from "../reach";
 import { useOverflowing } from "../use-overflowing";
 
-
 /**
  * The Stays a front desk may check out: due and overdue ones first, or
  * everybody in house.

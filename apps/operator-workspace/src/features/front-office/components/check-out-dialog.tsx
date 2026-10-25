@@ -136,8 +136,8 @@ export function CheckOutDialog({
       : t("checkOutStatusOnSchedule");
   const folioHref =
     departure.folioId && canOpenFolio
-    ? `${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`
-    : null;
+      ? `${localizeHref(locale, "finance")}?property=${propertyId}&folio=${departure.folioId}`
+      : null;
   // A new tab when money is owed: the Folio is where it is settled, and
   // leaving this one closes the dialog and forgets the reason already typed.
   // The bill is checked again when it is confirmed.
