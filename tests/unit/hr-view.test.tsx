@@ -225,7 +225,7 @@ describe("logins offered for registration", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("HR-S1-49: a login with no record is listed with its email and a way to register it, above the empty state that hid it", () => {
+  it("HR-S1-49: a login with no record is listed with its email and a way to register it, and no second empty state competes with it", () => {
     table([ada, bora]);
     const panel = screen
       .getByText("Staff without an employment record")
@@ -237,8 +237,16 @@ describe("logins offered for registration", () => {
         name: "Register as employee: ada@hotel.test",
       }),
     ).toBeInTheDocument();
-    // The empty state is still true, and still there.
-    expect(screen.getByText("No employees registered")).toBeInTheDocument();
+    // PEOPLE-09: one first step. The generic empty state is not stacked under
+    // the list, the sign-in card says which option links a login, and the
+    // header keeps the one way to add somebody without a sign-in.
+    expect(
+      screen.queryByText("No employees registered"),
+    ).not.toBeInTheDocument();
+    expect(panel).toHaveTextContent("links the record to their sign-in");
+    expect(
+      screen.getAllByRole("button", { name: "Add employee" }),
+    ).toHaveLength(1);
   });
 
   it("HR-S1-50: registering from a login starts from its email and sends its id", async () => {

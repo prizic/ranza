@@ -252,11 +252,13 @@ export function EditEmployeeDialog({
               </DialogSection>
 
               <DialogSection
+                hint={t("startDateHint")}
                 labelFor={id("start")}
                 tag={{ label: all("dialogTagRequired"), required: true }}
                 title={t("editStartTitle")}
               >
                 <Input
+                  aria-describedby={`${id("start")}-hint`}
                   className={fieldClassName}
                   id={id("start")}
                   max={today}

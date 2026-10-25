@@ -259,8 +259,13 @@ export function RegisterEmployeeDialog({
                     onChange={(e) => setGrossPay(e.target.value)}
                   />
                 </Field>
-                <Field htmlFor="hiredOn" label={t("startDate")}>
+                <Field
+                  hint={t("startDateHint")}
+                  htmlFor="hiredOn"
+                  label={t("startDate")}
+                >
                   <Input
+                    aria-describedby="hiredOn-hint"
                     className={fieldClassName}
                     id="hiredOn"
                     max={today}

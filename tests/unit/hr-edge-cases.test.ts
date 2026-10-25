@@ -31,6 +31,7 @@ const FILES = [
   "tests/unit/hr-actions.test.ts",
   "tests/unit/hr-audit-facts.test.tsx",
   "tests/browser/hr.spec.ts",
+  "tests/browser/people-hr.spec.ts",
 ];
 
 const [header, ...rows] = parseCsv(

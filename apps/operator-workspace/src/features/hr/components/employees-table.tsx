@@ -88,6 +88,10 @@ export function EmployeesTable({
     (property) => property.propertyId === propertyId,
   );
 
+  // Sign-ins awaiting a record are the way in while nobody is registered, so
+  // the generic "no employees" card would be a second, competing first step.
+  const signInsOffered = canManage && unregisteredStaff.length > 0;
+
   const registerDialog = (
     <RegisterEmployeeDialog
       currency={currency}
@@ -133,10 +137,12 @@ export function EmployeesTable({
             {t("counts", { employed: employed.length, left: leftCount })}
           </p>
         </div>
-        {canManage && employees.length > 0 && registerDialog}
+        {canManage &&
+          (employees.length > 0 || signInsOffered) &&
+          registerDialog}
       </div>
 
-      {canManage && unregisteredStaff.length > 0 ? (
+      {signInsOffered ? (
         <Card data-unregistered-staff className="border-border">
           <CardHeader className="space-y-1 p-4 pb-2">
             <CardTitle className="text-step-0 font-semibold text-foreground">
@@ -172,13 +178,15 @@ export function EmployeesTable({
       ) : null}
 
       {employees.length === 0 ? (
-        <EmptyState
-          title={t("noEmployeesTitle")}
-          description={
-            canManage ? t("noEmployeesDescription") : t("noEmployeesReadOnly")
-          }
-          action={canManage ? registerDialog : undefined}
-        />
+        signInsOffered ? null : (
+          <EmptyState
+            title={t("noEmployeesTitle")}
+            description={
+              canManage ? t("noEmployeesDescription") : t("noEmployeesReadOnly")
+            }
+            action={canManage ? registerDialog : undefined}
+          />
+        )
       ) : (
         <Card className="border-border">
           <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
