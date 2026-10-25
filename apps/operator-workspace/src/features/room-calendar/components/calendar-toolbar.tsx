@@ -217,7 +217,7 @@ export function CalendarToolbar({
           {t("search")}
         </Label>
         <Input
-          className="h-8 w-full sm:w-44"
+          className="h-8 w-full sm:w-48"
           id="room-calendar-search"
           onChange={(event) => onChange({ search: event.target.value })}
           placeholder={t("search")}
