@@ -1,9 +1,4 @@
 import { notFound } from "next/navigation";
-import {
-  LOGO_MAX_BYTES,
-  LOGO_MAX_DIMENSION,
-  LOGO_MIN_HEIGHT,
-} from "@ranza/branding";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { EmptyState } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
@@ -11,6 +6,7 @@ import { gateOf } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
 import { BrandingView } from "../../../../features/branding/components/branding-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { LOGO_LIMITS } from "../../../../server/logo-limits";
 import {
   organizationBrand,
   permittedProperties,
@@ -88,11 +84,7 @@ export default async function BrandingPage({
   return (
     <BrandingView
       brand={settings.brand}
-      limits={{
-        maxBytes: LOGO_MAX_BYTES,
-        maxDimension: LOGO_MAX_DIMENSION,
-        minHeight: LOGO_MIN_HEIGHT,
-      }}
+      limits={LOGO_LIMITS}
       key={property.organizationId}
       locale={locale}
       organizationId={property.organizationId}
