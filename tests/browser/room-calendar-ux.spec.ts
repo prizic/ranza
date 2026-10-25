@@ -547,6 +547,10 @@ test("closing a dialog opened from the details puts focus back on the button tha
   // current dates have been read, rather than drawing the field again under it.
   await expect(departure.getByText("Checking those nights…")).toBeHidden();
   await expect(departure.locator(":focus")).toHaveCount(1);
+  await expect(departure.locator(":focus")).toHaveAttribute(
+    "id",
+    /^departure-/,
+  );
   await page.keyboard.press("Escape");
   await expect(departure).toBeHidden();
   await expect(change).toBeFocused();

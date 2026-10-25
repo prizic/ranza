@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslations } from "next-intl";
 import { AlarmClock, CircleAlert } from "lucide-react";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
@@ -163,6 +169,21 @@ export function ChangeDepartureDialog({
   );
   const needsEnd = stayType === "guest" && !endsOn && overdueSince === null;
   const [resets, setResets] = useState(0);
+  const fieldId = `departure-${stay.stayId}`;
+  const fieldHadFocus = useRef(false);
+  // The field is drawn again to show a day it did not open on, which removes
+  // the control the dialog gave focus to; whoever was on it is put back on the
+  // new one, instead of on nothing (the keyboard then starts from the top of
+  // the page).
+  const drawFieldAgain = useCallback(() => {
+    fieldHadFocus.current = document.activeElement?.id === fieldId;
+    setResets((n) => n + 1);
+  }, [fieldId]);
+  useEffect(() => {
+    if (!fieldHadFocus.current) return;
+    fieldHadFocus.current = false;
+    document.getElementById(fieldId)?.focus();
+  }, [resets, fieldId]);
   const [outcome, act, pending] = useActionState<
     ChangeDepartureOutcome,
     FormData
@@ -215,13 +236,13 @@ export function ChangeDepartureDialog({
           ) {
             setOverdueSince(fresh.endsOn);
             setEndsOn(tomorrowOf(fresh.today));
-            setResets((n) => n + 1);
+            drawFieldAgain();
           } else if (!proposed && fresh.endsOn !== null) {
             // One more night is the commonest change, so the field opens on
             // it, previewed and priced, and Save is the confirm (ARRIVALS-07).
             resetFromPreview.current = false;
             setEndsOn(tomorrowOf(fresh.endsOn));
-            setResets((n) => n + 1);
+            drawFieldAgain();
           }
         }
         if (resetFromPreview.current || stale) {
@@ -233,7 +254,7 @@ export function ChangeDepartureDialog({
           // drawing it again takes the focus the dialog gave it on opening.
           if ((fresh.endsOn ?? undefined) !== endsOn) {
             setEndsOn(fresh.endsOn ?? undefined);
-            setResets((n) => n + 1);
+            drawFieldAgain();
           }
         }
         setRead({ state: "ready", preview: fresh });
@@ -247,7 +268,16 @@ export function ChangeDepartureDialog({
         setRead({ state: "failed" });
       });
     return () => controller.abort();
-  }, [open, needsEnd, stay.stayId, stay.endsOn, endsOn, generation, proposed]);
+  }, [
+    open,
+    needsEnd,
+    stay.stayId,
+    stay.endsOn,
+    endsOn,
+    generation,
+    proposed,
+    drawFieldAgain,
+  ]);
 
   const preview = read.state === "ready" ? read.preview : null;
   const was = pinned?.endsOn ?? null;
@@ -411,14 +441,14 @@ export function ChangeDepartureDialog({
             ) : null}
 
             <DialogSection
-              labelFor={`departure-${stay.stayId}`}
+              labelFor={fieldId}
               tag={{ label: t("dialogTagRequired"), required: true }}
               title={t("changeDepartureNewTitle")}
             >
               <DateRangeField
                 defaultValue={{ from: stay.startsOn, to: endsOn }}
                 earliestTo={preview ? tomorrowOf(preview.today) : undefined}
-                id={`departure-${stay.stayId}`}
+                id={fieldId}
                 key={resets}
                 labels={{
                   from: t("arrival"),
