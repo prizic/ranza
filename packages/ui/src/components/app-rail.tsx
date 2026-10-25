@@ -403,7 +403,16 @@ function ExpandedLeafItem({
         )}
         strokeWidth={active ? 2 : 1.5}
       />
-      <span className="truncate flex-1 text-start">{leaf.label}</span>
+      {/* A mark beside the name takes the room a long name needs, so the name
+          wraps rather than being cut to "Food & B…". */}
+      <span
+        className={cn(
+          "flex-1 text-start",
+          leaf.badge === undefined ? "truncate" : "min-w-0 leading-tight",
+        )}
+      >
+        {leaf.label}
+      </span>
       {leaf.badge !== undefined ? (
         <span
           className={cn(

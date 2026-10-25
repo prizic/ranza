@@ -79,6 +79,7 @@ export function useWorkspaceNav(
   segmentsByProperty: Readonly<Record<string, readonly string[]>> = {},
 ): NavEntry[] {
   const t = useTranslations("navigation");
+  const soon = useTranslations()("plannedBadge");
   const known = Object.keys(segmentsByProperty);
   const property = usePropertyInUse(defaultProperty, known);
   const withProperty = useWithProperty(defaultProperty, known);
@@ -116,6 +117,9 @@ export function useWorkspaceNav(
           icon: screen.icon,
           label: label(screen.segment),
           section: screen.section,
+          // Offered on purpose (ADR 0056) and marked, so nobody opens it
+          // expecting a workflow (PORTAL-01).
+          badge: screen.built ? undefined : soon,
         },
   );
 }

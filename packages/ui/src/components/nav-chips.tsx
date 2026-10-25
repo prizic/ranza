@@ -44,7 +44,7 @@ export function NavChips({
         className="flex items-center gap-1.5 overflow-x-auto scrollbar-none"
         ref={row}
       >
-        {entries.map(({ href, icon: Icon, label: entryLabel }) => {
+        {entries.map(({ badge, href, icon: Icon, label: entryLabel }) => {
           const path = hrefPath(href);
           const active = pathname === path || pathname.startsWith(`${path}/`);
           return (
@@ -62,6 +62,11 @@ export function NavChips({
               >
                 <Icon aria-hidden="true" className="size-4" />
                 {entryLabel}
+                {badge === undefined ? null : (
+                  <span className="text-xs font-normal opacity-70">
+                    {badge}
+                  </span>
+                )}
               </Link>
             </li>
           );

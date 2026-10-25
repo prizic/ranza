@@ -63,6 +63,8 @@ export interface Messages {
   signInThrottled: string;
   /** A 5xx, or no answer at all. */
   signInUnavailable: string;
+  /** Under the sign-in button: who can help with a password nobody can reset by email. */
+  signInHelp: string;
 
   challengeTitle: string;
   challengeSummary: string;
@@ -3047,6 +3049,10 @@ export interface Messages {
   /** What each planned screen will do, keyed by route segment. */
   screenSummary: Record<string, string>;
   planned: string;
+  /** The first line of a Planned screen: it cannot be used yet. */
+  plannedLead: string;
+  /** The rail's short mark on a destination that is offered but not built. */
+  plannedBadge: string;
   notEntitledTitle: string;
   notEntitledDescription: string;
   /** The name of the control that closes a dialog or a side sheet. */
@@ -3201,6 +3207,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "E-posta veya parola hatalı. İkisini de kontrol edip yeniden deneyin. Parolanızı mı unuttunuz? Prizic desteğiyle iletişime geçin.",
     signInThrottled: "Çok fazla deneme yapıldı. Biraz sonra tekrar deneyin.",
     signInUnavailable: "Giriş şu anda yapılamıyor. Biraz sonra tekrar deneyin.",
+    signInHelp:
+      "Parolanızı mı unuttunuz ya da giriş yapamıyor musunuz? Prizic desteğiyle iletişime geçin.",
 
     challengeTitle: "İkinci adım",
     challengeSummary: "Kimlik doğrulama uygulamanızdaki 6 haneli kodu girin.",
@@ -6684,8 +6692,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Konuk ve sakin talepleri, duyurular ve hizmet takibi.",
       housekeeping: "Oda durumu, temizlik planı ve görev atamaları.",
       "food-and-beverage":
-        "Öğün planları, satış noktaları ve tüketim kayıtları.",
-      inventory: "Stok hareketleri, sayımlar ve satın alma.",
+        "Öğün planları, satış noktaları ve tüketim kayıtları; Stok kullanıma girdikten ve misafirin hesabına ücret işlenebildikten sonra gelecek.",
+      inventory:
+        "Stok hareketleri, sayımlar ve satın alma sonraki bir sürümde yapılacak. Sizin tarafınızda önceden kurulması gereken bir şey yok.",
       people: "Personel kayıtları, vardiyalar ve yetkilendirme.",
       hr: "Personel sözleşmeleri, haftalık vardiya çizelgesi, izinler ve bordro.",
       analytics: "Doluluk, gelir ve operasyon raporları.",
@@ -6693,6 +6702,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "İsteğe bağlı ve zamanlanmış veri dışa aktarma kayıtları ve indirmeler.",
     },
     planned: "Daha sonra gelecek",
+    plannedLead: "Henüz kullanılamıyor.",
+    plannedBadge: "Yakında",
     notEntitledTitle: "Bu modül aboneliğinizde yok",
     notEntitledDescription:
       "Organizasyonunuz bu modüle abone olduğunda ve tesiste etkinleştirildiğinde burada görünür.",
@@ -6805,6 +6816,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "That email and password did not match. Check both and try again. Forgotten your password? Contact Prizic support.",
     signInThrottled: "Too many attempts. Try again shortly.",
     signInUnavailable: "Signing in isn't working right now. Try again shortly.",
+    signInHelp:
+      "Forgot your password, or can't sign in? Contact Prizic support.",
 
     challengeTitle: "Second step",
     challengeSummary: "Enter the 6-digit code from your authenticator app.",
@@ -10299,8 +10312,10 @@ export const messages: Record<SupportedLocale, Messages> = {
       "guest-experience":
         "Guest and Resident requests, announcements and service tracking.",
       housekeeping: "Unit readiness, cleaning schedule and task assignment.",
-      "food-and-beverage": "Meal plans, outlets and consumption records.",
-      inventory: "Stock movements, counts and procurement.",
+      "food-and-beverage":
+        "Meal plans, outlets and consumption records come after Inventory is in use and a Guest's Folio can take their charges.",
+      inventory:
+        "Stock movements, counts and procurement are built in a later release. Nothing needs to be set up on your side first.",
       people: "Staff records, shifts and permissions.",
       hr: "Staff contracts, weekly shift rota, leave and monthly payroll.",
       analytics: "Occupancy, revenue and operational reporting.",
@@ -10308,6 +10323,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "On-demand and scheduled data exports, records and downloads.",
     },
     planned: "Coming later",
+    plannedLead: "Not available yet.",
+    plannedBadge: "Soon",
     notEntitledTitle: "This module is not in your Subscription",
     notEntitledDescription:
       "It appears here once your Organization subscribes to it and the Property has it enabled.",
@@ -10420,6 +10437,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "البريد الإلكتروني أو كلمة المرور غير صحيحة. تحقّق منهما وحاول مجددًا. نسيت كلمة المرور؟ تواصل مع دعم Prizic.",
     signInThrottled: "محاولات كثيرة جدًا. حاول مرة أخرى بعد قليل.",
     signInUnavailable: "تسجيل الدخول لا يعمل الآن. حاول مرة أخرى بعد قليل.",
+    signInHelp: "نسيت كلمة المرور أو لا تستطيع الدخول؟ تواصل مع دعم Prizic.",
 
     challengeTitle: "الخطوة الثانية",
     challengeSummary: "أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة.",
@@ -13847,8 +13865,10 @@ export const messages: Record<SupportedLocale, Messages> = {
     screenSummary: {
       "guest-experience": "طلبات الضيوف والمقيمين والإعلانات ومتابعة الخدمة.",
       housekeeping: "جاهزية الوحدات وجدول التنظيف وتوزيع المهام.",
-      "food-and-beverage": "خطط الوجبات والمنافذ وسجلات الاستهلاك.",
-      inventory: "حركات المخزون والجرد والمشتريات.",
+      "food-and-beverage":
+        "خطط الوجبات والمنافذ وسجلات الاستهلاك تأتي بعد تشغيل المخزون وبعد أن يصبح بالإمكان تسجيل رسومها على حساب الضيف.",
+      inventory:
+        "حركات المخزون والجرد والمشتريات ستُبنى في إصدار لاحق، ولا يلزمك إعداد أي شيء مسبقًا.",
       people: "سجلات الموظفين والورديات والصلاحيات.",
       hr: "عقود الموظفين وجدول الورديات الأسبوعي والإجازات والرواتب الشهرية.",
       analytics: "تقارير الإشغال والإيرادات والتشغيل.",
@@ -13856,6 +13876,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         "تصدير البيانات عند الطلب وفق جداول زمنية، والسجلات والتنزيلات.",
     },
     planned: "ستتوفر لاحقًا",
+    plannedLead: "غير متاح بعد.",
+    plannedBadge: "قريبًا",
     notEntitledTitle: "هذه الوحدة غير مشمولة في اشتراكك",
     notEntitledDescription:
       "تظهر هنا عندما تشترك مؤسستك فيها ويتم تفعيلها في المنشأة.",

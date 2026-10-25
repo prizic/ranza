@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Compass } from "lucide-react";
 
 /**
@@ -7,21 +8,28 @@ import { Compass } from "lucide-react";
  * to it, and the screen is simply not built. Saying that plainly is better than
  * a blank page, and far better than a half-built screen that looks finished.
  *
- * It states what the screen is for and nothing a hotel cannot act on: which
- * document of the repository specifies it, and where, is for the next developer
- * and is in `docs/handover/operator-workspace-screens.md`, not on a page an
- * Owner opens (SHELL-08). Blueprint section 13 forbids building the tables
- * behind it ahead of the workflow that needs them, so "not built" is a
- * position rather than an oversight.
+ * It says first that the screen cannot be used yet, then what it will do and
+ * what has to exist first, and offers one way on. It names nothing a hotel
+ * cannot act on: which document of the repository specifies it, and where, is
+ * for the next developer and is in `docs/handover/operator-workspace-screens.md`,
+ * not on a page an Owner opens (SHELL-08). Blueprint section 13 forbids building
+ * the tables behind it ahead of the workflow that needs them, so "not built" is
+ * a position rather than an oversight.
  */
 export function PlannedScreen({
+  action,
   heading,
+  lead,
   summary,
   title,
 }: {
+  /** The one way on, so the screen is never a dead end (PORTAL-02). */
+  action?: ReactNode;
   /** Localized "Coming later". */
   heading: string;
-  /** What this screen will do, in the reader's language. */
+  /** Localized "Not available yet.": the first thing read, before what it will do. */
+  lead: string;
+  /** What this screen will do and what has to exist first, in the reader's language. */
   summary: string;
   /** The screen's own name, so the state is not anonymous. */
   title: string;
@@ -40,8 +48,12 @@ export function PlannedScreen({
         {heading}
       </p>
       <p className="mt-7 text-2xl leading-snug font-light text-balance">
+        {lead}
+      </p>
+      <p className="mt-3 text-base leading-relaxed text-muted-foreground">
         {summary}
       </p>
+      {action ? <div className="mt-6">{action}</div> : null}
     </section>
   );
 }

@@ -27,6 +27,7 @@ describe("a screen with nothing behind it yet", () => {
     render(
       <PlannedScreen
         heading="Coming later"
+        lead="Not available yet."
         summary="Stock movements, counts and procurement."
         title="Inventory"
       />,
@@ -37,5 +38,30 @@ describe("a screen with nothing behind it yet", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("link")).toBeNull();
     expect(screen.queryByText(/blueprint|handover/i)).toBeNull();
+  });
+
+  it("PORTAL-02: opens with the fact that it cannot be used yet and ends with the one way on", () => {
+    render(
+      <PlannedScreen
+        action={<a href="/en/today">Go to Today</a>}
+        heading="Coming later"
+        lead="Not available yet."
+        summary="Stock movements, counts and procurement."
+        title="Inventory"
+      />,
+    );
+    const section = screen.getByRole("region", { name: "Inventory" });
+    const lines = Array.from(section.querySelectorAll("p")).map(
+      (line) => line.textContent,
+    );
+    expect(lines).toEqual([
+      "Coming later",
+      "Not available yet.",
+      "Stock movements, counts and procurement.",
+    ]);
+    expect(screen.getByRole("link", { name: "Go to Today" })).toHaveAttribute(
+      "href",
+      "/en/today",
+    );
   });
 });

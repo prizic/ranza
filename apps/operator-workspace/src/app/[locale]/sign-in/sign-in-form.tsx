@@ -313,6 +313,9 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
       >
         {pending ? t("signingIn") : t("signIn")}
       </Button>
+      <p className="text-center text-sm text-muted-foreground">
+        {t("signInHelp")}
+      </p>
     </form>
   );
 }

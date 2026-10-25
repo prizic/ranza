@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { isSupportedLocale } from "@ranza/i18n";
-import { PlannedScreen } from "@ranza/ui";
+import Link from "next/link";
+import { isSupportedLocale, localizeHref } from "@ranza/i18n";
+import { Button, PlannedScreen } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { gateOf, screenFor } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
@@ -42,15 +43,13 @@ export default async function Page({
   // Same gate as every built screen. Entitlement is not waived because the
   // workflow is unfinished — a Property that has not bought this reaches
   // nothing, and that is what the empty state says.
+  const { property } = await searchParams;
   const properties = await screenProperties(gateOf("inventory"));
 
   if (properties.length === 0) {
     return (
       <ScreenDenied
-        denial={await whyDenied(
-          gateOf("inventory"),
-          (await searchParams).property,
-        )}
+        denial={await whyDenied(gateOf("inventory"), property)}
         locale={locale}
       />
     );
@@ -58,7 +57,17 @@ export default async function Page({
 
   return (
     <PlannedScreen
+      action={
+        <Button asChild>
+          <Link
+            href={`${localizeHref(locale, "today")}${property ? `?property=${encodeURIComponent(property)}` : ""}`}
+          >
+            {t("denied.goToToday")}
+          </Link>
+        </Button>
+      }
       heading={t("planned")}
+      lead={t("plannedLead")}
       summary={
         t.has(`screenSummary.${SEGMENT}`) ? t(`screenSummary.${SEGMENT}`) : ""
       }
