@@ -131,15 +131,28 @@ for (const locale of ["en", "ar"] as const) {
           const scroller = page
             .locator('[data-slot="table-container"]')
             .first();
-          const overflows = await scroller.evaluate(
-            (element) => element.scrollWidth > element.clientWidth + 1,
-          );
-          if (overflows) {
-            await expect(
-              scroller.locator(".."),
-              `${screen.name} scrolls sideways and does not say so`,
-            ).toHaveAttribute("data-cue-end", "true");
-          }
+          // Overflow and its cue are read in one step and asked again until
+          // they agree. A table is a little wider while a web font is still
+          // being swapped in, and read in two steps the cue could belong to
+          // the settled layout and the overflow to the transient one (the
+          // Arabic Audit log on CI): the table never scrolled, and the test
+          // waited fifteen seconds for a cue it was right not to show. A
+          // table that really scrolls and says nothing never agrees.
+          await expect
+            .poll(
+              () =>
+                scroller.evaluate(
+                  (element) =>
+                    element.scrollWidth <= element.clientWidth + 1 ||
+                    element.parentElement?.getAttribute("data-cue-end") ===
+                      "true",
+                ),
+              {
+                message: `${screen.name} scrolls sideways and does not say so`,
+                timeout: 15_000,
+              },
+            )
+            .toBe(true);
           continue;
         }
 
