@@ -34,13 +34,23 @@ function unitId(propertyId: string, name: string): string {
   );
 }
 
+/**
+ * The page signed in on is left first: its dev client can navigate itself
+ * mid-compile and abort the goto that follows (ERR_ABORTED on a cold CI run).
+ */
+async function visit(page: Page, url: string): Promise<void> {
+  await page.goto("about:blank");
+  await page.goto(url);
+}
+
 async function openCalendar(
   page: Page,
   propertyId: string,
   locale: Locale,
   extra = "",
 ): Promise<void> {
-  await page.goto(
+  await visit(
+    page,
     `/${locale}/room-calendar?property=${propertyId}&days=14${extra}`,
   );
   await expect(page.locator("[data-unit-id]").first()).toBeVisible();
@@ -304,7 +314,7 @@ for (const locale of LOCALES) {
         { name: "102" },
       ]);
       await signIn(page, DESK_EMAIL);
-      await page.goto(`/${locale}/rooms?property=${propertyId}`);
+      await visit(page, `/${locale}/rooms?property=${propertyId}`);
       const tile = page.locator(`#unit-${unitId(propertyId, "101")}`);
       // CALENDAR-08: the tile says what pressing it opens.
       await expect(tile).toContainText(rooms.roomDetails);
@@ -345,7 +355,7 @@ for (const locale of LOCALES) {
       });
       await signIn(page);
       await page.setViewportSize({ width: 1280, height: 900 });
-      await page.goto(`/${locale}/rooms?property=${propertyId}`);
+      await visit(page, `/${locale}/rooms?property=${propertyId}`);
 
       const free = page.locator(`#unit-${unitId(propertyId, "101")}`);
       await expect(free).toContainText(words.manageUnit);
@@ -393,7 +403,7 @@ for (const locale of LOCALES) {
         { name: "102", status: "inspected" },
       ]);
       await signIn(page);
-      await page.goto(`/${locale}/rooms?property=${propertyId}`);
+      await visit(page, `/${locale}/rooms?property=${propertyId}`);
       const ready = words.roomCalendar.roomReadiness;
       await expect(
         page
@@ -425,7 +435,7 @@ for (const locale of LOCALES) {
       });
       await signIn(page);
       await page.setViewportSize({ width: 375, height: 667 });
-      await page.goto(`/${locale}/rooms?property=${propertyId}`);
+      await visit(page, `/${locale}/rooms?property=${propertyId}`);
       await page.getByTestId("add-rooms-open").click();
       const dialog = page.getByRole("dialog").first();
       const preview = dialog.getByTestId("add-rooms-preview");
