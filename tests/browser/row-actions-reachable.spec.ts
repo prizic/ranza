@@ -112,6 +112,12 @@ for (const locale of ["en", "ar"] as const) {
           `${screen.name} has a row to look at`,
         ).toBeVisible();
 
+        // A list that stacks its rows swaps its columns when it has measured
+        // itself, after the page has hydrated: measure after that.
+        if (screen.name === "Arrivals" || screen.name === "Departures") {
+          await expect(page.locator("[data-fit]")).toBeAttached();
+        }
+
         expect(
           await pageOverflow(page),
           `${screen.name} scrolls the page sideways`,
@@ -187,7 +193,16 @@ for (const locale of ["en", "ar"] as const) {
     await page.screenshot({
       path: path.join(EVIDENCE, `departures-1280-${locale}.png`),
     });
-    await menu.click();
+    // A click before the page has hydrated opens nothing, so it is pressed
+    // again until the menu says it is open.
+    await expect(async () => {
+      if ((await menu.getAttribute("aria-expanded")) !== "true") {
+        await menu.click();
+      }
+      await expect(menu).toHaveAttribute("aria-expanded", "true", {
+        timeout: 2000,
+      });
+    }).toPass();
     await expect(page.getByRole("menu")).toBeVisible();
   });
 }

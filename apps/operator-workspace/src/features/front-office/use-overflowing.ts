@@ -1,6 +1,14 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 /**
+ * How much wider than the full row's ask the element must be before the full
+ * row returns. Opening a menu locks the page's scroll and takes the scrollbar
+ * away, which is a dozen pixels of width; without a margin that was enough to
+ * swap the columns back under the menu that had just opened and close it.
+ */
+const HYSTERESIS = 32;
+
+/**
  * Whether the table inside the element the ref is put on needs more room than
  * the element has, and the ref itself — so a list can swap its columns for a
  * row that stacks, instead of sliding the room, the lateness and the balance
@@ -31,7 +39,7 @@ export function useOverflowing<T extends HTMLElement>(
     const measure = () => {
       const available = element.getBoundingClientRect().width;
       if (stacked) {
-        if (available >= asked.current) setStacked(false);
+        if (available >= asked.current + HYSTERESIS) setStacked(false);
         return;
       }
       const table = element.querySelector("table");
@@ -42,6 +50,9 @@ export function useOverflowing<T extends HTMLElement>(
       }
     };
     measure();
+    // Said once the first measurement is in, so a test, or anything else that
+    // has to wait for the columns to settle, has something to wait for.
+    element.dataset.fit = "measured";
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(measure);
     observer.observe(element);

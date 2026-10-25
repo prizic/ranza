@@ -42,6 +42,11 @@ function aGuestWithALongName(propertyId: string): string {
 async function openPage(page: Page, address: string): Promise<void> {
   await page.goto("about:blank");
   await page.goto(address);
+  // These two lists swap their columns once they have measured themselves,
+  // after hydration: nothing is read or pressed before that.
+  if (/\/(arrivals|departures)\?/.test(address)) {
+    await expect(page.locator("[data-fit]")).toBeAttached();
+  }
 }
 
 /** Whether the table asks for more room than the box it is drawn in has. */
@@ -82,6 +87,39 @@ test.describe("Departures, in English", () => {
         })
         .toBe(false);
     }
+  });
+
+  test("a row menu stays open on a list long enough to scroll", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    for (let guest = 0; guest < 12; guest++) {
+      anOverdueGuest(propertyId, { daysOverdue: 2, withFolio: true });
+    }
+    await signIn(page);
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await openPage(page, `/en/departures?property=${propertyId}&view=in_house`);
+    const menu = page
+      .locator("tbody tr")
+      .first()
+      .locator('td:last-child [aria-haspopup="menu"]');
+    await expect(menu).toBeVisible();
+    // A click before the page has hydrated opens nothing, so it is pressed
+    // again until the menu says it is open.
+    await expect(async () => {
+      if ((await menu.getAttribute("aria-expanded")) !== "true") {
+        await menu.click();
+      }
+      await expect(menu).toHaveAttribute("aria-expanded", "true", {
+        timeout: 2000,
+      });
+    }).toPass();
+    // Opening a menu locks the page's scroll and gives its scrollbar's width to
+    // the list, which must not be read as room for the columns to come back and
+    // swap the menu away.
+    await expect(page.getByRole("menu")).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(page.getByRole("menu")).toBeVisible();
   });
 
   test("one row of filters, and a search that says where else to look", async ({
