@@ -2,7 +2,7 @@
 
 import { ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { EmptyState, PageHeader } from "@ranza/ui";
+import { Button, EmptyState, PageHeader } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import type { Portfolio } from "../../../server/portfolio";
 import {
@@ -32,6 +32,7 @@ export function PortfolioView({
   data,
   locale,
   organizationName,
+  peopleHref = null,
   sort = "name",
   view = "cards",
 }: {
@@ -40,6 +41,12 @@ export function PortfolioView({
   data: Portfolio;
   locale: SupportedLocale;
   organizationName: string;
+  /**
+   * People, when the viewer may give staff access to Properties. With one
+   * Property in reach the useful thing to say differs: an Owner who is told to
+   * ask an Owner has been told to ask themselves (FINANCE-15).
+   */
+  peopleHref?: string | null;
   sort?: PortfolioSort;
   view?: View;
 }) {
@@ -60,14 +67,24 @@ export function PortfolioView({
     return (
       <EmptyState
         action={
-          <OpenProperty
-            label={t("goToToday")}
-            locale={locale}
-            propertyId={only.propertyId}
-            variant="default"
-          />
+          <div className="flex flex-wrap gap-3">
+            <OpenProperty
+              label={t("goToToday")}
+              locale={locale}
+              propertyId={only.propertyId}
+              variant="default"
+            />
+            {peopleHref ? (
+              <Button asChild variant="outline">
+                <a href={peopleHref}>{t("openPeople")}</a>
+              </Button>
+            ) : null}
+          </div>
         }
-        description={t("oneDescription", { property: only.propertyName })}
+        description={t(
+          peopleHref ? "oneDescriptionStaffAdmin" : "oneDescription",
+          { property: only.propertyName },
+        )}
         title={t("oneTitle")}
       />
     );

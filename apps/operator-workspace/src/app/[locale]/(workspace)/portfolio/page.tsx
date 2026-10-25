@@ -92,6 +92,16 @@ export default async function PortfolioPage({
   // Signed out between the check above and the read.
   if (!data) return notAvailable;
 
+  // One Property in reach leaves nothing to compare, and what to do about it
+  // depends on whether this viewer is the one who gives staff access.
+  const peopleHref =
+    data.properties.length === 1 &&
+    (await screenProperties(gateOf("people"))).some(
+      (entry) => entry.organizationId === property.organizationId,
+    )
+      ? `${localizeHref(locale as SupportedLocale, "people")}?property=${property.propertyId}`
+      : null;
+
   return (
     <PortfolioView
       asOf={t("portfolio.asOf", {
@@ -107,6 +117,7 @@ export default async function PortfolioPage({
       data={data}
       locale={locale as SupportedLocale}
       organizationName={property.organizationName}
+      peopleHref={peopleHref}
       sort={parsePortfolioSort(search.sort)}
       view={parsePortfolioView(search.view)}
     />

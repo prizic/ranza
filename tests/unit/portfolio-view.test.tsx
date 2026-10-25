@@ -74,6 +74,7 @@ function show(
   more: {
     sort?: "name" | "occupancy" | "money" | "maintenance" | "arrivals";
     view?: "cards" | "table";
+    peopleHref?: string | null;
   } = {},
 ) {
   return render(
@@ -126,6 +127,40 @@ describe("all_properties_states", () => {
     // No card, no summary: there is nothing beside it.
     expect(screen.queryByRole("list")).toBeNull();
     expect(screen.queryByText(messages.en.portfolio.occupancyTitle)).toBeNull();
+  });
+
+  it("FINANCE-15: one_property_tells_somebody_who_gives_staff_access_where_to_do_it_and_not_to_ask_an_owner", () => {
+    const only = aProperty({ propertyName: "Kadıköy" });
+    for (const locale of ["en", "tr", "ar"] as const) {
+      show(aPortfolio([only]), locale, {
+        peopleHref: `/${locale}/people?property=${only.propertyId}`,
+      });
+      const t = messages[locale].portfolio;
+      expect(
+        screen.getByText(
+          t.oneDescriptionStaffAdmin.replace("{property}", "Kadıköy"),
+        ),
+      ).toBeVisible();
+      expect(
+        screen.queryByText(t.oneDescription.replace("{property}", "Kadıköy")),
+      ).toBeNull();
+      expect(screen.getByRole("link", { name: t.openPeople })).toHaveAttribute(
+        "href",
+        `/${locale}/people?property=${only.propertyId}`,
+      );
+      expect(screen.getByRole("link", { name: t.goToToday })).toBeVisible();
+      cleanup();
+    }
+    expect(messages.en.portfolio.oneDescriptionStaffAdmin).not.toMatch(
+      /Ask an Owner/,
+    );
+  });
+
+  it("FINANCE-15: one_property_offers_no_people_link_to_somebody_who_cannot_give_access", () => {
+    show(aPortfolio([aProperty({ propertyName: "Kadıköy" })]));
+    expect(
+      screen.queryByRole("link", { name: messages.en.portfolio.openPeople }),
+    ).toBeNull();
   });
 
   it("many_properties_are_one_card_each_in_the_order_read_with_a_summary", () => {
