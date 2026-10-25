@@ -21,6 +21,7 @@ import {
   inCatalogueOrder,
   rangeCutsAny,
   rangePresets,
+  utcOffsetOf,
 } from "../helpers";
 import {
   EXPORT_RETENTION_DAYS,
@@ -46,6 +47,7 @@ export function NewExportForm({
   onRequested,
   organization,
   propertyId,
+  propertyName,
   timezone,
   today,
 }: {
@@ -55,6 +57,8 @@ export function NewExportForm({
   onRequested: () => void;
   organization: string;
   propertyId: string;
+  /** The Property the request is made from, whose clock the days are read on. */
+  propertyName: string;
   timezone: string;
   /** The Property's own day, `YYYY-MM-DD`. */
   today: string;
@@ -76,6 +80,14 @@ export function NewExportForm({
   const chosen = inCatalogueOrder(resources);
   const ranged = Boolean(range.from || range.to);
   const presets = rangePresets(today);
+  const clock = { property: propertyName, offset: utcOffsetOf(timezone) };
+  // The one reason the request button is off, said beside it: the reason
+  // under the heading is a screen away on a phone (DATA-12).
+  const whyNotYet = !abilities.mayCreate
+    ? t("requestNeedsPermission")
+    : chosen.length === 0
+      ? t("requestNeedsDataset")
+      : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -198,9 +210,9 @@ export function NewExportForm({
                 {t("rangeMoot")}
               </p>
             ) : null}
-            {ranged && chosen.includes("audit_log") ? (
+            {ranged && (chosen.length === 0 || rangeCutsAny(chosen)) ? (
               <p className="text-xs text-muted-foreground">
-                {t("rangeClock", { timezone })}
+                {t("rangeClock", clock)}
               </p>
             ) : null}
           </div>
@@ -223,7 +235,9 @@ export function NewExportForm({
                 {t("stackedWarning")}
               </p>
             ) : null}
-            <p className="text-xs text-muted-foreground">{t("columnsNote")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("columnsNote", clock)}
+            </p>
           </div>
 
           {chosen.length > 0 ? (
@@ -249,12 +263,21 @@ export function NewExportForm({
             </p>
           ) : null}
         </CardContent>
-        <CardFooter className="flex flex-wrap justify-end gap-2">
+        <CardFooter className="flex flex-wrap items-center justify-end gap-2">
+          {whyNotYet ? (
+            <p
+              className="me-auto text-sm text-muted-foreground"
+              id="export-request-why-not"
+            >
+              {whyNotYet}
+            </p>
+          ) : null}
           <Button onClick={onCancel} type="button" variant="ghost">
             {t("cancel")}
           </Button>
           <Button
-            disabled={submitting || !abilities.mayCreate || chosen.length === 0}
+            aria-describedby={whyNotYet ? "export-request-why-not" : undefined}
+            disabled={submitting || whyNotYet !== null}
             type="submit"
           >
             {submitting ? (

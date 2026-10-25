@@ -94,6 +94,25 @@ export function firstRunAt(frequency: ScheduleFrequency, now: Date): Date {
   return next;
 }
 
+/**
+ * How far a Property's clock is from UTC, as `UTC+03:00`: the file's times are
+ * UTC and the screen's are the Property's, and the gap between them is what a
+ * person cutting "last month" needs to know. Latin digits in every language,
+ * as everywhere else on the page. Read at `at`, which is today unless asked:
+ * a zone with daylight saving is not the same distance from UTC all year.
+ */
+export function utcOffsetOf(timeZone: string, at: Date = new Date()): string {
+  const named = new Intl.DateTimeFormat("en", {
+    timeZone,
+    timeZoneName: "longOffset",
+  })
+    .formatToParts(at)
+    .find((part) => part.type === "timeZoneName")?.value;
+  // ECMA-402 words a zero offset as a bare "GMT", and V8 writes "GMT+00:00".
+  const offset = named?.replace("GMT", "") ?? "";
+  return `UTC${offset === "" ? "+00:00" : offset}`;
+}
+
 /** `days` after a `YYYY-MM-DD` day, counted in UTC so no zone moves it. */
 export function shiftDay(day: string, days: number): string {
   const date = new Date(`${day}T00:00:00Z`);

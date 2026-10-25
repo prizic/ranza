@@ -77,6 +77,17 @@ export const EXPORT_JOBS = {
   sweep: "data_export.sweep",
 } as const;
 
+/**
+ * Whether the person reading an export may fetch its file, and if not which of
+ * the two conditions `app.read_data_export_file()` asks is the one they fail:
+ * the file is the requester's or the reader's reach is the whole Organization,
+ * and the reader's role still covers every dataset in it. The function decides
+ * every download; this is the same question asked early, so a row can say so
+ * and not offer a button that sends the reader back with a refusal.
+ */
+export type ExportDownloadRight =
+  "allowed" | "not_requester" | "role_lacks_datasets";
+
 /** An export, as the list and the detail show it. Never its file. */
 export interface DataExportRecord {
   id: string;
@@ -98,6 +109,8 @@ export interface DataExportRecord {
   requestedAt: Date;
   completedAt: Date | null;
   createdAt: Date;
+  /** For the person who asked the module: not a fact of the export. */
+  download: ExportDownloadRight;
 }
 
 export interface ExportScheduleRecord {
@@ -116,6 +129,9 @@ export interface ExportScheduleRecord {
    * whose latest run failed `requester_not_permitted` was paused for that.
    */
   lastRunError: ExportFailureReason | null;
+  /** The export the schedule's latest run made, and how it stands. */
+  lastRunId: string | null;
+  lastRunStatus: ExportStatus | null;
   nextRunAt: Date;
   createdAt: Date;
 }

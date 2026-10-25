@@ -546,6 +546,45 @@ describe("who may download", () => {
     expect(await exports.downloadExport(ONE, own)).toBeNull();
   });
 
+  it("EXP-S1-64: the list says, per export, whether the reader can download it, and why not", async () => {
+    const id = await produce(ONE, ["rooms_beds"]);
+    await runner.processPendingExports();
+    const own = await produce(OWNER, ["rooms_beds"]);
+    await runner.processPendingExports();
+
+    const rightIn = async (viewer: string, exportId: string) =>
+      (await exports.listExports(viewer, P1)).find(
+        (item) => item.id === exportId,
+      )?.download;
+    // The requester's own file, and a colleague's file to somebody whose
+    // reach is the Organization: the same answer downloadExport gives.
+    expect(await rightIn(ONE, id)).toBe("allowed");
+    expect(await rightIn(OWNER, id)).toBe("allowed");
+    // The owner reads the list but the file is not ONE's to take.
+    expect(await rightIn(ONE, own)).toBe("not_requester");
+    expect(await exports.downloadExport(ONE, own)).toBeNull();
+
+    // The requester themselves, once their role no longer covers the dataset.
+    // EXP-S1-27 above already took the audit permission off this role, so it
+    // is given back for the one export and taken away again.
+    const setAuditorPermissions = (permissions: string) =>
+      sql(
+        `update public.staff_roles set permissions = ${permissions}
+          where scope_id = $1::uuid and key = 'auditor'`,
+        ORG,
+      );
+    const withoutAudit = `array['data_export.create', 'data_export.read']`;
+    await setAuditorPermissions(
+      `array['data_export.create', 'data_export.read', 'audit.read']`,
+    );
+    const audit = await produce(AUDITOR, ["audit_log"]);
+    await runner.processPendingExports();
+    expect(await rightIn(AUDITOR, audit)).toBe("allowed");
+    await setAuditorPermissions(withoutAudit);
+    expect(await rightIn(AUDITOR, audit)).toBe("role_lacks_datasets");
+    expect(await exports.downloadExport(AUDITOR, audit)).toBeNull();
+  });
+
   it("EXP-S1-37: every download is recorded, with who and what", async () => {
     const id = await produce(OWNER, ["rooms_beds"]);
     await runner.processPendingExports();
@@ -695,6 +734,9 @@ describe("a schedule", () => {
       (s) => s.id === created.id,
     );
     expect(after!.lastRunAt).not.toBeNull();
+    // EXP-S1-65: the row says which export the run made and how it stands.
+    expect(after!.lastRunId).toBe(started.id);
+    expect(after!.lastRunStatus).toBe("ready");
     expect(after!.nextRunAt.getTime()).toBeGreaterThan(
       Date.now() + 23 * 3_600_000,
     );
@@ -735,10 +777,32 @@ describe("a schedule", () => {
     expect(report.failures.map((failure) => failure.exportId)).toContain(
       refused.id,
     );
+    const paused = (await exports.listSchedules(OWNER, P1)).find(
+      (s) => s.id === created.id,
+    );
+    expect(paused?.status).toBe("paused");
+    expect(paused).toMatchObject({
+      lastRunId: refused.id,
+      lastRunStatus: "failed",
+      lastRunError: "requester_not_permitted",
+    });
+  });
+
+  it("EXP-S1-65: a schedule that has not run has no last run", async () => {
+    const created = await exports.createSchedule(OWNER, P1, {
+      name: "Never run",
+      resourceTypes: ["rooms_beds"],
+      format: "csv",
+      frequency: "weekly",
+      creatorName: null,
+    });
     expect(
-      (await exports.listSchedules(OWNER, P1)).find((s) => s.id === created.id)
-        ?.status,
-    ).toBe("paused");
+      (await exports.listSchedules(OWNER, P1)).find((s) => s.id === created.id),
+    ).toMatchObject({
+      lastRunAt: null,
+      lastRunId: null,
+      lastRunStatus: null,
+    });
   });
 });
 

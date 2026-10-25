@@ -95,6 +95,7 @@ export default async function DataExportPage({
       locale={locale}
       organization={property.organizationName}
       propertyId={property.propertyId}
+      propertyName={property.propertyName}
       schedules={schedules}
       timezone={property.timezone}
       today={calendarDay(property.timezone)}

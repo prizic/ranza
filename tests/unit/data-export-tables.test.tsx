@@ -40,6 +40,8 @@ function schedule(overrides: Partial<ExportScheduleRecord>) {
     status: "paused",
     lastRunAt: null,
     lastRunError: null,
+    lastRunId: null,
+    lastRunStatus: null,
     nextRunAt: new Date("2026-10-26T09:00:00Z"),
     createdAt: new Date("2026-10-01T09:00:00Z"),
     ...overrides,
@@ -50,8 +52,10 @@ function table(schedules: ExportScheduleRecord[]) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <ExportSchedulesTable
+        exportIds={[]}
         locale="en"
         onNew={() => undefined}
+        onShowRun={() => undefined}
         organization="Deniz Otelleri"
         propertyId="d7000004-0000-4000-8000-000000000001"
         schedules={schedules}

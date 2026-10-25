@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
   CheckCircle2,
   Clock,
@@ -72,6 +73,7 @@ export function RecentExportsTable({
   onRequestNew,
   organization,
   propertyId,
+  shownRun,
   timezone,
   today,
 }: {
@@ -81,12 +83,18 @@ export function RecentExportsTable({
   onRequestNew: () => void;
   organization: string;
   propertyId: string;
+  /** The export a schedule row sent the reader to, which is marked and brought into view. */
+  shownRun: string | null;
   timezone: string;
   /** The Property's own day, `YYYY-MM-DD`: a time this year needs no year. */
   today: string;
 }) {
   const t = useTranslations("dataExport");
   const now = useNow(5_000);
+  const shownRow = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    shownRow.current?.scrollIntoView({ block: "center" });
+  }, [shownRun]);
 
   const rangeText = (range: ExportRange): string => {
     if (range.from && range.to) {
@@ -227,7 +235,12 @@ export function RecentExportsTable({
                 const canAskAgain =
                   item.status === "failed" || item.status === "expired";
                 return (
-                  <TableRow key={item.id}>
+                  <TableRow
+                    aria-current={item.id === shownRun ? "true" : undefined}
+                    className={item.id === shownRun ? "bg-muted/60" : undefined}
+                    key={item.id}
+                    ref={item.id === shownRun ? shownRow : undefined}
+                  >
                     <TableCell className="align-top whitespace-normal">
                       <time
                         className="block text-sm tabular-nums sm:whitespace-nowrap"
@@ -282,14 +295,27 @@ export function RecentExportsTable({
                         {detail(item)}
                         {item.status === "ready" ? (
                           <>
-                            <Button asChild size="sm" variant="outline">
-                              <a
-                                href={`/api/data-export/${item.id}/download?locale=${locale}&property=${propertyId}`}
-                              >
-                                <Download aria-hidden="true" />
-                                {t("download")}
-                              </a>
-                            </Button>
+                            {item.download === "allowed" ? (
+                              <Button asChild size="sm" variant="outline">
+                                <a
+                                  href={`/api/data-export/${item.id}/download?locale=${locale}&property=${propertyId}`}
+                                >
+                                  <Download aria-hidden="true" />
+                                  {t("download")}
+                                </a>
+                              </Button>
+                            ) : (
+                              // A button that would send the reader back with
+                              // a refusal is not offered; the row says which
+                              // of the two conditions they fail (DATA-10).
+                              <span className="text-xs text-muted-foreground">
+                                {item.download === "not_requester"
+                                  ? t("downloadNotRequester", {
+                                      name: item.requesterName,
+                                    })
+                                  : t("downloadRoleLacks")}
+                              </span>
+                            )}
                             {item.expiresAt ? (
                               <span className="text-xs text-muted-foreground">
                                 {t("expiresOn", {

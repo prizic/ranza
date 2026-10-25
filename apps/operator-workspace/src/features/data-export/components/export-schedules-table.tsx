@@ -23,7 +23,11 @@ import {
 } from "@ranza/ui";
 import { toggleExportScheduleAction } from "../../../server/data-export";
 import { pausedForWantOfRight } from "../helpers";
-import type { ExportScheduleRecord } from "../types";
+import {
+  EXPORT_FILE_LIMIT_MEGABYTES,
+  EXPORT_ROW_LIMIT,
+  type ExportScheduleRecord,
+} from "../types";
 
 /**
  * The Organization's schedules, running and paused alike. A schedule takes one
@@ -31,15 +35,20 @@ import type { ExportScheduleRecord } from "../types";
  * knows why, because "Paused" alone reads as a decision somebody took.
  */
 export function ExportSchedulesTable({
+  exportIds,
   locale,
   onNew,
+  onShowRun,
   organization,
   propertyId,
   schedules,
   timezone,
 }: {
+  /** The exports History lists: a run older than that has no row to show. */
+  exportIds: readonly string[];
   locale: SupportedLocale;
   onNew: () => void;
+  onShowRun: (exportId: string) => void;
   organization: string;
   propertyId: string;
   schedules: readonly ExportScheduleRecord[];
@@ -171,6 +180,19 @@ export function ExportSchedulesTable({
                               : t("pausedByHand")}
                           </span>
                         )}
+                        <LastRun
+                          inHistory={
+                            schedule.lastRunId !== null &&
+                            exportIds.includes(schedule.lastRunId)
+                          }
+                          locale={locale}
+                          onShow={() => {
+                            if (schedule.lastRunId)
+                              onShowRun(schedule.lastRunId);
+                          }}
+                          schedule={schedule}
+                          timezone={timezone}
+                        />
                         <Button
                           disabled={isLoading}
                           onClick={() => handleToggle(schedule)}
@@ -200,5 +222,80 @@ export function ExportSchedulesTable({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * When a schedule last ran and how that run ended. A schedule whose runs fail
+ * must not look as healthy as one whose runs work: "Active" and a next run say
+ * only that it will try again, and the person had to open History and match
+ * runs by date to find out (DATA-11).
+ */
+function LastRun({
+  inHistory,
+  locale,
+  onShow,
+  schedule,
+  timezone,
+}: {
+  inHistory: boolean;
+  locale: SupportedLocale;
+  onShow: () => void;
+  schedule: ExportScheduleRecord;
+  timezone: string;
+}) {
+  const t = useTranslations("dataExport");
+  if (schedule.lastRunAt === null) {
+    return (
+      <span className="text-xs text-muted-foreground">{t("neverRun")}</span>
+    );
+  }
+  const failed = schedule.lastRunStatus === "failed";
+  // A schedule paused because its creator lost the right already says why.
+  const reason =
+    failed && !pausedForWantOfRight(schedule)
+      ? t(`failures.${schedule.lastRunError ?? "internal_error"}`, {
+          rows: new Intl.NumberFormat(locale).format(EXPORT_ROW_LIMIT),
+          megabytes: EXPORT_FILE_LIMIT_MEGABYTES,
+        })
+      : null;
+  return (
+    <div className="grid justify-items-start gap-1">
+      <span
+        className={`flex flex-wrap items-center gap-x-1.5 text-xs tabular-nums ${
+          failed ? "text-destructive" : "text-muted-foreground"
+        }`}
+      >
+        {t("lastRun", {
+          when: formatDate(new Date(schedule.lastRunAt), locale, {
+            hour: "2-digit",
+            hourCycle: "h23",
+            minute: "2-digit",
+            timeZone: timezone,
+          }),
+        })}
+        {schedule.lastRunStatus ? (
+          <>
+            <span aria-hidden="true">·</span>
+            <span className="font-medium">
+              {t(`statuses.${schedule.lastRunStatus}`)}
+            </span>
+          </>
+        ) : null}
+      </span>
+      {reason ? (
+        <span className="text-xs text-destructive">{reason}</span>
+      ) : null}
+      {inHistory ? (
+        <Button
+          className="h-auto p-0 text-xs"
+          onClick={onShow}
+          type="button"
+          variant="link"
+        >
+          {t("showInHistory")}
+        </Button>
+      ) : null}
+    </div>
   );
 }

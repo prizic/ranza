@@ -60,6 +60,14 @@ export type ExportStatus =
 export type ExportFailureReason =
   "requester_not_permitted" | "too_large" | "worker_stopped" | "internal_error";
 
+/**
+ * Whether the reader may fetch a ready export's file, and which condition they
+ * fail when they may not. Asked of the database's own rule when the list is
+ * read, so the row can say so before the click.
+ */
+export type ExportDownloadRight =
+  "allowed" | "not_requester" | "role_lacks_datasets";
+
 export type ScheduleFrequency = "daily" | "weekly" | "monthly";
 
 export type ScheduleStatus = "active" | "paused";
@@ -85,6 +93,7 @@ export interface DataExportRecord {
   requestedAt: Date;
   completedAt: Date | null;
   createdAt: Date;
+  download: ExportDownloadRight;
 }
 
 export interface ExportScheduleRecord {
@@ -99,6 +108,9 @@ export interface ExportScheduleRecord {
   status: ScheduleStatus;
   lastRunAt: Date | null;
   lastRunError: ExportFailureReason | null;
+  /** The export the latest run made, which History lists, and how it stands. */
+  lastRunId: string | null;
+  lastRunStatus: ExportStatus | null;
   nextRunAt: Date;
   createdAt: Date;
 }

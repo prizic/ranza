@@ -10,6 +10,7 @@ import {
   type CreateScheduleInput,
   type DataExportRecord,
   type ExportAbilities,
+  type ExportDownloadRight,
   type ExportRange,
   type ExportFailureReason,
   type ExportFile,
@@ -75,6 +76,9 @@ interface RawDataExport {
   requested_at: Date;
   completed_at: Date | null;
   created_at: Date;
+  /** The two conditions of a download, asked of the reader (`downloadRightOf`). */
+  is_requester_or_wide: boolean;
+  role_covers_datasets: boolean;
 }
 
 interface RawExportSchedule {
@@ -88,9 +92,17 @@ interface RawExportSchedule {
   frequency: string;
   status: string;
   last_run_at: Date | null;
-  last_run_error: string | null;
+  /** Read with the list; a schedule just inserted has no run to report. */
+  last_run_error?: string | null;
+  last_run_id?: string | null;
+  last_run_status?: string | null;
   next_run_at: Date;
   created_at: Date;
+}
+
+function downloadRightOf(row: RawDataExport): ExportDownloadRight {
+  if (!row.is_requester_or_wide) return "not_requester";
+  return row.role_covers_datasets ? "allowed" : "role_lacks_datasets";
 }
 
 function mapDataExport(row: RawDataExport): DataExportRecord {
@@ -120,6 +132,7 @@ function mapDataExport(row: RawDataExport): DataExportRecord {
     requestedAt: row.requested_at,
     completedAt: row.completed_at,
     createdAt: row.created_at,
+    download: downloadRightOf(row),
   };
 }
 
@@ -135,7 +148,9 @@ function mapExportSchedule(row: RawExportSchedule): ExportScheduleRecord {
     frequency: row.frequency as ScheduleFrequency,
     status: row.status as ScheduleStatus,
     lastRunAt: row.last_run_at,
-    lastRunError: row.last_run_error as ExportFailureReason | null,
+    lastRunError: (row.last_run_error ?? null) as ExportFailureReason | null,
+    lastRunId: row.last_run_id ?? null,
+    lastRunStatus: (row.last_run_status ?? null) as ExportStatus | null,
     nextRunAt: row.next_run_at,
     createdAt: row.created_at,
   };
@@ -269,7 +284,12 @@ export function createDataExportModule({ db }: DataExportDeps) {
                  format, range_from::text as range_from, range_to::text as range_to,
                  status, trigger_type, schedule_id, file_name,
                  file_size_bytes, record_counts, error, expires_at,
-                 requested_at, completed_at, created_at
+                 requested_at, completed_at, created_at,
+                 (requester_id = app.current_user_id()
+                    or app.has_organization_wide_reach(organization_id))
+                   as is_requester_or_wide,
+                 app.may_export(organization_id, resource_types)
+                   as role_covers_datasets
             from public.data_exports
            where organization_id = (
                    select organization_id from public.properties
@@ -305,7 +325,12 @@ export function createDataExportModule({ db }: DataExportDeps) {
                  format, range_from::text as range_from, range_to::text as range_to,
                  status, trigger_type, schedule_id, file_name,
                  file_size_bytes, record_counts, error, expires_at,
-                 requested_at, completed_at, created_at
+                 requested_at, completed_at, created_at,
+                 (requester_id = app.current_user_id()
+                    or app.has_organization_wide_reach(organization_id))
+                   as is_requester_or_wide,
+                 app.may_export(organization_id, resource_types)
+                   as role_covers_datasets
             from public.data_exports
            where id = ${exportId}::uuid`;
         return row ? mapDataExport(row) : null;
@@ -364,7 +389,12 @@ export function createDataExportModule({ db }: DataExportDeps) {
                       resource_types, format, range_from::text as range_from,
                       range_to::text as range_to, status, trigger_type,
                       schedule_id, file_name, file_size_bytes, record_counts,
-                      error, expires_at, requested_at, completed_at, created_at`;
+                      error, expires_at, requested_at, completed_at, created_at,
+                      (requester_id = app.current_user_id()
+                         or app.has_organization_wide_reach(organization_id))
+                        as is_requester_or_wide,
+                      app.may_export(organization_id, resource_types)
+                        as role_covers_datasets`;
         } catch (error) {
           if (raised(error, INSUFFICIENT_PRIVILEGE)) {
             throw new DataExportRefusedError();
@@ -445,13 +475,16 @@ export function createDataExportModule({ db }: DataExportDeps) {
                  schedule.created_by_name, schedule.name, schedule.resource_types,
                  schedule.format, schedule.frequency, schedule.status,
                  schedule.last_run_at,
-                 (select run.error
-                    from public.data_exports as run
-                   where run.schedule_id = schedule.id
-                   order by run.requested_at desc, run.id
-                   limit 1) as last_run_error,
+                 latest.id as last_run_id, latest.status as last_run_status,
+                 latest.error as last_run_error,
                  schedule.next_run_at, schedule.created_at
             from public.export_schedules as schedule
+            left join lateral (
+                   select run.id, run.status, run.error
+                     from public.data_exports as run
+                    where run.schedule_id = schedule.id
+                    order by run.requested_at desc, run.id
+                    limit 1) as latest on true
            where schedule.organization_id = (
                    select organization_id from public.properties
                     where id = ${propertyId}::uuid)

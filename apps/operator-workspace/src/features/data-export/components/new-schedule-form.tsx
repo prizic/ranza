@@ -64,8 +64,15 @@ export function NewScheduleForm({
   const [problem, setProblem] = useState<string | null>(null);
 
   const chosen = inCatalogueOrder(resources);
-  const canSubmit =
-    abilities.mayCreate && name.trim() !== "" && chosen.length > 0;
+  // The one thing still missing, said beside the button that waits on it
+  // (DATA-12).
+  const whyNotYet = !abilities.mayCreate
+    ? t("requestNeedsPermission")
+    : name.trim() === ""
+      ? t("invalid.name_missing")
+      : chosen.length === 0
+        ? t("requestNeedsDataset")
+        : null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -220,11 +227,23 @@ export function NewScheduleForm({
             </p>
           ) : null}
         </CardContent>
-        <CardFooter className="flex flex-wrap justify-end gap-2">
+        <CardFooter className="flex flex-wrap items-center justify-end gap-2">
+          {whyNotYet ? (
+            <p
+              className="me-auto text-sm text-muted-foreground"
+              id="schedule-why-not"
+            >
+              {whyNotYet}
+            </p>
+          ) : null}
           <Button onClick={onCancel} type="button" variant="ghost">
             {t("cancel")}
           </Button>
-          <Button disabled={submitting || !canSubmit} type="submit">
+          <Button
+            aria-describedby={whyNotYet ? "schedule-why-not" : undefined}
+            disabled={submitting || whyNotYet !== null}
+            type="submit"
+          >
             {submitting ? (
               <>
                 <Loader2 aria-hidden="true" className="animate-spin" />

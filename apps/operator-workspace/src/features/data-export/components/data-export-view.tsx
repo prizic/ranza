@@ -42,6 +42,7 @@ export function DataExportView({
   locale,
   organization,
   propertyId,
+  propertyName,
   schedules,
   timezone,
   today,
@@ -54,6 +55,8 @@ export function DataExportView({
   locale: SupportedLocale;
   organization: string;
   propertyId: string;
+  /** The Property the screen is opened from: its clock reads a range of days. */
+  propertyName: string;
   schedules: ExportScheduleRecord[];
   timezone: string;
   /** The Property's own day, `YYYY-MM-DD`. */
@@ -73,6 +76,9 @@ export function DataExportView({
   const [notice, setNotice] = useState<
     "requestSuccess" | "scheduleSuccess" | null
   >(null);
+  // The export a schedule's last run made, when a schedule row sent the
+  // reader to it (DATA-11).
+  const [shownRun, setShownRun] = useState<string | null>(null);
 
   // An export is produced by the worker, not by the request, so a screen that
   // is showing one still waiting is asked to read again until it is not.
@@ -133,6 +139,7 @@ export function DataExportView({
           if (next === "new") startNew();
           else setPanel(next as Panel);
           setNotice(null);
+          setShownRun(null);
         }}
         value={panel}
       >
@@ -159,6 +166,7 @@ export function DataExportView({
             onRequestNew={startNew}
             organization={organization}
             propertyId={propertyId}
+            shownRun={shownRun}
             timezone={timezone}
             today={today}
           />
@@ -166,8 +174,13 @@ export function DataExportView({
 
         <TabsContent value="schedules">
           <ExportSchedulesTable
+            exportIds={exports.map((item) => item.id)}
             locale={locale}
             onNew={() => setPanel("new-schedule")}
+            onShowRun={(exportId) => {
+              setShownRun(exportId);
+              setPanel("exports");
+            }}
             organization={organization}
             propertyId={propertyId}
             schedules={schedules}
@@ -188,6 +201,7 @@ export function DataExportView({
             }}
             organization={organization}
             propertyId={propertyId}
+            propertyName={propertyName}
             timezone={timezone}
             today={today}
           />
