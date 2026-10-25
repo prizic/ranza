@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { signIn } from "./front-desk";
+import { signIn, whenHydrated } from "./front-desk";
 import { aKnownDay, type Focus, type KnownDay } from "./known-day";
 import { psql } from "./local-database";
 
@@ -213,7 +213,11 @@ test("recent activity names who and what about, without an address, and starts f
     .getByRole("row")
     .filter({ hasText: day.guest.ready })
     .filter({ hasNotText: day.guest.notReady });
-  await row.getByRole("button", { name: "Check in" }).click();
+  const checkIn = row.getByRole("button", { name: "Check in" });
+  // A press before the page has hydrated sends nothing, which is how this
+  // failed on CI: no request, and the row still offering Check in.
+  await whenHydrated(checkIn);
+  await checkIn.click();
   await expect(row.getByText("Checked in")).toBeVisible();
 
   psql("delete from public.auth_rate_limit");

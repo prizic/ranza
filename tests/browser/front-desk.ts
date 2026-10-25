@@ -437,6 +437,22 @@ export async function signIn(
   await expect(page).toHaveURL(/\/en\/today(\?property=[0-9a-f-]+)?$/);
 }
 
+/**
+ * Until React has hydrated it, a button is the server's copy and a press on it
+ * is lost, with no request sent and nothing said (a Check in on CI, clicked 46
+ * ms after the page's scripts began). React marks a node it has taken over with
+ * a `__reactProps` key, so that is what is waited for, not a delay.
+ */
+export async function whenHydrated(control: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      control.evaluate((node) =>
+        Object.keys(node).some((key) => key.startsWith("__reactProps")),
+      ),
+    )
+    .toBe(true);
+}
+
 /** A Guest of this run's own, checked in through the Arrivals screen. */
 export async function aGuestInHouse(
   page: Page,
@@ -446,7 +462,9 @@ export async function aGuestInHouse(
   await page.goto(`/en/arrivals?property=${propertyId}`);
   await page.getByRole("searchbox").fill(guestName);
   const row = page.getByRole("row").filter({ hasText: guestName });
-  await row.getByRole("button", { name: "Check in" }).click();
+  const checkIn = row.getByRole("button", { name: "Check in" });
+  await whenHydrated(checkIn);
+  await checkIn.click();
   await expect(row.getByText("Checked in")).toBeVisible();
 }
 
