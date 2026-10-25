@@ -131,6 +131,7 @@ test("an arrival row carries an expected time, the Unit's readiness, a balance a
 
   const menu = await openMenu(page, row);
   await expect(menu.getByRole("menuitem")).toHaveText([
+    words.openReservation,
     words.showOnRoomMap,
     words.changeBooking,
     words.markNoShow,
@@ -152,6 +153,7 @@ test("an arrival row carries an expected time, the Unit's readiness, a balance a
   await expect(row).toContainText("TRY 0.00");
   const inMenu = await openMenu(page, row);
   await expect(inMenu.getByRole("menuitem")).toHaveText([
+    words.openReservation,
     words.openFolio,
     words.showOnRoomMap,
   ]);
@@ -311,6 +313,7 @@ test("a departure row carries its balance and a menu, and checking out with mone
   await expectTheWholeRowToBeInView(page);
   const menu = await openMenu(page, row);
   await expect(menu.getByRole("menuitem")).toHaveText([
+    words.openReservation,
     words.openFolio,
     words.showOnRoomMap,
     words.changeDeparture,
@@ -372,7 +375,10 @@ test("a reader who may book and neither check in nor out sees the rows and has n
   await expect(row).toContainText(words.ready);
   await expect(row.getByRole("button", { name: "Check in" })).toHaveCount(0);
   const menu = await openMenu(page, row);
-  await expect(menu.getByRole("menuitem")).toHaveText([words.showOnRoomMap]);
+  await expect(menu.getByRole("menuitem")).toHaveText([
+    words.openReservation,
+    words.showOnRoomMap,
+  ]);
   await page.keyboard.press("Escape");
 
   await page.goto(`/en/departures?property=${desk.propertyId}&view=in_house`);
@@ -384,6 +390,7 @@ test("a reader who may book and neither check in nor out sees the rows and has n
   ).toHaveCount(0);
   const leavingMenu = await openMenu(page, leaving);
   await expect(leavingMenu.getByRole("menuitem")).toHaveText([
+    words.openReservation,
     words.openFolio,
     words.showOnRoomMap,
   ]);
@@ -415,6 +422,7 @@ test("the arrival row in Arabic carries the same four things and mirrors", async
   ).toHaveCount(0);
   const menu = await openMenu(page, row);
   await expect(menu.getByRole("menuitem")).toHaveText([
+    ar.openReservation,
     ar.showOnRoomMap,
     ar.changeBooking,
     ar.markNoShow,
