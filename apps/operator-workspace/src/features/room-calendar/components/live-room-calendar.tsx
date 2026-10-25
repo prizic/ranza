@@ -25,6 +25,7 @@ import { BarDrawer } from "./bar-drawer";
 import { CalendarGrid } from "./calendar-grid";
 import { CalendarToolbar } from "./calendar-toolbar";
 import { MoveDialogs } from "./move-dialogs";
+import { useCoarsePointer } from "./use-coarse-pointer";
 
 async function fetchCalendar(
   propertyId: string,
@@ -81,6 +82,7 @@ export function LiveRoomCalendar({
   scope: Scope;
 }) {
   const t = useTranslations("roomCalendar");
+  const coarsePointer = useCoarsePointer();
   const [view, setView] = useState(initialView);
   // The date the reader jumped to. The window opens three days before it, so
   // without a mark it is one column among many.
@@ -207,7 +209,9 @@ export function LiveRoomCalendar({
           to say is how to use it, and a phone has no room to say it. */}
       <p className="hidden text-sm text-muted-foreground md:block">
         {t("subtitle")}
-        {calendar.mayAmend ? ` ${t("moveHint")}` : null}
+        {calendar.mayAmend
+          ? ` ${t(coarsePointer ? "moveHintTouch" : "moveHint")}`
+          : null}
       </p>
 
       <CalendarToolbar

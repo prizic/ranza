@@ -1800,6 +1800,7 @@ export interface Messages {
     search: string;
     filters: string;
     filtersCount: string;
+    filtersHint: string;
     showRequested: string;
     showDeparted: string;
     collapseAll: string;
@@ -1820,6 +1821,7 @@ export interface Messages {
     gridLabel: string;
     roomColumn: string;
     freeRow: string;
+    freeRowHint: string;
     freeOn: string;
     expand: string;
     collapse: string;
@@ -1899,8 +1901,10 @@ export interface Messages {
     >;
     /** Beneath the subtitle, for a viewer who may move bookings. */
     moveHint: string;
+    moveHintTouch: string;
     /** On a bar the viewer may drag, in its tooltip. */
     dragHint: string;
+    dragHintTouch: string;
     /** On the grip at the end of a bar. */
     resizeHint: string;
     /** On the outline a drag draws where the bar cannot go. */
@@ -2123,6 +2127,7 @@ export interface Messages {
     discardDraft: string;
     added: string;
     statFree: string;
+    statFreeHint: string;
     findRoom: string;
     showStates: string;
     showAll: string;
@@ -4226,7 +4231,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} hizmet dışı",
     blockedStatus: "Kapalı",
     roomCalendar: {
-      subtitle: "Odalar ve yataklar, tesisin iş günlerine göre.",
+      subtitle: "Odalar ve yataklar, iş gününe göre.",
       previous: "Önceki 7 gün",
       next: "Sonraki 7 gün",
       today: "Bugün",
@@ -4247,6 +4252,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       search: "Oda veya misafir ara",
       filters: "Filtreler",
       filtersCount: "Filtreler ({count})",
+      filtersHint: "Kat, tür, durum ve işaretlerin anlamı",
       showRequested: "Göster: Talep",
       showDeparted: "Göster: Ayrıldı",
       collapseAll: "Tüm yatakları daralt",
@@ -4267,7 +4273,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       outOfService: "Hizmet dışı",
       gridLabel: "Gecelere göre odalar ve yataklar",
       roomColumn: "Oda",
-      freeRow: "Boş",
+      freeRow: "O gece boş",
+      freeRowHint:
+        "O gece hiçbir şeyin tutmadığı odalar. O gün çıkacak misafir odasını bırakmış sayılır; gecikmiş misafir yalnızca bu gece kalıyor sayılır.",
       freeOn: "{date}: {of, number} içinden {n, plural, other {# boş}}",
       expand: "{room} yataklarını göster",
       collapse: "{room} yataklarını daralt",
@@ -4360,9 +4368,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         bookedWhileBlocked: "Kapalı",
         clashes: "Çakışıyor",
       },
-      typeFilter: "Birim türü",
+      typeFilter: "Oda türü",
       allTypes: "Tüm türler",
-      stateFilter: "Birim durumu",
+      stateFilter: "Oda durumu",
       allStates: "Tüm durumlar",
       unitState: {
         available: "Müsait",
@@ -4371,15 +4379,19 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Hizmet dışı",
       },
       moveHint:
-        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın, ucunu çekerek çıkış gününü değiştirin; siz onaylayana kadar hiçbir şey kaydedilmez.",
+        "Bir rezervasyonu başka bir odaya ya da güne sürükleyerek taşıyın, ucunu çekerek çıkış gününü değiştirin.",
+      moveHintTouch:
+        "Bir rezervasyona dokunun, ardından odasını ya da tarihlerini değiştirmek için Taşı… düğmesine basın.",
       dragHint:
         "Taşımak için sürükleyin ya da ayrıntılarındaki Taşı… düğmesini kullanın.",
+      dragHintTouch:
+        "Açmak için dokunun, ardından ayrıntılarındaki Taşı… düğmesini kullanın.",
       resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
       dropBlocked: "Buraya taşınamaz",
       moveAction: "Taşı…",
       moveBooking: "Rezervasyonu taşı",
       moveBookingSummary:
-        "Hiçbir şey kaydedilmeden önce nereye gideceğine bakın. Birim başka türdeyse fiyat değişir, değilse korunur.",
+        "Hiçbir şey kaydedilmeden önce nereye gideceğine bakın. Oda başka türdeyse fiyat değişir, değilse korunur.",
       confirmMove: "Rezervasyonu taşı",
       moveFrom: "Nereden",
       moveTo: "Nereye",
@@ -5513,6 +5525,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       added:
         "{count, plural, one {{first} numaralı oda eklendi.} other {# oda eklendi: {first} – {last}.}}",
       statFree: "Bu gece boş",
+      statFreeHint:
+        "Şu an boş olan ve bu gece için rezervasyonu bulunmayan odalar. Oda takviminin Boş satırı, misafiri bugün çıkacak odaları da sayar.",
       findRoom: "Oda veya misafir bul",
       showStates: "Şu durumdaki odaları göster",
       showAll: "Tüm odaları göster",
@@ -7810,7 +7824,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} out of order",
     blockedStatus: "Blocked",
     roomCalendar: {
-      subtitle: "Rooms and beds against the Property's business days.",
+      subtitle: "Rooms and beds by business day.",
       previous: "Previous 7 days",
       next: "Next 7 days",
       today: "Today",
@@ -7831,6 +7845,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       search: "Search a room or Guest",
       filters: "Filters",
       filtersCount: "Filters ({count})",
+      filtersHint: "Floor, type, state and what the marks mean",
       showRequested: "Show requested",
       showDeparted: "Show departed",
       collapseAll: "Fold all beds",
@@ -7851,7 +7866,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       outOfService: "Out of order",
       gridLabel: "Rooms and beds by night",
       roomColumn: "Room",
-      freeRow: "Free",
+      freeRow: "Free that night",
+      freeRowHint:
+        "Rooms nothing holds that night. A Guest due out that day has already handed theirs back, and an overdue Guest counts as staying tonight only.",
       freeOn:
         "{date}: {n, plural, one {# of {of, number} free} other {# of {of, number} free}}",
       expand: "Show the beds of {room}",
@@ -7948,9 +7965,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         bookedWhileBlocked: "Blocked",
         clashes: "Clash",
       },
-      typeFilter: "Unit type",
+      typeFilter: "Room type",
       allTypes: "All types",
-      stateFilter: "Unit state",
+      stateFilter: "Room state",
       allStates: "All states",
       unitState: {
         available: "Available",
@@ -7959,14 +7976,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "Out of order",
       },
       moveHint:
-        "Drag a booking to another room or day to move it, or pull its end to change the departure; nothing is saved until you confirm.",
+        "Drag a booking to another room or day to move it, or pull its end to change the departure.",
+      moveHintTouch: "Tap a booking, then Move… to change its room or dates.",
       dragHint: "Drag to move it, or use Move… in its details.",
+      dragHintTouch: "Tap to open it, then use Move… in its details.",
       resizeHint: "Drag to change the departure",
       dropBlocked: "It cannot go here",
       moveAction: "Move…",
       moveBooking: "Move booking",
       moveBookingSummary:
-        "Check where it would go before anything is saved. Its price is kept unless the Unit is of another kind.",
+        "Check where it would go before anything is saved. Its price is kept unless the room is of another kind.",
       confirmMove: "Move booking",
       moveFrom: "From",
       moveTo: "To",
@@ -9109,6 +9128,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       added:
         "{count, plural, one {Added room {first}.} other {Added # rooms: {first} to {last}.}}",
       statFree: "Free tonight",
+      statFreeHint:
+        "Empty now and with no booking for tonight. The room calendar's Free row also counts rooms whose Guest leaves today.",
       findRoom: "Find a room or a guest",
       showStates: "Show rooms that are",
       showAll: "Show all rooms",
@@ -11361,7 +11382,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     outOfOrderBeds: "{count, number} خارج الخدمة",
     blockedStatus: "مغلق",
     roomCalendar: {
-      subtitle: "الغرف والأسرّة مقابل أيام عمل المنشأة.",
+      subtitle: "الغرف والأسرّة حسب يوم العمل.",
       previous: "الأيام السبعة السابقة",
       next: "الأيام السبعة التالية",
       today: "اليوم",
@@ -11383,6 +11404,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       search: "ابحث عن غرفة أو ضيف",
       filters: "التصفية",
       filtersCount: "التصفية ({count})",
+      filtersHint: "الطابق والنوع والحالة ومعنى العلامات",
       showRequested: "إظهار: مطلوب",
       showDeparted: "إظهار: غادر",
       collapseAll: "طيّ كل الأسرّة",
@@ -11404,7 +11426,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       outOfService: "خارج الخدمة",
       gridLabel: "الغرف والأسرّة حسب الليلة",
       roomColumn: "الغرفة",
-      freeRow: "متاح",
+      freeRow: "شاغرة تلك الليلة",
+      freeRowHint:
+        "الغرف التي لا يحجزها شيء في تلك الليلة. الضيف المغادر في ذلك اليوم يُعدّ قد أخلى غرفته، والضيف المتأخر يُحسب مقيمًا هذه الليلة فقط.",
       freeOn:
         "{date}: {n, plural, zero {لا شيء متاح من {of, number}} one {واحد متاح من {of, number}} two {اثنان متاحان من {of, number}} few {# متاحة من {of, number}} many {# متاحًا من {of, number}} other {# متاح من {of, number}}}",
       expand: "إظهار أسرّة {room}",
@@ -11499,9 +11523,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         bookedWhileBlocked: "مغلق",
         clashes: "تعارض",
       },
-      typeFilter: "نوع الوحدة",
+      typeFilter: "نوع الغرفة",
       allTypes: "كل الأنواع",
-      stateFilter: "حالة الوحدة",
+      stateFilter: "حالة الغرفة",
       allStates: "كل الحالات",
       unitState: {
         available: "متاحة",
@@ -11510,14 +11534,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         out_of_service: "خارج الخدمة",
       },
       moveHint:
-        "اسحب حجزًا إلى غرفة أو يوم آخر لنقله، أو اسحب طرفه لتغيير موعد المغادرة؛ لا يُحفظ شيء حتى تؤكّد.",
+        "اسحب حجزًا إلى غرفة أو يوم آخر لنقله، أو اسحب طرفه لتغيير موعد المغادرة.",
+      moveHintTouch: "المس حجزًا ثم اضغط «نقل…» لتغيير غرفته أو تواريخه.",
       dragHint: "اسحبه لنقله، أو استخدم «نقل…» في تفاصيله.",
+      dragHintTouch: "المسه لفتحه، ثم استخدم «نقل…» في تفاصيله.",
       resizeHint: "اسحب لتغيير موعد المغادرة",
       dropBlocked: "لا يمكن نقله إلى هنا",
       moveAction: "نقل…",
       moveBooking: "نقل الحجز",
       moveBookingSummary:
-        "تحقّق من وجهته قبل حفظ أي شيء. يبقى سعره كما هو ما لم تكن الوحدة من نوع آخر.",
+        "تحقّق من وجهته قبل حفظ أي شيء. يبقى سعره كما هو ما لم تكن الغرفة من نوع آخر.",
       confirmMove: "نقل الحجز",
       moveFrom: "من",
       moveTo: "إلى",
@@ -12637,6 +12663,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       added:
         "{count, plural, one {أُضيفت الغرفة {first}.} two {أُضيفت غرفتان: {first} إلى {last}.} few {أُضيفت # غرف: {first} إلى {last}.} many {أُضيفت # غرفة: {first} إلى {last}.} other {أُضيفت # غرفة: {first} إلى {last}.}}",
       statFree: "شاغرة الليلة",
+      statFreeHint:
+        "غرف فارغة الآن وليس عليها حجز لهذه الليلة. يشمل صف «شاغرة» في تقويم الغرف أيضًا الغرف التي يغادرها ضيفها اليوم.",
       findRoom: "ابحث عن غرفة أو نزيل",
       showStates: "أظهر الغرف التي حالتها",
       showAll: "إظهار كل الغرف",

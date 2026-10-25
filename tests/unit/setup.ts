@@ -3,10 +3,11 @@ import "@testing-library/jest-dom/vitest";
 // jsdom has no layout and so no media queries; a component that asks one — the
 // date range field chooses between one month and two — would throw. Every
 // query answers as a wide screen: a `min-width` one holds, a `max-width` one
-// (the sidebar folding for a tablet) does not.
+// (the sidebar folding for a tablet) does not, and nor does a finger
+// (`pointer: coarse`): the desk's computer has a mouse.
 window.matchMedia = (query: string) =>
   ({
-    matches: !/max-width/.test(query),
+    matches: !/max-width|pointer: coarse/.test(query),
     media: query,
     addEventListener: () => undefined,
     removeEventListener: () => undefined,

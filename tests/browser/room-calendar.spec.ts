@@ -667,7 +667,11 @@ test("RC-S3-04: dropped on a room that is booked for those nights, the preview n
 
   const dialog = page.getByRole("dialog", { name: "Move booking" });
   await expect(
-    dialog.getByText(`Holder ${tag} has booked some of those nights.`),
+    dialog.getByText(
+      new RegExp(
+        `Holder ${tag} has booked some of those nights \\(.+ to .+\\)\\.`,
+      ),
+    ),
   ).toBeVisible();
   await expect(
     dialog.getByRole("button", { name: "Move booking" }),
@@ -852,7 +856,11 @@ for (const viewport of [
     // in the viewport without scrolling for it.
     await pickUnit(dialog, rooms.C!.name, "Booked");
     await expect(
-      dialog.getByText(`Holder ${tag} has booked some of those nights.`),
+      dialog.getByText(
+        new RegExp(
+          `Holder ${tag} has booked some of those nights \\(.+ to .+\\)\\.`,
+        ),
+      ),
     ).toBeVisible();
     await expect(confirm).toBeInViewport();
     await expect(confirm).toBeDisabled();
@@ -1005,7 +1013,11 @@ test("RC-S3-08: pulling the end of a Guest in house previews the new departure, 
   await pullEnd(page, rooms.A!, propertyDay(propertyId, 5), "stay");
   const blocked = page.getByRole("dialog", { name: "Change departure" });
   await expect(
-    blocked.getByText(`Next ${tag} has booked some of those nights.`),
+    blocked.getByText(
+      new RegExp(
+        `Next ${tag} has booked some of those nights \\(.+ to .+\\)\\.`,
+      ),
+    ),
   ).toBeVisible();
   await expect(
     blocked.getByRole("button", { name: "Save departure" }),
@@ -1194,15 +1206,16 @@ test("RC-S3-14: the calendar is filtered by the type and the state of its Units"
   const rowHeaders = page.getByRole("rowheader", { name: new RegExp(tag) });
   await expect(rowHeaders).toHaveCount(3);
 
-  await page.getByRole("combobox", { name: "Unit type" }).click();
+  await page.getByRole("button", { name: "Filters" }).click();
+  await page.getByRole("combobox", { name: "Room type" }).click();
   await page.getByRole("option", { name: "Suite" }).click();
   await expect(rowHeaders).toHaveCount(1);
   await expect(rowHeaders.first()).toContainText(rooms.S!.name);
   await expect(page).toHaveURL(/type=suite/);
 
-  await page.getByRole("combobox", { name: "Unit type" }).click();
+  await page.getByRole("combobox", { name: "Room type" }).click();
   await page.getByRole("option", { name: "All types" }).click();
-  await page.getByRole("combobox", { name: "Unit state" }).click();
+  await page.getByRole("combobox", { name: "Room state" }).click();
   await page.getByRole("option", { name: "Blocked" }).click();
   await expect(rowHeaders).toHaveCount(1);
   await expect(rowHeaders.first()).toContainText(rooms.K!.name);

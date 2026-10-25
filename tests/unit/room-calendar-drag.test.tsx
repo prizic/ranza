@@ -174,6 +174,25 @@ describe("RC-S3-10: only somebody who may amend is given a grip", () => {
     expect(bar.getAttribute("title")).toMatch(/drag/i);
     expect(document.querySelector("[data-end-handle]")).not.toBeNull();
   });
+
+  it("CALENDAR-17: on a touch screen the bar says to tap it, not to drag it", () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: /pointer: coarse/.test(query),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const bar = renderGrid(true);
+      expect(bar.getAttribute("title")).toBe(
+        messages.en.roomCalendar.dragHintTouch,
+      );
+      expect(bar.getAttribute("title")).not.toMatch(/drag/i);
+    } finally {
+      window.matchMedia = matchMedia;
+    }
+  });
 });
 
 describe("RC-S3-01: a release hands the proposal on, and a plain click opens the drawer", () => {

@@ -78,18 +78,20 @@ export function CalendarToolbar({
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
-  // A phone has no room for six controls above the grid: they fold behind one
-  // button, which says how many are narrowing what is drawn.
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Floor, type, state, the two toggles and the legend fold behind one button
+  // on every screen, so the grid starts within a laptop's first screen
+  // (CALENDAR-12). The button counts what narrows the grid; a link that opens
+  // already narrowed opens the filters too, so the narrowing is not hidden.
+  // The search and the overlap button stay in view: they are the ones used
+  // every minute.
   const narrowing = [
     view.floor !== null,
     view.unitType !== null,
     view.unitState !== null,
-    view.search !== "",
     !view.showRequested,
     !view.showDeparted,
-    view.overlapsOnly,
   ].filter(Boolean).length;
+  const [filtersOpen, setFiltersOpen] = useState(narrowing > 0);
   // Only what the Property has is offered, so no filter can empty the grid on
   // a kind of Unit that does not exist (RC-S3-14).
   const present = presentKinds(calendar.units);
@@ -210,23 +212,62 @@ export function CalendarToolbar({
             </Button>
           ))}
         </div>
-      </div>
 
-      <Button
-        aria-controls="room-calendar-filters"
-        aria-expanded={filtersOpen}
-        className="md:hidden"
-        onClick={() => setFiltersOpen((open) => !open)}
-        size="sm"
-        variant="outline"
-      >
-        <SlidersHorizontal aria-hidden="true" />
-        {narrowing > 0 ? t("filtersCount", { count: narrowing }) : t("filters")}
-      </Button>
+        <Label className="sr-only" htmlFor="room-calendar-search">
+          {t("search")}
+        </Label>
+        <Input
+          className="h-8 w-full sm:w-44"
+          id="room-calendar-search"
+          onChange={(event) => onChange({ search: event.target.value })}
+          placeholder={t("search")}
+          type="search"
+          value={view.search}
+        />
+
+        <Button
+          aria-controls="room-calendar-filters"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((open) => !open)}
+          size="sm"
+          title={t("filtersHint")}
+          variant="outline"
+        >
+          <SlidersHorizontal aria-hidden="true" />
+          {narrowing > 0
+            ? t("filtersCount", { count: narrowing })
+            : t("filters")}
+        </Button>
+
+        {calendar.overlaps > 0 || calendar.bookedWhileBlocked > 0 ? (
+          <Button
+            aria-pressed={view.overlapsOnly}
+            className="border-danger/40 text-danger"
+            onClick={() => onChange({ overlapsOnly: !view.overlapsOnly })}
+            size="sm"
+            variant={view.overlapsOnly ? "destructive" : "outline"}
+          >
+            {calendar.overlaps > 0 ? (
+              <>
+                <TriangleAlert aria-hidden="true" />
+                {t("overlapCount", { count: calendar.overlaps })}
+              </>
+            ) : null}
+            {calendar.bookedWhileBlocked > 0 ? (
+              <>
+                <Ban aria-hidden="true" />
+                {t("bookedWhileBlockedCount", {
+                  count: calendar.bookedWhileBlocked,
+                })}
+              </>
+            ) : null}
+          </Button>
+        ) : null}
+      </div>
 
       <div
         className={cn(
-          "flex-wrap items-center gap-x-4 gap-y-2 md:flex",
+          "flex-wrap items-center gap-x-4 gap-y-2",
           filtersOpen ? "flex" : "hidden",
         )}
         id="room-calendar-filters"
@@ -299,18 +340,6 @@ export function CalendarToolbar({
           </SelectContent>
         </Select>
 
-        <Label className="sr-only" htmlFor="room-calendar-search">
-          {t("search")}
-        </Label>
-        <Input
-          className="h-8 w-56"
-          id="room-calendar-search"
-          onChange={(event) => onChange({ search: event.target.value })}
-          placeholder={t("search")}
-          type="search"
-          value={view.search}
-        />
-
         <div className="inline-flex items-center gap-4 whitespace-nowrap">
           <label className="inline-flex items-center gap-2 text-sm">
             <Checkbox
@@ -351,44 +380,10 @@ export function CalendarToolbar({
           </Button>
         ) : null}
 
-        {calendar.overlaps > 0 || calendar.bookedWhileBlocked > 0 ? (
-          <Button
-            aria-pressed={view.overlapsOnly}
-            className="border-danger/40 text-danger"
-            onClick={() => onChange({ overlapsOnly: !view.overlapsOnly })}
-            size="sm"
-            variant={view.overlapsOnly ? "destructive" : "outline"}
-          >
-            {calendar.overlaps > 0 ? (
-              <>
-                <TriangleAlert aria-hidden="true" />
-                {t("overlapCount", { count: calendar.overlaps })}
-              </>
-            ) : null}
-            {calendar.bookedWhileBlocked > 0 ? (
-              <>
-                <Ban aria-hidden="true" />
-                {t("bookedWhileBlockedCount", {
-                  count: calendar.bookedWhileBlocked,
-                })}
-              </>
-            ) : null}
-          </Button>
-        ) : null}
-      </div>
-
-      <details className="group text-xs text-muted-foreground">
-        <summary className="inline-flex cursor-pointer list-none items-center gap-1.5 rounded-sm py-1 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-          <ChevronRight
-            aria-hidden="true"
-            className="size-3.5 transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90"
-          />
-          {t("legend")}
-        </summary>
-        <div className="pt-1.5">
+        <div className="basis-full">
           <Legend />
         </div>
-      </details>
+      </div>
     </div>
   );
 }

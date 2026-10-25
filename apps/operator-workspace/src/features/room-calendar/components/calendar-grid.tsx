@@ -30,6 +30,7 @@ import { lateArrival } from "../late";
 import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
 import { useHoldText } from "./hold-text";
 import { useBarDrag } from "./use-bar-drag";
+import { useCoarsePointer } from "./use-coarse-pointer";
 import {
   BAR_GRIP,
   BAR_ICON,
@@ -208,6 +209,9 @@ export function CalendarGrid({
   updating: boolean;
 }) {
   const t = useTranslations("roomCalendar");
+  // A bar is dragged with a mouse or a pen; a finger taps it open and uses
+  // Move… (CALENDAR-17).
+  const dragHint = useCoarsePointer() ? t("dragHintTouch") : t("dragHint");
   const nights = calendar.nights.map((night) => night.day);
   const lastDay = nights[nights.length - 1] ?? calendar.from;
   const [drag, setDrag] = useState<{
@@ -352,6 +356,7 @@ export function CalendarGrid({
               <div
                 className="sticky start-0 z-10 bg-muted px-3 py-1.5 text-xs font-medium"
                 role="rowheader"
+                title={t("freeRowHint")}
               >
                 {t("freeRow")}
               </div>
@@ -410,6 +415,7 @@ export function CalendarGrid({
                   calendar={calendar}
                   collapsed={row.collapsed}
                   draggingKey={drag?.key ?? null}
+                  dragHint={dragHint}
                   ghost={
                     drag?.ghost.unitId === row.unit.unitId ? drag.ghost : null
                   }
@@ -476,6 +482,7 @@ function BarCardView({ card }: { card: BarCard }) {
 function UnitRow({
   calendar,
   collapsed,
+  dragHint,
   draggingKey,
   ghost,
   lastDay,
@@ -495,6 +502,8 @@ function UnitRow({
 }: {
   calendar: RoomCalendar;
   collapsed: boolean;
+  /** What a bar says about moving it, for the pointer in use. */
+  dragHint: string;
   /** The bar being dragged, drawn faint where it still stands. */
   draggingKey: string | null;
   /** Where the drag would put its bar, when that is this row. */
@@ -625,6 +634,7 @@ function UnitRow({
                 continuesAfter={continuesAfter}
                 continuesBefore={continuesBefore}
                 days={calendar.days}
+                dragHint={dragHint}
                 dragging={draggingKey === barKey(bar)}
                 end={end}
                 entry={{ bar, unit, room }}
@@ -680,6 +690,7 @@ function BarButton({
   continuesAfter,
   continuesBefore,
   days,
+  dragHint,
   dragging,
   end,
   entry,
@@ -700,6 +711,7 @@ function BarButton({
   continuesAfter: boolean;
   continuesBefore: boolean;
   days: number;
+  dragHint: string;
   dragging: boolean;
   end: number;
   entry: PlacedEntry;
@@ -821,7 +833,7 @@ function BarButton({
         }}
         style={position}
         tabIndex={tabStop ? 0 : -1}
-        title={mayAmend ? t("dragHint") : undefined}
+        title={mayAmend ? dragHint : undefined}
         type="button"
       >
         <StateIcon aria-hidden="true" className={cn(iconSize, "shrink-0")} />

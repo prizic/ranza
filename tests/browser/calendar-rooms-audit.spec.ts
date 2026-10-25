@@ -54,7 +54,7 @@ async function openBar(page: Page, guest: string) {
 for (const locale of LOCALES) {
   const words = messages[locale];
 
-  test.describe(`the bar drawer in ${locale}`, () => {
+  test.describe(`the room calendar in ${locale}`, () => {
     test(`an overdue Guest's details use the whole panel and open Change departure on tomorrow (${locale})`, async ({
       page,
     }) => {
@@ -196,5 +196,84 @@ for (const locale of LOCALES) {
       await expect(page).toHaveURL(/\/reservations\?.*open=/);
       await expect(page.getByRole("dialog")).toContainText(booking.guestName);
     });
+
+    test(`the grid starts high up, the filters are one click away and call a room a room (${locale})`, async ({
+      page,
+    }) => {
+      const propertyId = aDeskProperty();
+      aBooking(propertyId, { startsIn: 1, nights: 2, label: "Chrome" });
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await signIn(page);
+      await openCalendar(page, propertyId, locale);
+
+      // CALENDAR-12: the toolbar was four rows; the grid now begins within a
+      // laptop's first screen, as it did not at 371 px.
+      const grid = page.getByRole("table").first();
+      expect((await grid.boundingBox())!.y).toBeLessThan(260);
+      await page.screenshot({
+        path: `docs/evidence/ux-audit-2026-10-24/calendar-rooms/calendar-top-${locale}.png`,
+      });
+
+      const roomType = page.getByRole("combobox", {
+        name: words.roomCalendar.typeFilter,
+      });
+      await expect(roomType).toBeHidden();
+      await page
+        .getByRole("button", { name: words.roomCalendar.filters })
+        .click();
+      // CALENDAR-16: the filters say room, not Unit.
+      await expect(roomType).toBeVisible();
+      expect(words.roomCalendar.typeFilter).not.toMatch(/unit|Birim|الوحدة/i);
+      await expect(
+        page.getByRole("list", { name: words.roomCalendar.legend }),
+      ).toBeVisible();
+    });
+
+    test(`the free row says what it counts (${locale})`, async ({ page }) => {
+      const propertyId = aDeskProperty();
+      aBooking(propertyId, { startsIn: 1, nights: 2, label: "Free" });
+      await page.setViewportSize({ width: 1280, height: 860 });
+      await signIn(page);
+      await openCalendar(page, propertyId, locale);
+      const row = page
+        .getByRole("rowheader")
+        .filter({ hasText: words.roomCalendar.freeRow });
+      await expect(row).toHaveAttribute(
+        "title",
+        words.roomCalendar.freeRowHint,
+      );
+    });
   });
 }
+
+test.describe("on a touch screen", () => {
+  test.use({ hasTouch: true });
+
+  test("a bar is not offered a drag it would ignore (CALENDAR-17)", async ({
+    page,
+  }) => {
+    const propertyId = aDeskProperty();
+    const booking = aBooking(propertyId, {
+      startsIn: 1,
+      nights: 2,
+      label: "Touch",
+    });
+    await page.setViewportSize({ width: 768, height: 900 });
+    await signIn(page);
+    await openCalendar(page, propertyId, "en");
+    const bar = page
+      .locator("[data-bar-key]")
+      .filter({ hasText: booking.guestName })
+      .first();
+    await expect(bar).toHaveAttribute(
+      "title",
+      messages.en.roomCalendar.dragHintTouch,
+    );
+    await expect(page.locator("main")).toContainText(
+      messages.en.roomCalendar.moveHintTouch,
+    );
+    await expect(page.locator("main")).not.toContainText(
+      messages.en.roomCalendar.moveHint,
+    );
+  });
+});

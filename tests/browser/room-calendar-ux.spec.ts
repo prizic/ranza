@@ -376,7 +376,7 @@ test("the bars are one tab stop, and the arrow keys move between them", async ({
   await expect(page.locator("[data-bar-key]:focus")).toHaveCount(0);
 });
 
-test("on a phone the filters and the legend fold away, and the grid starts high up", async ({
+test("the filters and the legend fold away on a phone, and the grid starts high up", async ({
   page,
 }) => {
   const scene = aSetOfRooms(["A"]);
@@ -390,7 +390,7 @@ test("on a phone the filters and the legend fold away, and the grid starts high 
   const grid = page.getByRole("table", { name: "Rooms and beds by night" });
   expect((await grid.boundingBox())!.y).toBeLessThan(500);
   await expect(page.getByLabel("Floor")).toBeHidden();
-  await expect(page.getByLabel("Unit type")).toBeHidden();
+  await expect(page.getByLabel("Room type")).toBeHidden();
   await expect(
     page.getByRole("list", { name: "What the marks mean" }),
   ).toBeHidden();
@@ -405,10 +405,15 @@ test("on a phone the filters and the legend fold away, and the grid starts high 
   expect(overflow).toBeLessThanOrEqual(0);
   await capture(page, "phone-calendar");
 
-  // One button brings the filters back, and counts those narrowing the grid.
+  // The search stays in view; one button brings the filters back, and counts
+  // those narrowing the grid.
+  await expect(page.getByRole("searchbox")).toBeVisible();
   await page.getByRole("button", { name: "Filters" }).click();
-  await expect(page.getByLabel("Unit type")).toBeVisible();
-  await page.getByRole("searchbox").fill("zzz-nothing");
+  await expect(page.getByLabel("Room type")).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "What the marks mean" }),
+  ).toBeVisible();
+  await page.getByRole("checkbox", { name: "Show departed" }).click();
   await expect(page.getByRole("button", { name: "Filters (1)" })).toBeVisible();
 });
 
@@ -427,6 +432,7 @@ test("the toolbar names its steps, keeps its two toggles on one line, and marks 
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Next 7 days" })).toBeVisible();
 
+  await page.getByRole("button", { name: "Filters" }).click();
   const requested = await page.getByText("Show requested").boundingBox();
   const departed = await page.getByText("Show departed").boundingBox();
   expect(Math.abs(requested!.y - departed!.y)).toBeLessThan(4);
