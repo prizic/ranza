@@ -26,6 +26,7 @@ import {
   type CalendarRow,
   type PlacedEntry,
 } from "../layout";
+import { lateArrival } from "../late";
 import { ghostOf, hasEndHandle, type Ghost, type MoveRequest } from "../move";
 import { useHoldText } from "./hold-text";
 import { useBarDrag } from "./use-bar-drag";
@@ -638,6 +639,7 @@ function UnitRow({
                 onOpen={onOpen}
                 onPreview={onPreview}
                 start={start}
+                today={calendar.today}
                 tabStop={tabStop === barKey(bar)}
               />
             ),
@@ -692,6 +694,7 @@ function BarButton({
   onPreview,
   start,
   tabStop,
+  today,
 }: {
   bar: RoomCalendarBar;
   continuesAfter: boolean;
@@ -712,6 +715,7 @@ function BarButton({
   start: number;
   /** Whether this is the bar the Tab key reaches. */
   tabStop: boolean;
+  today: string;
 }) {
   const t = useTranslations("roomCalendar");
   const key = barKey(bar);
@@ -742,10 +746,18 @@ function BarButton({
   const to = bar.endsOn ? shortDate(bar.endsOn, locale) : t("noEndDate");
   // An overdue Guest is drawn through tonight because they are still in the
   // room; the name says so, where "from the 29th to the 1st" would not.
+  const late = lateArrival(bar, today);
   const label = [
     bar.overdue
       ? t("barLabelOverdue", { guest, from, to })
-      : t("barLabel", { guest, status: t(look), from, to }),
+      : late
+        ? t(late.nightsGone ? "barLabelGone" : "barLabelLate", {
+            guest,
+            status: t(look),
+            from,
+            to,
+          })
+        : t("barLabel", { guest, status: t(look), from, to }),
     ...flags,
   ].join(". ");
   const showCard = (target: HTMLElement) =>
@@ -755,7 +767,9 @@ function BarButton({
       detail: [
         bar.overdue
           ? t("barOverdueCard", { to })
-          : `${t(look)} · ${from} – ${to}`,
+          : late
+            ? t(late.nightsGone ? "barGoneCard" : "barLateCard", { from })
+            : `${t(look)} · ${from} – ${to}`,
         ...flags,
       ].join(" · "),
     });

@@ -12,6 +12,7 @@ import {
 } from "@ranza/i18n";
 import {
   Button,
+  cn,
   DialogActions,
   DialogBody,
   DialogFacts,
@@ -29,6 +30,7 @@ import type { RoomCalendar, RoomCalendarBar } from "../../../server/viewer";
 import { ChangeDepartureDialog } from "../../front-office/components/change-departure-dialog";
 import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog";
 import { daysBetween, type PlacedEntry } from "../layout";
+import { lateArrival } from "../late";
 import type { MoveRequest } from "../move";
 import { BAR_ICON, barLook, type BarLook } from "./bar-style";
 import { useHoldText } from "./hold-text";
@@ -48,6 +50,18 @@ function date(day: string, locale: SupportedLocale): string {
     timeZone: "UTC",
   });
 }
+
+/**
+ * The drawer's width on a screen wide enough for a side panel. The sheet's own
+ * `sm:max-w-sm` outranks the frame's wider limit, so it is said again for the
+ * two sides this drawer opens from; `minmax(0, 1fr)` lets a long name or
+ * reference shrink inside the column rather than push it wider than the panel
+ * (CALENDAR-01).
+ */
+const DRAWER_FRAME = cn(
+  sheetFrameClassName,
+  "grid-cols-[minmax(0,1fr)] data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-[32.5rem] data-[side=right]:sm:max-w-[32.5rem]",
+);
 
 /** Where the command for this bar lives (RC-S1-64). */
 function onward(
@@ -111,7 +125,7 @@ export function BarDrawer({
     <Sheet onOpenChange={(next) => (next ? undefined : onClose())} open={open}>
       <SheetContent
         aria-describedby={undefined}
-        className={sheetFrameClassName}
+        className={DRAWER_FRAME}
         onCloseAutoFocus={(event) => {
           // Opened from a bar rather than a trigger, so Radix has nothing to
           // return focus to. The bar is found again by its key, because a
@@ -197,6 +211,13 @@ function DrawerBody({
   const look = barLook(bar);
   const place = room ? `${room.name} · ${unit.name}` : unit.name;
   const target = onward(bar, today);
+  const late = lateArrival(bar, today);
+  const reservationsHref = `${localizeHref(locale, "reservations")}?property=${propertyId}`;
+  // The booking itself, where the page can open it: Reservations does, by id.
+  const bookingHref =
+    bar.reservationId === null
+      ? null
+      : `${reservationsHref}&open=${bar.reservationId}`;
   // A Guest moved into this room arrived before this bar begins: the Stay's
   // own first night is the arrival, and its nights are counted from it.
   const arrivedOn = bar.kind === "stay" ? bar.arrivedOn : bar.startsOn;
@@ -224,7 +245,11 @@ function DrawerBody({
 
   const facts: (readonly [string, ReactNode])[] = [
     [
-      bar.kind === "stay" ? t("arrived") : t("arrives"),
+      bar.kind === "stay"
+        ? t("arrived")
+        : late
+          ? t("wasDueToArrive")
+          : t("arrives"),
       date(arrivedOn, locale),
     ],
   ];
@@ -260,9 +285,22 @@ function DrawerBody({
   if (bar.reference) {
     facts.push([
       t("reservationCode"),
-      <bdi className="font-mono" key="reference">
-        {bar.reference}
-      </bdi>,
+      bookingHref ? (
+        <Link
+          aria-label={`${t("openBooking")}: ${bar.reference}`}
+          className="underline underline-offset-4"
+          href={bookingHref}
+          key="reference"
+          prefetch={false}
+          title={t("openBooking")}
+        >
+          <bdi className="font-mono">{bar.reference}</bdi>
+        </Link>
+      ) : (
+        <bdi className="font-mono" key="reference">
+          {bar.reference}
+        </bdi>
+      ),
     ]);
   }
   if (readiness) {
@@ -302,9 +340,15 @@ function DrawerBody({
         <DialogSection>
           <div>
             <StatusBadge
-              icon={BAR_ICON[look]}
-              label={t(look)}
-              tone={TONE[look]}
+              icon={BAR_ICON[late ? "overdue" : look]}
+              label={
+                late
+                  ? late.nightsGone
+                    ? common("didNotArriveDays", { count: late.days })
+                    : t("notArrivedLate", { days: late.days })
+                  : t(look)
+              }
+              tone={late ? "warning" : TONE[look]}
             />
           </div>
           {changed ? <DialogNotice>{t("changedNote")}</DialogNotice> : null}
@@ -326,6 +370,13 @@ function DrawerBody({
                   .filter(Boolean)
                   .join(" · "),
               })}
+            </DialogNotice>
+          ) : null}
+          {late ? (
+            <DialogNotice>
+              {late.nightsGone
+                ? t("didNotArriveNote")
+                : t("lateNote", { date: date(bar.startsOn, locale) })}
             </DialogNotice>
           ) : null}
           {bar.overdue && bar.endsOn ? (
@@ -442,7 +493,11 @@ function DrawerBody({
         >
           {/* Not prefetched: one bar is one link, read on the click. */}
           <Link
-            href={`${localizeHref(locale, target)}?property=${propertyId}`}
+            href={
+              target === "reservations" && bookingHref
+                ? bookingHref
+                : `${localizeHref(locale, target)}?property=${propertyId}`
+            }
             prefetch={false}
           >
             {t(`open.${target}`)}

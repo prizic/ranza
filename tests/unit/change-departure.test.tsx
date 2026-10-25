@@ -89,14 +89,14 @@ function answering(...previews: DeparturePreview[]) {
   return fetch;
 }
 
-function open() {
+function open(stay: typeof STAY = STAY) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <ChangeDepartureDialog
         locale="en"
         onOpenChange={() => {}}
         open
-        stay={STAY}
+        stay={stay}
       />
     </NextIntlClientProvider>,
   );
@@ -169,6 +169,24 @@ describe("the Change departure dialog", () => {
     expect(save()).toBeDisabled();
     // Nothing is asked about an end the command would refuse anyway.
     expect(fetch.mock.calls.length).toBe(reads);
+  });
+
+  it("an_overdue_guest_opens_on_tomorrow_so_the_price_line_is_the_confirm", async () => {
+    // Planned to leave the 26th, today is the 28th: the field offers the next
+    // day rather than an empty "Open-ended" the desk must open a picker to fill
+    // (CALENDAR-05).
+    const fetch = answering(preview({ endsOn: "2026-09-26" }));
+    open({ ...STAY, endsOn: "2026-09-26" });
+
+    expect(
+      await screen.findByText(/^3 more nights at .*1,500\.00 each$/),
+    ).toBeInTheDocument();
+    expect(hidden("endsOn")).toBe("2026-09-29");
+    await waitFor(() => expect(save()).toBeEnabled());
+    expect(
+      screen.queryByText(messages.en.changeDepartureNeedsEnd),
+    ).not.toBeInTheDocument();
+    expect(String(fetch.mock.calls.at(-1)?.[0])).toContain("to=2026-09-29");
   });
 
   it("a Resident's extension is not called free: they are billed by the month", async () => {

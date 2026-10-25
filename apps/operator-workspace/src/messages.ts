@@ -1827,6 +1827,11 @@ export interface Messages {
     barLabel: string;
     barLabelOverdue: string;
     barOverdueCard: string;
+    barLabelLate: string;
+    barLabelGone: string;
+    barLateCard: string;
+    barGoneCard: string;
+    openBooking: string;
     noGuestRecorded: string;
     noEndDate: string;
     refreshFailed: string;
@@ -1852,6 +1857,10 @@ export interface Messages {
     windowFailed: string;
     blockedNote: string;
     overdueNote: string;
+    notArrivedLate: string;
+    lateNote: string;
+    didNotArriveNote: string;
+    wasDueToArrive: string;
     arrives: string;
     arrived: string;
     /** The first night in this room, for a Guest moved into it (AB-S3-06). */
@@ -3926,7 +3935,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureSummary:
       "Konaklamayı uzatın ya da kısaltın. Misafirin ek geceleri rezervasyonun kendi fiyatından ücretlendirilir; bugün ayrılmak bir çıkıştır.",
     changeDepartureOverdue:
-      "Bu misafir {date} tarihinden beri {count, plural, one {# gün} other {# gün}} gecikmiş durumda. Şimdi ayrılacakları günü seçin; o günden bu yana geçen geceler rezervasyonun fiyatıyla kapanışta ya da çıkışta ücretlendirilir.",
+      "Bu misafir {date} tarihinden beri {count, plural, one {# gün} other {# gün}} gecikmiş durumda. Ayrılacakları gün olarak yarın dolduruldu; daha uzun kalacaklarsa değiştirin. O günden bu yana geçen geceler rezervasyonun fiyatıyla kapanışta ya da çıkışta ücretlendirilir.",
     extendUnpricedWarning:
       "Bu rezervasyonun fiyatı yok; bu yüzden eklenen geceler ücretlendirilmez.",
     changeDepartureLonger:
@@ -4267,6 +4276,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       barLabelOverdue:
         "{guest}, gecikmiş, geliş {from}, planlanan çıkış {to}, bu gece hâlâ odada",
       barOverdueCard: "Gecikmiş · bu geceye kadar odada (planlanan çıkış {to})",
+      barLabelLate:
+        "{guest}, {status}, henüz gelmedi: {from} tarihinde gelecekti, {to} tarihinde ayrılacak",
+      barLabelGone:
+        "{guest}, gelmedi: {from} tarihinde gelecekti, geceler {to} tarihinde bitti",
+      barLateCard: "Gelmedi · {from} tarihinde gelecekti",
+      barGoneCard: "Gelmedi · {from} tarihinde gelecekti, geceler bitti",
+      openBooking: "Rezervasyonu Rezervasyonlar sayfasında aç",
       noGuestRecorded: "Kayıtlı misafir yok",
       noEndDate: "Bitiş tarihi yok",
       refreshFailed: "Yenilenemedi. Takvim {time} itibarıyla gösteriliyor.",
@@ -4301,7 +4317,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       blockedNote:
         "Bu oda kullanım dışı ({reason}); serbest bırakılana kadar girişi reddedilir.",
       overdueNote:
-        "Hâlâ odada: planlanan çıkış tarihi {date}, {days} gün geçti. Çıkış yapın ya da çıkış tarihini değiştirin.",
+        "Hâlâ odada: planlanan çıkış tarihi {date}, {days} gün geçti. Çıkış işlemini Çıkışlar sayfasında yapın ya da çıkış tarihini buradan değiştirin.",
+      notArrivedLate: "Gelmedi · {days} gün gecikti",
+      lateNote:
+        "{date} tarihinde gelmesi bekleniyordu ve giriş yapmadı. Girişler sayfasından giriş yaptırın ya da rezervasyonu Rezervasyonlar sayfasında gelmedi olarak işaretleyin.",
+      didNotArriveNote:
+        "Bu geceler için kimse giriş yapmadı, bu yüzden oda tutulmuyor. Rezervasyon, gelmedi olarak işaretlenene ya da iptal edilene kadar Rezervasyonlar listesinde kalır.",
+      wasDueToArrive: "Planlanan geliş",
       arrives: "Geliş",
       arrived: "Geldi",
       inRoomSince: "Bu odada şu tarihten beri",
@@ -7492,7 +7514,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureSummary:
       "Extend or shorten the stay. A Guest's extra nights are charged at the booking's own price; leaving today is a check-out.",
     changeDepartureOverdue:
-      "This Guest is {count, plural, one {# day} other {# days}} past {date}. Pick the day they now leave. The nights since then are charged at the booking's price, at the close or at check-out.",
+      "This Guest is {count, plural, one {# day} other {# days}} past {date}. Tomorrow is filled in as the day they now leave; change it if they stay longer. The nights since then are charged at the booking's price, at the close or at check-out.",
     extendUnpricedWarning:
       "This booking has no price, so the nights an extension adds will not be charged.",
     changeDepartureLonger:
@@ -7839,6 +7861,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       barLabelOverdue:
         "{guest}, in house and overdue, arrived {from}, was due to leave {to}, still in the room tonight",
       barOverdueCard: "Overdue · in the room through tonight (was due {to})",
+      barLabelLate:
+        "{guest}, {status}, has not arrived: was due {from}, leaves {to}",
+      barLabelGone:
+        "{guest}, did not arrive: was due {from}, nights ended {to}",
+      barLateCard: "Not arrived · was due {from}",
+      barGoneCard: "Did not arrive · was due {from}, nights ended",
+      openBooking: "Open this booking in Reservations",
       noGuestRecorded: "No Guest recorded",
       noEndDate: "No end date",
       refreshFailed:
@@ -7874,7 +7903,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       blockedNote:
         "This room is out of use ({reason}), so its check-in will be refused until it is released.",
       overdueNote:
-        "Still in the room: {days, plural, one {# day} other {# days}} past their date of {date}. Check them out, or change their departure.",
+        "Still in the room: {days, plural, one {# day} other {# days}} past their date of {date}. Check them out in Departures, or change their departure here.",
+      notArrivedLate:
+        "Not arrived · {days, plural, one {# day} other {# days}} late",
+      lateNote:
+        "Due to arrive on {date} and not checked in. Check them in from Arrivals, or mark the booking a no-show in Reservations.",
+      didNotArriveNote:
+        "Nobody checked in for these nights, so the room is not held. The booking stays on the Reservations list until it is marked a no-show or cancelled.",
+      wasDueToArrive: "Was due to arrive",
       arrives: "Arrives",
       arrived: "Arrived",
       inRoomSince: "In this room since",
@@ -11040,7 +11076,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureSummary:
       "مدّد الإقامة أو قصّرها. تُحتسب ليالي الضيف الإضافية بسعر الحجز نفسه؛ والمغادرة اليوم تسجيل مغادرة.",
     changeDepartureOverdue:
-      "تجاوز هذا الضيف موعد {date} بـ{count, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}. اختر اليوم الذي سيغادر فيه الآن. تُحتسب الليالي منذ ذلك الحين بسعر الحجز عند الإغلاق أو عند المغادرة.",
+      "تجاوز هذا الضيف موعد {date} بـ{count, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}. عُبّئ الغد كيوم مغادرته الآن؛ غيّره إن كان سيبقى أطول. تُحتسب الليالي منذ ذلك الحين بسعر الحجز عند الإغلاق أو عند المغادرة.",
     extendUnpricedWarning:
       "هذا الحجز بلا سعر، لذا لن تُحتسب الليالي التي يضيفها التمديد.",
     changeDepartureLonger:
@@ -11378,6 +11414,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       barLabelOverdue:
         "{guest}، متأخر، وصل {from}، كان موعد مغادرته {to}، ما زال في الغرفة الليلة",
       barOverdueCard: "متأخر · في الغرفة حتى الليلة (كان موعد مغادرته {to})",
+      barLabelLate:
+        "{guest}، {status}، لم يصل بعد: كان موعد وصوله {from}، وتغادر في {to}",
+      barLabelGone:
+        "{guest}، لم يصل: كان موعد وصوله {from}، وانتهت الليالي في {to}",
+      barLateCard: "لم يصل · كان موعد وصوله {from}",
+      barGoneCard: "لم يصل · كان موعد وصوله {from}، وانتهت الليالي",
+      openBooking: "فتح هذا الحجز في صفحة الحجوزات",
       noGuestRecorded: "لا ضيف مسجّل",
       noEndDate: "بلا تاريخ انتهاء",
       refreshFailed: "تعذّر التحديث. يُعرض التقويم كما كان في {time}.",
@@ -11409,7 +11452,14 @@ export const messages: Record<SupportedLocale, Messages> = {
       blockedNote:
         "هذه الغرفة خارج الاستخدام ({reason})، لذا سيُرفض تسجيل الوصول حتى تُحرَّر.",
       overdueNote:
-        "ما زال في الغرفة: مرّ {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} على موعد {date}. سجّل مغادرته أو غيّر موعد المغادرة.",
+        "ما زال في الغرفة: مرّ {days, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}} على موعد {date}. سجّل مغادرته من صفحة المغادرة، أو غيّر موعد المغادرة من هنا.",
+      notArrivedLate:
+        "لم يصل · متأخر {days, plural, one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
+      lateNote:
+        "كان موعد وصوله {date} ولم يسجّل دخوله. سجّل دخوله من صفحة الوصول، أو سجّل الحجز «عدم حضور» من صفحة الحجوزات.",
+      didNotArriveNote:
+        "لم يسجّل أحد دخوله في هذه الليالي، لذا لا تُحجز الغرفة. يبقى الحجز في قائمة الحجوزات حتى يُسجَّل «عدم حضور» أو يُلغى.",
+      wasDueToArrive: "كان موعد وصوله",
       arrives: "الوصول",
       arrived: "وصل",
       inRoomSince: "في هذه الغرفة منذ",

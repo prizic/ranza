@@ -200,15 +200,17 @@ export function ChangeDepartureDialog({
         if (pinnedRef.current === null && !stale) {
           pinnedRef.current = fresh.version;
           setPinned({ version: fresh.version, endsOn: fresh.endsOn });
-          // A Guest past their departure is asked for the day they now leave:
-          // the field does not open on a date already in the past, where Save
-          // could never be pressed and nothing said why (ROOMCAL-04).
+          // A Guest past their departure is offered the next day, which the
+          // price line then confirms: the field does not open on a date
+          // already in the past, where Save could never be pressed, nor
+          // empty, where the desk must open a picker first (ROOMCAL-04,
+          // CALENDAR-05).
           if (
             fresh.endsOn !== null &&
             overdueDays(fresh.endsOn, fresh.today) > 0
           ) {
             setOverdueSince(fresh.endsOn);
-            setEndsOn(undefined);
+            setEndsOn(tomorrowOf(fresh.today));
             setResets((n) => n + 1);
           }
         }
