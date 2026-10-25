@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { BedDouble, Building2, CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
 import {
   isSupportedLocale,
   localizeHref,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { buttonVariants, LanguageSwitcher, SplitAuthLayout } from "@ranza/ui";
+import { buttonVariants } from "@ranza/ui";
 import { getTranslations } from "next-intl/server";
+import { PortalAuthFrame } from "./auth-frame";
 
 type Params = { params: Promise<{ locale: string }> };
 
@@ -23,35 +23,29 @@ export async function helpMetadata({ params }: Params): Promise<Metadata> {
  * email needs mail to be sent, and nothing sends any, so rather than a bare
  * 404 the page says who can help: the front desk, who set the account up
  * (GP-01).
+ *
+ * One component for two routes, so the language menu is told which one it is
+ * on and what the address carries: a reset link's token survives a change of
+ * language instead of being dropped by a link to the other route (PORTAL-07).
+ * The query is encoded, so a `{locale}` inside a value cannot be mistaken for
+ * the placeholder.
  */
-export async function Help({ locale }: { locale: SupportedLocale }) {
+export async function Help({
+  locale,
+  query,
+  route,
+}: {
+  locale: SupportedLocale;
+  query?: URLSearchParams;
+  route: "forgot-password" | "reset-password";
+}) {
   const t = await getTranslations();
-  const services = (
-    [
-      [BedDouble, t("serviceRoom")],
-      [Building2, t("serviceProperty")],
-      [CalendarDays, t("serviceDates")],
-    ] as const
-  ).map(([Icon, label]) => ({
-    icon: <Icon aria-hidden="true" strokeWidth={1.25} />,
-    label,
-  }));
+  const carried = query?.toString();
 
   return (
-    <SplitAuthLayout
-      languageSwitcher={
-        <LanguageSwitcher
-          currentLocale={locale}
-          hrefPattern="/{locale}/forgot-password"
-          label={t("languageLabel")}
-          variant="pill"
-        />
-      }
-      productBadge={t("portalBadge")}
-      productName={t("productName")}
-      services={services}
-      slogan={t("authSlogan")}
-      subSlogan={t("authSubSlogan")}
+    <PortalAuthFrame
+      languageHref={`/{locale}/${route}${carried ? `?${carried}` : ""}`}
+      locale={locale}
       subtitle={t("helpBody")}
       title={t("helpTitle")}
     >
@@ -63,6 +57,6 @@ export async function Help({ locale }: { locale: SupportedLocale }) {
       >
         {t("backToSignIn")}
       </Link>
-    </SplitAuthLayout>
+    </PortalAuthFrame>
   );
 }

@@ -77,7 +77,7 @@ export default async function PortalLayout({
                 email={viewer.email}
                 label={t("account")}
                 locale={locale}
-                name={viewer.email}
+                name={viewer.name}
                 variant="compact"
               />
             </>
@@ -106,7 +106,7 @@ export default async function PortalLayout({
               email={viewer.email}
               label={t("account")}
               locale={locale}
-              name={viewer.email}
+              name={viewer.name}
             />
           }
           labels={{

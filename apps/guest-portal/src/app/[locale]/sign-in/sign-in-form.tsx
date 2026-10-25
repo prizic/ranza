@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -128,13 +127,7 @@ async function post(url: string, body: unknown): Promise<Response | null> {
  * and signs in here would otherwise meet a form that succeeds and hands back
  * no session.
  */
-export function SignInForm({
-  redirectTo,
-  forgotHref,
-}: {
-  redirectTo: string;
-  forgotHref: string;
-}) {
+export function SignInForm({ redirectTo }: { redirectTo: string }) {
   const t = useTranslations();
   const router = useRouter();
   const emailField = useRef<HTMLInputElement>(null);
@@ -312,15 +305,9 @@ export function SignInForm({
       <Button className={`mt-2 ${SUBMIT}`} disabled={pending} type="submit">
         {pending ? t("signingIn") : t("signIn")}
       </Button>
-      <div className="grid gap-2 text-center text-sm">
-        <Link
-          className="font-medium text-primary underline-offset-4 hover:underline"
-          href={forgotHref}
-        >
-          {t("forgotPassword")}
-        </Link>
-        <p className="text-muted-foreground">{t("signInHelp")}</p>
-      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        {t("signInHelp")}
+      </p>
     </form>
   );
 }

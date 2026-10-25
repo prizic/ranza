@@ -6,6 +6,7 @@ import type { StayBrand } from "@ranza/branding";
 import type { OwnStay } from "@ranza/stays";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
+import { displayName } from "./display-name";
 
 /**
  * The Portal's funnel from a request to tenant data (ADR 0007).
@@ -33,6 +34,8 @@ export interface Viewer {
   /** Ranza user id — what app.current_user_id() returns. Never a subject. */
   userId: string;
   email: string;
+  /** What the account menu calls them; never the whole address. */
+  name: string;
 }
 
 /**
@@ -58,7 +61,11 @@ export const currentViewer = cache(async (): Promise<Viewer | null> => {
     subject: session.user.id,
     email: session.user.email,
   });
-  return { userId, email: session.user.email };
+  return {
+    userId,
+    email: session.user.email,
+    name: displayName(session.user.name, session.user.email),
+  };
 });
 
 /** Sends an unauthenticated visitor to sign in rather than to an empty page. */

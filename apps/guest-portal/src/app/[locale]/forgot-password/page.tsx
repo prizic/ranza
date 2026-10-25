@@ -13,5 +13,5 @@ export default async function ForgotPasswordPage({
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
-  return <Help locale={locale} />;
+  return <Help locale={locale} route="forgot-password" />;
 }

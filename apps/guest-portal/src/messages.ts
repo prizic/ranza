@@ -31,7 +31,6 @@ export interface Messages {
   serviceProperty: string;
   serviceDates: string;
   signInHelp: string;
-  forgotPassword: string;
   helpTitle: string;
   helpBody: string;
   backToSignIn: string;
@@ -100,8 +99,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     serviceProperty: "Tesisiniz",
     serviceDates: "Giriş ve çıkış",
     signInHelp:
-      "Hesabınız yok ya da giriş yapamıyor musunuz? Tesisin resepsiyonuna danışın.",
-    forgotPassword: "Parolanızı mı unuttunuz?",
+      "Hesabınız yok ya da parolanızı mı unuttunuz? Tesisin resepsiyonuna danışın.",
     helpTitle: "Yeniden giriş yapma",
     helpBody:
       "Parolayı e-postayla sıfırlama henüz yok. Tesisin resepsiyonuna başvurun, oturum açmanıza yardımcı olurlar.",
@@ -176,8 +174,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     serviceProperty: "Your property",
     serviceDates: "Arrival and departure",
     signInHelp:
-      "No account, or can't sign in? Ask the front desk at your property.",
-    forgotPassword: "Forgot your password?",
+      "No account, or forgot your password? Ask the front desk at your property.",
     helpTitle: "Getting back in",
     helpBody:
       "Resetting a password by email is not available yet. Ask the front desk at your property and they will help you sign in.",
@@ -251,8 +248,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     serviceProperty: "منشأتك",
     serviceDates: "الوصول والمغادرة",
     signInHelp:
-      "ليس لديك حساب أو لا تستطيع الدخول؟ اطلب المساعدة من مكتب الاستقبال في منشأتك.",
-    forgotPassword: "نسيت كلمة المرور؟",
+      "ليس لديك حساب أو نسيت كلمة المرور؟ اطلب المساعدة من مكتب الاستقبال في منشأتك.",
     helpTitle: "العودة إلى حسابك",
     helpBody:
       "إعادة تعيين كلمة المرور عبر البريد الإلكتروني غير متاحة بعد. اطلب المساعدة من مكتب الاستقبال في منشأتك وسيساعدونك على تسجيل الدخول.",

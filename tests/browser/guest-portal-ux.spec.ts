@@ -27,13 +27,22 @@ test("a Guest who cannot sign in is told who can help, and the reset addresses a
 }) => {
   await page.goto(`${PORTAL_URL}/en/sign-in`);
   await expect(
-    page.getByText("No account, or can't sign in? Ask the front desk"),
+    page.getByText(
+      "No account, or forgot your password? Ask the front desk at your property.",
+    ),
   ).toBeVisible();
   await expect(page).toHaveTitle("Sign in · Ranza");
   await page.screenshot({ path: path.join(EVIDENCE, "sign-in-help.png") });
 
-  await page.getByRole("link", { name: "Forgot your password?" }).click();
-  await expect(page).toHaveURL(/\/en\/forgot-password$/);
+  for (const address of ["forgot-password", "reset-password"]) {
+    const response = await page.goto(`${PORTAL_URL}/ar/${address}`);
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByRole("link", { name: "العودة إلى تسجيل الدخول" }),
+    ).toBeVisible();
+  }
+
+  await page.goto(`${PORTAL_URL}/en/forgot-password`);
   await expect(
     page.getByRole("heading", { name: "Getting back in" }),
   ).toBeVisible();
@@ -43,14 +52,6 @@ test("a Guest who cannot sign in is told who can help, and the reset addresses a
   await expect(page).toHaveTitle("Getting back in · Ranza");
   await page.getByRole("link", { name: "Back to sign in" }).click();
   await expect(page).toHaveURL(/\/en\/sign-in$/);
-
-  for (const address of ["forgot-password", "reset-password"]) {
-    const response = await page.goto(`${PORTAL_URL}/ar/${address}`);
-    expect(response?.status()).toBe(200);
-    await expect(
-      page.getByRole("link", { name: "العودة إلى تسجيل الدخول" }),
-    ).toBeVisible();
-  }
 });
 
 test("a refused or empty sign-in says so in the page's language and puts focus back in the form", async ({
