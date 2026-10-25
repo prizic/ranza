@@ -195,31 +195,37 @@ function nightsBetween(from: string, to: string): number {
 
 type Translate = ReturnType<typeof useTranslations<never>>;
 
-/** What a row's cells need beyond the row itself. */
-interface ListContext {
+/** What the action cell needs beyond the row itself. */
+interface ActionContext {
   locale: SupportedLocale;
   propertyId: string;
   reach: FrontDeskReach;
+}
+
+/** What a row's cells need beyond the row itself. */
+interface ListContext extends ActionContext {
   /** Too narrow for the whole row: its details stack under the name. */
   narrow: boolean;
 }
 
-function useListContext(
+function useActionContext(
   locale: SupportedLocale,
   propertyId: string,
   reach: FrontDeskReach,
-  narrow: boolean,
-): ListContext {
+): ActionContext {
   const { rooms, folio, housekeeping, reservations } = reach;
   return useMemo(
     () => ({
       locale,
       propertyId,
-      narrow,
       reach: { rooms, folio, housekeeping, reservations },
     }),
-    [locale, propertyId, narrow, rooms, folio, housekeeping, reservations],
+    [locale, propertyId, rooms, folio, housekeeping, reservations],
   );
+}
+
+function useListContext(actions: ActionContext, narrow: boolean): ListContext {
+  return useMemo(() => ({ ...actions, narrow }), [actions, narrow]);
 }
 
 /**
@@ -272,8 +278,13 @@ export function useArrivalColumns(
 ): ColumnDef<ArrivalRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
-  const context = useListContext(locale, propertyId, reach, narrow);
-  return useMemo(() => arrivalColumns(t, sort, context), [t, sort, context]);
+  const actions = useActionContext(locale, propertyId, reach);
+  const context = useListContext(actions, narrow);
+  const action = useMemo(() => arrivalActionColumn(t, actions), [t, actions]);
+  return useMemo(
+    () => arrivalColumns(t, sort, context, action),
+    [t, sort, context, action],
+  );
 }
 
 /**
@@ -488,21 +499,18 @@ function ArrivalGuest({
   );
 }
 
-function arrivalColumns(
+/**
+ * The pinned action column, built apart from the columns that come and go with
+ * the row's width: a column definition that is the same object across a change
+ * of layout keeps its cells mounted, so a confirmation half given or a dialog
+ * open in a row survives the list stacking or unstacking.
+ */
+function arrivalActionColumn(
   t: Translate,
-  sort: ColumnHeaderLabels,
-  ctx: ListContext,
-): ColumnDef<ArrivalRow, unknown>[] {
+  ctx: ActionContext,
+): ColumnDef<ArrivalRow, unknown> {
   const { locale, propertyId, reach } = ctx;
-  const guest: ColumnDef<ArrivalRow, unknown> = {
-    accessorKey: "guestName",
-    meta: { title: t("guest") },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
-    ),
-    cell: ({ row }) => <ArrivalGuest arrival={row.original} ctx={ctx} />,
-  };
-  const action: ColumnDef<ArrivalRow, unknown> = {
+  return {
     id: "action",
     meta: { title: t("action"), pinEnd: true },
     enableHiding: false,
@@ -600,6 +608,23 @@ function arrivalColumns(
       );
     },
   };
+}
+
+function arrivalColumns(
+  t: Translate,
+  sort: ColumnHeaderLabels,
+  ctx: ListContext,
+  action: ColumnDef<ArrivalRow, unknown>,
+): ColumnDef<ArrivalRow, unknown>[] {
+  const { locale } = ctx;
+  const guest: ColumnDef<ArrivalRow, unknown> = {
+    accessorKey: "guestName",
+    meta: { title: t("guest") },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
+    ),
+    cell: ({ row }) => <ArrivalGuest arrival={row.original} ctx={ctx} />,
+  };
   if (ctx.narrow) return [guest, action];
   return [
     guest,
@@ -690,8 +715,13 @@ export function useDepartureColumns(
 ): ColumnDef<Departure, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
-  const context = useListContext(locale, propertyId, reach, narrow);
-  return useMemo(() => departureColumns(t, sort, context), [t, sort, context]);
+  const actions = useActionContext(locale, propertyId, reach);
+  const context = useListContext(actions, narrow);
+  const action = useMemo(() => departureActionColumn(t, actions), [t, actions]);
+  return useMemo(
+    () => departureColumns(t, sort, context, action),
+    [t, sort, context, action],
+  );
 }
 
 /** When they leave, and how late they are. */
@@ -841,21 +871,18 @@ function DepartureGuest({
   );
 }
 
-function departureColumns(
+/**
+ * The pinned action column, built apart from the columns that come and go with
+ * the row's width: a column definition that is the same object across a change
+ * of layout keeps its cells mounted, so a confirmation half given or a dialog
+ * open in a row survives the list stacking or unstacking.
+ */
+function departureActionColumn(
   t: Translate,
-  sort: ColumnHeaderLabels,
-  ctx: ListContext,
-): ColumnDef<Departure, unknown>[] {
+  ctx: ActionContext,
+): ColumnDef<Departure, unknown> {
   const { locale, propertyId, reach } = ctx;
-  const guest: ColumnDef<Departure, unknown> = {
-    accessorKey: "guestName",
-    meta: { title: t("guest") },
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
-    ),
-    cell: ({ row }) => <DepartureGuest ctx={ctx} departure={row.original} />,
-  };
-  const action: ColumnDef<Departure, unknown> = {
+  return {
     id: "action",
     meta: { title: t("action"), pinEnd: true },
     enableHiding: false,
@@ -905,6 +932,23 @@ function departureColumns(
         />
       </div>
     ),
+  };
+}
+
+function departureColumns(
+  t: Translate,
+  sort: ColumnHeaderLabels,
+  ctx: ListContext,
+  action: ColumnDef<Departure, unknown>,
+): ColumnDef<Departure, unknown>[] {
+  const { locale } = ctx;
+  const guest: ColumnDef<Departure, unknown> = {
+    accessorKey: "guestName",
+    meta: { title: t("guest") },
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} labels={sort} title={t("guest")} />
+    ),
+    cell: ({ row }) => <DepartureGuest ctx={ctx} departure={row.original} />,
   };
   if (ctx.narrow) return [guest, action];
   return [
