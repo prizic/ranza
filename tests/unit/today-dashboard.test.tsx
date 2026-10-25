@@ -337,7 +337,9 @@ describe("the folded attention row", () => {
     // the button.
     expect(links).toHaveLength(4);
     expect(within(section).getByText("Can't check in")).toBeInTheDocument();
-    expect(within(section).getByText("Leaving with a balance")).toBeInTheDocument();
+    expect(
+      within(section).getByText("Leaving with a balance"),
+    ).toBeInTheDocument();
     expect(
       within(section).getByRole("button", { name: "6 more" }),
     ).toBeInTheDocument();

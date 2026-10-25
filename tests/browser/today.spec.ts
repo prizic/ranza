@@ -627,7 +627,11 @@ test.describe("every number on Today opens the list that explains it", () => {
     await openToday(page);
     const { owing, openFolios } = day.expected;
 
-    const owed = figure(page, "departures", "Owed by Guests leaving or overdue");
+    const owed = figure(
+      page,
+      "departures",
+      "Owed by Guests leaving or overdue",
+    );
     const owedText = await owed.innerText();
     expect(integers(owedText).at(-1)).toBe(owing.guests);
     expect(owedText).toContain("255");
