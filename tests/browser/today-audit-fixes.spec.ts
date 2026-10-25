@@ -3,7 +3,12 @@ import { mkdirSync } from "node:fs";
 
 import { anArrivalToday, signIn } from "./front-desk";
 import { psql } from "./local-database";
-import { anAuditDay, type AuditDay } from "./today-audit-day";
+import {
+  anAuditDay,
+  EARLY_IN_THE_DAY,
+  LATE_IN_THE_DAY,
+  type AuditDay,
+} from "./today-audit-day";
 import {
   layoutCookieName,
   type TodayLayout,
@@ -238,7 +243,10 @@ test.describe("the arrivals the desk still has to do", () => {
     );
     await expect(flow.getByText("On time", { exact: true })).toHaveCount(0);
 
-    anArrivalToday(audit.day.propertyId, "13:00");
+    // One time that has certainly passed and one that has not, whatever the hour
+    // the suite runs at: the line must draw both, at either edge of the day.
+    anArrivalToday(audit.day.propertyId, EARLY_IN_THE_DAY);
+    anArrivalToday(audit.day.propertyId, LATE_IN_THE_DAY);
     await page.reload();
     await expect(flow.getByRole("button", { name: "Whole day" })).toBeVisible();
     // The "Now" pill and the hour labels are on rows of their own.

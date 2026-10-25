@@ -169,9 +169,15 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
 
 function view(
   value: TodaySummary,
-  options: { layout?: TodayLayout; locale?: SupportedLocale } = {},
+  options: {
+    layout?: TodayLayout;
+    locale?: SupportedLocale;
+    nowMs?: number;
+  } = {},
 ) {
   const locale = options.locale ?? "en";
+  const nowMs = options.nowMs ?? NOW;
+  vi.setSystemTime(nowMs);
   const prefetched = requestQueryClient();
   prefetched.setQueryData(todayKeys.summary(SCOPE), value);
   return render(
@@ -184,7 +190,7 @@ function view(
             initialLayout={options.layout ?? "timeline"}
             locale={locale}
             name="Selin"
-            nowMs={NOW}
+            nowMs={nowMs}
             properties={[]}
             scope={SCOPE}
           />
@@ -527,6 +533,33 @@ describe("the timeline", () => {
     expect(
       screen.getByRole("button", { name: "Whole day", pressed: true }),
     ).toBeInTheDocument();
+  });
+
+  it("the_whole_day_starts_at_midnight_so_an_early_flight_still_to_come_is_on_the_line", () => {
+    // 04:15 at the Property: a Guest due at 05:00 has not come and is not late.
+    const earlyMorning = Date.UTC(2026, 9, 19, 1, 15);
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("the fixture has a desk");
+    view(
+      {
+        ...base,
+        desk: {
+          ...base.desk,
+          data: {
+            ...base.desk.data,
+            arrivals: [arrival("Early", "207", "05:00")],
+          },
+        },
+      },
+      { nowMs: earlyMorning },
+    );
+    const flow = screen.getByRole("region", { name: "Today's flow" });
+    fireEvent.click(within(flow).getByRole("button", { name: "Whole day" }));
+    // A row under "Still to arrive" and a chip on the line, not "1 more outside this window".
+    expect(within(flow).getAllByText("Early")).toHaveLength(2);
+    expect(
+      within(flow).queryByRole("button", { name: /outside this window/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("the_plan_lists_arrivals_and_rooms_and_leaves_the_departures_to_the_list_above", () => {

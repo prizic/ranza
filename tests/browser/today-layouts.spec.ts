@@ -13,6 +13,7 @@ import {
   type TodayLayout,
 } from "../../apps/operator-workspace/src/features/today/layouts/model";
 import { psql } from "./local-database";
+import { EARLY_IN_THE_DAY, LATE_IN_THE_DAY } from "./today-audit-day";
 
 /**
  * The desk layouts of Today in a browser (docs/features/today-layouts).
@@ -115,33 +116,46 @@ test("one Staff Member's choice is not another's on the same browser", async ({
   );
 });
 
-test("an arrival with an expected time reaches the timeline, the map and the queue", async ({
+test("an arrival with an expected time reaches the timeline, the map and the queue, early or late in the day", async ({
   page,
 }) => {
   const propertyId = testProperty();
-  const guest = anArrivalToday(propertyId, "05:00");
+  // One time that is certainly past and one that is certainly to come, so the
+  // line draws a late arrival and a coming one whatever hour this runs at.
+  const early = anArrivalToday(propertyId, EARLY_IN_THE_DAY);
+  const late = anArrivalToday(propertyId, LATE_IN_THE_DAY);
 
   await signIn(page, DESK_EMAIL, "timeline");
   await page.goto(`/en/today?property=${propertyId}`);
   const flow = page.getByRole("region", { name: HEADING.timeline });
   await page.getByRole("button", { name: "Whole day" }).click();
-  // Twice: a row under "Still to arrive" with its command, and a chip on the line.
-  await expect(flow.getByText(guest)).toHaveCount(2);
-  await expect(
-    flow.getByRole("region", { name: "Still to arrive" }).getByText(guest),
-  ).toBeVisible();
-  // Beside the guest's name, not the hour on the axis that shares it.
-  await expect(
-    flow.locator("div", { hasText: guest }).getByText("05:00").first(),
-  ).toBeVisible();
+  // The rows are folded at six, and other specs leave arrivals at this Property.
+  const arrivals = flow.getByRole("region", { name: "Still to arrive" });
+  const more = arrivals.getByRole("button", { name: /^Show \d+ more$/ });
+  if (await more.count()) await more.click();
+  for (const [guest, time] of [
+    [early, EARLY_IN_THE_DAY],
+    [late, LATE_IN_THE_DAY],
+  ]) {
+    // Twice: a row under "Still to arrive" with its command, and a chip on the line.
+    await expect(flow.getByText(guest)).toHaveCount(2);
+    await expect(arrivals.getByText(guest)).toBeVisible();
+    // Beside the guest's name, not the hour on the axis.
+    await expect(
+      flow.locator("div", { hasText: guest }).getByText(time).first(),
+    ).toBeVisible();
+  }
 
   await chooseLayout(page, DESK_EMAIL, "house");
   await page.goto(`/en/today?property=${propertyId}`);
   await expect(page.getByRole("region", { name: HEADING.house })).toBeVisible();
-  // The room's tile and the guest's row in the list beside it.
-  await expect(
-    page.getByRole("button", { name: new RegExp(guest) }),
-  ).toHaveCount(2);
+  // The room's tile and the guest's row in the list beside it; the Check in
+  // command of whichever arrival is chosen first is not one of them.
+  for (const guest of [early, late]) {
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^(?!Check in).*${guest}`) }),
+    ).toHaveCount(2);
+  }
 });
 
 test("every layout fits a phone and never scrolls sideways", async ({

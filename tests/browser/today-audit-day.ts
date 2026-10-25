@@ -32,6 +32,16 @@ export interface AuditDay {
   arrivalsHoldingTonight: number;
 }
 
+/**
+ * Expected arrival times that are on opposite sides of "now" at any hour the
+ * suite can run at, and at either edge of the day, so a spec that draws an
+ * arrival on the line sees one that is late and one that is still to come
+ * without reading the clock (CI ran at 04:15 on the Property's clock, a
+ * developer at 03:00 and 15:00; a time such as 05:00 was one or the other).
+ */
+export const EARLY_IN_THE_DAY = "00:05";
+export const LATE_IN_THE_DAY = "23:55";
+
 const EXTRA_OVERDUE = 6;
 const UNCLOSED_DAYS = 10;
 

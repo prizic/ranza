@@ -44,11 +44,15 @@ import {
 
 type Range = "next" | "day";
 
-/** Window of the day shown: an hour back and five ahead, or the working day. */
+/**
+ * Window of the day shown: an hour back and five ahead, or the whole day. An
+ * early flight lands at 05:00, so "whole" starts at midnight; a window that began
+ * at 06:00 counted that arrival as "outside" with no way to show it.
+ */
 function windowFor(range: Range, nowMinutes: number) {
   return range === "next"
     ? { from: nowMinutes - 60, to: nowMinutes + 240 }
-    : { from: 6 * 60, to: 24 * 60 };
+    : { from: 0, to: 24 * 60 };
 }
 
 const CHIP_WIDTH = 208;
@@ -304,7 +308,13 @@ function FlowPanel({
     });
 
   const hours: number[] = [];
-  for (let h = Math.ceil(window.from / 60); h * 60 <= window.to; h += 1) {
+  // A day is 24 labels across one lane, too close to read: every second hour.
+  const hourStep = window.to - window.from > 12 * 60 ? 2 : 1;
+  for (
+    let h = Math.ceil(window.from / 60);
+    h * 60 <= window.to;
+    h += hourStep
+  ) {
     hours.push(h * 60);
   }
   const laneHeight = Math.max(1, rows.length) * ROW_HEIGHT + 24;
