@@ -254,10 +254,11 @@ describe("which gate stopped them", () => {
       }),
     ).toEqual({ reason: "no_permission", permission: "integrations.view" });
     // Somebody holding neither is told the first, which is the one that opens
-    // the screen to look.
+    // the screen to look, and every one that would have opened it (CALENDAR-18).
     expect(await core.explainDenial(DESK, eitherWay)).toEqual({
       reason: "no_permission",
       permission: "integrations.view",
+      anyOf: ["integrations.view", "integrations.manage"],
     });
   });
 

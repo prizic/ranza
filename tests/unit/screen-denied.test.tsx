@@ -120,6 +120,48 @@ describe("a closed destination", () => {
     });
   }
 
+  const FRONT_DESK_WORK = [
+    "front_desk.book",
+    "front_desk.check_in",
+    "front_desk.check_out",
+    "front_desk.cancel",
+    "front_desk.amend",
+  ];
+
+  for (const locale of LOCALES) {
+    it(`CALENDAR-18: ${locale} a page any of several permissions opens names them all, not the first`, () => {
+      show(locale, {
+        reason: "no_permission",
+        permission: "front_desk.book",
+        anyOf: FRONT_DESK_WORK,
+      });
+      const { permissions } = messages[locale].staff;
+      const sentence = screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent?.includes(permissions.book) === true,
+      ).textContent;
+      for (const key of [
+        "book",
+        "checkIn",
+        "checkOut",
+        "cancel",
+        "amend",
+      ] as const) {
+        expect(sentence, key).toContain(permissions[key]);
+      }
+      expect(sentence).not.toMatch(/[{}]/);
+      expect(
+        screen.getByRole("link", { name: messages[locale].denied.goToToday }),
+      ).toHaveAttribute("href", `/${locale}/today`);
+    });
+  }
+
+  it("CALENDAR-18: a page one permission opens still names that one alone", () => {
+    show("en", { reason: "no_permission", permission: "hr.view" });
+    expect(screen.queryByText(/holds any of/)).toBeNull();
+  });
+
   it("SHELL-04: sends a refused role to whoever manages staff, not to a fixed role", () => {
     show("en", { reason: "no_permission", permission: "branding.manage" });
     expect(

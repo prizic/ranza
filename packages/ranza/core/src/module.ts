@@ -387,8 +387,13 @@ export function createCoreModule(deps: CoreDeps) {
     if (!row.subscribed) return { reason: "not_subscribed" };
     if (!row.enabled) return { reason: "not_enabled" };
     if (!row.permitted && permissions[0] !== undefined) {
-      // Named by the first, which is the one that opens the screen to look.
-      return { reason: "no_permission", permission: permissions[0] };
+      // Named by the first, which is the one that opens the screen to look;
+      // a screen that any of several opens says so, and lists them.
+      return {
+        reason: "no_permission",
+        permission: permissions[0],
+        ...(permissions.length > 1 ? { anyOf: permissions } : {}),
+      };
     }
     return { reason: "open" };
   }

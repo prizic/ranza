@@ -124,13 +124,18 @@ export interface BillingNotice {
  * of those, so a Property that exists is not distinguishable from one that does
  * not. `open` is the answer when nothing denies, which a page that refused
  * moments ago can still be told if a gate changed in between.
+ *
+ * `no_permission` names the first permission that opens the screen. A screen
+ * that opens for any one of several also lists them all in `anyOf`, because
+ * naming one of five tells a person to ask for a permission that is the wrong
+ * one for their job (CALENDAR-18).
  */
 export type Denial =
   | { reason: "no_property" }
   | { reason: "not_reachable" }
   | { reason: "not_subscribed" }
   | { reason: "not_enabled" }
-  | { reason: "no_permission"; permission: string }
+  | { reason: "no_permission"; permission: string; anyOf?: readonly string[] }
   | { reason: "open" };
 
 /** What a destination asks of a Property and of the person, as `listPermittedProperties` does. */

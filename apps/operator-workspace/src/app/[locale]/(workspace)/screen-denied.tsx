@@ -47,8 +47,9 @@ export function ScreenRefusal({
 /**
  * What a destination says to a viewer it will not open for, in the words of the
  * gate that stopped them: not in the Subscription, not switched on at this
- * Property, not in the role (naming the page, the permission and who can give
- * it), or a `?property=` that is not one they reach.
+ * Property, not in the role (naming the page, the permission or all of them
+ * when any one opens the page, and who can give it), or a `?property=` that is
+ * not one they reach.
  *
  * One refusal for all of those said "This module is not in your Subscription"
  * to a Front desk Staff Member whose Organization had bought it — a remedy that
@@ -105,13 +106,30 @@ export function ScreenDenied({
         />
       );
     case "no_permission": {
-      const key = asPermission(denial.permission);
+      const named = (permission: string) => {
+        const key = asPermission(permission);
+        return key ? t(`staff.permissions.${key}`) : permission;
+      };
+      const pageName = page ?? t("denied.thisPage");
+      const description = denial.anyOf
+        ? t("denied.noPermissionAnyDescription", {
+            page: pageName,
+            permissions: new Intl.ListFormat(locale, {
+              style: "long",
+              type: "conjunction",
+            }).format(
+              denial.anyOf.map((permission) =>
+                t("denied.permissionQuoted", { name: named(permission) }),
+              ),
+            ),
+          })
+        : t("denied.noPermissionDescription", {
+            page: pageName,
+            permission: named(denial.permission),
+          });
       return (
         <ScreenRefusal
-          description={t("denied.noPermissionDescription", {
-            page: page ?? t("denied.thisPage"),
-            permission: key ? t(`staff.permissions.${key}`) : denial.permission,
-          })}
+          description={description}
           locale={locale}
           title={t("denied.noPermissionTitle")}
         />

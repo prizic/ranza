@@ -3079,6 +3079,10 @@ export interface Messages {
     openDescription: string;
     goToToday: string;
     /** Names the page in a refusal when the route does not. */
+    /** A page that any one of several permissions opens: `{permissions}` lists them all. */
+    noPermissionAnyDescription: string;
+    /** One permission's name set off from the sentence around it. */
+    permissionQuoted: string;
     thisPage: string;
   };
   /** An address that is no page, inside the shell (SHELL-03). */
@@ -6731,6 +6735,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       goToToday: "Bugün'e git",
       thisPage: "Bu sayfa",
     },
+      noPermissionAnyDescription:
+        "{page}, {permissions} yetkilerinden herhangi birine sahip bir rol için açılır; rolünüzde bunların hiçbiri yok. Gerekiyorsa Organizasyonunuzda personeli yöneten kişiden rolünüze bunlardan birini eklemesini isteyin.",
+      permissionQuoted: "“{name}”",
     notFound: {
       pageTitle: "Sayfa bulunamadı",
       title: "Böyle bir sayfa yok",
@@ -10355,6 +10362,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     notFound: {
       pageTitle: "Page not found",
       title: "That page doesn't exist",
+      noPermissionAnyDescription:
+        "{page} opens for a role that holds any of {permissions}, and yours holds none of them. If you need it, ask whoever manages staff in your Organization to add one to your role.",
+      permissionQuoted: "“{name}”",
       description:
         "The address doesn't lead to a page. Check it for a typing mistake, or go back to Today.",
     },
@@ -13910,6 +13920,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       title: "هذه الصفحة غير موجودة",
       description:
         "هذا العنوان لا يؤدي إلى صفحة. تحقّق من وجود خطأ في الكتابة، أو ارجع إلى اليوم.",
+      noPermissionAnyDescription:
+        "تُفتح {page} للدور الذي يملك أيًّا من {permissions}، ودورك لا يملك أيًّا منها. إن احتجت إليها فاطلب ممن يدير الموظفين في مؤسستك أن يضيف إحداها إلى دورك.",
+      permissionQuoted: "«{name}»",
     },
     sessionEnded: {
       title: "انتهت جلستك",
