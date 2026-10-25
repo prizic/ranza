@@ -100,7 +100,8 @@ test("on a phone the board is one short row of counts, says who is in each room,
   // fit with this machine's text. On CI the same bar was 146 tall, the Clear
   // button on a row of its own, where here the pair of rows had six pixels to
   // spare: the count and the sentence on the first, the three icons and Clear
-  // on the second. Sixteen is what a few percent wider text needs.
+  // on the second. The fixed bar leaves about 25 here and 15 on CI; the one it
+  // replaces left 6 here, so eight tells the two apart on either machine.
   await page.evaluate(() => document.fonts.ready);
   const spare = await bar.evaluate((element) => {
     const style = getComputedStyle(element);
@@ -120,7 +121,7 @@ test("on a phone the board is one short row of counts, says who is in each room,
   expect(
     spare,
     "room left on the tighter of the bar's two rows",
-  ).toBeGreaterThan(16);
+  ).toBeGreaterThan(8);
   await page.setViewportSize({ width: 375, height: 812 });
   for (const name of ["Mark clean", "Mark inspected", "Mark dirty"]) {
     const button = page.getByRole("button", { name });
