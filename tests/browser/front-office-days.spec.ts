@@ -34,6 +34,16 @@ function aGuestWithALongName(propertyId: string): string {
   return name;
 }
 
+/**
+ * Typed from a blank page, as an address is. Left from Today, the request makes
+ * the development server compile, Today's Fast Refresh client hears it and
+ * navigates Today again, and that cancels this navigation with ERR_ABORTED.
+ */
+async function openPage(page: Page, address: string): Promise<void> {
+  await page.goto("about:blank");
+  await page.goto(address);
+}
+
 /** Whether the table asks for more room than the box it is drawn in has. */
 async function tableOverflows(page: Page): Promise<boolean> {
   return page.evaluate(() => {
@@ -60,7 +70,7 @@ test.describe("Departures, in English", () => {
 
     for (const width of [1440, 1200, 768, 375]) {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`/en/departures?property=${propertyId}`);
+      await openPage(page, `/en/departures?property=${propertyId}`);
       await expect(page.getByRole("table")).toBeVisible();
       await expect(
         page.getByText(/TRY\s?45,000/).first(),
@@ -80,7 +90,7 @@ test.describe("Departures, in English", () => {
     const propertyId = aDeskProperty();
     anOverdueGuest(propertyId, { daysOverdue: 2, withFolio: true });
     await signIn(page);
-    await page.goto(`/en/departures?property=${propertyId}`);
+    await openPage(page, `/en/departures?property=${propertyId}`);
 
     const filters = page.getByRole("navigation", {
       name: "Departure filters",
@@ -118,7 +128,7 @@ test.describe("Departures, in English", () => {
       withFolio: true,
     });
     await signIn(page);
-    await page.goto(`/en/departures?property=${propertyId}`);
+    await openPage(page, `/en/departures?property=${propertyId}`);
     const row = await rowOf(page, guest.guestName);
     await row.getByRole("button", { name: /^Check .* out$/ }).click();
 
@@ -148,7 +158,7 @@ test.describe("Departures, in English", () => {
       withFolio: true,
     });
     await signIn(page);
-    await page.goto(`/en/departures?property=${propertyId}`);
+    await openPage(page, `/en/departures?property=${propertyId}`);
     const row = await rowOf(page, guest.guestName);
     await row.getByRole("button", { name: /^Check .* out$/ }).click();
 
@@ -187,7 +197,7 @@ test.describe("Departures, in English", () => {
       withFolio: true,
     });
     await signIn(page);
-    await page.goto(`/en/departures?property=${propertyId}`);
+    await openPage(page, `/en/departures?property=${propertyId}`);
     const row = await rowOf(page, first.guestName);
     await row.getByRole("button", { name: /^Check .* out$/ }).click();
     const dialog = page.getByRole("dialog");
@@ -219,7 +229,7 @@ test.describe("Departures, in English", () => {
       "finance",
     );
     await signIn(page, finance.email);
-    await page.goto(`/en/departures?property=${propertyId}&view=in_house`);
+    await openPage(page, `/en/departures?property=${propertyId}&view=in_house`);
     const row = await rowOf(page, guest.guestName);
     await expect(
       row.locator('a[href*="/finance?"][href*="folio="]'),
@@ -245,7 +255,7 @@ test.describe("Arrivals, in English", () => {
       label: "Missed",
     });
     await signIn(page);
-    await page.goto(`/en/arrivals?property=${propertyId}`);
+    await openPage(page, `/en/arrivals?property=${propertyId}`);
     const row = await rowOf(page, missed.guestName);
     await expect(row.getByText(/Did not arrive · 13 days/)).toHaveCount(1);
     await expect(row.getByText(/Was due to arrive/)).toBeVisible();
@@ -266,7 +276,7 @@ test.describe("Arrivals, in English", () => {
     const propertyId = aDeskProperty();
     const booking = aBooking(propertyId, { startsIn: 0, nights: 2 });
     await signIn(page);
-    await page.goto(`/en/arrivals?property=${propertyId}`);
+    await openPage(page, `/en/arrivals?property=${propertyId}`);
     const row = await rowOf(page, booking.guestName);
     await row.getByRole("button", { name: /More actions for/ }).click();
     await page.getByRole("menuitem", { name: "Open reservation" }).click();
@@ -284,7 +294,7 @@ test.describe("Close the day, in English", () => {
     const propertyId = aDeskProperty();
     aBacklog(propertyId, 3);
     await signIn(page);
-    await page.goto(`/en/close-day?property=${propertyId}`);
+    await openPage(page, `/en/close-day?property=${propertyId}`);
     await page
       .getByRole("button", { name: /^Close/ })
       .first()
@@ -314,7 +324,7 @@ test.describe("Close the day, in English", () => {
     const propertyId = aDeskProperty();
     aBacklog(propertyId, 4);
     await signIn(page);
-    await page.goto(`/en/close-day?property=${propertyId}`);
+    await openPage(page, `/en/close-day?property=${propertyId}`);
     await expect(page.getByRole("button", { name: /^Close all/ })).toHaveCount(
       1,
     );
@@ -333,7 +343,7 @@ test.describe("Close the day, in English", () => {
     anOverdueGuest(propertyId, { daysOverdue: 1, withFolio: true });
     aBacklog(propertyId, 6);
     await signIn(page);
-    await page.goto(`/en/close-day?property=${propertyId}`);
+    await openPage(page, `/en/close-day?property=${propertyId}`);
     await expect(page.getByRole("heading", { level: 2 }).first()).toBeVisible();
     // Different things hold different days open, so there is no Close all and
     // nothing for "only" to be an alternative to.
@@ -359,7 +369,7 @@ test.describe("In Arabic", () => {
       withFolio: true,
     });
     await signIn(page);
-    await page.goto(`/ar/departures?property=${propertyId}`);
+    await openPage(page, `/ar/departures?property=${propertyId}`);
     await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
     const filters = page.getByRole("navigation", { name: "مرشحات المغادرة" });
     await expect(filters.getByRole("link")).toHaveCount(4);
@@ -383,7 +393,7 @@ test.describe("In Arabic", () => {
       label: "Missed",
     });
     await signIn(page);
-    await page.goto(`/ar/arrivals?property=${propertyId}`);
+    await openPage(page, `/ar/arrivals?property=${propertyId}`);
     const row = await rowOf(page, missed.guestName);
     await expect(row.getByText(/لم يصل/)).toHaveCount(1);
     await expect(row.getByRole("button", { name: /تسجيل الوصول/ })).toHaveCount(
@@ -397,7 +407,7 @@ test.describe("In Arabic", () => {
     const propertyId = aDeskProperty();
     aBacklog(propertyId, 2);
     await signIn(page);
-    await page.goto(`/ar/close-day?property=${propertyId}`);
+    await openPage(page, `/ar/close-day?property=${propertyId}`);
     await page
       .getByRole("button", { name: /^إغلاق/ })
       .first()
