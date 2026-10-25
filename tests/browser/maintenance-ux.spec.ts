@@ -4,6 +4,7 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { test } from "./hydration";
 
 import { EMAIL, OWNER_EMAIL, signIn } from "./front-desk";
+import { messages } from "../../apps/operator-workspace/src/messages";
 import { psql } from "./local-database";
 import {
   aServicesProperty,
@@ -121,7 +122,7 @@ test("a room's dialog leads with reporting and says that a block tells maintenan
   ).toBeFocused();
 });
 
-test("a room says who is in it tonight, and a block of an occupied room is refused in words", async ({
+test("a room says who is in it tonight, and a room with a Guest in it is not offered a block", async ({
   page,
 }) => {
   const { propertyId, roomName } = aProperty();
@@ -136,18 +137,19 @@ test("a room says who is in it tonight, and a block of an occupied room is refus
     .first()
     .click();
   const dialog = page.getByRole("dialog").filter({ hasText: roomName });
-  // ROOMS-07: the state comes before the two routes, so nobody blocks a
-  // room a guest is asleep in without having read that they are.
+  // ROOMS-07: the state comes before the routes, so nobody blocks a room a
+  // guest is asleep in without having read that they are. CALENDAR-09: a room
+  // the database would refuse is not offered a form that fails after the
+  // reason has been typed; it says why instead.
   await expect(dialog).toContainText("Ada Occupant is in this room tonight.");
-  await dialog.getByLabel("Reason for block").fill("Held for a group");
-  await dialog.getByRole("button", { name: "Block room" }).click();
-  await expect(dialog).toContainText(
-    "Somebody is in this room, so it cannot be blocked. Check them out first.",
+  await expect(dialog).toContainText(messages.en.roomsPage.occupiedCannotBlock);
+  await expect(dialog.getByLabel("Reason for block")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Block room" })).toHaveCount(
+    0,
   );
-  // The refusal keeps what was typed.
-  await expect(dialog.getByLabel("Reason for block")).toHaveValue(
-    "Held for a group",
-  );
+  await expect(
+    dialog.getByRole("link", { name: "Report a problem" }),
+  ).toBeVisible();
 });
 
 test("a block names the room it blocks and gives it back by the same name", async ({
