@@ -1922,6 +1922,8 @@ export interface Messages {
     dropBlocked: string;
     /** Beneath the subtitle, for a viewer who may book (RC-S5-02). */
     bookHint: string;
+    /** In place of the subtitle, for a viewer who may do both: one line beside New reservation. */
+    moveAndBookHint: string;
     /** The one-press confirm for a pulled end (RC-S5-04); `{nights}` is the whole stay. */
     quickDeparture: string;
     quickMore: string;
@@ -4444,6 +4446,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       resizeHint: "Çıkış gününü değiştirmek için sürükleyin",
       dropBlocked: "Buraya taşınamaz",
       bookHint: "Rezervasyon almak için boş gecelerin üzerinden sürükleyin.",
+      moveAndBookHint:
+        "Taşımak için rezervasyonu, çıkışı değiştirmek için ucunu, rezervasyon almak için boş geceleri sürükleyin.",
       quickDeparture: "Çıkış {to} (önceden {from}) · toplam {nights}",
       quickMore: "Diğer seçenekler",
       quickSave: "Kaydet",
@@ -8084,6 +8088,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       resizeHint: "Drag to change the departure",
       dropBlocked: "It cannot go here",
       bookHint: "Drag across free nights to book them.",
+      moveAndBookHint:
+        "Drag a booking to move it or its end to change the departure, or drag across free nights to book.",
       quickDeparture: "Leaves {to} (was {from}) · {nights} in all",
       quickMore: "More options",
       quickSave: "Save",
@@ -11685,6 +11691,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       resizeHint: "اسحب لتغيير موعد المغادرة",
       dropBlocked: "لا يمكن نقله إلى هنا",
       bookHint: "اسحب عبر الليالي الشاغرة لحجزها.",
+      moveAndBookHint:
+        "اسحب حجزًا لنقله أو طرفه لتغيير موعد المغادرة، أو اسحب عبر الليالي الشاغرة لحجزها.",
       quickDeparture: "المغادرة {to} (كانت {from}) · {nights} إجمالًا",
       quickMore: "خيارات أخرى",
       quickSave: "حفظ",

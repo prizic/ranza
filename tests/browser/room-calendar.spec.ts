@@ -1298,8 +1298,9 @@ test("RC-S5-02: dragging across free nights opens New reservation on that room a
   aBookingOn(rooms.B!, `Holder ${tag}`, { from: 2, to: 4 });
   await signIn(page);
   await openRooms(page, "en", { propertyId, tag, rooms });
+  // The gesture is named where the page says how to use it.
   await expect(
-    page.getByText("Drag across free nights to book them."),
+    page.getByText(/drag across free nights to book\./),
   ).toBeVisible();
 
   // Over a night already held, the outline is marked while the button is down
@@ -1409,7 +1410,14 @@ test("RC-S5-03: an arriving booking is checked in, and a Guest leaving today che
   const review = page.getByRole("button", { name: "Check out", exact: true });
   await expect(review).toBeEnabled();
   await review.click();
+  // The review dialog hides the drawer from the accessibility tree while it
+  // is open, so the drawer reads as gone before check-out has finished; the
+  // review closing and the in-house bar leaving are what say it is done.
+  await expect(review).toBeHidden();
   await expect(drawer).toBeHidden();
+  await expect(
+    page.getByRole("button", { name: new RegExp(`^${leaving}, In house`) }),
+  ).toHaveCount(0);
   expect(psql(`select status from public.stays where id = '${stayId}'`)).toBe(
     "departed",
   );

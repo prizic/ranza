@@ -259,17 +259,30 @@ export function LiveRoomCalendar({
     });
   }
 
+  // One line beside New reservation, so the grid still starts where it did
+  // (CALENDAR-12): a viewer who may move and book is told both in one
+  // sentence, which leaves no room to describe the page as well.
+  const dragsToBook = booking !== null && !coarsePointer;
+  const usage =
+    calendar.mayAmend && dragsToBook
+      ? t("moveAndBookHint")
+      : [
+          t("subtitle"),
+          calendar.mayAmend
+            ? t(coarsePointer ? "moveHintTouch" : "moveHint")
+            : null,
+          dragsToBook ? t("bookHint") : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* The page bar already names the page and the Property; what is
             left to say is how to use it, and a phone has no room to say it. */}
         <p className="hidden min-w-0 flex-1 text-sm text-muted-foreground md:block">
-          {t("subtitle")}
-          {calendar.mayAmend
-            ? ` ${t(coarsePointer ? "moveHintTouch" : "moveHint")}`
-            : null}
-          {booking && !coarsePointer ? ` ${t("bookHint")}` : null}
+          {usage}
         </p>
         {/* The way to book without a mouse, and on a phone, where a drag
             across the row scrolls it. */}
