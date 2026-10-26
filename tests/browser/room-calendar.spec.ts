@@ -1410,11 +1410,11 @@ test("RC-S5-03: an arriving booking is checked in, and a Guest leaving today che
   const review = page.getByRole("button", { name: "Check out", exact: true });
   await expect(review).toBeEnabled();
   await review.click();
-  // The review dialog hides the drawer from the accessibility tree while it
-  // is open, so the drawer reads as gone before check-out has finished; the
-  // review closing and the in-house bar leaving are what say it is done.
-  await expect(review).toBeHidden();
-  await expect(drawer).toBeHidden();
+  // The review dialog hides the drawer, and the bars behind it, from the
+  // accessibility tree while it is open, and its button is renamed while the
+  // check-out runs. So the button, the drawer and the bar each read as gone
+  // before check-out has finished: only no dialog left open says it is done.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: new RegExp(`^${leaving}, In house`) }),
   ).toHaveCount(0);
