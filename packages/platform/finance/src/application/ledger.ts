@@ -1,9 +1,18 @@
-import type { Account, AccountBalance, JournalEntry } from "../domain/entry";
+import type {
+  Account,
+  AccountBalance,
+  DateRange,
+  JournalEntry,
+  JournalFilter,
+  JournalPage,
+} from "../domain/entry";
 import {
   findJournalEntryById,
   findJournalEntryBySource,
   getAccountBalances,
   listAccounts,
+  listCurrencies,
+  listJournalEntries,
 } from "../infrastructure/repository";
 import type { FinanceClient, FinanceDeps } from "../ports";
 
@@ -29,8 +38,24 @@ export interface FinanceModule {
   getAccountBalances(
     organizationId: string,
     currency?: string,
+    range?: DateRange,
   ): Promise<AccountBalance[]>;
+  listJournalEntries(
+    organizationId: string,
+    filter: JournalFilter,
+    page?: PageRequest,
+  ): Promise<JournalPage>;
+  listCurrencies(organizationId: string): Promise<string[]>;
 }
+
+/** Which page of the journal to read: how many, and where the last one stopped. */
+export interface PageRequest {
+  limit?: number;
+  cursor?: string | undefined;
+}
+
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
 
 /**
  * Finds a journal entry by its source reference inside an existing transaction.
@@ -66,14 +91,44 @@ export async function listAccountsWithin(
 }
 
 /**
- * Calculates current net balances across chart of accounts.
+ * Net balances across the chart of accounts, for one currency and a span of
+ * entry dates when asked; every entry ever posted when not.
  */
 export async function getAccountBalancesWithin(
   tx: FinanceClient,
   organizationId: string,
   currency?: string,
+  range?: DateRange,
 ): Promise<AccountBalance[]> {
-  return getAccountBalances(tx, organizationId, currency);
+  return getAccountBalances(tx, organizationId, currency, range);
+}
+
+/**
+ * One page of the journal, newest first. A limit outside 1 to 200 is brought
+ * into it: a caller cannot ask for the whole ledger in one read.
+ */
+export async function listJournalEntriesWithin(
+  tx: FinanceClient,
+  organizationId: string,
+  filter: JournalFilter,
+  page: PageRequest = {},
+): Promise<JournalPage> {
+  const limit = Math.min(
+    Math.max(Math.trunc(page.limit ?? DEFAULT_PAGE_SIZE), 1),
+    MAX_PAGE_SIZE,
+  );
+  return listJournalEntries(tx, organizationId, filter, {
+    limit,
+    cursor: page.cursor,
+  });
+}
+
+/** The currencies the ledger holds entries in. */
+export async function listCurrenciesWithin(
+  tx: FinanceClient,
+  organizationId: string,
+): Promise<string[]> {
+  return listCurrencies(tx, organizationId);
 }
 
 export function createFinanceModule(deps: FinanceDeps): FinanceModule {
@@ -84,7 +139,11 @@ export function createFinanceModule(deps: FinanceDeps): FinanceModule {
     getJournalEntry: (organizationId, entryId) =>
       getJournalEntryWithin(db, organizationId, entryId),
     listAccounts: (organizationId) => listAccountsWithin(db, organizationId),
-    getAccountBalances: (organizationId, currency) =>
-      getAccountBalancesWithin(db, organizationId, currency),
+    getAccountBalances: (organizationId, currency, range) =>
+      getAccountBalancesWithin(db, organizationId, currency, range),
+    listJournalEntries: (organizationId, filter, page) =>
+      listJournalEntriesWithin(db, organizationId, filter, page),
+    listCurrencies: (organizationId) =>
+      listCurrenciesWithin(db, organizationId),
   };
 }

@@ -3,6 +3,8 @@
 %% Two lifecycles: the event that carries a Folio line to the ledger, and the
 %% journal entry it produces. The command that posts is
 %% app.post_folio_line_to_ledger(), executable by ranza_worker alone.
+%% The Ledger screen (slice 3) adds no transition: it reads the posted entry and
+%% changes nothing, so it has no state of its own to draw.
 stateDiagram-v2
   direction LR
 

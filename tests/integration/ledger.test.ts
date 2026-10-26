@@ -30,6 +30,9 @@ import {
 import {
   getAccountBalancesWithin,
   getJournalEntryBySourceWithin,
+  listAccountsWithin,
+  listCurrenciesWithin,
+  listJournalEntriesWithin,
   type FinanceClient,
 } from "../../packages/platform/finance/src";
 import {
@@ -458,5 +461,149 @@ describe("a posting that fails is visible", () => {
       expect(dead[0]?.deadAt).not.toBeNull();
     },
     DATABASE_BUDGET_MS,
+  );
+});
+
+describe("reading the journal the way a screen does", () => {
+  /** Reads as `userId`, through the application role's own policies. */
+  const asMember = <T>(
+    userId: string,
+    read: (tx: FinanceClient) => Promise<T>,
+  ): Promise<T> =>
+    withOrganizationContext(prisma, { userId }, (tx) =>
+      read(tx as unknown as FinanceClient),
+    );
+
+  it(
+    "pages_filters_and_totals_the_journal_for_whoever_may_read_it_and_nobody_else",
+    async () => {
+      const folioId = await checkInGuest("Ledger Guest Journal");
+      const lines: string[] = [];
+      for (const amountMinor of [1100, 2200, 3300]) {
+        const { lineId } = await folios.postCharge(MEMBER, {
+          folioId,
+          description: `Journal charge ${amountMinor}`,
+          amountMinor,
+        });
+        lines.push(lineId);
+      }
+      await drain();
+
+      // Newest first, each entry carrying what it moved.
+      const first = await asMember(MEMBER, (tx) =>
+        listJournalEntriesWithin(tx, ORG, {}, { limit: 2 }),
+      );
+      expect(first.entries.map((entry) => entry.sourceId)).toEqual([
+        lines[2],
+        lines[1],
+      ]);
+      expect(first.entries.map((entry) => entry.totalMinor)).toEqual([
+        3300, 2200,
+      ]);
+      expect(first.nextCursor).not.toBeNull();
+
+      // The next page starts where this one stopped: nothing twice, nothing
+      // skipped, and an entry posted meanwhile cannot move it.
+      const second = await asMember(MEMBER, (tx) =>
+        listJournalEntriesWithin(
+          tx,
+          ORG,
+          {},
+          { limit: 2, cursor: first.nextCursor ?? undefined },
+        ),
+      );
+      expect(second.entries[0]?.sourceId).toBe(lines[0]);
+      expect(
+        second.entries.some((entry) =>
+          first.entries.some((seen) => seen.id === entry.id),
+        ),
+      ).toBe(false);
+
+      // Narrowing: by account, by currency, by a span of days.
+      const accounts = await asMember(MEMBER, (tx) =>
+        listAccountsWithin(tx, ORG),
+      );
+      const idOf = (code: string) =>
+        accounts.find((account) => account.code === code)?.id;
+      const onRoomRevenue = await asMember(MEMBER, (tx) =>
+        listJournalEntriesWithin(tx, ORG, {
+          accountId: idOf(ACCOUNT.roomRevenue),
+        }),
+      );
+      expect(
+        onRoomRevenue.entries.map((entry) => entry.sourceId),
+      ).not.toContain(lines[0]);
+      const onOtherRevenue = await asMember(MEMBER, (tx) =>
+        listJournalEntriesWithin(tx, ORG, {
+          accountId: idOf(ACCOUNT.otherRevenue),
+        }),
+      );
+      expect(onOtherRevenue.entries.map((entry) => entry.sourceId)).toEqual(
+        expect.arrayContaining(lines),
+      );
+      expect(
+        (
+          await asMember(MEMBER, (tx) =>
+            listJournalEntriesWithin(tx, ORG, { currency: "USD" }),
+          )
+        ).entries,
+      ).toEqual([]);
+      const today = (
+        await owner.$queryRawUnsafe<{ day: string }[]>(
+          `select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as day`,
+          PROPERTY,
+        )
+      )[0]!.day;
+      const tomorrow = (
+        await owner.$queryRawUnsafe<{ day: string }[]>(
+          `select to_char($1::date + 1, 'YYYY-MM-DD') as day`,
+          today,
+        )
+      )[0]!.day;
+      expect(
+        (
+          await asMember(MEMBER, (tx) =>
+            listJournalEntriesWithin(tx, ORG, { from: tomorrow }),
+          )
+        ).entries,
+      ).toEqual([]);
+
+      // A currency or a span nothing was posted in still lists every account,
+      // at nothing, rather than a chart with accounts missing.
+      const inUsd = await asMember(MEMBER, (tx) =>
+        getAccountBalancesWithin(tx, ORG, "USD"),
+      );
+      expect(inUsd.map((balance) => balance.accountCode)).toEqual(
+        accounts.map((account) => account.code),
+      );
+      expect(inUsd.every((balance) => balance.netBalanceMinor === 0)).toBe(
+        true,
+      );
+      const beforeToday = await asMember(MEMBER, (tx) =>
+        getAccountBalancesWithin(tx, ORG, "TRY", { to: "2000-01-01" }),
+      );
+      expect(
+        beforeToday.every((balance) => balance.netBalanceMinor === 0),
+      ).toBe(true);
+
+      expect(
+        await asMember(MEMBER, (tx) => listCurrenciesWithin(tx, ORG)),
+      ).toEqual(["TRY"]);
+
+      // The same reads for a member who reaches the Organization and may not
+      // read its books: no page, no currency, no account.
+      expect(
+        await asMember(HOUSEKEEPER, (tx) =>
+          listJournalEntriesWithin(tx, ORG, {}),
+        ),
+      ).toEqual({ entries: [], nextCursor: null });
+      expect(
+        await asMember(HOUSEKEEPER, (tx) => listCurrenciesWithin(tx, ORG)),
+      ).toEqual([]);
+      expect(
+        await asMember(HOUSEKEEPER, (tx) => listAccountsWithin(tx, ORG)),
+      ).toEqual([]);
+    },
+    DATABASE_BUDGET_MS * 2,
   );
 });

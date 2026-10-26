@@ -2,6 +2,7 @@ import {
   BarChart3,
   Bed,
   BellRing,
+  BookText,
   Boxes,
   Briefcase,
   Building2,
@@ -88,6 +89,12 @@ export interface Screen {
   built: boolean;
   /** Section grouping in the sidebar: operations, management, or system */
   section?: string | undefined;
+  /**
+   * Its rows carry no Property, so only a viewer who reaches every Property of
+   * an Organization can read them (the ledger): the rail, the Property
+   * switcher and the page offer it to no one else.
+   */
+  organizationWide?: boolean | undefined;
   /** Children make this a rail category rather than a destination. */
   children?: Screen[] | undefined;
   /**
@@ -310,6 +317,21 @@ export const SCREENS: Screen[] = [
     section: "management",
   },
   {
+    segment: "ledger",
+    // The books, read: an entry carries no Property, so the permission alone is
+    // not enough and the Organization's whole reach is asked as well (ACC-S2-05).
+    // Its capability is Folio finance, the one that feeds it (ACC-S2-09).
+    capability: "finance",
+    permission: "finance.view_ledger",
+    requires: "finance",
+    organizationWide: true,
+    module: "billing_folios",
+    icon: BookText,
+    blueprint: "5.10",
+    built: true,
+    section: "management",
+  },
+  {
     segment: "people",
     // Staff and permissions, not payroll. Who works here and what they may do
     // is part of the platform every Organization has (blueprint 7.2); Human
@@ -432,6 +454,8 @@ export interface ScreenGate {
   capability?: { moduleKey: string; capabilityKey: string } | undefined;
   /** What the role must hold; any one of several is enough. */
   permission?: string | readonly string[] | undefined;
+  /** The viewer must reach the whole Organization, not only some Properties. */
+  organizationWide?: boolean | undefined;
 }
 
 /**
@@ -449,7 +473,11 @@ function gateFor(screen: Screen): ScreenGate {
           moduleKey: screen.module,
           capabilityKey: screen.requires ?? screen.capability,
         };
-  return { capability, permission: screen.permission };
+  return {
+    capability,
+    permission: screen.permission,
+    organizationWide: screen.organizationWide,
+  };
 }
 
 /** Every destination, flattened — what a page or a title lookup iterates. */

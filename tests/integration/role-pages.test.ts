@@ -61,6 +61,14 @@ const OFFERED: Record<string, string[]> = {
   ],
 };
 
+/**
+ * An Owner who reaches the whole Organization and stands apart from the five
+ * above: the database refuses to leave an Organization without somebody who can
+ * add staff at every Property, so the scope of any of the five can only be
+ * moved and moved back while this one holds that place.
+ */
+const KEEPER = "e6600001-0000-4000-8000-0000000000a1";
+
 const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const core = createCoreModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
@@ -74,7 +82,11 @@ async function offeredTo(userId: string): Promise<string[]> {
         typeof gate.permission === "string"
           ? [gate.permission]
           : (gate.permission ?? []);
-      return { permissions, capability: gate.capability };
+      return {
+        permissions,
+        capability: gate.capability,
+        organizationWide: gate.organizationWide,
+      };
     }),
   );
   return GATED.filter((_, index) => (answers[index]?.length ?? 0) > 0).map(
@@ -123,6 +135,21 @@ beforeAll(async () => {
     PROPERTY,
     ORG,
     capabilities,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.users (id, email) values ($1,$2) on conflict (id) do nothing`,
+    KEEPER,
+    "role-pages-keeper@example.test",
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.organization_memberships
+       (organization_id, user_id, role, role_scope_id, access_scope)
+     values ($1,$2,'owner',$3,'organization_wide')
+     on conflict (organization_id, user_id) do update
+       set status = 'active', revoked_at = null, access_scope = 'organization_wide'`,
+    ORG,
+    KEEPER,
+    SHIPPED,
   );
   for (const role of ROLES) {
     await owner.$executeRawUnsafe(
@@ -218,9 +245,13 @@ describe("one read for every page, and the same answer as one at a time", () => 
               ? [gate.permission]
               : (gate.permission ?? []),
           capability: gate.capability,
+          organizationWide: gate.organizationWide,
         })),
       );
       for (const [index, gate] of gates.entries()) {
+        // The one-at-a-time read cannot ask for the whole Organization's reach,
+        // so a gate that does is held on its own, below (ACC-S3-01).
+        if (gate.organizationWide) continue;
         const permissions =
           typeof gate.permission === "string"
             ? [gate.permission]
@@ -254,5 +285,83 @@ describe("one read for every page, and the same answer as one at a time", () => 
 
   it("SP-S6-06: somebody who belongs to no Organization is offered nothing", async () => {
     expect(await offeredTo("e6600001-0000-4000-8000-0000000000ff")).toEqual([]);
+  });
+});
+
+describe("the ledger is the whole Organization's (ACC-S3-01)", () => {
+  async function reaching<T>(
+    role: string,
+    scope: "organization_wide" | "assigned_properties",
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const setScope = (value: string) =>
+      owner.$executeRawUnsafe(
+        "update public.organization_memberships set access_scope = $1 where organization_id = $2 and user_id = $3",
+        value,
+        ORG,
+        USER[role],
+      );
+    await setScope(scope);
+    try {
+      return await run();
+    } finally {
+      await setScope("assigned_properties");
+    }
+  }
+
+  const ledger = gateOf("ledger");
+  const question = {
+    capability: ledger.capability,
+    permission: ledger.permission,
+    organizationWide: ledger.organizationWide,
+  };
+
+  it("offers it to a role holding finance.view_ledger only once that role reaches every Property", async () => {
+    for (const role of ["owner", "manager", "finance"]) {
+      expect(await offeredTo(USER[role]!), `${role}, assigned`).not.toContain(
+        "ledger",
+      );
+      expect(
+        await reaching(role, "organization_wide", () => offeredTo(USER[role]!)),
+        `${role}, whole Organization`,
+      ).toContain("ledger");
+    }
+  });
+
+  it("never offers it to a role without the permission, however far it reaches", async () => {
+    for (const role of ["front_desk", "housekeeping"]) {
+      expect(
+        await reaching(role, "organization_wide", () => offeredTo(USER[role]!)),
+        role,
+      ).not.toContain("ledger");
+    }
+  });
+
+  it("says which of the two is missing", async () => {
+    expect(
+      await core.explainDenial(USER.finance!, {
+        ...question,
+        propertyId: PROPERTY,
+      }),
+    ).toEqual({ reason: "not_organization_wide" });
+    expect(
+      await reaching("front_desk", "organization_wide", () =>
+        core.explainDenial(USER.front_desk!, {
+          ...question,
+          propertyId: PROPERTY,
+        }),
+      ),
+    ).toMatchObject({
+      reason: "no_permission",
+      permission: "finance.view_ledger",
+    });
+    expect(
+      await reaching("finance", "organization_wide", () =>
+        core.explainDenial(USER.finance!, {
+          ...question,
+          propertyId: PROPERTY,
+        }),
+      ),
+    ).toEqual({ reason: "open" });
   });
 });

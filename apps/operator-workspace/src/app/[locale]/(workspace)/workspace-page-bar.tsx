@@ -20,14 +20,14 @@ import {
   withoutLocale,
 } from "../../../lib/page-titles";
 
-const DETAIL_KEYS = ["record", "folio"] as const;
+const DETAIL_KEYS = ["record", "folio", "entry"] as const;
 
 /**
  * Resolves the page's own title, the trail above it, and the way up from the route.
  *
  * A client component because it reads the pathname and query parameters, which
  * a router layout cannot. Renders a back button with proper routing on all
- * inner pages (any destination other than Today, or detail views like record/folio).
+ * inner pages (any destination other than Today, or detail views like record/folio/entry).
  */
 export function WorkspacePageBar({
   action,

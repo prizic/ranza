@@ -1,6 +1,7 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 posting: a Folio line reaches the ledger through the worker alone
 %%   s2 reading: who may read the ledger
+%%   s3 the Ledger screen: the journal, an entry and the chart, read only
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
@@ -12,7 +13,9 @@
 %%
 %% Open question, owner to answer: the shipped Finance role reads the ledger
 %% only when its access scope is organization_wide (ACC-S2-05), because an entry
-%% carries no Property. Drawn as it is built, not as it is settled.
+%% carries no Property. Drawn as it is built, not as it is settled. The screen
+%% (slice 3) shows it: a Finance member assigned to some Properties is not offered
+%% the Ledger and is told why at its address (ACC-S3-01).
 flowchart TD
 
   FRONT["Staff Member who writes Folio lines<br/>(finance.post_charge, finance.post_payment, reversals)"]
@@ -36,10 +39,18 @@ flowchart TD
     DENIED(["Read nothing<br/>(no permission, assigned reach,<br/>suspended Subscription, Folio finance off)"])
   end
 
+  subgraph S3["slice 3 &mdash; the Ledger screen"]
+    JOURNAL(["Read the journal, newest first,<br/>narrowed by dates, account, source or currency<br/>(50 entries a page)"])
+    ENTRY(["Open one entry with its balanced lines<br/>and a link to its Folio when the reader may open it"])
+    CHARTBAL(["Read the chart with its balances<br/>in one currency at a time"])
+    REFUSED(["Be told why the Ledger is closed<br/>(needs the whole Organization, or lacks the permission)"])
+  end
+
   subgraph OUT["Not this feature"]
     PERIODS(["Accounting periods and controlled close &mdash; deferred, blueprint 5.10"])
     STATEMENTS(["Financial statements &mdash; deferred, blueprint 5.10"])
-    SCREEN(["A ledger screen &mdash; deferred"])
+    PAIRING(["Pairing a reversal with the entry it reverses &mdash; deferred, needs a column on the entry"])
+    READAUDIT(["An audit record of who read the books &mdash; deferred"])
     SCOPED(["A Property-scoped read &mdash; deferred, needs a location on the entry"])
     CHART(["Editing the chart of accounts &mdash; deferred"])
     OTHERSRC(["Payroll and other sources posting &mdash; deferred"])
@@ -55,3 +66,8 @@ flowchart TD
   READER --> READ
   OTHER --> DENIED
   ASSIGNED --> DENIED
+  READER --> JOURNAL
+  READER --> CHARTBAL
+  ENTRY -. extend .-> JOURNAL
+  OTHER --> REFUSED
+  ASSIGNED --> REFUSED
