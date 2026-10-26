@@ -3100,9 +3100,72 @@ export interface Messages {
     permissionQuoted: string;
     openTitle: string;
     openDescription: string;
+    /** Holds the permission but not the whole Organization's reach (the ledger). */
+    notOrganizationWideTitle: string;
+    notOrganizationWideDescription: string;
     goToToday: string;
     /** Names the page in a refusal when the route does not. */
     thisPage: string;
+  };
+  /**
+   * The ledger (blueprint 5.10, ACC-S3-*). The date range, Apply and Clear
+   * filters words are the audit log's own (`audit*`): they say nothing about audit.
+   */
+  ledger: {
+    /** `{organization}`. */
+    for: string;
+    lag: string;
+    viewsLabel: string;
+    journalTab: string;
+    accountsTab: string;
+    filtersLabel: string;
+    account: string;
+    allAccounts: string;
+    source: string;
+    allSources: string;
+    currency: string;
+    allCurrencies: string;
+    number: string;
+    date: string;
+    description: string;
+    amount: string;
+    sourceFolioLine: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    noMatchTitle: string;
+    noMatchDescription: string;
+    older: string;
+    newest: string;
+    /** `{number}`. */
+    entryTitle: string;
+    entryDate: string;
+    postedAt: string;
+    entrySource: string;
+    debit: string;
+    credit: string;
+    accountColumn: string;
+    /** `{amount}`. */
+    balanced: string;
+    openFolio: string;
+    folioNotOpenable: string;
+    entryMissingTitle: string;
+    entryMissingDescription: string;
+    accountCode: string;
+    accountName: string;
+    accountType: string;
+    debits: string;
+    credits: string;
+    balance: string;
+    types: Record<
+      "asset" | "liability" | "equity" | "revenue" | "expense",
+      string
+    >;
+    accountsEmptyTitle: string;
+    accountsEmptyDescription: string;
+    /** `{currency}`. */
+    inCurrency: string;
+    /** The standard chart's names, by account code. */
+    accountNames: Record<string, string>;
   };
   /** An address that is no page, inside the shell (SHELL-03). */
   notFound: { pageTitle: string; title: string; description: string };
@@ -6727,6 +6790,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "Entegrasyonlar",
       branding: "Marka",
       "data-export": "Veri dışa aktarma",
+      ledger: "Defter",
       "audit-log": "Denetim kaydı",
     },
     screenSummary: {
@@ -6773,8 +6837,77 @@ export const messages: Record<SupportedLocale, Messages> = {
       openTitle: "Bu sayfa şu anda kullanılamıyor",
       openDescription:
         "Artık sizi engelleyen bir şey yok. Sayfayı yenileyin; yine açılmazsa Sahibinize veya bir Müdüre bildirin.",
+      notOrganizationWideTitle: "Defter, Organizasyonun tamamını gerektirir",
+      notOrganizationWideDescription:
+        "Defter kayıtları bir tesise değil Organizasyona aittir; bu yüzden yalnızca deftere okuma yetkisi taşıyan ve tüm tesislere erişimi olan bir rolde açılır. Sizin erişiminiz bazı tesislerle sınırlı. Organizasyonunuzda personeli yöneten kişiye danışın.",
       goToToday: "Bugün'e git",
       thisPage: "Bu sayfa",
+    },
+    ledger: {
+      for: "{organization} defteri",
+      lag: "Kayıtlar, Folio'ya bir ücret ya da ödeme işlendikten kısa süre sonra deftere geçer.",
+      viewsLabel: "Defter görünümleri",
+      journalTab: "Yevmiye",
+      accountsTab: "Hesaplar",
+      filtersLabel: "Defteri filtrele",
+      account: "Hesap",
+      allAccounts: "Tüm hesaplar",
+      source: "Kaynak",
+      allSources: "Tüm kaynaklar",
+      currency: "Para birimi",
+      allCurrencies: "Tüm para birimleri",
+      number: "No",
+      date: "Tarih",
+      description: "Açıklama",
+      amount: "Tutar",
+      sourceFolioLine: "Folio satırı",
+      emptyTitle: "Henüz kayıt yok",
+      emptyDescription:
+        "Bir Folio'ya ücret ya da ödeme işlendikten sonra kayıtlar burada görünür.",
+      noMatchTitle: "Eşleşen kayıt yok",
+      noMatchDescription:
+        "Tarih aralığını genişletin ya da bir filtreyi kaldırın.",
+      older: "Daha eski kayıtlar",
+      newest: "En yeni kayıtlar",
+      entryTitle: "Kayıt {number}",
+      entryDate: "Kayıt tarihi",
+      postedAt: "Deftere geçirildi",
+      entrySource: "Kaynak",
+      debit: "Borç",
+      credit: "Alacak",
+      accountColumn: "Hesap",
+      balanced: "Borç ve alacak eşit: {amount}",
+      openFolio: "Folio'yu aç",
+      folioNotOpenable: "Bu kaydın geldiği Folio'yu açma yetkiniz yok.",
+      entryMissingTitle: "Bu kayıt burada yok",
+      entryMissingDescription:
+        "Kayıt mevcut değil ya da okuyabileceğiniz bir kayıt değil.",
+      accountCode: "Kod",
+      accountName: "Hesap",
+      accountType: "Tür",
+      debits: "Borç",
+      credits: "Alacak",
+      balance: "Bakiye",
+      types: {
+        asset: "Varlık",
+        liability: "Yükümlülük",
+        equity: "Özkaynak",
+        revenue: "Gelir",
+        expense: "Gider",
+      },
+      accountsEmptyTitle: "Henüz hesap yok",
+      accountsEmptyDescription:
+        "Hesap planı, ilk Folio satırı işlendiğinde oluşturulur.",
+      inCurrency:
+        "Tutarlar {currency} cinsindendir. Farklı para birimleri hiçbir zaman toplanmaz.",
+      accountNames: {
+        "1000": "Kasa",
+        "1010": "Banka hesabı",
+        "1020": "Kart tahsilat hesabı",
+        "1200": "Müşteri alacakları",
+        "4000": "Konaklama gelirleri",
+        "4100": "Diğer gelirler",
+      },
     },
     notFound: {
       pageTitle: "Sayfa bulunamadı",
@@ -10371,6 +10504,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "Integrations",
       branding: "Branding",
       "data-export": "Data export",
+      ledger: "Ledger",
       "audit-log": "Audit log",
     },
     screenSummary: {
@@ -10417,8 +10551,76 @@ export const messages: Record<SupportedLocale, Messages> = {
       openTitle: "This page isn't available right now",
       openDescription:
         "Nothing is blocking you any more. Reload the page; if it still doesn't open, tell your Owner or a Manager.",
+      notOrganizationWideTitle: "The ledger needs the whole Organization",
+      notOrganizationWideDescription:
+        "Ledger entries belong to the Organization, not to a Property, so it opens only for a role that can read the ledger and reaches every Property. Yours reaches some of them. Ask whoever manages staff in your Organization.",
       goToToday: "Go to Today",
       thisPage: "This page",
+    },
+    ledger: {
+      for: "Ledger of {organization}",
+      lag: "Entries are posted a moment after a charge or payment is recorded on a Folio.",
+      viewsLabel: "Ledger views",
+      journalTab: "Journal",
+      accountsTab: "Accounts",
+      filtersLabel: "Filter the ledger",
+      account: "Account",
+      allAccounts: "All accounts",
+      source: "Source",
+      allSources: "All sources",
+      currency: "Currency",
+      allCurrencies: "All currencies",
+      number: "No.",
+      date: "Date",
+      description: "Description",
+      amount: "Amount",
+      sourceFolioLine: "Folio line",
+      emptyTitle: "No entries yet",
+      emptyDescription:
+        "Entries appear here after a charge or payment is posted to a Folio.",
+      noMatchTitle: "No entries match",
+      noMatchDescription: "Widen the dates or clear a filter.",
+      older: "Older entries",
+      newest: "Newest entries",
+      entryTitle: "Entry {number}",
+      entryDate: "Entry date",
+      postedAt: "Posted",
+      entrySource: "Source",
+      debit: "Debit",
+      credit: "Credit",
+      accountColumn: "Account",
+      balanced: "Debits equal credits: {amount}",
+      openFolio: "Open the Folio",
+      folioNotOpenable: "The Folio this came from isn't one you can open.",
+      entryMissingTitle: "That entry isn't here",
+      entryMissingDescription:
+        "It doesn't exist, or it isn't one you can read.",
+      accountCode: "Code",
+      accountName: "Account",
+      accountType: "Type",
+      debits: "Debits",
+      credits: "Credits",
+      balance: "Balance",
+      types: {
+        asset: "Asset",
+        liability: "Liability",
+        equity: "Equity",
+        revenue: "Revenue",
+        expense: "Expense",
+      },
+      accountsEmptyTitle: "No accounts yet",
+      accountsEmptyDescription:
+        "The chart of accounts is created when the first Folio line is posted.",
+      inCurrency:
+        "Amounts are in {currency}. Different currencies are never added together.",
+      accountNames: {
+        "1000": "Cash on hand",
+        "1010": "Bank account",
+        "1020": "Payment card clearing",
+        "1200": "Guest receivables",
+        "4000": "Accommodation revenue",
+        "4100": "Other revenue",
+      },
     },
     notFound: {
       pageTitle: "Page not found",
@@ -13944,6 +14146,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "التكاملات",
       branding: "الهوية البصرية",
       "data-export": "تصدير البيانات",
+      ledger: "دفتر الأستاذ",
       "audit-log": "سجل التدقيق",
     },
     screenSummary: {
@@ -13989,8 +14192,74 @@ export const messages: Record<SupportedLocale, Messages> = {
       openTitle: "هذه الصفحة غير متاحة الآن",
       openDescription:
         "لم يعد هناك ما يمنعك. أعد تحميل الصفحة، وإن لم تُفتح فأبلغ المالك أو أحد المديرين.",
+      notOrganizationWideTitle: "الدفتر يتطلب المؤسسة كلها",
+      notOrganizationWideDescription:
+        "قيود الدفتر تخص المؤسسة لا منشأة بعينها، لذلك لا تُفتح إلا لدور يملك صلاحية قراءة الدفتر ويصل إلى كل المنشآت. وصولك يقتصر على بعض المنشآت. اسأل من يدير الموظفين في مؤسستك.",
       goToToday: "الانتقال إلى اليوم",
       thisPage: "هذه الصفحة",
+    },
+    ledger: {
+      for: "دفتر الأستاذ لدى {organization}",
+      lag: "تُرحَّل القيود بعد لحظات من تسجيل رسم أو دفعة على الفوليو.",
+      viewsLabel: "طرق عرض الدفتر",
+      journalTab: "اليومية",
+      accountsTab: "الحسابات",
+      filtersLabel: "تصفية الدفتر",
+      account: "الحساب",
+      allAccounts: "كل الحسابات",
+      source: "المصدر",
+      allSources: "كل المصادر",
+      currency: "العملة",
+      allCurrencies: "كل العملات",
+      number: "الرقم",
+      date: "التاريخ",
+      description: "البيان",
+      amount: "المبلغ",
+      sourceFolioLine: "بند فوليو",
+      emptyTitle: "لا توجد قيود بعد",
+      emptyDescription: "تظهر القيود هنا بعد تسجيل رسم أو دفعة على فوليو.",
+      noMatchTitle: "لا توجد قيود مطابقة",
+      noMatchDescription: "وسّع نطاق التواريخ أو أزل أحد عوامل التصفية.",
+      older: "قيود أقدم",
+      newest: "أحدث القيود",
+      entryTitle: "القيد {number}",
+      entryDate: "تاريخ القيد",
+      postedAt: "وقت الترحيل",
+      entrySource: "المصدر",
+      debit: "مدين",
+      credit: "دائن",
+      accountColumn: "الحساب",
+      balanced: "المدين يساوي الدائن: {amount}",
+      openFolio: "فتح الفوليو",
+      folioNotOpenable: "لا يمكنك فتح الفوليو الذي جاء منه هذا القيد.",
+      entryMissingTitle: "هذا القيد غير موجود هنا",
+      entryMissingDescription:
+        "إما أنه غير موجود أو أنه ليس قيدًا يمكنك قراءته.",
+      accountCode: "الرمز",
+      accountName: "الحساب",
+      accountType: "النوع",
+      debits: "مدين",
+      credits: "دائن",
+      balance: "الرصيد",
+      types: {
+        asset: "أصول",
+        liability: "خصوم",
+        equity: "حقوق ملكية",
+        revenue: "إيرادات",
+        expense: "مصروفات",
+      },
+      accountsEmptyTitle: "لا توجد حسابات بعد",
+      accountsEmptyDescription: "يُنشأ دليل الحسابات عند ترحيل أول بند فوليو.",
+      inCurrency:
+        "المبالغ بعملة {currency}. لا تُجمع العملات المختلفة معًا أبدًا.",
+      accountNames: {
+        "1000": "النقدية بالصندوق",
+        "1010": "الحساب المصرفي",
+        "1020": "تسوية بطاقات الدفع",
+        "1200": "ذمم النزلاء المدينة",
+        "4000": "إيرادات الإقامة",
+        "4100": "إيرادات أخرى",
+      },
     },
     notFound: {
       pageTitle: "الصفحة غير موجودة",

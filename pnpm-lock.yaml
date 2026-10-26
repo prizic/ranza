@@ -162,6 +162,9 @@ importers:
       '@ranza/maintenance':
         specifier: workspace:*
         version: link:../../packages/ranza/maintenance
+      '@ranza/platform-finance':
+        specifier: workspace:*
+        version: link:../../packages/platform/finance
       '@ranza/rates':
         specifier: workspace:*
         version: link:../../packages/ranza/rates

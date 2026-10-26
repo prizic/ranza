@@ -59,3 +59,37 @@ export interface AccountBalance {
   netBalanceMinor: number;
   currency?: string | undefined;
 }
+
+/** One entry as a list shows it: what it is for and how much, not its lines. */
+export interface JournalEntrySummary {
+  id: string;
+  entryNumber: number;
+  entryDate: Date;
+  postedAt: Date;
+  currency: string;
+  description: string;
+  sourceType: string;
+  sourceId: string;
+  /** What was moved: the debits, which equal the credits. */
+  totalMinor: number;
+}
+
+/** A day, `YYYY-MM-DD`, in the ledger's own calendar (an entry's `entryDate`). */
+export interface DateRange {
+  from?: string | undefined;
+  to?: string | undefined;
+}
+
+export interface JournalFilter extends DateRange {
+  /** Only entries with a line on this account. */
+  accountId?: string | undefined;
+  sourceType?: string | undefined;
+  currency?: string | undefined;
+}
+
+export interface JournalPage {
+  /** Newest first. */
+  entries: readonly JournalEntrySummary[];
+  /** Hand back as `cursor` for the next, older page; null on the last. */
+  nextCursor: string | null;
+}

@@ -10,6 +10,12 @@ publish approved posting events and never write journal entries directly; no
 application role can. Reads run under the caller's row-level security and need
 the `finance.view_ledger` permission.
 
+The reads are the ones a ledger screen needs: `listJournalEntriesWithin` pages
+the journal newest first by position, so an entry posted meanwhile does not
+move a page; `getAccountBalancesWithin` takes a span of entry dates and one
+currency, and never adds amounts of different currencies; `listCurrenciesWithin`
+says which the ledger holds.
+
 ## Module rules
 
 A reusable platform module must not import or reference domain-specific host vocabulary (blueprint 9.8).

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Reads for a ledger screen: `listJournalEntriesWithin` (newest first, narrowed
+  by date, source, currency and account, paged by position) and
+  `listCurrenciesWithin`.
+- `getAccountBalancesWithin` takes a span of entry dates, and narrowing by
+  currency no longer drops an account nothing was posted to in that currency:
+  it is listed at nothing.
+
 ## 0.1.0
 
 - The ledger is read by permission (`finance.view_ledger`) and written only by

@@ -136,6 +136,8 @@ export type Denial =
   | { reason: "not_subscribed" }
   | { reason: "not_enabled" }
   | { reason: "no_permission"; permission: string; anyOf?: readonly string[] }
+  /** Holds the permission, but reaches some Properties and not the Organization. */
+  | { reason: "not_organization_wide" }
   | { reason: "open" };
 
 /** What a destination asks of a Property and of the person, as `listPermittedProperties` does. */
@@ -144,6 +146,8 @@ export interface DenialQuestion {
   capability?: CapabilityRef | undefined;
   /** The permission a role must hold in the Organization; any one of several. */
   permission?: string | readonly string[] | undefined;
+  /** The viewer must reach the whole Organization, not only some of its Properties. */
+  organizationWide?: boolean | undefined;
   /** The `?property=` the viewer arrived with, as typed. */
   propertyId?: string | undefined;
 }
@@ -198,6 +202,12 @@ export interface CapabilityProperties {
 export interface PermissionGate {
   permissions: readonly string[];
   capability?: CapabilityRef | undefined;
+  /**
+   * For a destination whose rows carry no Property, so that only the whole
+   * Organization's reach can read them (the ledger, ACC-S2-05): a Property is
+   * listed only to a viewer who reaches every Property of its Organization.
+   */
+  organizationWide?: boolean | undefined;
 }
 
 /**

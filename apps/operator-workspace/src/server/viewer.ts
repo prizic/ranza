@@ -1068,6 +1068,7 @@ export async function screenPropertiesByGate(
     gates.map((gate) => ({
       permissions: permissionsOf(gate),
       capability: gate.capability,
+      organizationWide: gate.organizationWide,
     })),
   );
 }
@@ -1086,6 +1087,7 @@ export async function whyDenied(
   return getComposition().core.explainDenial(viewer.userId, {
     capability: gate.capability,
     permission: gate.permission,
+    organizationWide: gate.organizationWide,
     propertyId: property,
   });
 }

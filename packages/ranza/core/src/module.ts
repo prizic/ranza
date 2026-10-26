@@ -260,6 +260,7 @@ export function createCoreModule(deps: CoreDeps) {
         permission,
         moduleKey: gate.capability?.moduleKey ?? "",
         capabilityKey: gate.capability?.capabilityKey ?? "",
+        wholeOrganization: gate.organizationWide === true,
       })),
     );
     if (asked.length === 0) return gates.map(() => []);
@@ -280,8 +281,10 @@ export function createCoreModule(deps: CoreDeps) {
           ${asked.map((row) => row.position)}::int[],
           ${asked.map((row) => row.permission)}::text[],
           ${asked.map((row) => row.moduleKey)}::text[],
-          ${asked.map((row) => row.capabilityKey)}::text[]
-        ) as requested(position, permission, module_key, capability_key)
+          ${asked.map((row) => row.capabilityKey)}::text[],
+          ${asked.map((row) => row.wholeOrganization)}::boolean[]
+        ) as requested(
+          position, permission, module_key, capability_key, whole_organization)
         cross join public.properties as property
         join public.organizations as organization
           on organization.id = property.organization_id
@@ -291,6 +294,8 @@ export function createCoreModule(deps: CoreDeps) {
           and (requested.module_key = ''
                or app.can_use_capability(
                     property.id, requested.module_key, requested.capability_key))
+          and (not requested.whole_organization
+               or app.has_organization_wide_reach(property.organization_id))
         order by 1, organization.name, property.name
       `,
     );
@@ -341,6 +346,7 @@ export function createCoreModule(deps: CoreDeps) {
           subscribed: boolean;
           enabled: boolean;
           permitted: boolean;
+          wide: boolean;
         }[]
       >(
         `select count(*)::int                               as "reached",
@@ -348,7 +354,9 @@ export function createCoreModule(deps: CoreDeps) {
                 coalesce(bool_or(subscribed and enabled), false)
                                                             as "enabled",
                 coalesce(bool_or(subscribed and enabled and permitted), false)
-                                                            as "permitted"
+                                                            as "permitted",
+                coalesce(bool_or(subscribed and enabled and permitted and wide), false)
+                                                            as "wide"
            from (
              select
                ($2::text is null or (
@@ -369,7 +377,9 @@ export function createCoreModule(deps: CoreDeps) {
                (cardinality($4::text[]) = 0 or exists (
                  select 1 from unnest($4::text[]) as held
                   where app.has_organization_permission(property.organization_id, held)
-               )) as permitted
+               )) as permitted,
+               (not $5::boolean
+                or app.has_organization_wide_reach(property.organization_id)) as wide
                from public.properties as property
               where property.id in (select app.accessible_property_ids())
                 and ($1::uuid is null or property.id = $1::uuid)
@@ -378,6 +388,7 @@ export function createCoreModule(deps: CoreDeps) {
         question.capability?.moduleKey ?? null,
         question.capability?.capabilityKey ?? null,
         permissions,
+        question.organizationWide === true,
       ),
     );
 
@@ -395,6 +406,7 @@ export function createCoreModule(deps: CoreDeps) {
         ...(permissions.length > 1 ? { anyOf: permissions } : {}),
       };
     }
+    if (!row.wide) return { reason: "not_organization_wide" };
     return { reason: "open" };
   }
 

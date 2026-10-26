@@ -135,6 +135,14 @@ export function ScreenDenied({
         />
       );
     }
+    case "not_organization_wide":
+      return (
+        <ScreenRefusal
+          description={t("denied.notOrganizationWideDescription")}
+          locale={locale}
+          title={t("denied.notOrganizationWideTitle")}
+        />
+      );
     case "open":
       return (
         <ScreenRefusal
