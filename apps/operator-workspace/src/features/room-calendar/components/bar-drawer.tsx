@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import {
   directionFor,
@@ -28,7 +29,11 @@ import {
 } from "@ranza/ui";
 import type { RoomCalendar, RoomCalendarBar } from "../../../server/viewer";
 import { ChangeDepartureDialog } from "../../front-office/components/change-departure-dialog";
+import { CheckInAction } from "../../front-office/components/check-in-action";
+import { CheckOutDialog } from "../../front-office/components/check-out-dialog";
 import { MoveGuestDialog } from "../../front-office/components/move-guest-dialog";
+import { fetchArrivals, fetchDepartures } from "../../front-office/queries";
+import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
 import { daysBetween, type PlacedEntry } from "../layout";
 import { lateArrival } from "../late";
 import type { MoveRequest } from "../move";
@@ -99,7 +104,7 @@ export function BarDrawer({
   onChanged,
   onClose,
   open,
-  propertyId,
+  scope,
   today,
 }: {
   /** The bar that opened it, which gets focus back when it closes (RC-S1-58). */
@@ -115,7 +120,7 @@ export function BarDrawer({
   onChanged: () => void;
   onClose: () => void;
   open: boolean;
-  propertyId: string;
+  scope: Scope;
   today: string;
 }) {
   const t = useTranslations("roomCalendar");
@@ -157,7 +162,8 @@ export function BarDrawer({
             locale={locale}
             mayAmend={mayAmend}
             onChanged={onChanged}
-            propertyId={propertyId}
+            onClose={onClose}
+            scope={scope}
             today={today}
           />
         )}
@@ -173,7 +179,8 @@ function DrawerBody({
   locale,
   mayAmend,
   onChanged,
-  propertyId,
+  onClose,
+  scope,
   today,
 }: {
   calendar: RoomCalendar;
@@ -182,9 +189,11 @@ function DrawerBody({
   locale: SupportedLocale;
   mayAmend: boolean;
   onChanged: () => void;
-  propertyId: string;
+  onClose: () => void;
+  scope: Scope;
   today: string;
 }) {
+  const { propertyId } = scope;
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
   const holdText = useHoldText(locale);
@@ -212,6 +221,45 @@ function DrawerBody({
   const place = room ? `${room.name} · ${unit.name}` : unit.name;
   const target = onward(bar, today);
   const late = lateArrival(bar, today);
+
+  // Check in and Check out where the bar is one the desk acts on today, from
+  // the rows and the components Arrivals and Departures use: whether the viewer
+  // may, whether the room lets them and what the bill is are those rows' to
+  // say, and a bar they do not list offers neither (RC-S5-03).
+  const arriving = target === "arrivals" && bar.kind === "reservation";
+  const leaving =
+    bar.kind === "stay" &&
+    bar.status === "in_house" &&
+    bar.current &&
+    bar.endsOn !== null &&
+    bar.endsOn <= today;
+  const arrivals = useQuery({
+    queryKey: frontOfficeKeys.arrivals(scope),
+    queryFn: () => fetchArrivals(propertyId),
+    enabled: arriving,
+  });
+  const departures = useQuery({
+    queryKey: frontOfficeKeys.departures(scope, "due"),
+    queryFn: () => fetchDepartures(propertyId, "due"),
+    enabled: leaving,
+  });
+  const arrival = arriving
+    ? arrivals.data?.find((row) => row.reservationId === bar.reservationId)
+    : undefined;
+  const checkIn =
+    arrival && arrival.mayCheckIn && arrival.canCheckIn ? arrival : undefined;
+  const departure =
+    leaving && bar.kind === "stay"
+      ? departures.data?.find((row) => row.stayId === bar.stayId)
+      : undefined;
+  const checkOut = departure?.mayCheckOut ? departure : undefined;
+  // The bar becomes another one once the Guest is in or out, so the drawer
+  // closes on it and every list beside the calendar is read again.
+  const client = useQueryClient();
+  const acted = () => {
+    void client.invalidateQueries({ queryKey: frontOfficeKeys.all(scope) });
+    onClose();
+  };
   const reservationsHref = `${localizeHref(locale, "reservations")}?property=${propertyId}`;
   // The booking itself, where the page can open it: Reservations does, by id.
   const bookingHref =
@@ -327,6 +375,9 @@ function DrawerBody({
   }
 
   const secondaryButton = "h-13 rounded-full px-6 text-base font-medium";
+  const primaryButton =
+    "h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90";
+  const acts = checkIn !== undefined || checkOut !== undefined;
 
   return (
     <>
@@ -487,9 +538,12 @@ function DrawerBody({
           />
         ) : null}
 
+        {/* The command, when there is one here, is the main action and the
+            page it lives on is the way onward beside it. */}
         <Button
           asChild
-          className="h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90"
+          className={acts ? secondaryButton : primaryButton}
+          variant={acts ? "outline" : "default"}
         >
           {/* Not prefetched: one bar is one link, read on the click. */}
           <Link
@@ -503,6 +557,29 @@ function DrawerBody({
             {t(`open.${target}`)}
           </Link>
         </Button>
+        {checkIn ? (
+          <CheckInAction
+            className={primaryButton}
+            guestName={bar.guestName ?? undefined}
+            locale={locale}
+            onDone={acted}
+            reservationId={checkIn.reservationId}
+            room={
+              checkIn.unitNotReadyBecause
+                ? { label: place, because: checkIn.unitNotReadyBecause }
+                : undefined
+            }
+          />
+        ) : null}
+        {checkOut ? (
+          <CheckOutDialog
+            departure={checkOut}
+            locale={locale}
+            onDone={acted}
+            propertyId={propertyId}
+            triggerClassName={primaryButton}
+          />
+        ) : null}
       </DialogActions>
     </>
   );

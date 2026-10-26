@@ -3,9 +3,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
-import type { ArrivalRow } from "../../../server/viewer";
 import { ListFilterNotice } from "../../today/components/list-filter-notice";
 import { inArrivalFilter, type ArrivalFilter } from "../../today/views";
+import { fetchArrivals } from "../queries";
 import { frontOfficeKeys, type Scope } from "../query-keys";
 import { ArrivalsTable } from "./arrivals-table";
 import type { FrontDeskReach } from "../reach";
@@ -23,25 +23,6 @@ import { ListFreshness } from "./list-freshness";
  * shape it has to take: the rows still come from `src/server/` through a route
  * handler, the policies still decide them, and nothing here is authorization.
  */
-async function fetchArrivals(
-  propertyId: string,
-): Promise<readonly ArrivalRow[]> {
-  const response = await fetch(
-    `/api/front-office/arrivals?property=${encodeURIComponent(propertyId)}`,
-    // The cache that matters is this one. Letting the browser serve a stale
-    // copy would make the poll interval a suggestion.
-    { cache: "no-store" },
-  );
-  if (!response.ok) {
-    // Carries the status so the retry policy can tell "try again" from "no".
-    throw Object.assign(new Error("arrivals could not be read"), {
-      status: response.status,
-    });
-  }
-  const body = (await response.json()) as { arrivals: readonly ArrivalRow[] };
-  return body.arrivals;
-}
-
 export function LiveArrivals({
   allHref,
   filter,

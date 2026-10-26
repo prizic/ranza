@@ -21,10 +21,13 @@ import {
 } from "../../apps/operator-workspace/src/features/room-calendar/layout";
 import {
   bookingConflicts,
+  bookingGhost,
+  confirmsInPlace,
   departureConflicts,
   ghostOf,
   guestConflicts,
   hasEndHandle,
+  nightsDragged,
   placeOfUnit,
   proposeMove,
   type MoveRequest,
@@ -772,5 +775,137 @@ describe("RC-S3-14: filters by Unit type and state", () => {
     expect(search.get("type")).toBe("suite");
     expect(search.get("state")).toBe("available");
     expect(viewSearch(view({}), "p", 14)).toBe("property=p");
+  });
+});
+
+describe("RC-S5-02: nights dragged across a free row", () => {
+  const room = unit("101", {
+    bars: [booking({ startsOn: day(4), endsOn: day(6) })],
+  });
+  const calendar = calendarOf(room);
+
+  it("are the nights from the earlier day to the morning after the later, either way dragged", () => {
+    const right = nightsDragged(room.unitId, day(1), day(3), TODAY);
+    const left = nightsDragged(room.unitId, day(3), day(1), TODAY);
+    expect(right).toEqual({
+      unitId: room.unitId,
+      startsOn: day(1),
+      endsOn: day(4),
+    });
+    expect(left).toEqual(right);
+  });
+
+  it("one day pressed and let go on is one night", () => {
+    expect(nightsDragged(room.unitId, day(2), day(2), TODAY)).toMatchObject({
+      startsOn: day(2),
+      endsOn: day(3),
+    });
+  });
+
+  it("never begin before today, even dragged back past it", () => {
+    expect(nightsDragged(room.unitId, day(2), day(-3), TODAY)).toMatchObject({
+      startsOn: TODAY,
+      endsOn: day(3),
+    });
+  });
+
+  it("free nights draw an open outline, and up to the next arrival is free", () => {
+    const free = bookingGhost(
+      calendar,
+      nightsDragged(room.unitId, day(1), day(3), TODAY),
+    );
+    expect(free.unitId).toBe(room.unitId);
+    expect(free.span).toEqual(spanOf(day(1), day(4), FROM, DAYS));
+    expect(free.blocked).toBe(false);
+  });
+
+  it("a night already booked marks the outline, as a bar's drag does", () => {
+    const target = nightsDragged(room.unitId, day(2), day(4), TODAY);
+    expect(bookingGhost(calendar, target).blocked).toBe(true);
+    expect(bookingConflicts(calendar, null, target)).toEqual([
+      { kind: "booked", guest: "Booked Guest", from: day(4), to: day(6) },
+    ]);
+  });
+
+  it("a blocked room marks it too", () => {
+    const blocked = unit("102", { status: "blocked" });
+    const target = nightsDragged(blocked.unitId, day(1), day(2), TODAY);
+    expect(bookingGhost(calendarOf(blocked), target).blocked).toBe(true);
+  });
+});
+
+describe("RC-S5-04: which drops confirm in place", () => {
+  const room = unit("101");
+  const other = unit("102");
+  const guest = inHouse({ startsOn: day(-1), endsOn: day(2) });
+  const confirmed = booking({ startsOn: day(3), endsOn: day(5) });
+  room.bars.push(guest, confirmed);
+  const calendar = calendarOf(room, other);
+
+  it("one more night for a Guest in house, with nothing in the way", () => {
+    const request = proposeMove(
+      entryOf(guest, room),
+      "resize",
+      1,
+      room.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, request, "resize")).toBe(true);
+  });
+
+  it("not a pull into the next booking: that opens the dialog that names it", () => {
+    const request = proposeMove(
+      entryOf(guest, room),
+      "resize",
+      2,
+      room.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, request, "resize")).toBe(false);
+  });
+
+  it("not a pull back to today, which is a check-out", () => {
+    const request = proposeMove(
+      entryOf(guest, room),
+      "resize",
+      -2,
+      room.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, request, "resize")).toBe(false);
+  });
+
+  it("a booking's end pulled along its own row", () => {
+    const request = proposeMove(
+      entryOf(confirmed, room),
+      "resize",
+      -1,
+      room.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, request, "resize")).toBe(true);
+  });
+
+  it("not a booking carried to other days or another room", () => {
+    const later = proposeMove(
+      entryOf(confirmed, room),
+      "move",
+      2,
+      room.unitId,
+    ) as MoveRequest;
+    const elsewhere = proposeMove(
+      entryOf(confirmed, room),
+      "move",
+      0,
+      other.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, later, "move")).toBe(false);
+    expect(confirmsInPlace(calendar, elsewhere, "move")).toBe(false);
+  });
+
+  it("not a Guest moved to another room, which asks for a reason", () => {
+    const request = proposeMove(
+      entryOf(guest, room),
+      "move",
+      0,
+      other.unitId,
+    ) as MoveRequest;
+    expect(confirmsInPlace(calendar, request, "move")).toBe(false);
   });
 });

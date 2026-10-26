@@ -183,6 +183,7 @@ export {
 } from "./components/ui/command";
 export {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "./components/ui/popover";

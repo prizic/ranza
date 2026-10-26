@@ -156,13 +156,24 @@ const PHONE_CHARACTERS = /^[0-9\s+().-]*$/;
 
 export function NewReservationDialog({
   locale,
+  onClose,
   propertyId,
+  start,
   startOpen = false,
   today,
   units,
 }: {
   locale: SupportedLocale;
+  /** Told when it closes, taken or not, for a screen that keeps its own data. */
+  onClose?: () => void;
   propertyId: string;
+  /**
+   * Opened by a gesture that already chose the nights, and the Unit when it
+   * is free for them (RC-S5-02): open at once, with those filled in and no
+   * button of its own. Nothing else is filled in, and closing it before
+   * anything is typed asks nothing, since only the gesture made it.
+   */
+  start?: { unitId: string | null; from: string; to: string };
   /** Opens on arrival, from a link that means "take a booking" (`?new=1`). */
   startOpen?: boolean;
   /**
@@ -174,10 +185,13 @@ export function NewReservationDialog({
   units: readonly BookableUnit[];
 }) {
   const t = useTranslations();
-  const [open, setOpen] = useState(startOpen);
-  const [unitId, setUnitId] = useState("");
+  const [open, setOpen] = useState(startOpen || start !== undefined);
+  const startUnit = start?.unitId ?? "";
+  const [unitId, setUnitId] = useState(startUnit);
   const [stayType, setStayType] = useState("guest");
-  const [dates, setDates] = useState<{ from?: string; to?: string }>({});
+  const [dates, setDates] = useState<{ from?: string; to?: string }>(
+    start ? { from: start.from, to: start.to } : {},
+  );
   // Which Units are taken over the nights chosen, to mark and never to hide:
   // the read is true when made and the constraint decides when saving.
   const [taken, setTaken] = useState<ReadonlyMap<string, ChangeBlocker>>(
@@ -228,6 +242,7 @@ export function NewReservationDialog({
   // uncontrolled, so the next open is a fresh form rather than the last booking.
   const closeAndReset = useCallback(() => {
     setOpen(false);
+    onClose?.();
     setUnitId("");
     setStayType("guest");
     setDates({});
@@ -240,7 +255,7 @@ export function NewReservationDialog({
     setNameTyped(false);
     setMatches([]);
     setPicked(null);
-  }, []);
+  }, [onClose]);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
   }, [outcome, closeAndReset]);
@@ -292,7 +307,10 @@ export function NewReservationDialog({
     // it; the same press again, with the question on screen, is meant.
     if (
       !askingDiscard &&
-      (started || unitId !== "" || dates.from !== undefined)
+      (started ||
+        unitId !== startUnit ||
+        dates.from !== start?.from ||
+        dates.to !== start?.to)
     ) {
       setAskingDiscard(true);
       return;
@@ -444,12 +462,14 @@ export function NewReservationDialog({
 
   return (
     <Dialog onOpenChange={openChanged} open={open}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus aria-hidden="true" />
-          {t("newReservation")}
-        </Button>
-      </DialogTrigger>
+      {start ? null : (
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <Plus aria-hidden="true" />
+            {t("newReservation")}
+          </Button>
+        </DialogTrigger>
+      )}
 
       <DialogContent className={dialogFrameClassName("large")}>
         <form
@@ -748,6 +768,9 @@ export function NewReservationDialog({
                   title={t("stayDates")}
                 >
                   <DateRangeField
+                    {...(start
+                      ? { defaultValue: { from: start.from, to: start.to } }
+                      : {})}
                     earliestFrom={today}
                     id="booking-dates"
                     labels={{

@@ -88,6 +88,7 @@ export function CheckOutDialog({
   locale,
   onDone,
   propertyId,
+  triggerClassName,
 }: {
   /** Whether the viewer can open the Folio: the link is not offered to one who cannot. */
   canOpenFolio?: boolean;
@@ -96,6 +97,8 @@ export function CheckOutDialog({
   /** Called once the Guest is out: Today refreshes its figures (TD-S2-02). */
   onDone?: () => void;
   propertyId: string;
+  /** For the button, where it stands among larger ones (the calendar's drawer). */
+  triggerClassName?: string;
 }) {
   const t = useTranslations();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -195,6 +198,7 @@ export function CheckOutDialog({
       <DialogTrigger asChild>
         <Button
           aria-label={t("checkOutFor", { guest: isolate(name) })}
+          className={triggerClassName}
           ref={trigger}
           size="sm"
           {...checkOutMarker(departure.stayId)}
