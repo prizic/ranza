@@ -2,9 +2,9 @@
 
 Date: 2026-10-08
 
-Status: Proposed
+Status: Accepted — approved by Albaraa Zain, 2026-10-26 ([PR 107, approval comment](https://github.com/prizic/ranza/pull/107#issuecomment-6424552243))
 
-Proposed amendment: 2026-10-09 (RANZ-41), pending the owner. Decision 2 (a TypeScript
+Amended: 2026-10-26 — the amendment proposed 2026-10-09 (RANZ-41) is accepted with it, on Albaraa Zain's approval of "ADR 0042" in the comment linked above, read to include the amendment; Seif can revert it. Decision 2 (a TypeScript
 adapter maps Folio lines) and the "synchronous posting" sentence of decision 3 are
 replaced by the section "Proposed amendment: who reads, who posts" below; decision 1
 stands. The original text is left as written so the owner can see what changes.
@@ -78,9 +78,8 @@ Synchronous posting is also supported via `postFolioLineToLedgerWithin`.
 
 ## Proposed amendment: who reads, who posts
 
-Status: Proposed. Applied in
-`20260916010600_the_ledger_is_read_by_permission_and_posted_by_the_worker`, so the
-owner can accept it as built or have it reversed.
+Status: Accepted — approved by Albaraa Zain, 2026-10-26 (see the status above). Applied in
+`20260916010600_the_ledger_is_read_by_permission_and_posted_by_the_worker`.
 
 ### Context
 
