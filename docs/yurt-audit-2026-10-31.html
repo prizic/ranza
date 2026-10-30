@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yurt-First Audit</title>
+    <style>
+      :root {
+        --ink: #10231c;
+        --muted: #5b6b64;
+        --line: #e3e7e4;
+        --sheet: #ffffff;
+        --ground: #f7f4ec;
+        --accent: #0f5a43;
+        --accent-soft: #e6f0eb;
+        --warn: #8a4b0f;
+        --warn-soft: #fbf0e3;
+        --stop: #8f1d1d;
+        --stop-soft: #fbeaea;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --ink: #e8eee9;
+          --muted: #9fb0a8;
+          --line: #26352f;
+          --sheet: #121a17;
+          --ground: #0c1210;
+          --accent: #6fcfa8;
+          --accent-soft: #15302a;
+          --warn: #f0b878;
+          --warn-soft: #2e2214;
+          --stop: #f29b9b;
+          --stop-soft: #331818;
+        }
+      }
+      :root[data-theme="dark"] {
+        --ink: #e8eee9;
+        --muted: #9fb0a8;
+        --line: #26352f;
+        --sheet: #121a17;
+        --ground: #0c1210;
+        --accent: #6fcfa8;
+        --accent-soft: #15302a;
+        --warn: #f0b878;
+        --warn-soft: #2e2214;
+        --stop: #f29b9b;
+        --stop-soft: #331818;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font:
+          16px/1.55 ui-sans-serif,
+          -apple-system,
+          "Segoe UI",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 16px 96px;
+      }
+      .sheet {
+        background: var(--sheet);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 40px clamp(16px, 4vw, 48px);
+      }
+      .eyebrow {
+        font:
+          600 11px/1.4 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font:
+          300 clamp(2.2rem, 5vw, 3.6rem)/1.05 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 12px 0 20px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font:
+          400 1.9rem/1.15 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 56px 0 8px;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 28px 0 8px;
+      }
+      p,
+      li {
+        max-width: 72ch;
+      }
+      a {
+        color: var(--accent);
+      }
+      .verdict {
+        font-size: 1.15rem;
+        border-inline-start: 3px solid var(--accent);
+        padding-inline-start: 18px;
+      }
+      .callout {
+        background: var(--warn-soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin: 24px 0;
+      }
+      .callout strong {
+        color: var(--warn);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 8px;
+        font-size: 0.93rem;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font:
+          600 11px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      td:first-child {
+        font-weight: 600;
+        width: 20%;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .tag {
+        display: inline-block;
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        padding: 4px 6px;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+        margin-inline-end: 4px;
+      }
+      .v {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .d {
+        background: var(--ground);
+        color: var(--muted);
+      }
+      .o {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      .i {
+        background: var(--stop-soft);
+        color: var(--stop);
+      }
+      .ok {
+        color: var(--accent);
+        font-weight: 600;
+      }
+      .gap {
+        color: var(--stop);
+        font-weight: 600;
+      }
+      .shape {
+        color: var(--warn);
+        font-weight: 600;
+      }
+      code {
+        font:
+          0.86em ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        background: var(--ground);
+        padding: 1px 5px;
+        border-radius: 4px;
+        overflow-wrap: anywhere;
+      }
+      .tier {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin: 18px 0;
+      }
+      .tier h3 {
+        margin-top: 0;
+      }
+      .tier ol {
+        padding-inline-start: 20px;
+        margin: 0;
+      }
+      .tier li {
+        margin: 8px 0;
+      }
+      .legend {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        margin: 16px 0;
+        font-size: 0.9rem;
+      }
+      .grill li {
+        margin: 14px 0;
+      }
+      .rec {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+      }
+      .rec strong {
+        color: var(--accent);
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 48px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="sheet">
+        <div class="eyebrow">
+          Ranza · yurt-first audit · 31 Oct 2026 · hosted staging a78da726, code
+          re-checked at origin/main 897d7fd0
+        </div>
+        <h1>
+          Can a Turkish <em>yurt</em> run on Ranza today? Not for one month.
+        </h1>
+
+        <p class="verdict">
+          <strong>Verdict.</strong> The interface is a well-built hotel front
+          desk, and a dormitory operator would feel that on every screen. Three
+          things stop a private <em>öğrenci yurdu</em> from running a month on
+          it, and none of them is visual. First,
+          <strong>nothing bills a Resident</strong>, so a yurt on Ranza has no
+          income line. Second,
+          <strong>the student record is a name, an email and a phone</strong>:
+          no kimlik or passport, no gender, no guardian (<em>veli</em>), no
+          university. Third,
+          <strong>no screen thinks in terms of beds over a term</strong>: the
+          calendar stops at 30 days, a room card shows one person, and a bed is
+          priced the same in a single room as in a six-bed room. Going
+          yurt-first is the right call <em>if</em> there is a named yurt
+          operator to design with. Without one, the billing design (monthly rent
+          or an annual fee in <em>taksit</em>/<em>senet</em> instalments) is a
+          guess, and it is the most expensive thing to get wrong.
+        </p>
+
+        <div class="callout">
+          <strong>What "yurt" means here.</strong> I read "yurt systems" as
+          Turkish <strong>student dormitories</strong> (<em
+            >özel öğrenci yurtları</em
+          >), not glamping tents. That is what the word means in Turkish, this
+          repository began as a student-dormitory pilot (<a
+            href="adr/0004-student-residence-is-a-property-configuration.md"
+            >ADR 0004</a
+          >: "a dormitory operator remains a live prospect"), and the design
+          references use "Turkish student-housing data"
+          (<code>docs/design/visual-reference.md</code>). If glamping yurts were
+          meant, sections 4 and 7 change completely; the billing, Guest-record
+          and calendar findings in section 3 would still apply.
+        </div>
+
+        <div class="callout">
+          <strong>This is a priority change, not a scope change.</strong>
+          Blueprint section 1 already lists student residences, and ADR 0004
+          already says a dormitory is a
+          <em>Property configuration, not a fork</em>. So "yurt first" needs no
+          blueprint amendment. It needs a roadmap reorder and, for the
+          configuration switch in section 6, a new ADR written as
+          <code>Status: Proposed</code>. Do not answer it with a "yurt edition":
+          ADR 0004 forbids that, and it is right to.
+        </div>
+
+        <h2>1. How this was checked</h2>
+        <p>
+          I signed in to hosted staging as the Owner in Turkish and captured
+          every built screen at 1440px, plus Today, Housekeeping, Maintenance
+          and Guest experience at 390px. I opened the booking and add-rooms
+          dialogs without submitting anything. I read the schema, the folio and
+          stay write paths, the rates rows, the room calendar contract and the
+          portal page, and queried the staging database read-only. I built on
+          <a href="journey-gaps-2026-10-23.html">the 23 Oct journey review</a>,
+          which mapped the dormitory gaps from the code but did not use the app.
+          I did not repeat its hotel findings.
+        </p>
+        <p>
+          The code was first read on a local <code>main</code> that turned out
+          to be 297 commits behind. Every code finding was then re-checked on
+          <code>origin/main</code> 897d7fd0 and still holds; the portal one is
+          now recorded there as GP-DEF-02 ("nothing writes stays.user_id").
+        </p>
+        <div class="legend">
+          <div>
+            <span class="tag v">VERIFIED</span> I read the code, queried the
+            database or saw the screen
+          </div>
+          <div>
+            <span class="tag d">ROW</span> already recorded in a
+            <code>docs/features/*/edge-cases.csv</code> row
+          </div>
+          <div>
+            <span class="tag o">INFERRED</span> reasoned from the code, not run
+          </div>
+          <div>
+            <span class="tag i">UNKNOWN</span> could not establish it; needs
+            Seif, a customer or counsel
+          </div>
+        </div>
+
+        <h2>2. Since 23 Oct: what is still true</h2>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>Gap from the 23 Oct review</th>
+              <th>Today</th>
+            </tr>
+            <tr>
+              <td>Residents are never billed</td>
+              <td class="gap">
+                Still true. The close posts no room night for a Resident
+                (RT-S3-05) and monthly billing is deferred (RT-DEF-04)
+                <span class="tag d">ROW</span>. Folios do open for Residents
+                (<code>openFolioWithin</code> has no stay-type filter), so
+                Owner, Manager or Finance <em>could</em> post rent by hand, one
+                Resident at a time <span class="tag o">INFERRED</span>. At 200
+                beds that is 200 manual charges a month, and the Front desk role
+                cannot do it at all (<code>finance.post_charge</code>: Finance,
+                Owner and Manager only on staging)
+                <span class="tag v">VERIFIED</span>.
+              </td>
+            </tr>
+            <tr>
+              <td>A Resident cannot reach the Portal</td>
+              <td class="gap">
+                Still true. Portal access hangs on <code>stays.user_id</code>,
+                and no migration or command writes it
+                <span class="tag v">VERIFIED</span>.
+              </td>
+            </tr>
+            <tr>
+              <td>No guardian, emergency contact or identity document</td>
+              <td class="gap">
+                Still true. <code>guests</code> holds <code>full_name</code>,
+                <code>email</code> and <code>phone</code>, nothing else
+                (RG-DEF-07, CI-DEF-05) <span class="tag v">VERIFIED</span>.
+              </td>
+            </tr>
+            <tr>
+              <td>No term, no Property type</td>
+              <td class="gap">
+                Still true. <code>properties</code> has name, timezone, currency
+                and cutoff, and no operating model
+                <span class="tag v">VERIFIED</span>.
+              </td>
+            </tr>
+            <tr>
+              <td>Staging has never run a dormitory</td>
+              <td class="gap">
+                New finding. Staging holds 37 Stays and every one is a Guest
+                Stay (29 in house, 8 departed); there is no bed Unit and no
+                Resident <span class="tag v">VERIFIED</span>. No dormitory
+                journey has been walked on the hosted system, and a sales demo
+                for a yurt would show a hotel.
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>3. Screen by screen, as a yurt manager in October</h2>
+        <p>
+          October is mid-term. Nobody arrives or leaves; 300 students live
+          there, a third are behind on an instalment, a dozen are on weekend
+          leave, the boiler on block B is broken, and a parent is on the phone.
+          That is the day each screen is judged against.
+        </p>
+        <div class="legend">
+          <div>
+            <span class="gap">Blocks</span>: the yurt cannot do the job here
+          </div>
+          <div>
+            <span class="shape">Hotel-shaped</span>: works, but answers a
+            hotel's question
+          </div>
+          <div><span class="ok">Fits</span>: right for a yurt as it stands</div>
+        </div>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>Screen</th>
+              <th>What the yurt needs here</th>
+              <th>What it does today</th>
+            </tr>
+            <tr>
+              <td>Today<br /><code>/today</code></td>
+              <td>
+                Empty beds by block and gender, students behind on payment, who
+                is on leave or missing tonight, open requests and faults.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> The four headline tiles
+                are Arrivals, Departures, In house and Rooms ready to sell
+                <span class="tag v">VERIFIED</span>. Mid-term, the first two
+                read 0/0 every day and the fourth counts rooms, not beds. The
+                "Günün akışı" list is departures. Nothing on the page knows a
+                Resident exists.
+              </td>
+            </tr>
+            <tr>
+              <td>New booking dialog</td>
+              <td>
+                Register a student for a term: kimlik or passport, nationality,
+                gender, date of birth, university and year, veli name and phone,
+                emergency contact, term dates, the fee and its instalments, a
+                bed that matches the student's gender.
+              </td>
+              <td>
+                <span class="gap">Blocks.</span> Guest or Resident chips (Guest
+                is the default), then name, email, phone, dates, expected
+                arrival time and a unit <span class="tag v">VERIFIED</span>.
+                Picking Resident removes the price entirely and shows
+                <em>"Bir Sakin gecelik değil, aylık faturalandırılır"</em>,
+                which promises monthly billing that does not exist: a desk will
+                believe rent is being charged. Dates are free range with no term
+                preset, and an open end is allowed, while yurt contracts are
+                fixed-term.
+              </td>
+            </tr>
+            <tr>
+              <td>Room calendar<br /><code>/room-calendar</code></td>
+              <td>
+                A bed board for the academic year: September to June at a
+                glance, every bed a row grouped under its room, gender and free
+                beds per block.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> Lengths are fixed at
+                <code>[7, 14, 30]</code> days
+                (<code>ROOM_CALENDAR_LENGTHS</code>)
+                <span class="tag v">VERIFIED</span>. A ten-month contract is a
+                bar that runs off every view. Drag to move, drag to extend and
+                quick actions are good and carry over; the window is the
+                problem.
+              </td>
+            </tr>
+            <tr>
+              <td>Rooms<br /><code>/rooms</code></td>
+              <td>
+                Floor map of rooms showing beds taken out of beds total ("3/4"),
+                gender, and who is in each bed.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> One card per room, one
+                name chip, a "2 kişilik" label
+                <span class="tag v">VERIFIED</span>. Rooms split into beds
+                become separate Units (ADR 0025), but staging has none, so the
+                bed-level card has never been seen on hosted data
+                <span class="tag i">UNKNOWN</span>. The floor grouping is right
+                for a yurt.
+              </td>
+            </tr>
+            <tr>
+              <td>Add rooms dialog</td>
+              <td>
+                "Block B, floors 1 to 4, 4-bed rooms, sold by bed, girls."
+              </td>
+              <td>
+                <span class="ok">Fits, nearly.</span> Bulk numbering, building
+                and floor, and a "Yatak bazında kirala" toggle that creates beds
+                A, B, C... <span class="tag v">VERIFIED</span>. Missing: gender
+                on the room or block. This is the best yurt fit in the product.
+              </td>
+            </tr>
+            <tr>
+              <td>Rates in Configuration</td>
+              <td>
+                A yearly or term fee per bed, different for a single, double or
+                six-bed room, with an instalment plan.
+              </td>
+              <td>
+                <span class="gap">Blocks.</span> "Gecelik fiyatlar", one nightly
+                price per unit type: Oda, Yatak, Daire, Süit
+                <span class="tag v">VERIFIED</span>. Every bed shares one price
+                whatever room it is in (<code>property_rates</code> is unique on
+                property and <code>unit_type</code>), and a Resident is never
+                priced at all (RT-S2-05).
+              </td>
+            </tr>
+            <tr>
+              <td>Arrivals and Departures</td>
+              <td>
+                Used twice a year: move-in week in September and move-out in
+                June, hundreds at once.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> One row, one button,
+                one Guest at a time <span class="tag o">INFERRED</span>. Move-in
+                week needs bulk check-in and a move-in inspection.
+              </td>
+            </tr>
+            <tr>
+              <td>Close the day</td>
+              <td>For a pure yurt, nothing: rent is not nightly.</td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> It charges Guest nights
+                and skips Residents. In a yurt it would be a daily ritual that
+                posts nothing, except in summer, when yurts commonly take
+                short-stay Guests <span class="tag o">INFERRED</span>.
+              </td>
+            </tr>
+            <tr>
+              <td>Finance<br /><code>/finance</code></td>
+              <td>
+                Who owes which instalment, overdue by how long, with the veli's
+                phone one tap away.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> A folio list with
+                balances and "Gecikmiş · N gün", where overdue means past
+                check-out <span class="tag v">VERIFIED</span>. There is no due
+                date, because nothing is scheduled.
+              </td>
+            </tr>
+            <tr>
+              <td>Guest experience<br /><code>/guest-experience</code></td>
+              <td>
+                Student requests and complaints, ideally submitted from the
+                student's phone.
+              </td>
+              <td>
+                <span class="ok">Fits on the staff side.</span> Requests with
+                priority, category, assignee and status
+                <span class="tag v">VERIFIED</span>. Students cannot raise one
+                themselves (MT-DEF-02) and the page is called "Misafir deneyimi"
+                (guest experience).
+              </td>
+            </tr>
+            <tr>
+              <td>Housekeeping</td>
+              <td>
+                Weekly cleaning of <em>occupied</em> rooms and common areas;
+                turnover only twice a year.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> It is turnover-driven:
+                check-out makes a room dirty. Stayover cleaning is deferred
+                (HK-DEF-01) <span class="tag d">ROW</span>, and in a yurt
+                stayover cleaning is nearly all of the work.
+              </td>
+            </tr>
+            <tr>
+              <td>Maintenance</td>
+              <td>Constant faults: heating, showers, wifi, broken beds.</td>
+              <td>
+                <span class="ok">Fits.</span> Reporting, holding a room out of
+                order, and charging damage to a Folio all carry over. A student
+                cannot report a fault from the portal (MT-DEF-02).
+              </td>
+            </tr>
+            <tr>
+              <td>Food and beverage</td>
+              <td>
+                Breakfast and dinner are usually included in a Turkish yurt fee
+                <span class="tag o">INFERRED</span>.
+              </td>
+              <td>
+                "Yakında" (coming soon). A yurt does not need a POS for this; an
+                included meal plan on the contract is enough at first.
+              </td>
+            </tr>
+            <tr>
+              <td>Analytics</td>
+              <td>
+                Bed occupancy, collected against billed, arrears by month.
+              </td>
+              <td>
+                <span class="shape">Hotel-shaped.</span> It reports room nights
+                and revenue; Resident nights appear with no money attached.
+              </td>
+            </tr>
+            <tr>
+              <td>Portal<br /><code>/stay</code></td>
+              <td>
+                Balance and next instalment, requests and faults, announcements,
+                leave requests, the house rules.
+              </td>
+              <td>
+                <span class="gap">Blocks.</span> One page showing Property,
+                unit, dates and stay type <span class="tag v">VERIFIED</span>,
+                and no Resident can sign in to see it (section 2).
+              </td>
+            </tr>
+            <tr>
+              <td>Integrations</td>
+              <td>
+                KBS if the duty applies, e-Arşiv invoices, SMS to parents.
+              </td>
+              <td>
+                Off for the demo Property on staging. In the local dev seed, KBS
+                and GİB e-Arşiv rows are written as <code>connected</code>, but
+                no code talks to either <span class="tag v">VERIFIED</span>.
+                That is false status in a demo; it should read "not connected".
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>4. Vocabulary: the Turkish copy speaks hotel</h2>
+        <p>
+          A yurt manager reads the product in Turkish, and the Turkish is a
+          hotel's. The canonical terms stay as they are in code (blueprint
+          section 2: Resident, Guest, Property). What changes is the
+          <strong>Turkish label</strong> a dormitory Property shows. That is the
+          "approved terminology mappings" white-label setting in blueprint
+          section 8, which is not built.
+        </p>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>Ranza today (TR)</th>
+              <th>A yurt says</th>
+              <th>Note</th>
+            </tr>
+            <tr>
+              <td>Sakin (Resident)</td>
+              <td>Öğrenci</td>
+              <td>
+                "Sakin" reads as a building's or neighbourhood's resident. Every
+                Turkish yurt program says öğrenci.
+              </td>
+            </tr>
+            <tr>
+              <td>Misafir deneyimi</td>
+              <td>Öğrenci talepleri</td>
+              <td>
+                The page is requests; "guest experience" is hotel marketing
+                language.
+              </td>
+            </tr>
+            <tr>
+              <td>Rezervasyon</td>
+              <td>Kayıt / ön kayıt</td>
+              <td>
+                A term booking is a registration, and next year's is a
+                pre-registration.
+              </td>
+            </tr>
+            <tr>
+              <td>Satışa hazır odalar</td>
+              <td>Boş yatak</td>
+              <td>A yurt sells beds, not rooms.</td>
+            </tr>
+            <tr>
+              <td>Ön büro</td>
+              <td>Yurt yönetimi / Kayıt</td>
+              <td>Weaker case; "ön büro" is understood but is a hotel term.</td>
+            </tr>
+            <tr>
+              <td>Gecelik fiyatlar</td>
+              <td>Yurt ücretleri / Dönem ücreti</td>
+              <td>Fees are per term or per year.</td>
+            </tr>
+            <tr>
+              <td>Demo Otel İstanbul</td>
+              <td>(a yurt demo Property)</td>
+              <td>The only demo data is a hotel.</td>
+            </tr>
+          </table>
+        </div>
+        <p>
+          Worth using: <em>ranza</em> is Turkish for a bunk bed. For a yurt
+          product the name already does the marketing.
+        </p>
+
+        <h2>5. The Turkish dormitory context</h2>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>Fact</th>
+              <th>What it means for Ranza</th>
+            </tr>
+            <tr>
+              <td>
+                Private higher-education dormitories are governed by the
+                <em>Yükseköğrenim Özel Barınma Hizmetleri Yönetmeliği</em>,
+                Gençlik ve Spor Bakanlığı, Resmi Gazete 31948, 9 Sept 2022
+                <span class="tag o">FROM SEARCH, TEXT NOT READ</span>
+              </td>
+              <td>
+                This is the document to read before designing registration,
+                attendance and parent notification. Its clauses on those topics
+                were not found in the search; counsel or the customer should
+                point at them.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Ministry dormitories notify a student's leave to the guardian by
+                SMS or email when the student is under 18
+                <span class="tag o">FROM SEARCH, STATE YURTS ONLY</span>
+              </td>
+              <td>
+                Private yurts commonly copy this practice. Veli notification is
+                a likely day-one ask, and it needs the messaging foundation that
+                does not exist.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Whether private yurts must report residents through KBS
+                <span class="tag i">UNKNOWN</span>
+              </td>
+              <td>
+                The search found no clear statement. A 2010 rule had dormitories
+                notify student identities to the education directorate within
+                five days; the authority has since moved to GSB/KYK. Ask counsel
+                before building either a KBS or a ministry export.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                The government has capped private-dormitory fee increases
+                <span class="tag o">HEADLINE ONLY</span>
+              </td>
+              <td>
+                A price list with history and an effective date matters more for
+                a yurt than for a hotel. Ranza's rate change already records who
+                changed it and when.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Turkish yurt programs (Hursoft Yurt Programı, Microm Yurt
+                Otomasyonu) centre on student, veli and
+                <em>kefil</em> (guarantor) records, leave (<em>izin</em>) and
+                <em>senet</em> (promissory-note) instalment tracking
+                <span class="tag o">FROM LISTINGS</span>
+              </td>
+              <td>
+                This is the local bar, and it is low: desktop programs from
+                download sites. Ranza wins on the web, the portal, roles and
+                audit, but only once it has the student record and instalments
+                those programs treat as basics.
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>6. Architecture stance</h2>
+        <p>
+          <strong
+            >A "dormitory" operating model on the Property, as
+            configuration.</strong
+          >
+          One setting chosen when the Property is configured. It sets defaults
+          and never forks behaviour:
+        </p>
+        <ul>
+          <li>
+            the default stay type in the booking form becomes Resident, and term
+            presets replace free dates;
+          </li>
+          <li>
+            the Turkish labels in section 4 (and the Arabic and English
+            equivalents) apply;
+          </li>
+          <li>
+            Today shows the dormitory tiles and the calendar opens on the term;
+          </li>
+          <li>
+            Close the day stays available for summer Guests but stops being the
+            daily ritual.
+          </li>
+        </ul>
+        <p>
+          The rules underneath stay the same, which is ADR 0004's whole point.
+          The alternative, scattering
+          <code>if (stayType === "resident")</code> through each screen, is what
+          the screens already do. It is why the product looks hotel-shaped while
+          technically supporting Residents. This wants a
+          <code>Proposed</code> ADR before any code.
+        </p>
+        <p>
+          <strong
+            >Billing as an instalment schedule, not "monthly rent".</strong
+          >
+          The general case is a contract with N instalments, each with an amount
+          and a due date, posted to the Folio by the worker on its due date.
+          Monthly is N = 10 or 12; an annual fee paid in four senets is N = 4;
+          pay-in-full is N = 1. Building "monthly" alone would be the
+          specialisation the project has decided to defer (<a
+            href="adr/0004-student-residence-is-a-property-configuration.md"
+            >ADR 0004</a
+          >
+          and the general-case-first rule). It reuses money as integer minor
+          units, corrections as reversal lines (ADR 0015) and the outbox (ADR
+          0017).
+        </p>
+        <p>
+          <strong>A bed's price follows its room.</strong> Today a price belongs
+          to a unit type, and every bed is <code>bed</code>. A yurt needs a bed
+          in a single room to cost more than a bed in a six-bed room. The
+          smallest change is to price a bed by its room's type, or by room
+          capacity. That is an amendment to ADR 0038 and Seif decides it.
+        </p>
+
+        <h2>7. What to build, in order</h2>
+        <p>
+          Superseded as the working plan by
+          <a href="yurt-first-plan.html">yurt-first-plan.html</a>, which orders
+          the same items against the Backstage tasks. Kept here as what the
+          audit recommended.
+        </p>
+        <p>
+          Ranked by what lets one real yurt stop using its old program. Every
+          item goes through <code>feature-design</code>, and every answer here
+          is <em>proposed</em> until Seif or Albaraa approves it explicitly.
+        </p>
+
+        <div class="tier">
+          <h3>Tier 0: before code (days, not weeks)</h3>
+          <ol>
+            <li>
+              <strong>Name a design-partner yurt.</strong> One operator whose
+              contract, fee sheet and registration form we copy the shape of.
+              Without one, Tier 1 item 1 is guesswork.
+            </li>
+            <li>
+              <strong>Ask counsel two questions:</strong> the KBS or ministry
+              reporting duty for private yurts, and which 2022 regulation
+              clauses govern registration records, attendance and parent
+              notification.
+            </li>
+            <li>
+              <strong>A yurt demo Property on staging:</strong> blocks, gendered
+              floors, rooms sold by bed, Residents on term contracts. It is
+              cheap, it lets the dormitory journey be audited on hosted data at
+              all, and it is the sales demo.
+            </li>
+            <li>
+              <strong>Fix the false promise in the booking dialog</strong>
+              (quick win): the Resident copy says "billed monthly" in all three
+              languages, also in change-departure and close-day. Until billing
+              exists it should say rent is not charged automatically. Not
+              changed in this audit, because the honest wording depends on
+              whether the desk is told to post rent by hand.
+            </li>
+          </ol>
+        </div>
+
+        <div class="tier">
+          <h3>Tier 1: one yurt runs one month</h3>
+          <ol>
+            <li>
+              <strong>Term contract with an instalment schedule</strong>, posted
+              by the worker on each due date, with an overdue state. This
+              replaces RT-DEF-04 and is the yurt's income line.
+            </li>
+            <li>
+              <strong>The student record:</strong> kimlik or passport number,
+              nationality, gender, date of birth, university and year, veli name
+              and phone, emergency contact (RG-DEF-07, CI-DEF-05). KVKK consent
+              goes with it, because it is minors' and parents' data.
+            </li>
+            <li>
+              <strong>Gender on a room or block</strong>, enforced when a bed is
+              booked, ideally in the database, as a composite key or trigger in
+              the house style.
+            </li>
+            <li>
+              <strong>Bed board:</strong> a term-length calendar view (the
+              window, not a new screen), beds-taken over beds-total on room
+              cards, and an empty-beds count by block and gender.
+            </li>
+            <li>
+              <strong>Portal activation:</strong> an invitation from the Stay
+              sets <code>user_id</code>. Then show balance and next instalment
+              (FO-DEF-11).
+            </li>
+            <li>
+              <strong>The dormitory operating model</strong> from section 6:
+              Today tiles, labels, booking defaults, term presets.
+            </li>
+          </ol>
+        </div>
+
+        <div class="tier">
+          <h3>Tier 2: a yurt runs a whole term</h3>
+          <ol>
+            <li>
+              Messaging foundation, then SMS to the veli: overdue instalment,
+              leave, an incident.
+            </li>
+            <li>
+              Students raise requests and faults from the portal (MT-DEF-02);
+              announcements with acknowledgement.
+            </li>
+            <li>
+              Nightly attendance (<em>yoklama</em>) and leave requests
+              (<em>izin</em>). Confirm with the design partner how they run them
+              before designing.
+            </li>
+            <li>Stayover cleaning of occupied rooms (HK-DEF-01).</li>
+            <li>
+              Move-in week: bulk check-in, a move-in inspection, a deposit;
+              move-out with damage charges and the deposit returned less
+              deductions.
+            </li>
+            <li>e-Arşiv invoice per instalment, through Integrations.</li>
+          </ol>
+        </div>
+
+        <div class="tier">
+          <h3>Tier 3: next year</h3>
+          <ol>
+            <li>
+              Pre-registration and renewals for next term, a waiting list, and
+              roommate placement.
+            </li>
+            <li>
+              Visitor log, parcels, turnstile and card-access integration.
+            </li>
+            <li>Meal plans beyond "included".</li>
+            <li>
+              Summer short stays already work through the Guest flow. That mixed
+              use is an edge over the yurt programs, so lead with it in sales.
+            </li>
+          </ol>
+        </div>
+
+        <h2>8. Decisions for Seif or Albaraa</h2>
+        <p>
+          Each carries my recommendation and its reason. Reply "all", or the
+          numbers to change.
+        </p>
+        <ol class="grill">
+          <li>
+            Is there a named yurt operator to design with?
+            <span class="rec"
+              ><strong>Recommend:</strong> yes, before Tier 1 starts. The fee
+              and instalment shape varies between operators, and a guessed
+              schedule is the most expensive thing to rework.</span
+            >
+          </li>
+          <li>
+            Billing model: monthly rent, or a general instalment schedule?
+            <span class="rec"
+              ><strong>Recommend:</strong> the general schedule (N instalments,
+              each with an amount and a due date). Monthly, quarterly and four
+              senets are all one case of it. The Turkish yurt programs track
+              senets; I have not checked how StarRez schedules its
+              charges.</span
+            >
+          </li>
+          <li>
+            How does the Property choose dormitory behaviour?
+            <span class="rec"
+              ><strong>Recommend:</strong> a dormitory operating model on the
+              Property, set in Configuration, that only sets defaults and labels
+              (section 6). ADR 0004 already rules out a fork.</span
+            >
+          </li>
+          <li>
+            Turkish label for Resident in a dormitory?
+            <span class="rec"
+              ><strong>Recommend:</strong> "Öğrenci" in TR, "Student" in EN,
+              "طالب" in AR, through a terminology mapping keyed by the operating
+              model. Code and database keep Resident.</span
+            >
+          </li>
+          <li>
+            Where does gender live?
+            <span class="rec"
+              ><strong>Recommend:</strong> on the room, with an optional default
+              per building. Some private yurts are single-gender and some run
+              separate blocks; a per-Property flag cannot express the
+              second.</span
+            >
+          </li>
+          <li>
+            Price of a bed?
+            <span class="rec"
+              ><strong>Recommend:</strong> by its room's capacity (single,
+              double, triple...), as an amendment to ADR 0038. That is how yurt
+              fee sheets are written.</span
+            >
+          </li>
+          <li>
+            Are open-ended Resident stays allowed in a dormitory?
+            <span class="rec"
+              ><strong>Recommend:</strong> no; a term end date is required. Yurt
+              contracts are fixed-term, and an open end has nothing to schedule
+              instalments against. Keep open-ended for staff housing.</span
+            >
+          </li>
+          <li>
+            Tier order against the 23 Oct plan, which put the hotel week first?
+            <span class="rec"
+              ><strong>Recommend:</strong> yurt Tier 1 first, keeping the items
+              both share where they already overlap (identity capture, portal
+              activation, the messaging foundation). Do only this if item 1 has
+              a name, though. Otherwise do Tier 0 and the shared items and
+              wait.</span
+            >
+          </li>
+        </ol>
+
+        <h2>9. What I did not check</h2>
+        <ul>
+          <li>
+            The bed-level rooms view and the Resident booking path on hosted
+            data, because staging has neither. I read the code and opened the
+            form; I did not book.
+          </li>
+          <li>
+            Mobile housekeeping and maintenance in a yurt flow beyond the 390px
+            captures; the 24 Oct UX audit covers their general state.
+          </li>
+          <li>
+            Main is ahead of staging (<code>a78da726</code>). The date-range
+            selection on the calendar (<code>91464ee6</code>) is not deployed,
+            and it does not change the 30-day limit.
+          </li>
+          <li>
+            All legal points. Blueprint 10.1: legal and accounting behaviour
+            needs qualified review.
+          </li>
+        </ul>
+
+        <h2>10. UX lines</h2>
+        <p>
+          <strong>UX tweaks made:</strong> none. This was a read-only audit; the
+          copy fix in Tier 0 item 4 is the first one to make.<br />
+          <strong>UX proposals:</strong> (1) a term-length window on the room
+          calendar; (2) beds-taken over beds-total and gender on room cards; (3)
+          a dormitory Today. All three are proposed rows to write in
+          <code>feature-design</code>. Comparables, all already in
+          <code>docs/design/ui-references.md</code> and none checked for this
+          audit: StarRez (student housing lifecycle and assignment), PG+
+          (bed-level availability), Ulyses Cloud (room tiles by floor).
+        </p>
+
+        <h3>Sources</h3>
+        <ul>
+          <li>
+            <a
+              href="https://www.alomaliye.com/2022/09/09/yeni-yuksekogrenim-ozel-barinma-hizmetleri-yonetmeligi/amp/"
+              >Yeni Yükseköğrenim Özel Barınma Hizmetleri Yönetmeliği
+              (alomaliye.com)</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://kygm.gsb.gov.tr/Public/Edit/images/KYGM/012014/ogrenci izin yonerge.pdf"
+              >GSB öğrenci izin yönergesi (state dormitories)</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.memurlar.net/haber/918697/ozel-yurtlarda-kalan-ogrencilere-resmi-bildirim-uyarisi.html"
+              >Özel yurtlarda kalan öğrencilere resmi bildirim uyarısı
+              (memurlar.net)</a
+            >
+          </li>
+          <li>
+            <a
+              href="https://www.istiklal.com.tr/ekonomi/resmi-gazetede-yayimlandi-ozel-yurtlara-zam-siniri-711026h"
+              >Özel yurtlara zam sınırı (istiklal.com.tr)</a
+            >
+          </li>
+          <li>
+            <a href="https://www.tamindir.com/indir/hursoft-yurt-programi/"
+              >Hursoft Yurt Programı</a
+            >
+            ·
+            <a href="https://www.tamindir.com/indir/microm-yurt-otomasyonu/"
+              >Microm Yurt Otomasyonu</a
+            >
+          </li>
+        </ul>
+
+        <footer>
+          Written 31 Oct 2026 from hosted staging <code>a78da726</code>, code
+          re-checked at <code>origin/main</code> 897d7fd0. Read-only: no code,
+          schema or staging data changed. Builds on
+          <a href="journey-gaps-2026-10-23.html"
+            >journey-gaps-2026-10-23.html</a
+          >
+          and the 24 Oct all-roles UX audit (not committed).
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>

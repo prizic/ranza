@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yurt-First Plan</title>
+    <style>
+      :root {
+        --ink: #10231c;
+        --muted: #5b6b64;
+        --line: #e3e7e4;
+        --sheet: #ffffff;
+        --ground: #f7f4ec;
+        --accent: #0f5a43;
+        --accent-soft: #e6f0eb;
+        --warn: #8a4b0f;
+        --warn-soft: #fbf0e3;
+        --stop: #8f1d1d;
+        --stop-soft: #fbeaea;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --ink: #e8eee9;
+          --muted: #9fb0a8;
+          --line: #26352f;
+          --sheet: #121a17;
+          --ground: #0c1210;
+          --accent: #6fcfa8;
+          --accent-soft: #15302a;
+          --warn: #f0b878;
+          --warn-soft: #2e2214;
+          --stop: #f29b9b;
+          --stop-soft: #331818;
+        }
+      }
+      :root[data-theme="dark"] {
+        --ink: #e8eee9;
+        --muted: #9fb0a8;
+        --line: #26352f;
+        --sheet: #121a17;
+        --ground: #0c1210;
+        --accent: #6fcfa8;
+        --accent-soft: #15302a;
+        --warn: #f0b878;
+        --warn-soft: #2e2214;
+        --stop: #f29b9b;
+        --stop-soft: #331818;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font:
+          16px/1.55 ui-sans-serif,
+          -apple-system,
+          "Segoe UI",
+          "Helvetica Neue",
+          Arial,
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 16px 96px;
+      }
+      .sheet {
+        background: var(--sheet);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 40px clamp(16px, 4vw, 48px);
+      }
+      .eyebrow {
+        font:
+          600 11px/1.4 ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        font:
+          300 clamp(2.2rem, 5vw, 3.6rem)/1.05 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 12px 0 20px;
+        letter-spacing: -0.01em;
+      }
+      h2 {
+        font:
+          400 1.9rem/1.15 Georgia,
+          "Times New Roman",
+          serif;
+        margin: 56px 0 8px;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 28px 0 8px;
+      }
+      p,
+      li {
+        max-width: 72ch;
+      }
+      a {
+        color: var(--accent);
+      }
+      .verdict {
+        font-size: 1.15rem;
+        border-inline-start: 3px solid var(--accent);
+        padding-inline-start: 18px;
+      }
+      .callout {
+        background: var(--warn-soft);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin: 24px 0;
+      }
+      .callout strong {
+        color: var(--warn);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 12px 0 8px;
+        font-size: 0.93rem;
+      }
+      th,
+      td {
+        text-align: start;
+        vertical-align: top;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        font:
+          600 11px/1.4 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      td:first-child {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .tag {
+        display: inline-block;
+        font:
+          600 10.5px/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        padding: 4px 6px;
+        border-radius: 5px;
+        border: 1px solid var(--line);
+        white-space: nowrap;
+        margin-inline-end: 4px;
+      }
+      .new {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .old {
+        background: var(--ground);
+        color: var(--muted);
+      }
+      .open {
+        background: var(--warn-soft);
+        color: var(--warn);
+      }
+      code {
+        font:
+          0.86em ui-monospace,
+          "SF Mono",
+          Menlo,
+          monospace;
+        background: var(--ground);
+        padding: 1px 5px;
+        border-radius: 4px;
+        overflow-wrap: anywhere;
+      }
+      .stage {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin: 18px 0;
+      }
+      .stage h3 {
+        margin-top: 0;
+      }
+      .stage .goal {
+        color: var(--muted);
+        margin-top: -4px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        margin: 16px 0;
+      }
+      .grid > div {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px 16px;
+      }
+      .grid h4 {
+        margin: 0 0 6px;
+        font-size: 0.95rem;
+      }
+      .grid ul {
+        margin: 0;
+        padding-inline-start: 18px;
+        font-size: 0.93rem;
+      }
+      footer {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 48px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="sheet">
+        <div class="eyebrow">
+          Ranza · plan · 31 Oct 2026 · against origin/main 897d7fd0
+        </div>
+        <h1>
+          Yurt first: one interface, a dormitory mode, and the order to build it
+          in
+        </h1>
+
+        <p class="verdict">
+          <strong>The plan.</strong> Ranza serves Turkish student dormitories
+          (<em>yurt</em>) first, through the same product a hotel uses. A
+          Property gets an <strong>operating model</strong>,
+          <code>hotel</code> or <code>dormitory</code>, which changes what the
+          screens default to, show first and call things, and never the rules
+          underneath (<a
+            href="adr/0057-a-propertys-operating-model-sets-its-defaults-and-its-words-never-its-rules.md"
+            >ADR 0057</a
+          >). The first milestone is
+          <strong>one yurt runs one month on Ranza</strong>: students
+          registered, beds placed by gender, instalments charged and chased,
+          students in the portal. The second is a whole term. Everything below
+          is tracked in Backstage as RANZ-103..113, alongside the dormitory
+          tasks already filed as RANZ-78..101.
+        </p>
+
+        <div class="callout">
+          <strong>What is agreed and what is not.</strong> On 31 Oct Albaraa
+          agreed the direction: yurt first, one interface with a dormitory mode,
+          no separate product. That agreement is recorded here; it is not yet an
+          approval of the ADR or of the decisions in section 6, which stay
+          <em>proposed</em> until Seif or Albaraa approves them by number, on
+          the pull request or on RANZ-103 (<code>CLAUDE.local.md</code>, "Who
+          approves"). Every feature still goes through
+          <code>feature-design</code> before code.
+        </div>
+
+        <h2>1. Why this, in three lines</h2>
+        <p>
+          The <a href="yurt-audit-2026-10-31.html">31 Oct audit</a> found the
+          screens well built and hotel-shaped, and three blockers that are not
+          visual: <strong>nothing bills a Resident</strong> (RT-DEF-04),
+          <strong>the student record is a name, an email and a phone</strong>,
+          and <strong>no screen thinks in beds over a term</strong> (calendar
+          capped at 30 days, one name per room card, one price for every bed). A
+          Resident also cannot sign in to the portal, because nothing writes
+          <code>stays.user_id</code> (GP-DEF-02). All of it was re-checked on
+          <code>origin/main</code> 897d7fd0 for this plan.
+        </p>
+
+        <h2>2. The shape: one interface, two operating models</h2>
+        <div class="grid">
+          <div>
+            <h4>The same for every Property</h4>
+            <ul>
+              <li>Check-in, check-out, moves, extensions</li>
+              <li>Folios, payments, reversals, the ledger</li>
+              <li>Housekeeping status, maintenance, requests</li>
+              <li>Roles, permissions, row-level security, audit, export</li>
+              <li>Every database rule and every test of one</li>
+            </ul>
+          </div>
+          <div>
+            <h4>What a dormitory Property changes</h4>
+            <ul>
+              <li>
+                <strong>Words</strong>: Öğrenci, Kayıt, Boş yatak, Öğrenci
+                talepleri (TR/EN/AR)
+              </li>
+              <li>
+                <strong>Today</strong>: empty beds, overdue instalments, leave,
+                faults
+              </li>
+              <li>
+                <strong>Booking</strong>: starts as a student, term dates,
+                student and veli fields
+              </li>
+              <li>
+                <strong>Calendar</strong>: opens on the term; room cards show
+                beds 3/4
+              </li>
+              <li>
+                <strong>Rail</strong>: dormitory work first; Close the day
+                further down
+              </li>
+            </ul>
+          </div>
+        </div>
+        <p>
+          <strong>The guard rail:</strong> no SQL policy, trigger or function
+          may read the operating model, and a pgTAP assertion says so. A rule a
+          yurt needs (gender on a room, instalments, a required term end,
+          attendance) is built as a setting or capability any Property can turn
+          on; the model only chooses its default. This keeps one product, and a
+          hostel or staff housing later gets the same rules without a third
+          model.
+        </p>
+
+        <h2>3. Done means</h2>
+        <h3>Milestone A: one yurt runs one month</h3>
+        <p>
+          On the yurt demo Property, on hosted staging, in Turkish, English and
+          Arabic:
+        </p>
+        <ol>
+          <li>
+            A manager switches the Property to <em>dormitory</em> and every
+            screen reads the dormitory words; switching back changes no record.
+          </li>
+          <li>
+            The desk registers a student with identity document, gender, date of
+            birth, university, veli and emergency contact, for a term, into a
+            bed in a room that admits them; the database refuses one that does
+            not.
+          </li>
+          <li>
+            Each student's instalments are scheduled when they are registered
+            and posted to their Folio on each due date by the worker, without
+            anyone touching it.
+          </li>
+          <li>
+            Today shows empty beds by block and gender and the instalments
+            overdue, and each figure opens its rows.
+          </li>
+          <li>
+            The room calendar shows a ten-month booking whole, and room cards
+            show beds taken over beds total.
+          </li>
+          <li>
+            A student signs in to the portal from an invitation and sees their
+            bed, term, balance and next instalment.
+          </li>
+          <li>
+            <code>pnpm check</code>, <code>pnpm db:test</code> (local and
+            hosted) and <code>pnpm test:browser</code> pass, and every boundary
+            claim has been sabotaged once and gone red.
+          </li>
+        </ol>
+        <h3>Milestone B: a yurt runs a whole term</h3>
+        <p>
+          Milestone A, plus: messages to the veli, students raising requests and
+          faults from the portal, announcements, nightly attendance and leave,
+          weekly cleaning of occupied rooms, move-in week and move-out with
+          deposit, and an invoice per instalment.
+        </p>
+
+        <h2>4. Stages</h2>
+        <p>
+          <span class="tag new">NEW</span> filed on 31 Oct for this plan ·
+          <span class="tag old">FILED</span> already on the board from
+          23&ndash;25 Oct · <span class="tag open">LEAD</span> needs a lead to
+          re-scope (member tier cannot edit it)
+        </p>
+
+        <div class="stage">
+          <h3>Stage 0 · this week · decide, and make the yurt visible</h3>
+          <p class="goal">
+            Nothing here writes product code except the copy fix. It removes the
+            guessing from Stage 1.
+          </p>
+          <div class="scroll">
+            <table>
+              <tr>
+                <th>Task</th>
+                <th>What</th>
+                <th>Why now</th>
+              </tr>
+              <tr>
+                <td>RANZ-103 <span class="tag new">NEW</span></td>
+                <td>Yurt-first decisions: the eight in section 6</td>
+                <td>Decisions 2, 3, 5 and 6 shape the first schema change</td>
+              </tr>
+              <tr>
+                <td>RANZ-104 <span class="tag new">NEW</span></td>
+                <td>
+                  A design-partner yurt; counsel on KBS and the 2022 regulation
+                </td>
+                <td>
+                  The billing shape and the legal record are guesses without
+                  them
+                </td>
+              </tr>
+              <tr>
+                <td>RANZ-105 <span class="tag new">NEW</span></td>
+                <td>
+                  Yurt demo Property on staging: blocks, gendered floors, ~120
+                  beds, term Residents
+                </td>
+                <td>
+                  Staging has no bed and no Resident; nothing can be seen or
+                  demoed
+                </td>
+              </tr>
+              <tr>
+                <td>RANZ-106 <span class="tag new">NEW</span></td>
+                <td>The "billed monthly" copy says what is true</td>
+                <td>It tells the desk rent is charged when it is not</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="stage">
+          <h3>Stage 1 · Milestone A · one yurt runs one month</h3>
+          <p class="goal">
+            In dependency order. Items on one line can run in parallel lanes
+            because they share no files.
+          </p>
+          <div class="scroll">
+            <table>
+              <tr>
+                <th>Task</th>
+                <th>What</th>
+                <th>Depends on</th>
+              </tr>
+              <tr>
+                <td>RANZ-107 <span class="tag new">NEW</span></td>
+                <td>
+                  Dormitory operating model (ADR 0057): the column,
+                  Configuration, words, booking defaults
+                </td>
+                <td>RANZ-103 decisions 3, 4</td>
+              </tr>
+              <tr>
+                <td>RANZ-110 <span class="tag new">NEW</span></td>
+                <td>
+                  Gender on rooms and students, refused in the database; date of
+                  birth, university, year
+                </td>
+                <td>decision 5</td>
+              </tr>
+              <tr>
+                <td>RANZ-81 <span class="tag old">FILED</span></td>
+                <td>
+                  Identity document and nationality at registration; KBS if
+                  counsel says so
+                </td>
+                <td>RANZ-104</td>
+              </tr>
+              <tr>
+                <td>
+                  RANZ-99 <span class="tag old">FILED</span>
+                  <span class="tag open">LEAD</span>
+                </td>
+                <td>
+                  Guardian (veli) and emergency contact. Raise from low to high
+                </td>
+                <td>&mdash;</td>
+              </tr>
+              <tr>
+                <td>
+                  RANZ-96 <span class="tag old">FILED</span>
+                  <span class="tag open">LEAD</span>
+                </td>
+                <td>
+                  Term contract and instalment schedule, posted by the worker on
+                  due dates, with an overdue state. Re-scope from "monthly rent"
+                </td>
+                <td>decisions 2, 7; RANZ-104</td>
+              </tr>
+              <tr>
+                <td>RANZ-111 <span class="tag new">NEW</span></td>
+                <td>Bed price follows its room (ADR 0038 amendment)</td>
+                <td>decisions 2, 6; feeds RANZ-96</td>
+              </tr>
+              <tr>
+                <td>RANZ-109 <span class="tag new">NEW</span></td>
+                <td>
+                  Bed board: term window on the calendar, beds 3/4 and gender on
+                  room cards, empty-beds count
+                </td>
+                <td>RANZ-105, RANZ-110</td>
+              </tr>
+              <tr>
+                <td>
+                  RANZ-87 <span class="tag old">FILED</span>
+                  <span class="tag open">LEAD</span>
+                </td>
+                <td>
+                  Resident portal access: an invitation from the Stay writes
+                  <code>user_id</code> (GP-DEF-02); then balance and next
+                  instalment. Raise to high
+                </td>
+                <td>RANZ-96 for the balance</td>
+              </tr>
+              <tr>
+                <td>RANZ-108 <span class="tag new">NEW</span></td>
+                <td>
+                  Dormitory Today: empty beds, overdue instalments, open
+                  requests and faults
+                </td>
+                <td>RANZ-107, RANZ-96</td>
+              </tr>
+            </table>
+          </div>
+          <p>
+            Suggested lanes: <strong>A</strong> RANZ-107 then RANZ-108
+            (workspace screens) · <strong>B</strong> RANZ-110, RANZ-81, RANZ-99
+            (the student record, one migration series) ·
+            <strong>C</strong> RANZ-96 then RANZ-111 (money; the longest) ·
+            <strong>D</strong> RANZ-109 once B has landed gender ·
+            <strong>E</strong> RANZ-87. Lanes B and C each own their migrations;
+            reserve their number ranges before starting, because parallel lanes
+            have collided on numbers twice.
+          </p>
+        </div>
+
+        <div class="stage">
+          <h3>Stage 2 · Milestone B · a yurt runs a whole term</h3>
+          <div class="scroll">
+            <table>
+              <tr>
+                <th>Task</th>
+                <th>What</th>
+                <th>Depends on</th>
+              </tr>
+              <tr>
+                <td>RANZ-85 <span class="tag old">FILED</span></td>
+                <td>The first transactional email: the delivery foundation</td>
+                <td>&mdash;</td>
+              </tr>
+              <tr>
+                <td>RANZ-112 <span class="tag new">NEW</span></td>
+                <td>
+                  Messages to the veli by SMS: overdue instalment, leave,
+                  incident
+                </td>
+                <td>RANZ-85, RANZ-96, RANZ-99</td>
+              </tr>
+              <tr>
+                <td>
+                  RANZ-97 <span class="tag old">FILED</span>
+                  <span class="tag open">LEAD</span>
+                </td>
+                <td>
+                  Portal services: requests and faults from the student's phone,
+                  announcements with acknowledgement. Raise to high
+                </td>
+                <td>RANZ-87</td>
+              </tr>
+              <tr>
+                <td>RANZ-101 <span class="tag old">FILED</span></td>
+                <td>
+                  Night-out permission (izin), nightly attendance (yoklama),
+                  visitors, parcels; designed with the partner yurt
+                </td>
+                <td>RANZ-104, RANZ-87</td>
+              </tr>
+              <tr>
+                <td>RANZ-83 <span class="tag old">FILED</span></td>
+                <td>
+                  Cleaning of occupied rooms (most of a yurt's housekeeping)
+                </td>
+                <td>&mdash;</td>
+              </tr>
+              <tr>
+                <td>RANZ-98 <span class="tag old">FILED</span></td>
+                <td>
+                  Move-in week (bulk check-in, inspection, deposit) and move-out
+                  with damage and deposit return
+                </td>
+                <td>RANZ-96; deposits in RANZ-88</td>
+              </tr>
+              <tr>
+                <td>RANZ-113 <span class="tag new">NEW</span></td>
+                <td>e-Arşiv invoice per instalment</td>
+                <td>RANZ-96, RANZ-86, RANZ-104</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="stage">
+          <h3>Stage 3 · next academic year</h3>
+          <p>
+            Pre-registration, renewals, a waiting list and roommate placement
+            (RANZ-100 <span class="tag old">FILED</span>); turnstile and card
+            access through Integrations; meal plans beyond "included in the
+            fee". Summer short stays already work through the Guest flow; that
+            mixed use is an edge over the Turkish yurt programs and belongs in
+            the sales story now.
+          </p>
+        </div>
+
+        <h2>5. How each task is run</h2>
+        <p>
+          The house process, unchanged: <code>feature-design</code> grill with a
+          recommendation on every question, then diagrams and
+          <code>docs/features/&lt;feature&gt;/edge-cases.csv</code> rows written
+          as <code>proposed</code>, then approval by number, then the build in
+          its own worktree and database, then evidence (pgTAP with a sabotage
+          run for every boundary, a browser spec for every screen, hosted
+          <code>db:test</code> after deploy). Every screen ships in Turkish,
+          English and Arabic with logical directions, and its handoff ends with
+          the <em>UX tweaks made</em> and <em>UX proposals</em> lines.
+        </p>
+
+        <h2>6. Decisions open on RANZ-103</h2>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>#</th>
+              <th>Question</th>
+              <th>Recommendation and why</th>
+              <th>Status</th>
+            </tr>
+            <tr>
+              <td>1</td>
+              <td>Design-partner yurt first?</td>
+              <td>
+                Yes. Fee shapes differ between operators, and billing is the
+                costliest thing to rework.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td>Billing model</td>
+              <td>
+                A general instalment schedule (N payments, amount and due date
+                each). Monthly and four <em>senet</em>s are both cases of it;
+                the Turkish yurt programs track senets.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>How a Property becomes a dormitory</td>
+              <td>
+                An operating model on the Property that sets defaults and words
+                only (ADR 0057). ADR 0004 already rules out a fork.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Resident's label in a dormitory</td>
+              <td>
+                Öğrenci / Student / طالب through the typed catalogue (ICU
+                select); code and database keep Resident.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>Where gender lives</td>
+              <td>
+                On the room, with an optional default per building: some yurts
+                are single-gender, some run separate blocks.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td>Price of a bed</td>
+              <td>
+                By its room's capacity, as an amendment to ADR 0038. That is how
+                yurt fee sheets are written.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td>Open-ended Resident stays in a dormitory</td>
+              <td>
+                Not allowed; a term end is required, because instalments need an
+                end to schedule against. Staff housing keeps open-ended.
+              </td>
+              <td>proposed</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td>Order against the 23 Oct hotel-first plan</td>
+              <td>
+                Yurt Stage 1 first, keeping what both share (identity, portal
+                access, messaging). If decision 1 has no name within two weeks,
+                fall back to the shared items only.
+              </td>
+              <td>proposed</td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>7. Risks</h2>
+        <div class="scroll">
+          <table>
+            <tr>
+              <th>Risk</th>
+              <th>What it costs</th>
+              <th>What we do</th>
+            </tr>
+            <tr>
+              <td>No design partner</td>
+              <td>Billing and registration built to a guess, then reworked</td>
+              <td>RANZ-104 first; decision 8's two-week fallback</td>
+            </tr>
+            <tr>
+              <td>The mode leaks into rules</td>
+              <td>Two products in one codebase, untestable without a model</td>
+              <td>
+                pgTAP assertion that no SQL reads the model; rules as
+                capabilities
+              </td>
+            </tr>
+            <tr>
+              <td>Legal duty unknown (KBS, ministry records)</td>
+              <td>A yurt cannot legally go live</td>
+              <td>
+                Counsel question in RANZ-104 now, because it is the slowest
+              </td>
+            </tr>
+            <tr>
+              <td>Minors' personal data</td>
+              <td>KVKK exposure: identity, gender, guardian of 17-year-olds</td>
+              <td>
+                Who may read each field is decided in RANZ-110's design,
+                enforced by grants as elsewhere
+              </td>
+            </tr>
+            <tr>
+              <td>Invisible board tasks</td>
+              <td>
+                RANZ-78..101 cannot be updated by the member who filed them
+              </td>
+              <td>RANZ-103 lists the lead's edits; check them once done</td>
+            </tr>
+            <tr>
+              <td>Hotel work stalls</td>
+              <td>A hotel prospect finds the same gaps as on 23 Oct</td>
+              <td>
+                Shared items (identity, portal, messaging) serve both and go
+                first in their lanes
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <h2>8. Not decided here</h2>
+        <ul>
+          <li>
+            Pricing and packaging of a dormitory bundle (blueprint 3.2 names
+            "Long-Stay Residence" as illustrative only).
+          </li>
+          <li>
+            Whether the operating model ever gains a third value. ADR 0057
+            prefers capabilities to a new model.
+          </li>
+          <li>Dates. None are set; the stages are ordered, not scheduled.</li>
+        </ul>
+
+        <footer>
+          Written 31 Oct 2026 against <code>origin/main</code> 897d7fd0.
+          Evidence: <a href="yurt-audit-2026-10-31.html">yurt audit</a>,
+          <a href="journey-gaps-2026-10-23.html">journey gaps</a>. Tracker:
+          Backstage project Ranza, label <code>yurt</code>.
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>
