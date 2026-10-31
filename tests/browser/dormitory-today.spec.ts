@@ -48,6 +48,32 @@ async function drawTodayAs(page: Page, layout: TodayLayout): Promise<void> {
 }
 
 /**
+ * No state chip of the Rooms card is cut off, spills out of its own cell, or
+ * runs into the count beside it, in the language the page is drawn in.
+ */
+async function expectNoChipClipped(page: Page, card: string): Promise<void> {
+  const cramped = await page
+    .getByRole("region", { name: card, exact: true })
+    .locator("ul li")
+    .evaluateAll((cells) =>
+      cells.flatMap((cell) => {
+        const chip = cell.firstElementChild;
+        const count = cell.lastElementChild;
+        if (!chip || !count) return [cell.textContent];
+        const room = cell.getBoundingClientRect();
+        const label = chip.getBoundingClientRect();
+        const number = count.getBoundingClientRect();
+        const cut = chip.scrollWidth > chip.clientWidth;
+        const outside =
+          label.left < room.left - 1 || label.right > room.right + 1;
+        const touching = label.left < number.right && number.left < label.right;
+        return cut || outside || touching ? [chip.textContent] : [];
+      }),
+    );
+  expect(cramped).toEqual([]);
+}
+
+/**
  * Two blocks let by the bed, no arrival or departure today: a Student in one of
  * Block A's two beds, two requests (one urgent) and one maintenance request.
  */
@@ -186,6 +212,7 @@ test("a dormitory's Today answers by block, shows what is open, and draws no emp
   await expect(
     open.getByRole("link", { name: "1 open maintenance request" }),
   ).toBeVisible();
+  await expectNoChipClipped(page, "Rooms");
   await page.screenshot({
     path: path.join(EVIDENCE, "timeline-en.png"),
     fullPage: true,
@@ -256,6 +283,7 @@ test("the dormitory's Today reads in Turkish and in Arabic, mirrored", async ({
   await expect(
     page.getByRole("region", { name: "Talepler ve bakım" }),
   ).toBeVisible();
+  await expectNoChipClipped(page, "Odalar");
   await page.screenshot({
     path: path.join(EVIDENCE, "timeline-tr.png"),
     fullPage: true,
@@ -269,6 +297,7 @@ test("the dormitory's Today reads in Turkish and in Arabic, mirrored", async ({
   await expect(
     page.getByRole("region", { name: "الطلبات والصيانة" }),
   ).toBeVisible();
+  await expectNoChipClipped(page, "الغرف");
   await page.screenshot({
     path: path.join(EVIDENCE, "timeline-ar.png"),
     fullPage: true,

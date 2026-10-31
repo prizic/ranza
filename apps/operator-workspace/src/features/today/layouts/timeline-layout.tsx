@@ -129,6 +129,7 @@ export function TimelineLayout(props: LayoutProps) {
       actions={actions}
       changed={changed}
       currency={summary.day.currency}
+      departuresAbove={!quiet.departures}
       desk={desk}
       locale={locale}
       overdueAbove={departureCounts(desk).overdue}

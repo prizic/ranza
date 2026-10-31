@@ -26,7 +26,7 @@ No person was available to grill, so each question carries the recommendation
 built on. All rows are `proposed`.
 
 1. **Does the open work card sit beside the hotel's Maintenance card or replace
-   it?** Replace it at a dormitory. The same open and in-hand counts would
+   it?** Replace it at a dormitory. The same open and out-of-order counts would
    otherwise be drawn twice under two names. Common sense for the reader; no
    comparable system was checked (TD-S10-05).
 2. **Is the maintenance figure "Faults"?** No: it counts every open

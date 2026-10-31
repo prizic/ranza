@@ -1268,6 +1268,45 @@ describe("a dormitory's Today (RANZ-108)", () => {
     expect(screen.getByRole("heading", { name: "Today's flow" })).toBeVisible();
   });
 
+  it("do_these_next_points_at_the_departures_only_when_they_are_drawn_above", () => {
+    const lines = {
+      en: "Departures are listed above.",
+      tr: "Çıkışlar yukarıda listelenir.",
+      ar: "المغادرات مذكورة أعلاه.",
+    } as const;
+    for (const locale of ["en", "tr", "ar"] as const) {
+      const quiet = view(quietDay("dormitory"), { locale });
+      expect(screen.queryByText(new RegExp(lines[locale]))).toBeNull();
+      expect(
+        screen.getByText(
+          messages[locale].todayLayouts.doNow.subWithoutDepartures,
+        ),
+      ).toBeVisible();
+      quiet.unmount();
+    }
+
+    const day = quietDay("dormitory");
+    if (day.desk?.status !== "ok") throw new Error("fixture has a desk");
+    view(
+      {
+        ...day,
+        desk: {
+          status: "ok",
+          data: {
+            ...day.desk.data,
+            departures: [leaving("Kaya", "103", true)],
+          },
+        },
+      },
+      { locale: "en" },
+    );
+    expect(screen.getByText(new RegExp(lines.en))).toBeVisible();
+    cleanup();
+
+    view(quietDay("hotel"));
+    expect(screen.getByText(new RegExp(lines.en))).toBeVisible();
+  });
+
   it("counts_empty_beds_where_a_hotel_counts_rooms_ready_to_sell_in_the_dormitorys_words", () => {
     view(quietDay("dormitory"));
     expect(

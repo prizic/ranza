@@ -58,10 +58,13 @@ interface Shared {
  */
 export function DoNow({
   actions,
+  departuresAbove,
   overdueAbove,
   ...shared
 }: Shared & {
   actions: readonly DeskAction[];
+  /** Whether a departures figure or list is drawn above, for the line to point at. */
+  departuresAbove: boolean;
   /** Guests overdue to leave, listed above this card rather than in it. */
   overdueAbove: number;
 }) {
@@ -103,7 +106,7 @@ export function DoNow({
           {t("doNow.title")}
         </h2>
         <p className="mt-1 mb-4 text-sm text-muted-foreground">
-          {t("doNow.sub")}
+          {t(departuresAbove ? "doNow.sub" : "doNow.subWithoutDepartures")}
         </p>
         {actions.length === 0 ? (
           <p className="rounded-2xl bg-muted px-5 py-4 text-sm text-muted-foreground">

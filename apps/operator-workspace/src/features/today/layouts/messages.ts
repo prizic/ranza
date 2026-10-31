@@ -100,6 +100,7 @@ const en = {
   doNow: {
     title: "Do these next",
     sub: "Arrivals and rooms, most urgent first. Departures are listed above.",
+    subWithoutDepartures: "Arrivals and rooms, most urgent first.",
     empty: "No arrival or room needs you.",
     emptyDepartures:
       "No arrival or room needs you. The departures above are what is open.",
@@ -374,6 +375,7 @@ const tr: TodayLayoutsMessages = {
   doNow: {
     title: "Sıradaki işler",
     sub: "Gelişler ve odalar, en acil olan başta. Çıkışlar yukarıda listelenir.",
+    subWithoutDepartures: "Gelişler ve odalar, en acil olan başta.",
     empty: "Sizi bekleyen bir geliş ya da oda yok.",
     emptyDepartures:
       "Sizi bekleyen bir geliş ya da oda yok. Açık olan, yukarıdaki çıkışlar.",
@@ -640,6 +642,7 @@ const ar: TodayLayoutsMessages = {
   doNow: {
     title: "افعل هذا تاليًا",
     sub: "الوصول والغرف، الأكثر إلحاحًا أولًا. المغادرات مذكورة أعلاه.",
+    subWithoutDepartures: "الوصول والغرف، الأكثر إلحاحًا أولًا.",
     empty: "لا وصول ولا غرفة تحتاجك.",
     emptyDepartures: "لا وصول ولا غرفة تحتاجك. المفتوح هو المغادرات أعلاه.",
     group: {

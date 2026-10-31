@@ -63,7 +63,7 @@ export function RoomsBar({
           />
         ))}
       </div>
-      <ul className="grid grid-cols-2 gap-x-6 gap-y-2">
+      <ul className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))] gap-x-6 gap-y-2">
         {STATE_ORDER.map((state) => (
           <li
             className="flex items-center justify-between gap-2 text-sm"
