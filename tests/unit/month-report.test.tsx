@@ -634,7 +634,7 @@ describe("month_screen_empty_loading_refused_and_rtl", () => {
     expect(
       screen.getByText("Resident nights").closest("[data-row]"),
     ).toHaveTextContent(count(30));
-    expect(screen.getByText(/Residents are billed monthly/)).toBeVisible();
+    expect(screen.getByText(/not charged as room nights/)).toBeVisible();
   });
 
   it("lists payments by method", () => {
@@ -892,7 +892,7 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
     const uncharged = section("Nights with no charge");
     expect(
       within(uncharged)
-        .getByText("Resident Stay, billed monthly")
+        .getByText("Resident Stay, not charged by the night")
         .closest("[data-row]"),
     ).toHaveTextContent("30 nights");
     expect(
@@ -961,14 +961,16 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
     expect(guest).toHaveTextContent("Charged");
     expect(guest).toHaveTextContent(money(10_000));
 
-    // A bed names its room, a Resident is billed monthly, and no name read is not invented.
+    // A bed names its room, a Resident is not charged by the night, and no name read is not invented.
     const resident = dialog.querySelector(
       `[data-stay="${DAY.stays[1]!.stayId}"]`,
     )!;
     expect(resident).toHaveTextContent("Dorm · B1");
     expect(resident).toHaveTextContent("Bed · Resident");
     expect(resident).toHaveTextContent("—");
-    expect(resident).toHaveTextContent("Resident Stay, billed monthly");
+    expect(resident).toHaveTextContent(
+      "Resident Stay, not charged by the night",
+    );
     expect(resident).not.toHaveTextContent("₺");
 
     const correction = dialog.querySelector("[data-correction]")!;
@@ -996,7 +998,7 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveTextContent("Ada Guest");
     expect(dialog).toHaveTextContent("Charged");
-    expect(dialog).toHaveTextContent("Resident Stay, billed monthly");
+    expect(dialog).toHaveTextContent("Resident Stay, not charged by the night");
     expect(dialog.textContent).not.toMatch(/₺|TRY|\d[.,]\d{2}\b/);
     expect(dialog.querySelector("[data-correction]")).toBeNull();
     expect(

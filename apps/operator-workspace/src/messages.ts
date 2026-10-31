@@ -609,6 +609,8 @@ export interface Messages {
   quoteStay: string;
   /** `{type}`: the kind of Unit that has no price. */
   quoteUnpriced: string;
+  /** A Resident is never priced by the night (RT-S2-05) and nothing bills their
+      rent yet (RT-DEF-04): Finance posts it to the Folio by hand. */
   quoteResident: string;
   /** A booking's own price per night on the list; `{price}` formatted. */
   bookedPerNight: string;
@@ -710,7 +712,8 @@ export interface Messages {
   /** Extra nights, charged at the booking's own price as each one closes. */
   changeDepartureLonger: string;
   changeDepartureLongerUnpriced: string;
-  /** A Resident's extra nights: billed by the month, never by the night (RT-S3-05). */
+  /** A Resident's extra nights: never charged by the night (RT-S3-05), and not
+      free either: Finance posts their rent (RT-DEF-04). */
   changeDepartureLongerResident: string;
   changeDepartureShorter: string;
   changeDepartureOpen: string;
@@ -3949,7 +3952,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     quoteStay: "{count, plural, one {# gece} other {# gece}}: toplam {total}",
     quoteUnpriced:
       "Bu tesiste {type} için fiyat belirlenmemiş; rezervasyon fiyatsız alınır ve geceleri ücretlendirilmez.",
-    quoteResident: "Bir Sakin gecelik değil, aylık faturalandırılır.",
+    quoteResident:
+      "Sakin gecelik ücretlendirilmez. Kirasını Finans folyoya işler.",
     bookedPerNight: "{price} / gece",
     bookedUnpriced: "Fiyat yok",
     priceColumn: "Fiyat",
@@ -4065,7 +4069,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureLongerUnpriced:
       "{count, plural, other {# gece daha}}; rezervasyon fiyatsız alındığı için ücretlendirilmez",
     changeDepartureLongerResident:
-      "{count, plural, other {# gece daha}}; sakin aylık faturalandırılır",
+      "{count, plural, other {# gece daha}}; sakinin kirasını gecelik değil, Finans işler",
     changeDepartureShorter: "{count, plural, other {# gece daha az}}",
     changeDepartureOpen: "Çıkış tarihi yok: konaklama açık uçlu kalır.",
     changeDepartureStayTitle: "Konaklama",
@@ -6065,7 +6069,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         guestNights: "Misafir geceleri",
         residentNights: "Sakin geceleri",
         residentNote:
-          "Sakinler aylık faturalandırılır; bu yüzden çok sayıda Sakin gecelemesi olan bir Tesiste oda geliri burada düşük görünür.",
+          "Sakin geceleri oda gecesi olarak ücretlendirilmez; bu yüzden çok sayıda Sakin gecelemesi olan bir Tesiste oda geliri burada düşük görünür.",
         days: "Gün gün",
         dayCol: "Gün",
         occupiedCol: "Dolu geceleme",
@@ -6085,7 +6089,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         unchargedNone: "Kapanan günlerin her dolu gecesi ücretlendirildi.",
         unchargedNights: "{n, plural, one {# gece} other {# gece}}",
         unchargedReason: {
-          resident: "Sakin konaklaması, aylık faturalanır",
+          resident: "Sakin konaklaması, gecelik ücretlendirilmez",
           unpriced: "Rezervasyonda fiyat yok",
           billing_unavailable: "Burada faturalama kullanılamıyor",
           no_folio: "Folyo yok",
@@ -6683,7 +6687,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsNotCharged:
         "{n, plural, one {# gece ücretlendirilmedi} other {# gece ücretlendirilmedi}}",
       nightsHint:
-        "Geceler, Sakinler dahil konaklayan herkesi sayar. Oda geceleri yalnızca misafirlerindir; Sakinler aylık faturalandırılır.",
+        "Geceler, Sakinler dahil konaklayan herkesi sayar. Oda geceleri yalnızca misafirlerindir; Sakinler gecelik ücretlendirilmez.",
       dueOn: "Beklenen giriş {date}",
       dueOutOn: "Beklenen çıkış {date}",
       leftOn: "Ayrıldı {date}",
@@ -7652,7 +7656,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     quoteUnpriced:
       "No price is set for {type} here, so this booking is taken without one and its nights are not charged.",
     quoteResident:
-      "A Resident is billed by the month, not priced by the night.",
+      "A Resident is not charged by the night. Finance posts their rent to the Folio.",
     bookedPerNight: "{price} / night",
     bookedUnpriced: "No price",
     priceColumn: "Price",
@@ -7770,7 +7774,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureLongerUnpriced:
       "{count, plural, one {# more night} other {# more nights}}, not charged: the booking was taken without a price",
     changeDepartureLongerResident:
-      "{count, plural, one {# more night} other {# more nights}}; a Resident is billed by the month",
+      "{count, plural, one {# more night} other {# more nights}}; Finance posts a Resident's rent, not by the night",
     changeDepartureShorter:
       "{count, plural, one {# night fewer} other {# nights fewer}}",
     changeDepartureOpen: "No departure: the stay stays open-ended.",
@@ -9784,7 +9788,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         guestNights: "Guest nights",
         residentNights: "Resident nights",
         residentNote:
-          "Residents are billed monthly, so a Property with many Resident nights shows low room revenue here.",
+          "A Resident's nights are not charged as room nights, so a Property with many Resident nights shows low room revenue here.",
         days: "Day by day",
         dayCol: "Day",
         occupiedCol: "Occupied nights",
@@ -9804,7 +9808,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         unchargedNone: "Every occupied night of the closed days has a charge.",
         unchargedNights: "{n, plural, one {# night} other {# nights}}",
         unchargedReason: {
-          resident: "Resident Stay, billed monthly",
+          resident: "Resident Stay, not charged by the night",
           unpriced: "No price on the booking",
           billing_unavailable: "Billing is not available here",
           no_folio: "No Folio",
@@ -10399,7 +10403,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsNotCharged:
         "{n, plural, one {# not charged} other {# not charged}}",
       nightsHint:
-        "Nights counts every Stay in house, Residents included. Room nights are Guests' only: Residents are billed by the month.",
+        "Nights counts every Stay in house, Residents included. Room nights are Guests' only: a Resident is not charged by the night.",
       dueOn: "Due {date}",
       dueOutOn: "Due out {date}",
       leftOn: "Left {date}",
@@ -11344,7 +11348,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, zero {# ليلة} one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}: الإجمالي {total}",
     quoteUnpriced:
       "لم يُحدَّد سعر لـ{type} هنا، لذا يُؤخذ هذا الحجز بلا سعر ولا تُحتسب لياليه.",
-    quoteResident: "يُحاسَب المقيم شهريًا، لا بسعر الليلة.",
+    quoteResident:
+      "لا يُحاسَب المقيم بسعر الليلة. يقيّد قسم المالية إيجاره في الفوليو.",
     bookedPerNight: "{price} / ليلة",
     bookedUnpriced: "بلا سعر",
     priceColumn: "السعر",
@@ -11455,7 +11460,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     changeDepartureLongerUnpriced:
       "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}} دون رسوم: أُخذ الحجز بلا سعر",
     changeDepartureLongerResident:
-      "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}}؛ يُفوتَر المقيم شهريًا",
+      "{count, plural, one {ليلة إضافية واحدة} two {ليلتان إضافيتان} few {# ليالٍ إضافية} many {# ليلة إضافية} other {# ليلة إضافية}}؛ يقيّد قسم المالية إيجار المقيم، لا بسعر الليلة",
     changeDepartureShorter:
       "{count, plural, one {ليلة واحدة أقل} two {ليلتان أقل} few {# ليالٍ أقل} many {# ليلة أقل} other {# ليلة أقل}}",
     changeDepartureOpen: "لا موعد مغادرة: تبقى الإقامة مفتوحة.",
@@ -13424,7 +13429,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         guestNights: "ليالي الضيوف",
         residentNights: "ليالي المقيمين",
         residentNote:
-          "يُحاسَب المقيمون شهريًا، لذا تُظهر المنشأة ذات ليالي المقيمين الكثيرة إيرادات غرف منخفضة هنا.",
+          "لا تُحتسب ليالي المقيمين ليالي غرف، لذا تُظهر المنشأة ذات ليالي المقيمين الكثيرة إيرادات غرف منخفضة هنا.",
         days: "يومًا بيوم",
         dayCol: "اليوم",
         occupiedCol: "الليالي المشغولة",
@@ -13445,7 +13450,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         unchargedNights:
           "{n, plural, one {ليلة واحدة} two {ليلتان} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
         unchargedReason: {
-          resident: "إقامة مقيم، تُفوتر شهريًا",
+          resident: "إقامة مقيم، لا تُحاسَب بسعر الليلة",
           unpriced: "لا سعر على الحجز",
           billing_unavailable: "الفوترة غير متاحة هنا",
           no_folio: "لا يوجد حساب",
@@ -14039,7 +14044,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsNotCharged:
         "{n, plural, zero {لا شيء} one {ليلة واحدة لم تُحتسب} two {ليلتان لم تُحتسبا} few {# ليالٍ لم تُحتسب} many {# ليلة لم تُحتسب} other {# ليلة لم تُحتسب}}",
       nightsHint:
-        "تحسب الليالي كل إقامة في المنشأة، بما فيها المقيمون. أما ليالي الغرف فللضيوف وحدهم: يُحاسَب المقيمون شهريًا.",
+        "تحسب الليالي كل إقامة في المنشأة، بما فيها المقيمون. أما ليالي الغرف فللضيوف وحدهم: لا يُحاسَب المقيم بسعر الليلة.",
       dueOn: "الوصول المتوقع {date}",
       dueOutOn: "المغادرة المتوقعة {date}",
       leftOn: "غادر {date}",

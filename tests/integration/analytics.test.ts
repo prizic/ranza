@@ -895,7 +895,7 @@ async function seedReversals(): Promise<void> {
  * Stays, all departed:
  *   GA  guest    E-R1  5th to 8th    3 nights  10000, the 6th reversed today
  *   GB  guest    E-S1  6th to 8th    2 nights  30000
- *   GC  resident E-R2  10th to 13th  3 nights  not charged: billed monthly
+ *   GC  resident E-R2  10th to 13th  3 nights  not charged: never by the night
  *   GD  guest    E-R2  14th to 16th  2 nights  booking taken unpriced
  *   GE  guest    E-R1  20th to 22nd  2 nights  no booking at all
  *   GF  guest    E-S2  22nd to 24th  2 nights  priced, but billing is not available

@@ -189,7 +189,7 @@ describe("the Change departure dialog", () => {
     expect(String(fetch.mock.calls.at(-1)?.[0])).toContain("to=2026-09-29");
   });
 
-  it("a Resident's extension is not called free: they are billed by the month", async () => {
+  it("a Resident's extension is not called free: Finance posts their rent", async () => {
     answering(
       preview({
         stayType: "resident",
@@ -202,7 +202,7 @@ describe("the Change departure dialog", () => {
     pick("2026-10-02");
     expect(
       await screen.findByText(
-        "2 more nights; a Resident is billed by the month",
+        "2 more nights; Finance posts a Resident's rent, not by the night",
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/not charged/)).not.toBeInTheDocument();

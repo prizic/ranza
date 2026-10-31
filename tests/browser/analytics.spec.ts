@@ -169,7 +169,7 @@ test("a settled month is explained to the unit: every figure equals the history 
     /Available nights\s*84\s*Occupied nights\s*9\s*Guest nights\s*6\s*Resident nights\s*3/,
   );
   await expect(section(page, words.uncharged)).toContainText(
-    /Resident Stay, billed monthly\s*3 nights/,
+    /Resident Stay, not charged by the night\s*3 nights/,
   );
 
   // The unit types add up to the headline (AN-S3-02).
@@ -443,7 +443,7 @@ test("a reader without finance.manage_folio sees the nights and no money anywher
   await expect(main).not.toContainText(words.revenueCol);
   await expect(section(page, words.nights)).toContainText("Guest nights");
   await expect(section(page, words.uncharged)).toContainText(
-    "Resident Stay, billed monthly",
+    "Resident Stay, not charged by the night",
   );
 
   await page.screenshot({ path: path.join(EVIDENCE, "04-without-money.png") });

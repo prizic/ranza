@@ -289,7 +289,7 @@ export function ChangeDepartureDialog({
     if (!was) return null;
     const delta = nightsBetween(was, endsOn);
     if (delta < 0) return t("changeDepartureShorter", { count: -delta });
-    // A Resident's nights are billed by the month, never by the night.
+    // A Resident is never charged by the night (RT-S3-05).
     if (preview.stayType === "resident") {
       return t("changeDepartureLongerResident", { count: delta });
     }

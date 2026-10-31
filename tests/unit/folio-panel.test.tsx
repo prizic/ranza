@@ -532,7 +532,7 @@ describe("a zero balance is not always a settled one (FIN-09)", () => {
     );
   });
 
-  it("has nothing to say about a closed Folio or a Resident billed monthly", () => {
+  it("has nothing to say about a closed Folio or a Resident's Folio", () => {
     panel({ ...FOLIO, ...NONE, status: "closed", stayInHouse: false });
     expect(screen.queryByTestId("nights-note")).toBeNull();
     cleanup();

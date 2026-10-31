@@ -15,8 +15,8 @@
  * Why a night went uncharged is not decided here: it is the reason
  * `app.room_nights_due` gives, the function the close posts through and the
  * Close the day screen lists by. A Resident night is the one reason that
- * function does not name, because Residents are billed monthly and a Resident
- * night is not due at all (RT-S3-05).
+ * function does not name, because a Resident is never charged by the night
+ * and a Resident night is not due at all (RT-S3-05).
  *
  * As in the engine, every function takes the caller's transaction, so a month
  * and its breakdown are read on one snapshot.
