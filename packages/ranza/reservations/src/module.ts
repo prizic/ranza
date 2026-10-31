@@ -1963,7 +1963,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         await recordGenderWithin(tx, picked.guestId, gender);
       }
       // In the booking's transaction, so a refused booking records nothing
-      // about the student either (GP-S1-06).
+      // about the student either (PA-S1-06).
       if (booking.particulars) {
         await recordParticularsWithin(tx, guest.guestId, booking.particulars);
       }
@@ -3592,7 +3592,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
   /**
    * The particulars of the Guest a booking is for, read when the desk opens it
    * rather than with the list, so the list's page never carries every
-   * student's date of birth and guardian (GP-S1-05). Null when none are
+   * student's date of birth and guardian (PA-S1-05). Null when none are
    * recorded, when the caller may not read them, and when the booking is out
    * of reach — the policies decide, and the three are one answer.
    */

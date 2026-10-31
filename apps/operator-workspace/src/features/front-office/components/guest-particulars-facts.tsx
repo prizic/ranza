@@ -25,7 +25,7 @@ const LINK_CLASS =
   "font-medium text-primary-text underline-offset-4 hover:underline";
 
 /**
- * A booking's student particulars, on the booking (GP-S1-05).
+ * A booking's student particulars, on the booking (PA-S1-05).
  *
  * Read when the booking is opened, not with the list, so the Reservations page
  * never carries every student's date of birth and guardian to the browser.

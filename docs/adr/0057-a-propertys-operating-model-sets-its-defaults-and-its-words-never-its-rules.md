@@ -2,7 +2,8 @@
 
 Date: 2026-10-31
 
-Status: Proposed
+Status: Accepted — approved by Albaraa Zain on 2026-10-31 (local approver override); applied in
+`20260916013500_a_property_has_an_operating_model`
 
 Builds on [ADR 0004](0004-student-residence-is-a-property-configuration.md),
 [ADR 0023](0023-copy-is-icu-through-next-intl-and-the-catalogue-stays-typed.md)

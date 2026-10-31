@@ -2,7 +2,7 @@ import { currentViewer, guestParticulars } from "../../../../server/viewer";
 
 /**
  * The particulars of the Guest one booking is for, read when the desk opens it
- * (GP-S1-05), so the Reservations list never carries every student's date of
+ * (PA-S1-05), so the Reservations list never carries every student's date of
  * birth and guardian to the browser.
  *
  * The same narrow entrance as the other front-office routes: this file calls

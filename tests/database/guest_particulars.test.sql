@@ -1,5 +1,5 @@
 -- A Guest's particulars: date of birth, studies, guardian, emergency contact
--- (RANZ-110, RANZ-99, GP-S1-*).
+-- (RANZ-110, RANZ-99, PA-S1-*).
 --
 -- Three claims:
 --
@@ -18,10 +18,10 @@
 -- assertion that proves them. Each break below was applied inside a rolled-back
 -- transaction, the altered object printed first, and the named assertions seen
 -- red:
---   read policy without the permission           GP-S1-04 housekeeping
---   record function without front_desk.book      GP-S1-06 housekeeping
---   record function overwriting with blanks      GP-S1-07
---   insert granted to ranza_app                  GP-S1-08 the catalogue
+--   read policy without the permission           PA-S1-04 housekeeping
+--   record function without front_desk.book      PA-S1-06 housekeeping
+--   record function overwriting with blanks      PA-S1-07
+--   insert granted to ranza_app                  PA-S1-08 the catalogue
 --
 -- The grant break leaves the direct insert refused all the same: there is no
 -- INSERT policy either, and row-level security refuses with the same 42501.
@@ -99,37 +99,37 @@ select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, date_of_birth)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', '1899-12-31') $$,
-  '23514', null, 'GP-S1-01: a date of birth is not before 1900');
+  '23514', null, 'PA-S1-01: a date of birth is not before 1900');
 
 select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, study_year)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', 9) $$,
-  '23514', null, 'GP-S1-01: a year of study is one to eight');
+  '23514', null, 'PA-S1-01: a year of study is one to eight');
 
 select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, institution)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', ' ODTÜ') $$,
-  '23514', null, 'GP-S1-01: a university is stored trimmed');
+  '23514', null, 'PA-S1-01: a university is stored trimmed');
 
 select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, guardian_name)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', 'A') $$,
-  '23514', null, 'GP-S1-01: a guardian''s name is at least two characters');
+  '23514', null, 'PA-S1-01: a guardian''s name is at least two characters');
 
 select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, emergency_phone)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', repeat('5', 41)) $$,
-  '23514', null, 'GP-S1-01: a telephone is at most forty characters, as a Guest''s');
+  '23514', null, 'PA-S1-01: a telephone is at most forty characters, as a Guest''s');
 
 select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id)
      values ('f7d00000-0000-4000-8000-000000000003',
              'f7a11111-1111-4111-8111-111111111111') $$,
-  '23503', null, 'GP-S1-02: particulars name a Guest of their own Organization');
+  '23503', null, 'PA-S1-02: particulars name a Guest of their own Organization');
 
 -- ---------------------------------------------------------------------------
 -- The catalogue, and what the runtime role is given
@@ -139,7 +139,7 @@ select is(
   (select module_key from public.staff_permissions
     where key = 'guests.read_particulars'),
   'front_office',
-  'GP-S1-03: guests.read_particulars is in the catalogue');
+  'PA-S1-03: guests.read_particulars is in the catalogue');
 
 select results_eq(
   $$ select key from public.staff_roles
@@ -147,24 +147,24 @@ select results_eq(
         and 'guests.read_particulars' = any (permissions)
       order by key $$,
   $$ values ('front_desk'::text), ('manager'), ('owner') $$,
-  'GP-S1-03: the shipped Owner, Manager and Front desk hold it, and nobody else');
+  'PA-S1-03: the shipped Owner, Manager and Front desk hold it, and nobody else');
 
 select ok(
   (select relforcerowsecurity from pg_catalog.pg_class
     where oid = 'public.guest_particulars'::regclass),
-  'GP-S1-04: the table forces its policies on its owner too');
+  'PA-S1-04: the table forces its policies on its owner too');
 
 select is_empty(
   $$ select privilege_type from information_schema.table_privileges
       where table_schema = 'public' and table_name = 'guest_particulars'
         and grantee = 'ranza_app' and privilege_type <> 'SELECT' $$,
-  'GP-S1-08: the runtime role may write the table no way but the function');
+  'PA-S1-08: the runtime role may write the table no way but the function');
 
 select ok(
   (select proacl::text from pg_catalog.pg_proc
     where oid = 'app.record_guest_particulars(uuid, date, text, smallint, text, text, text, text)'::regprocedure)
     !~ '(^|,)=X',
-  'GP-S1-08: the function is nobody''s to call but the runtime role''s');
+  'PA-S1-08: the function is nobody''s to call but the runtime role''s');
 
 -- ---------------------------------------------------------------------------
 -- The write and the read, as the runtime role
@@ -177,7 +177,7 @@ select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', '2008-03-14', 'ODTÜ', 1::smallint,
        'Ayten Öğrenci', '+90 532 111 11 11', 'Murat Öğrenci', '+90 532 222 22 22') $$,
-  'GP-S1-06: a front desk records a student''s particulars');
+  'PA-S1-06: a front desk records a student''s particulars');
 
 select results_eq(
   $$ select date_of_birth, institution, study_year, guardian_name, guardian_phone,
@@ -186,63 +186,63 @@ select results_eq(
       where guest_id = 'f7d00000-0000-4000-8000-000000000001' $$,
   $$ values ('2008-03-14'::date, 'ODTÜ'::text, 1::smallint, 'Ayten Öğrenci'::text,
              '+90 532 111 11 11'::text, 'Murat Öğrenci'::text, '+90 532 222 22 22'::text) $$,
-  'GP-S1-05: and reads them back, as the front desk may');
+  'PA-S1-05: and reads them back, as the front desk may');
 
 select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', null, null, 2::smallint,
        null, null, null, null) $$,
-  'GP-S1-07: a booking with blanks records over them');
+  'PA-S1-07: a booking with blanks records over them');
 
 select results_eq(
   $$ select study_year, institution, guardian_name
        from public.guest_particulars
       where guest_id = 'f7d00000-0000-4000-8000-000000000001' $$,
   $$ values (2::smallint, 'ODTÜ'::text, 'Ayten Öğrenci'::text) $$,
-  'GP-S1-07: what was typed replaces, and a blank keeps what is on file');
+  'PA-S1-07: what was typed replaces, and a blank keeps what is on file');
 
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', current_date + 1, null, null,
        null, null, null, null) $$,
-  '23514', null, 'GP-S1-01: a date of birth is not in the future');
+  '23514', null, 'PA-S1-01: a date of birth is not in the future');
 
 select app.set_request_context('f7111111-1111-4111-8111-111111111111');
 select is(
   (select count(*)::int from public.guest_particulars
     where guest_id = 'f7d00000-0000-4000-8000-000000000001'),
-  1, 'GP-S1-05: a manager reads them');
+  1, 'PA-S1-05: a manager reads them');
 
 select app.set_request_context('f7333333-3333-4333-8333-333333333333');
 select is(
   (select count(*)::int from public.guests
     where id = 'f7d00000-0000-4000-8000-000000000001'),
-  1, 'GP-S1-04: a housekeeper reads the Guest, a name on a room');
+  1, 'PA-S1-04: a housekeeper reads the Guest, a name on a room');
 select is(
   (select count(*)::int from public.guest_particulars),
-  0, 'GP-S1-04: and not their particulars');
+  0, 'PA-S1-04: and not their particulars');
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', null, 'Hacettepe', null,
        null, null, null, null) $$,
-  '42501', null, 'GP-S1-06: nor records any, without front_desk.book');
+  '42501', null, 'PA-S1-06: nor records any, without front_desk.book');
 
 select app.set_request_context('f7555555-5555-4555-8555-555555555555');
 select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', null, 'Hacettepe', 3::smallint,
        null, null, null, null) $$,
-  'GP-S1-06: a role that may book records particulars, and a returning student''s again');
+  'PA-S1-06: a role that may book records particulars, and a returning student''s again');
 select is(
   (select count(*)::int from public.guest_particulars),
-  0, 'GP-S1-04: but reads none back without guests.read_particulars');
+  0, 'PA-S1-04: but reads none back without guests.read_particulars');
 
 select app.set_request_context('f7444444-4444-4444-8444-444444444444');
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', null, 'Bilkent', null,
        null, null, null, null) $$,
-  '42501', null, 'GP-S1-06: a manager of another Organization records nothing');
+  '42501', null, 'PA-S1-06: a manager of another Organization records nothing');
 
 -- Last, because a missing grant raises.
 select app.set_request_context('f7222222-2222-4222-8222-222222222222');
@@ -250,7 +250,7 @@ select throws_ok(
   $$ insert into public.guest_particulars (guest_id, organization_id, institution)
      values ('f7d00000-0000-4000-8000-000000000002',
              'f7a11111-1111-4111-8111-111111111111', 'İTÜ') $$,
-  '42501', null, 'GP-S1-08: nor by writing the table, which nobody may');
+  '42501', null, 'PA-S1-08: nor by writing the table, which nobody may');
 
 set local role none;
 

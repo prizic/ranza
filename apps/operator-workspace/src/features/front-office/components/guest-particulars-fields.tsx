@@ -25,7 +25,7 @@ const NAMES = [
 
 /**
  * A student's date of birth, studies, guardian and emergency contact, in the
- * booking dialog (GP-S1-09).
+ * booking dialog (PA-S1-09).
  *
  * Open for a Resident's stay, which is a dormitory's default (ADR 0057: the
  * model sets what is shown first, never the rule), and one press away for a

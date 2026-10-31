@@ -1,5 +1,5 @@
 /**
- * A booking's student particulars, as the sheet shows them (GP-S1-05).
+ * A booking's student particulars, as the sheet shows them (PA-S1-05).
  *
  * The integration suite proves who the module hands them to; the policy is
  * pgTAP's. This proves the screen's part: they are read for the one booking

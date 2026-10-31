@@ -2,7 +2,8 @@
 
 Date: 2026-10-31
 
-Status: Proposed
+Status: Accepted — approved by Albaraa Zain on 2026-10-31 (local approver override); applied in
+`20260916013700_a_student_has_particulars`
 
 Builds on [ADR 0012](0012-a-write-is-bounded-by-a-policy-not-a-check.md),
 [ADR 0024](0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)
@@ -47,4 +48,4 @@ application is not a boundary in this repository — row-level security is.
   sits in the catalogue and on the People screen.
 - Correcting particulars, offering a returning student's at booking, requiring
   a minor's guardian, exporting them and anonymizing them are deferred rows
-  (GP-DEF-01 to GP-DEF-04), not decisions made here.
+  (PA-DEF-01 to PA-DEF-04), not decisions made here.

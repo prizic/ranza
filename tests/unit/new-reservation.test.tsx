@@ -935,7 +935,7 @@ describe("a room that admits women or men only (RB-S5-16, RB-S5-17)", () => {
   });
 });
 
-describe("a student's particulars (GP-S1-09)", () => {
+describe("a student's particulars (PA-S1-09)", () => {
   const P = messages.en.particulars;
   const formData = () =>
     new FormData(
