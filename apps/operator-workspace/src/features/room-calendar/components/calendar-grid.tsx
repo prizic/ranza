@@ -21,9 +21,11 @@ import type {
 import {
   barKey,
   bedsTaken,
+  monthSpans,
   outOfUseOn,
   placeBars,
   type CalendarRow,
+  type MonthSpan,
   type PlacedEntry,
 } from "../layout";
 import { lateArrival } from "../late";
@@ -37,6 +39,7 @@ import {
 } from "../move";
 import { useHoldText } from "./hold-text";
 import { useBarDrag, type BarDrop } from "./use-bar-drag";
+import { isTermScale } from "../view";
 import { useCoarsePointer } from "./use-coarse-pointer";
 import { useNightDrag } from "./use-night-drag";
 import {
@@ -56,6 +59,9 @@ import {
  * thirty scroll.
  */
 function halfRem(days: number): number {
+  // A term is read whole on a laptop: under three pixels a day, a bar's length
+  // carrying the stay (RC-S7-03).
+  if (isTermScale(days)) return 0.07;
   if (days <= 7) return 3.5;
   if (days <= 14) return 1.5;
   return 1.25;
@@ -127,6 +133,30 @@ function shortDate(day: string, locale: SupportedLocale): string {
   return formatDate(new Date(`${day}T00:00:00Z`), locale, {
     month: "short",
     year: undefined,
+    timeZone: "UTC",
+  });
+}
+
+/** A month's heading on a term: its name, and its year where a year begins or the window does. */
+function monthHeading(
+  span: MonthSpan,
+  index: number,
+  locale: SupportedLocale,
+): string {
+  return formatDate(new Date(`${span.month}-01T00:00:00Z`), locale, {
+    day: undefined,
+    month: "short",
+    year: index === 0 || span.month.endsWith("-01") ? "numeric" : undefined,
+    timeZone: "UTC",
+  });
+}
+
+/** A month's full name, for what a screen reader is told. */
+function monthName(month: string, locale: SupportedLocale): string {
+  return formatDate(new Date(`${month}-01T00:00:00Z`), locale, {
+    day: undefined,
+    month: "long",
+    year: "numeric",
     timeZone: "UTC",
   });
 }
@@ -234,6 +264,11 @@ export function CalendarGrid({
   const dragHint = useCoarsePointer() ? t("dragHintTouch") : t("dragHint");
   const nights = calendar.nights.map((night) => night.day);
   const lastDay = nights[nights.length - 1] ?? calendar.from;
+  // A term is read by month: a day is too narrow for a cell of its own, and
+  // a cell per day per row would be tens of thousands on a yurt (RC-S7-03).
+  const term = isTermScale(calendar.days);
+  const months = term ? monthSpans(nights) : null;
+  const todayIndex = nights.indexOf(calendar.today);
   const [drag, setDrag] = useState<{
     key: string;
     ghost: Ghost;
@@ -311,6 +346,20 @@ export function CalendarGrid({
     };
   }, [calendar.days, rows.length]);
 
+  // A term is wider than a laptop on a small window; it opens at today, not
+  // at September, so the nights that matter are the ones in view (RC-S7-03).
+  useEffect(() => {
+    const element = scroller.current;
+    const marker = element?.querySelector<HTMLElement>("[data-today-marker]");
+    if (!element || !marker || element.scrollWidth <= element.clientWidth) {
+      return;
+    }
+    const markerBox = marker.getBoundingClientRect();
+    const viewBox = element.getBoundingClientRect();
+    element.scrollLeft +=
+      markerBox.left + markerBox.width / 2 - (viewBox.left + viewBox.width / 2);
+  }, [calendar.from, calendar.days, term]);
+
   return (
     <div className="relative">
       <div
@@ -344,7 +393,38 @@ export function CalendarGrid({
               >
                 {t("roomColumn")}
               </div>
-              {nights.map((day, index) => {
+              {months
+                ? months.map((span, index) => (
+                    <div
+                      className={cn(
+                        "col-start-(--col) col-span-(--span) row-start-1 overflow-hidden border-s px-1 py-1.5 text-center text-xs font-medium tabular-nums text-muted-foreground",
+                        index > 0 && "border-s-foreground/30",
+                      )}
+                      key={span.month}
+                      role="columnheader"
+                      style={vars({
+                        "--col": span.startIndex * 2 + 2,
+                        "--span": span.length * 2,
+                      })}
+                      title={monthName(span.month, locale)}
+                    >
+                      <span className="block truncate">
+                        {monthHeading(span, index, locale)}
+                      </span>
+                    </div>
+                  ))
+                : null}
+              {months && todayIndex >= 0 ? (
+                <div
+                  aria-current="date"
+                  aria-label={t("today")}
+                  className="z-10 col-start-(--col) col-span-2 row-start-1 bg-primary"
+                  data-today-marker=""
+                  role="columnheader"
+                  style={vars({ "--col": todayIndex * 2 + 2 })}
+                />
+              ) : null}
+              {(months ? [] : nights).map((day, index) => {
                 const heading = dayHeading(day, index, locale, calendar.days);
                 return (
                   <div
@@ -385,27 +465,57 @@ export function CalendarGrid({
               <div
                 className="sticky start-0 z-10 bg-muted px-3 py-1.5 text-xs font-medium"
                 role="rowheader"
-                title={t("freeRowHint")}
+                title={t(term ? "freeRowTermHint" : "freeRowHint")}
               >
-                {t("freeRow")}
+                {t(term ? "freeRowTerm" : "freeRow")}
               </div>
-              {calendar.nights.map((night) => (
-                <div
-                  aria-label={t("freeOn", {
-                    date: shortDate(night.day, locale),
-                    n: night.free,
-                    of: calendar.sellable,
-                  })}
-                  className={cn(
-                    "col-span-2 border-s py-1.5 text-center text-xs tabular-nums",
-                    night.free === 0 && "font-semibold text-danger",
-                  )}
-                  key={night.day}
-                  role="cell"
-                >
-                  {night.free}
-                </div>
-              ))}
+              {months
+                ? months.map((span) => {
+                    // The fewest free on any night: what is free all month.
+                    const free = Math.min(
+                      ...calendar.nights
+                        .slice(span.startIndex, span.startIndex + span.length)
+                        .map((night) => night.free),
+                    );
+                    return (
+                      <div
+                        aria-label={t("freeAllMonth", {
+                          month: monthName(span.month, locale),
+                          n: free,
+                          of: calendar.sellable,
+                        })}
+                        className={cn(
+                          "col-start-(--col) col-span-(--span) row-start-1 border-s py-1.5 text-center text-xs tabular-nums",
+                          free === 0 && "font-semibold text-danger",
+                        )}
+                        key={span.month}
+                        role="cell"
+                        style={vars({
+                          "--col": span.startIndex * 2 + 2,
+                          "--span": span.length * 2,
+                        })}
+                      >
+                        {free}
+                      </div>
+                    );
+                  })
+                : calendar.nights.map((night) => (
+                    <div
+                      aria-label={t("freeOn", {
+                        date: shortDate(night.day, locale),
+                        n: night.free,
+                        of: calendar.sellable,
+                      })}
+                      className={cn(
+                        "col-span-2 border-s py-1.5 text-center text-xs tabular-nums",
+                        night.free === 0 && "font-semibold text-danger",
+                      )}
+                      key={night.day}
+                      role="cell"
+                    >
+                      {night.free}
+                    </div>
+                  ))}
             </div>
           </div>
 
@@ -441,7 +551,7 @@ export function CalendarGrid({
               }
               return (
                 <UnitRow
-                  bookable={bookable?.has(row.unit.unitId) ?? false}
+                  bookable={!term && (bookable?.has(row.unit.unitId) ?? false)}
                   calendar={calendar}
                   collapsed={row.collapsed}
                   draggingKey={drag?.key ?? null}
@@ -450,9 +560,11 @@ export function CalendarGrid({
                   key={row.key}
                   lastDay={lastDay}
                   locale={locale}
-                  mayAmend={mayAmend}
+                  mayAmend={mayAmend && !term}
+                  months={months}
                   nested={row.nested}
                   nights={nights}
+                  todayIndex={todayIndex}
                   onBook={onBook}
                   onCard={showCard}
                   onDrop={onDrop}
@@ -519,6 +631,7 @@ function UnitRow({
   lastDay,
   locale,
   mayAmend,
+  months,
   nested,
   nights,
   onBook,
@@ -531,6 +644,7 @@ function UnitRow({
   onToggleBeds,
   room,
   tabStop,
+  todayIndex,
   unit,
 }: {
   /** Whether the viewer may book this Unit, so a drag across its free nights does. */
@@ -546,6 +660,8 @@ function UnitRow({
   lastDay: string;
   locale: SupportedLocale;
   mayAmend: boolean;
+  /** The window by month when it is a term, whose rows draw no cell per day. */
+  months: MonthSpan[] | null;
   nested: boolean;
   nights: string[];
   onBook: (target: BookingTarget & { endsOn: string }) => void;
@@ -559,6 +675,8 @@ function UnitRow({
   room: RoomCalendarUnit | null;
   /** The one bar in the tab order. */
   tabStop: string | null;
+  /** Where today is in the window; -1 when it is not in it. */
+  todayIndex: number;
   unit: RoomCalendarUnit;
 }) {
   const t = useTranslations("roomCalendar");
@@ -645,7 +763,17 @@ function UnitRow({
         ) : null}
       </div>
 
-      {nights.map((day, index) => (
+      {months ? (
+        <TermCells
+          collapsedTaken={taken}
+          locale={locale}
+          months={months}
+          outOfUse={outOfUse}
+          todayIndex={todayIndex}
+          unit={unit}
+        />
+      ) : null}
+      {(months ? [] : nights).map((day, index) => (
         <div
           className={cn(
             "col-start-(--day-col) col-span-2 row-start-1 row-span-(--lanes) border-s",
@@ -708,6 +836,86 @@ function UnitRow({
         <DropGhost ghost={ghost} />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A row's background on a term: one cell a month, today's column, and the
+ * stretch a room is out of use from today on. Behind the bars like the day
+ * cells they stand in for, and with no `data-day`, which nothing is dragged
+ * across at this scale.
+ */
+function TermCells({
+  collapsedTaken,
+  locale,
+  months,
+  outOfUse,
+  todayIndex,
+  unit,
+}: {
+  /** Beds taken on each night, for a room whose beds are folded. */
+  collapsedTaken: number[] | null;
+  locale: SupportedLocale;
+  months: MonthSpan[];
+  outOfUse: boolean;
+  todayIndex: number;
+  unit: RoomCalendarUnit;
+}) {
+  const t = useTranslations("roomCalendar");
+  const cell =
+    "col-start-(--col) col-span-(--span) row-start-1 row-span-(--lanes)";
+  const columns = (start: number, length: number) =>
+    vars({ "--col": start * 2 + 2, "--span": length * 2 });
+  const outOfUseFrom = Math.max(todayIndex, 0);
+  const last = months.reduce((end, span) => span.startIndex + span.length, 0);
+  return (
+    <>
+      {months.map((span) => {
+        const peak = collapsedTaken
+          ? Math.max(
+              ...collapsedTaken.slice(
+                span.startIndex,
+                span.startIndex + span.length,
+              ),
+            )
+          : null;
+        return (
+          <div
+            className={cn(cell, "border-s")}
+            key={span.month}
+            role="cell"
+            style={columns(span.startIndex, span.length)}
+          >
+            {peak === null ? null : (
+              <span
+                aria-label={t("bedsPeakLabel", {
+                  month: monthName(span.month, locale),
+                  n: peak,
+                  of: unit.beds.length,
+                })}
+                className="flex h-full items-center justify-center text-xs tabular-nums text-muted-foreground"
+              >
+                {peak}/{unit.beds.length}
+              </span>
+            )}
+          </div>
+        );
+      })}
+      {todayIndex >= 0 ? (
+        <div
+          aria-hidden="true"
+          className={cn(cell, "bg-primary/25")}
+          style={columns(todayIndex, 1)}
+        />
+      ) : null}
+      {outOfUse && todayIndex < last ? (
+        <div
+          aria-hidden="true"
+          className={cn(cell, OUT_OF_USE)}
+          style={columns(outOfUseFrom, last - outOfUseFrom)}
+        />
+      ) : null}
+    </>
   );
 }
 

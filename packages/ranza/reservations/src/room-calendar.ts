@@ -2,6 +2,7 @@ import type {
   AccommodationUnitStatus,
   AccommodationUnitType,
 } from "@ranza/accommodation";
+import type { Gender } from "@ranza/core";
 import {
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LEAD_DAYS,
@@ -60,6 +61,7 @@ export interface CalendarUnitRow {
   floor: number | null;
   status: AccommodationUnitStatus;
   statusReason: string | null;
+  admits: Gender | null;
   hasChildren: boolean;
   today: string;
   firstDay: string;
@@ -79,6 +81,18 @@ export function calendarLength(days: number | null): RoomCalendarLength {
     ROOM_CALENDAR_LENGTHS.find((length) => length === days) ??
     ROOM_CALENDAR_DEFAULT_LENGTH
   );
+}
+
+/**
+ * The first day of the academic year `today` falls in: 1 September, this year
+ * from July on and last year before it. A term window opens here, so a booking
+ * for September to June is whole on it and the July and August between two
+ * terms already point at the next (RC-S7-02).
+ */
+export function termStart(today: string): string {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  return `${month >= 7 ? year : year - 1}-09-01`;
 }
 
 /** The first day of a window that asked for none: three days before today. */
@@ -305,6 +319,7 @@ export function buildRoomCalendar(
       floor: row.floor,
       status: row.status,
       statusReason: row.statusReason,
+      admits: row.admits,
       sellable: !row.hasChildren,
       bars,
       beds: [],

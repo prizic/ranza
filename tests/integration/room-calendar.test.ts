@@ -24,6 +24,10 @@ import type {
   RoomCalendarBar,
   RoomCalendarUnit,
 } from "../../packages/ranza/reservations/src";
+import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
+import { narrowedFree } from "../../apps/operator-workspace/src/features/room-calendar/layout";
+import { freeIn } from "../../apps/operator-workspace/src/features/rooms/narrowing";
+import { freePlaces } from "../../apps/operator-workspace/src/features/today/views";
 
 const ORG = "dc000002-0000-4000-8000-000000000001";
 const OTHER_ORG = "dc000002-0000-4000-8000-000000000002";
@@ -35,6 +39,7 @@ const FAR_WEST = "dc000003-0000-4000-8000-000000000005";
 const UNGATED = "dc000003-0000-4000-8000-000000000006";
 const ROLLING = "dc000003-0000-4000-8000-000000000007";
 const ROLLED_INTO = "dc000003-0000-4000-8000-000000000008";
+const YURT = "dc000003-0000-4000-8000-000000000009";
 const MEMBER = "dc000001-0000-4000-8000-000000000001";
 const OUTSIDER = "dc000001-0000-4000-8000-000000000002";
 const UNASSIGNED = "dc000001-0000-4000-8000-000000000003";
@@ -89,7 +94,8 @@ async function seed(): Promise<void> {
        ($5,$8,'Calendar Pago Pago','Pacific/Pago_Pago'),
        ($6,$8,'Calendar Ungated','Europe/Istanbul'),
        ($7,$8,'Calendar Rolling','Europe/Istanbul'),
-       ($10,$8,'Calendar Rolled Into','Europe/Istanbul')
+       ($10,$8,'Calendar Rolled Into','Europe/Istanbul'),
+       ($11,$8,'Calendar Yurt','Europe/Istanbul')
      on conflict (id) do nothing`,
     PROPERTY,
     SECOND,
@@ -101,6 +107,7 @@ async function seed(): Promise<void> {
     ORG,
     OTHER_ORG,
     ROLLED_INTO,
+    YURT,
   );
   await sql(
     `insert into public.subscriptions (organization_id, status) values
@@ -161,6 +168,7 @@ interface UnitOptions {
   unitType?: "room" | "bed" | "suite";
   building?: string | null;
   floor?: number | null;
+  admits?: "female" | "male" | null;
   status?: "available" | "blocked" | "out_of_service";
 }
 
@@ -174,11 +182,11 @@ async function unit(name: string, options: UnitOptions = {}): Promise<string> {
   await sql(
     `insert into public.accommodation_units
        (id, property_id, organization_id, parent_id, parent_unit_type, name,
-        unit_type, capacity, building, floor, status, status_reason)
+        unit_type, capacity, building, floor, status, status_reason, admits)
      values ($1::uuid, $2::uuid, $3::uuid, $4::uuid,
              case when $4::uuid is null then null else 'room' end,
              $5, $6, case when $6 = 'bed' then 1 else 2 end, $7, $8::int, $9,
-             case when $9 = 'blocked' then 'Leaking ceiling' end)`,
+             case when $9 = 'blocked' then 'Leaking ceiling' end, $10)`,
     id,
     propertyId,
     organizationId,
@@ -188,6 +196,7 @@ async function unit(name: string, options: UnitOptions = {}): Promise<string> {
     options.building ?? null,
     options.floor ?? null,
     status,
+    options.admits ?? null,
   );
   return id;
 }
@@ -199,12 +208,13 @@ async function book(
   nights: { from: number; to: number | null },
   status: "requested" | "confirmed" | "cancelled" | "no_show" = "confirmed",
   propertyId = PROPERTY,
+  gender: "female" | "male" | null = null,
 ): Promise<string> {
   const id = randomUUID();
   await sql(
     `with guest as (
-       insert into public.guests (organization_id, full_name)
-       values ($2::uuid, $5) returning id
+       insert into public.guests (organization_id, full_name, gender)
+       values ($2::uuid, $5, $9) returning id
      )
      insert into public.reservations
        (id, organization_id, property_id, accommodation_unit_id, guest_id,
@@ -222,6 +232,7 @@ async function book(
     nights.from,
     nights.to,
     status,
+    gender,
   );
   return id;
 }
@@ -270,8 +281,17 @@ async function checkedInOn(
   unitId: string,
   guestName: string,
   nights: { from: number; to: number },
+  propertyId = PROPERTY,
+  gender: "female" | "male" | null = null,
 ): Promise<{ reservationId: string; stayId: string }> {
-  const reservationId = await book(unitId, guestName, nights);
+  const reservationId = await book(
+    unitId,
+    guestName,
+    nights,
+    "confirmed",
+    propertyId,
+    gender,
+  );
   const stayId = randomUUID();
   await owner.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(
@@ -288,7 +308,7 @@ async function checkedInOn(
                app.property_today($3::uuid) + $7::int)`,
       stayId,
       ORG,
-      PROPERTY,
+      propertyId,
       unitId,
       reservationId,
       nights.from,
@@ -461,6 +481,96 @@ afterAll(async () => {
   await rival.$disconnect();
   await prisma.$disconnect();
 }, HOOK_TIMEOUT);
+
+describe("the term and the empty beds (RANZ-109)", () => {
+  it("RC-S7-02: a term asked for with no start opens on the 1st of September of the Property's own academic year", async () => {
+    await unit("Term-1");
+    const found = await calendar({ days: 305 });
+    const [expected] = await owner.$queryRawUnsafe<{ start: string }[]>(
+      `select to_char(make_date(
+                extract(year from app.property_today($1::uuid))::int
+                  - case when extract(month from app.property_today($1::uuid)) >= 7
+                         then 0 else 1 end,
+                9, 1), 'YYYY-MM-DD') as start`,
+      PROPERTY,
+    );
+    expect(found.days).toBe(305);
+    expect(found.from).toBe(expected!.start);
+    expect(found.nights).toHaveLength(305);
+    expect((await calendar({ days: 305, from: await day(-1) })).from).toBe(
+      await day(-1),
+    );
+  });
+
+  it("RB-S6-03: the places the Rooms read calls free tonight are the calendar's free count on its first night", async () => {
+    const womenRoom = await unit("Term-A", {
+      propertyId: YURT,
+      building: "Blok A",
+      admits: "female",
+    });
+    const menRoom = await unit("Term-B", {
+      propertyId: YURT,
+      building: "Blok B",
+      admits: "male",
+    });
+    const womenBeds = [
+      await unit("A1", { propertyId: YURT, parentId: womenRoom }),
+      await unit("A2", { propertyId: YURT, parentId: womenRoom }),
+      await unit("A3", { propertyId: YURT, parentId: womenRoom }),
+    ];
+    const menBeds = [
+      await unit("B1", { propertyId: YURT, parentId: menRoom }),
+      await unit("B2", { propertyId: YURT, parentId: menRoom }),
+    ];
+    await unit("B3", {
+      propertyId: YURT,
+      parentId: menRoom,
+      status: "blocked",
+    });
+    await checkedInOn(
+      womenBeds[0]!,
+      "Resident A",
+      { from: -2, to: 200 },
+      YURT,
+      "female",
+    );
+    await checkedInOn(
+      menBeds[0]!,
+      "Resident B",
+      { from: -1, to: 200 },
+      YURT,
+      "male",
+    );
+
+    const map = await createAccommodationModule({ db: prisma }).listUnits(
+      MEMBER,
+      YURT,
+    );
+    const free = new Set(map.units.flatMap((room) => freePlaces(room)));
+    const found = await calendar({ days: 7 }, YURT);
+    const tonight = found.nights.find((night) => night.day === found.today)!;
+
+    expect(free.size).toBe(3);
+    expect(tonight.free).toBe(free.size);
+    const rooms = found.units.map((room) => ({
+      unitId: room.unitId,
+      building: room.building,
+      admits: room.admits,
+      beds: room.beds,
+    }));
+    for (const narrowing of [
+      { block: { block: "Blok A" }, admits: null },
+      { block: { block: "Blok B" }, admits: null },
+      { block: null, admits: "female" as const },
+      { block: null, admits: "male" as const },
+      { block: { block: "Blok A" }, admits: "male" as const },
+    ]) {
+      expect(narrowedFree(found, narrowing).nights[3]!.free).toBe(
+        freeIn(rooms, free, narrowing),
+      );
+    }
+  });
+});
 
 describe("the window and the Property's day", () => {
   it("RC-S1-05: a request with no window starts three days before today and runs 14 days", async () => {

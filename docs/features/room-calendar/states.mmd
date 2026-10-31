@@ -56,6 +56,16 @@ stateDiagram-v2
     n_blocked_booked --> n_blocked : cancelReservation, markNoShow / built
   }
 
+  state "The window's scale — a view, kept in the address, never in the data" as ScaleMachine {
+    state "days — 7, 14 or 30, a cell a day, every grip" as sc_days
+    state "term — 305 days from 1 September, a cell a month, no drag" as sc_term
+
+    [*] --> sc_days : a hotel opens, or any Property asked for days
+    [*] --> sc_term : a dormitory opens with no length asked for
+    sc_days --> sc_term : the Term button
+    sc_term --> sc_days : a length button
+  }
+
   note right of b_in_house
     A checked-in Reservation is drawn once, as its Stay.
     The Reservation's own status - checked_in, and checked_out

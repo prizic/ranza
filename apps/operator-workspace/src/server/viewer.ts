@@ -99,6 +99,7 @@ import {
   ReservationPeriodError,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
+  ROOM_CALENDAR_TERM_DAYS,
 } from "@ranza/reservations";
 import type {
   Arrival,
@@ -179,6 +180,7 @@ import { weekToShow } from "../lib/hr-week";
 import { getComposition } from "./composition";
 import { displayName } from "./display-name";
 import type { StaffEmployment } from "../features/staff/employment";
+import { freePlaces } from "../features/today/views";
 import type { TodaySummary } from "./today-derive";
 import { readTodaySummary, todayReads } from "./today-summary";
 import {
@@ -259,6 +261,7 @@ export {
   VENDOR,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
+  ROOM_CALENDAR_TERM_DAYS,
   GUEST_SERVICES_CAPABILITY,
   GUEST_SERVICES_PERMISSIONS,
   SERVICE_REQUEST_CATEGORIES,
@@ -537,6 +540,12 @@ export type RoomCalendar = RoomCalendarRead & {
   readiness?: Readonly<Record<string, RoomReadiness>>;
   /** The request holding each room out of order, by Unit (MAINT-17). */
   holds?: Readonly<Record<string, RoomHold>>;
+  /**
+   * The places free tonight — beds, or rooms let whole — counted the way Rooms
+   * and Today count them (RB-S5-19). Absent when the Rooms read could not say,
+   * in which case the calendar shows no counts rather than a wrong one.
+   */
+  freeTonight?: readonly string[];
 };
 
 function readinessOf(room: HousekeepingRoom): RoomReadiness {
@@ -612,10 +621,12 @@ export async function roomCalendar(
   const withHolds = anyOutOfOrder
     ? { ...calendar, holds: await roomHolds(viewer.userId, propertyId) }
     : calendar;
+  const freeTonight = await freePlacesTonight(viewer.userId, propertyId);
+  const withFree = freeTonight ? { ...withHolds, freeTonight } : withHolds;
   try {
     const board = await housekeeping.board(viewer.userId, propertyId);
     return {
-      ...withHolds,
+      ...withFree,
       readiness: readinessByRoom(board.rooms),
     };
   } catch (error: unknown) {
@@ -625,7 +636,35 @@ export async function roomCalendar(
       userId: viewer.userId,
       error,
     });
-    return withHolds;
+    return withFree;
+  }
+}
+
+/**
+ * The places free tonight, from the same read Rooms draws its tiles from, so
+ * the calendar's chips cannot count a second way (RB-S5-19). Undefined when the
+ * viewer cannot read Rooms, where an empty list would claim nothing is free,
+ * and when the read fails: the calendar is whole without it.
+ */
+async function freePlacesTonight(
+  userId: string,
+  propertyId: string,
+): Promise<readonly string[] | undefined> {
+  try {
+    const map = await getComposition().accommodation.listUnits(
+      userId,
+      propertyId,
+    );
+    return map.units.length === 0
+      ? undefined
+      : map.units.flatMap((room) => freePlaces(room));
+  } catch (error: unknown) {
+    console.error("room_calendar.free_tonight_failed", {
+      propertyId,
+      userId,
+      error,
+    });
+    return undefined;
   }
 }
 

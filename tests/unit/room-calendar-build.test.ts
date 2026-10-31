@@ -61,6 +61,7 @@ function row(overrides: Partial<CalendarUnitRow>): CalendarUnitRow {
     floor: null,
     status: "available",
     statusReason: null,
+    admits: null,
     hasChildren: false,
     today: TODAY,
     firstDay: FROM,

@@ -1145,8 +1145,18 @@ export class BookingChangedError extends BookingChangeError {
  * How many days the room calendar may show. An allow-list rather than a bound,
  * so the read is never asked for a range nobody designed a screen for
  * (RC-S1-06); a longer view is one more entry here (RC-DEF-08).
+ *
+ * The last is a term: September to June and a few days past it, so a booking
+ * ending on 30 June shows its departure with room beside it (RC-S7-01). It is
+ * a scale, not a date: where it starts is `termStart`'s.
  */
-export const ROOM_CALENDAR_LENGTHS = [7, 14, 30] as const;
+export const ROOM_CALENDAR_TERM_DAYS = 305;
+export const ROOM_CALENDAR_LENGTHS = [
+  7,
+  14,
+  30,
+  ROOM_CALENDAR_TERM_DAYS,
+] as const;
 export type RoomCalendarLength = (typeof ROOM_CALENDAR_LENGTHS)[number];
 export const ROOM_CALENDAR_DEFAULT_LENGTH: RoomCalendarLength = 14;
 
@@ -1252,6 +1262,8 @@ export interface RoomCalendarUnit {
   floor: number | null;
   status: AccommodationUnitStatus;
   statusReason: string | null;
+  /** Whom a room admits; null for anyone, and always null on a bed, which answers as its room (RB-S5-01). */
+  admits: Gender | null;
   /** A Unit with no children is what is let. A room with beds is not; its beds are. */
   sellable: boolean;
   bars: RoomCalendarBar[];

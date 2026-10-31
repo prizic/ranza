@@ -3,6 +3,7 @@ import type { FolioSummary } from "@ranza/folios";
 import { isOwing } from "../../lib/owed";
 import type { HousekeepingRoom } from "@ranza/housekeeping";
 import type { Arrival, Departure } from "@ranza/reservations";
+import type { ListFilterKey } from "./components/list-filter-notice";
 
 /**
  * The part of a list a figure on Today counts (TD-S5-01).
@@ -49,6 +50,13 @@ export type UnitStateFilter = (typeof UNIT_STATE_FILTERS)[number];
 /** `?admits=` on Rooms: whom the room admits, a room for anyone being `anyone`. */
 export const ADMITS_FILTERS = ["female", "male", "anyone"] as const;
 export type AdmitsFilter = (typeof ADMITS_FILTERS)[number];
+
+/** The free places in rooms admitting each: Today's figure and Rooms' notice. */
+export const FREE_FILTER_KEY = {
+  female: "filterFreeFemale",
+  male: "filterFreeMale",
+  anyone: "filterFreeAnyone",
+} as const satisfies Record<AdmitsFilter, ListFilterKey>;
 
 /**
  * `?block=` on Rooms: a building's name, or `none` for rooms recorded in no
@@ -274,10 +282,25 @@ export function admitsOf(room: Pick<UnitEntry, "admits">): AdmitsFilter {
   return room.admits ?? "anyone";
 }
 
-/** A room's places free tonight: its free beds, or itself when it is let whole. */
-export function freeTonight(room: Pick<UnitEntry, "beds" | "state">): number {
+/**
+ * A room's places free tonight: its free beds, or itself when it is let whole.
+ * The one definition of "free" every screen counts with (RB-S5-19): Today's
+ * Empty beds card, the Rooms tiles and chips, and the room calendar's chips.
+ */
+export function freePlaces(
+  room: Pick<UnitEntry, "unitId" | "state"> & {
+    beds: readonly Pick<UnitEntry, "unitId" | "state">[];
+  },
+): string[] {
   const leaves = room.beds.length > 0 ? room.beds : [room];
-  return leaves.filter((leaf) => leaf.state?.kind === "free").length;
+  return leaves
+    .filter((leaf) => leaf.state?.kind === "free")
+    .map((leaf) => leaf.unitId);
+}
+
+/** How many places a room has free tonight. */
+export function freeTonight(room: Parameters<typeof freePlaces>[0]): number {
+  return freePlaces(room).length;
 }
 
 /**

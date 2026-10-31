@@ -2,6 +2,7 @@
 %%   s1 the calendar, read-only, every view option in the URL
 %%   s2 Property defaults for that view, an Organization default and a Property override
 %%   s3 move a bar by dragging it, on the commands of ADR 0039, and filter by Unit type and state
+%%   s7 a term window read by the month, and block and gender filters with counts (RANZ-109)
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
@@ -47,6 +48,12 @@ flowchart TD
     TYPESTATE(["Filter by Unit type and by state"])
   end
 
+  subgraph S7["slice 7 &mdash; a term (RANZ-109)"]
+    TERM(["Read a whole term<br/>September to June, a cell a month, today marked"])
+    OPENTERM(["Open a dormitory on its term<br/>the operating model picks the default, nothing else reads it"])
+    NARROW(["Narrow the rooms by block and by whom they admit<br/>with the empty beds each choice leaves"])
+  end
+
   subgraph OUT["Not this feature"]
     STARTEDGE(["Pull a booking's start, drag with a finger, scroll while dragging &mdash; RC-DEF-10 to RC-DEF-12"])
     ACT(["Check in, check out, cancel from the drawer &mdash; one home per command"])
@@ -58,6 +65,10 @@ flowchart TD
 
   DESK --> READ
   DESK --> WINDOW
+  DESK --> NARROW
+  TERM -- "extend" --> WINDOW
+  OPENTERM -- "extend" --> READ
+  NARROW -- "extend" --> SHAPE
   DESK --> SHAPE
   DESK --> DETAIL
   SETTER --> SETDEF

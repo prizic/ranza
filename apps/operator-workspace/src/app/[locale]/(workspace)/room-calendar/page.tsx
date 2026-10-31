@@ -17,6 +17,7 @@ import {
   requireViewer,
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LENGTHS,
+  ROOM_CALENDAR_TERM_DAYS,
   roomCalendar,
   screenProperties,
   whyDenied,
@@ -73,11 +74,17 @@ export default async function RoomCalendarPage({
     );
   }
 
+  // A dormitory lets its beds for a term, so its calendar opens on one; the
+  // operating model picks the default and nothing else (ADR 0057, RC-S7-04).
+  const defaultLength =
+    property.operatingModel === "dormitory"
+      ? ROOM_CALENDAR_TERM_DAYS
+      : ROOM_CALENDAR_DEFAULT_LENGTH;
   const view = parseView(
     search,
     readRemembered((await cookies()).get(ROOM_CALENDAR_COOKIE)?.value),
     ROOM_CALENDAR_LENGTHS,
-    ROOM_CALENDAR_DEFAULT_LENGTH,
+    defaultLength,
   );
   // From the server, where they were decided: every cache key starts with
   // these three (ADR 0019).
@@ -116,7 +123,7 @@ export default async function RoomCalendarPage({
               }
             : null
         }
-        defaultLength={ROOM_CALENDAR_DEFAULT_LENGTH}
+        defaultLength={defaultLength}
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}
         locale={locale}

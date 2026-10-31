@@ -81,6 +81,7 @@ import {
   type ReservationRow,
   type UnitAvailability,
   ROOM_CALENDAR_LEAD_DAYS,
+  ROOM_CALENDAR_TERM_DAYS,
   type RoomCalendar,
   type RoomCalendarWindow,
   type RefusalReason,
@@ -96,6 +97,7 @@ import {
 import {
   buildRoomCalendar,
   calendarLength,
+  termStart,
   type CalendarUnitRow,
 } from "./room-calendar";
 
@@ -221,6 +223,23 @@ function calendarDay(value: string): string | null {
   const parsed = new Date(`${value}T00:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return null;
   return parsed.toISOString().slice(0, 10) === value ? value : null;
+}
+
+/**
+ * The Property's own today as `YYYY-MM-DD`. The database says it, because a
+ * server in one timezone and a desk in another are on different days for hours
+ * (ADR 0021); a Property it cannot read has none, and the server's stands in as
+ * it does for a calendar with no Units.
+ */
+async function propertyToday(
+  tx: AuditClient,
+  propertyId: string,
+): Promise<string> {
+  const [row] = await tx.$queryRaw<{ today: string | null }[]>`
+    select to_char(app.property_today(${propertyId}::uuid), 'YYYY-MM-DD')
+           as "today"
+  `;
+  return row?.today ?? new Date().toISOString().slice(0, 10);
 }
 
 /**
@@ -3304,12 +3323,19 @@ export function createReservationsModule(deps: ReservationsDeps) {
     propertyId: string,
     window: RoomCalendarWindow,
   ): Promise<RoomCalendar> {
-    const from = window.from === null ? null : calendarDay(window.from);
+    const requestedFrom =
+      window.from === null ? null : calendarDay(window.from);
     const days = calendarLength(window.days);
-    const { rows, may } = await withOrganizationContext(
+    const { from, rows, may } = await withOrganizationContext(
       deps.db,
       { userId },
       async (tx) => {
+        // A term with no start of its own opens on the academic year the
+        // Property's today is in, which only the database can say (RC-S7-02).
+        const from =
+          requestedFrom === null && days === ROOM_CALENDAR_TERM_DAYS
+            ? termStart(await propertyToday(tx, propertyId))
+            : requestedFrom;
         const rows = await tx.$queryRaw<CalendarUnitRow[]>`
         select
           unit.id                               as "unitId",
@@ -3318,6 +3344,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.unit_type                        as "unitType",
           unit.building                         as "building",
           unit.floor                            as "floor",
+          unit.admits                           as "admits",
           -- A room out of order or blocked covers its beds (ADR 0032,
           -- MT-S2-06), as on Arrivals and in what may be booked.
           case
@@ -3489,7 +3516,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
             from public.properties as property
            where property.id = ${propertyId}::uuid
         `;
-        return { rows, may };
+        return { from, rows, may };
       },
     );
     return {

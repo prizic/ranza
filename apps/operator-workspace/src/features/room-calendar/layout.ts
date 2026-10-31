@@ -4,6 +4,7 @@ import type {
   RoomCalendarUnit,
 } from "../../server/viewer";
 import { unitLabel } from "../front-office/unit-label";
+import { inNarrowing, knownBlock, type Narrowing } from "../rooms/narrowing";
 import type { RoomCalendarView } from "./view";
 
 /**
@@ -37,6 +38,47 @@ export function shiftDay(day: string, count: number): string {
   const moved = new Date(`${day}T00:00:00Z`);
   moved.setUTCDate(moved.getUTCDate() + count);
   return moved.toISOString().slice(0, 10);
+}
+
+/**
+ * A calendar date a number of years on, the 29th of February becoming the 28th
+ * where the year has none. A term moves by whole years: 365 days from one
+ * September lands on the last day of August after a leap year.
+ */
+export function shiftYear(day: string, years: number): string {
+  const moved = `${Number(day.slice(0, 4)) + years}${day.slice(4)}`;
+  return moved.endsWith("-02-29") && shiftDay(moved, 0) !== moved
+    ? `${moved.slice(0, 8)}28`
+    : moved;
+}
+
+/** A run of the window's days in one month, for a term read by month (RC-S7-03). */
+export interface MonthSpan {
+  /** `YYYY-MM`. */
+  month: string;
+  /** The month's first day in the window. */
+  firstDay: string;
+  /** Index into the window's days of that first day. */
+  startIndex: number;
+  /** How many of the month's days the window holds. */
+  length: number;
+}
+
+export function monthSpans(days: readonly string[]): MonthSpan[] {
+  const spans: MonthSpan[] = [];
+  days.forEach((day, index) => {
+    const last = spans[spans.length - 1];
+    if (last && last.month === day.slice(0, 7)) last.length += 1;
+    else {
+      spans.push({
+        month: day.slice(0, 7),
+        firstDay: day,
+        startIndex: index,
+        length: 1,
+      });
+    }
+  });
+  return spans;
 }
 
 /**
@@ -228,8 +270,15 @@ export function calendarRows(
   let floor: number | null | undefined;
   const hasFloors = calendar.units.some((unit) => unit.floor !== null);
   const hasBuildings = calendar.units.some((unit) => unit.building !== null);
+  // A block the Property does not have narrows nothing, as an unknown ?show=
+  // does on Rooms (RC-S7-05).
+  const narrowing = {
+    block: knownBlock(view.block, calendar.units),
+    admits: view.admits,
+  };
 
   for (const unit of calendar.units) {
+    if (!inNarrowing(unit, narrowing)) continue;
     if (!floorMatches(unit, view.floor)) continue;
     if (!matchesKind(unit, view)) continue;
     if (view.overlapsOnly && !hasOverlap(unit)) continue;
@@ -282,6 +331,35 @@ export function calendarRows(
     }
   }
   return rows;
+}
+
+/**
+ * The free row for the rooms inside a narrowing: the read's own count, taken
+ * again over fewer Units, so "free" is the read's definition and a block's row
+ * says what the block has (RC-S7-05). With no narrowing it is the read's row.
+ */
+export function narrowedFree(
+  calendar: RoomCalendar,
+  narrowing: Narrowing,
+): { nights: RoomCalendar["nights"]; sellable: number } {
+  const sellable = calendar.units
+    .filter((room) => inNarrowing(room, narrowing))
+    .flatMap((room) => [room, ...room.beds])
+    .filter((unit) => unit.sellable);
+  const nights = calendar.nights.map(({ day }) => {
+    const inUse = sellable.filter(
+      (unit) => !(isOutOfUse(unit) && day >= calendar.today),
+    );
+    const booked = inUse.filter((unit) =>
+      unit.bars.some((bar) => holdsNight(bar, day)),
+    ).length;
+    return { day, free: inUse.length - booked, booked };
+  });
+  return { nights, sellable: sellable.length };
+}
+
+function isOutOfUse(unit: RoomCalendarUnit): boolean {
+  return unit.status === "blocked" || unit.status === "out_of_service";
 }
 
 /** For a folded room: how many of its beds are taken on each night (RC-S1-40). */

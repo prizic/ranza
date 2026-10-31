@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ListFilter } from "lucide-react";
+import { ListFilter, X } from "lucide-react";
+import { Button } from "@ranza/ui";
 import { useTranslations } from "next-intl";
 import type { AdmitsFilter } from "../views";
 
@@ -26,13 +27,6 @@ export type ListFilterKey =
   | "filterFreeInBlock"
   | "filterBlock";
 
-/** The free places in rooms admitting each: Today's figure and Rooms' notice. */
-export const FREE_FILTER_KEY = {
-  female: "filterFreeFemale",
-  male: "filterFreeMale",
-  anyone: "filterFreeAnyone",
-} as const satisfies Record<AdmitsFilter, ListFilterKey>;
-
 /**
  * Says a list is showing part of itself, how many rows that is, and the way
  * back to all of it. A narrowed list that did not say so would read as a
@@ -49,6 +43,7 @@ export function ListFilterNotice({
   detail,
   filter,
   floor,
+  onShowAll,
 }: {
   /** Whom the narrowed rooms admit, for the notices that say it. */
   admits?: AdmitsFilter | undefined;
@@ -61,6 +56,11 @@ export function ListFilterNotice({
   detail?: string | undefined;
   filter: ListFilterKey;
   floor?: string | undefined;
+  /**
+   * For a screen whose way back is not an address: the room calendar's view
+   * lives in its own URL state, so it drops the narrowing in place.
+   */
+  onShowAll?: (() => void) | undefined;
 }) {
   const t = useTranslations("dashboard");
 
@@ -85,13 +85,25 @@ export function ListFilterNotice({
       {detail ? (
         <span className="text-muted-foreground tabular-nums">{detail}</span>
       ) : null}
-      <Link
-        className="ms-auto font-semibold text-primary hover:underline"
-        href={allHref}
-        prefetch={false}
-      >
-        {t("filterShowAll")}
-      </Link>
+      {onShowAll ? (
+        <Button
+          className="ms-auto font-semibold text-primary"
+          onClick={onShowAll}
+          size="sm"
+          variant="ghost"
+        >
+          {t("filterShowAll")}
+          <X aria-hidden="true" />
+        </Button>
+      ) : (
+        <Link
+          className="ms-auto font-semibold text-primary hover:underline"
+          href={allHref}
+          prefetch={false}
+        >
+          {t("filterShowAll")}
+        </Link>
+      )}
     </div>
   );
 }

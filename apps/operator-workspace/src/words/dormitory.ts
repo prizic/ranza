@@ -37,6 +37,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       stayoverSettingsHint:
         "İçinde kalan olan bir odanın ne sıklıkla temizleneceği. Odalar bu düzene göre sıraya girer ve Temizlik ekranında Dolu oda temizliği altında görünür. Çıkış sonrası temizlik etkilenmez.",
     },
+    bedNarrowing: { blockLabel: "Blok", allBlocks: "Tüm bloklar" },
     reservations: "Kayıtlar",
     newBooking: "Yeni kayıt",
     newReservation: "Yeni kayıt",
@@ -129,6 +130,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       stayoverSettingsHint:
         "How often a room somebody is staying in is cleaned. Rooms fall due on this schedule and appear under Stayover due on the Cleaning screen. Cleaning after a departure is not affected.",
     },
+    bedNarrowing: { blockLabel: "Block", allBlocks: "All blocks" },
     reservations: "Registrations",
     newBooking: "New registration",
     newReservation: "New registration",
@@ -218,6 +220,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       stayoverSettingsHint:
         "كم مرة تُنظَّف غرفة يقيم فيها شخص. تستحق الغرف التنظيف وفق هذا الجدول وتظهر تحت «تنظيف الغرف المشغولة» في شاشة التنظيف. لا يتأثر التنظيف بعد المغادرة.",
     },
+    bedNarrowing: { blockLabel: "المبنى", allBlocks: "كل المباني" },
     reservations: "التسجيلات",
     newBooking: "تسجيل جديد",
     newReservation: "تسجيل جديد",

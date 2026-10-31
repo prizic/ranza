@@ -30,6 +30,7 @@ export {
   ROOM_CALENDAR_DEFAULT_LENGTH,
   ROOM_CALENDAR_LEAD_DAYS,
   ROOM_CALENDAR_LENGTHS,
+  ROOM_CALENDAR_TERM_DAYS,
   StayHasChargesError,
   PriceChangedError,
   UnitHasOccupantError,

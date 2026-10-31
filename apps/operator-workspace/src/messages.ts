@@ -674,6 +674,17 @@ export interface Messages {
   /** Whom a room admits, as a chip, a marker and a choice (RB-S5-14). */
   roomAdmits: { female: string; male: string; anyone: string };
   /**
+   * Narrowing the beds by block and by whom a room admits, on Rooms and the
+   * room calendar (RB-S6-01, RC-S7-05). What they narrow to is said by the shared filter notice.
+   */
+  bedNarrowing: {
+    groupLabel: string;
+    blockLabel: string;
+    allBlocks: string;
+    admitsLabel: string;
+    allAdmits: string;
+  };
+  /**
    * A Guest's date of birth, studies, guardian and emergency contact, in the
    * booking dialog and on the booking (GP-S1-*). `invalid` is the booking's
    * refusal when one of them is out of bounds.
@@ -1912,6 +1923,14 @@ export interface Messages {
     chosenDay: string;
     length: string;
     lengthOption: string;
+    lengthTerm: string;
+    previousTerm: string;
+    nextTerm: string;
+    termHint: string;
+    freeRowTerm: string;
+    freeRowTermHint: string;
+    freeAllMonth: string;
+    bedsPeakLabel: string;
     floorFilter: string;
     allFloors: string;
     floorOption: string;
@@ -4294,6 +4313,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       male: "Yalnızca erkek",
       anyone: "Herkes",
     },
+    bedNarrowing: {
+      groupLabel: "Yatakları daralt",
+      blockLabel: "Bina",
+      allBlocks: "Tüm binalar",
+      admitsLabel: "Odalar",
+      allAdmits: "Tümü",
+    },
     particulars: {
       title: "Kişisel bilgiler",
       hint: "İsteğe bağlı. Bunları yalnızca rolü misafirlerin kişisel bilgilerini görmeye izin veren çalışanlar yeniden görür.",
@@ -4729,6 +4755,18 @@ export const messages: Record<SupportedLocale, Messages> = {
       chosenDay: "Seçtiğiniz tarih",
       length: "Gösterilen gün",
       lengthOption: "{days, plural, other {# gün}}",
+      lengthTerm: "Dönem",
+      freeRowTerm: "Ay boyunca boş",
+      previousTerm: "Önceki dönem",
+      nextTerm: "Sonraki dönem",
+      termHint:
+        "Bir kaydı taşımak ya da çıkış tarihini değiştirmek için açın. Sürükleme 30 güne kadar çalışır.",
+      freeRowTermHint:
+        "Ayın her gecesi boş kalan yerler: ayın en dolu gecesindeki boş sayısı. Geceleri tek tek görmek için 30 güne geçin.",
+      freeAllMonth:
+        "{month}: {of, number} yerin {n, number} tanesi her gece boş",
+      bedsPeakLabel:
+        "{month}: {of, number} yatağın en çok {n, number} tanesi dolu",
       floorFilter: "Kat",
       allFloors: "Tüm katlar",
       floorOption: "Kat {floor}",
@@ -8303,6 +8341,13 @@ export const messages: Record<SupportedLocale, Messages> = {
     genderRefused:
       "{admits, select, female {This room admits women only} other {This room admits men only}}. Choose another room for this Guest.",
     roomAdmits: { female: "Women only", male: "Men only", anyone: "Anyone" },
+    bedNarrowing: {
+      groupLabel: "Narrow the beds",
+      blockLabel: "Building",
+      allBlocks: "All buildings",
+      admitsLabel: "Rooms for",
+      allAdmits: "All",
+    },
     particulars: {
       title: "Personal details",
       hint: "Optional. Only staff whose role may read Guests' personal details see them again.",
@@ -8748,6 +8793,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       chosenDay: "The date you chose",
       length: "Days shown",
       lengthOption: "{days, plural, one {# day} other {# days}}",
+      lengthTerm: "Term",
+      freeRowTerm: "Free all month",
+      previousTerm: "Previous term",
+      nextTerm: "Next term",
+      termHint:
+        "Open a booking to move it or change its departure. Dragging works at 30 days or fewer.",
+      freeRowTermHint:
+        "Places free on every night of the month: the number free on its fullest night. Switch to 30 days for night-by-night counts.",
+      freeAllMonth: "{month}: {n, number} of {of, number} free every night",
+      bedsPeakLabel: "{month}: up to {n, number} of {of, number} beds taken",
       floorFilter: "Floor",
       allFloors: "All floors",
       floorOption: "Floor {floor}",
@@ -12303,6 +12358,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       male: "للرجال فقط",
       anyone: "للجميع",
     },
+    bedNarrowing: {
+      groupLabel: "تضييق الأسرّة",
+      blockLabel: "المبنى",
+      allBlocks: "كل المباني",
+      admitsLabel: "الغرف",
+      allAdmits: "الكل",
+    },
     particulars: {
       title: "البيانات الشخصية",
       hint: "اختياري. لا يراها لاحقًا إلا الموظفون الذين يسمح لهم دورهم بقراءة البيانات الشخصية للضيوف.",
@@ -12724,6 +12786,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       length: "الأيام المعروضة",
       lengthOption:
         "{days, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+      lengthTerm: "الفصل",
+      freeRowTerm: "شاغرة طوال الشهر",
+      previousTerm: "الفصل السابق",
+      nextTerm: "الفصل التالي",
+      termHint:
+        "افتح الحجز لنقله أو تغيير موعد مغادرته. السحب يعمل حتى 30 يومًا.",
+      freeRowTermHint:
+        "الأماكن الشاغرة في كل ليالي الشهر: عددها في أكثر لياليه ازدحامًا. انتقل إلى 30 يومًا لرؤية الأعداد ليلةً بليلة.",
+      freeAllMonth: "{month}: {n, number} من {of, number} شاغرة في كل ليلة",
+      bedsPeakLabel:
+        "{month}: ما يصل إلى {n, number} من {of, number} أسرّة مشغولة",
       floorFilter: "الطابق",
       allFloors: "كل الطوابق",
       floorOption: "الطابق {floor}",

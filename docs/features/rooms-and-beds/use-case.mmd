@@ -1,5 +1,6 @@
 %% Slices decide implementation order and nothing else:
 %%   s1 the bed map and the bed list   s2 adding rooms and beds   s3 blocking a bed
+%%   s6 narrowing the map by block and by gender (RANZ-109)
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
@@ -34,6 +35,10 @@ flowchart TD
     UNBLOCK(["Unblock it"])
   end
 
+  subgraph S6["slice 6 &mdash; narrowing the map (RANZ-109)"]
+    NARROWMAP(["Narrow the map by block and by whom a room admits<br/>with the empty beds each choice leaves, said in words with Show all"])
+  end
+
   subgraph OUT["Not this feature"]
     EDIT(["Rename a Unit, move it between floors, change its type or capacity"])
     REMOVE(["Remove a Unit that was never used"])
@@ -44,6 +49,8 @@ flowchart TD
 
   DESK --> MAP
   DESK --> LIST
+  DESK --> NARROWMAP
+  NARROWMAP -- "extend" --> MAP
   CONFIG --> ADD
   CONFIG --> BLOCK
   CONFIG --> UNBLOCK

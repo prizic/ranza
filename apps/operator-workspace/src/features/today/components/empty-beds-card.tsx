@@ -6,7 +6,7 @@ import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import type { EmptyBedsCard as EmptyBeds } from "../../../server/today-derive";
 import { Panel } from "../layouts/parts";
-import { FREE_FILTER_KEY } from "./list-filter-notice";
+import { FREE_FILTER_KEY } from "../views";
 import { todayHref } from "../links";
 import { ADMITS_FILTERS, blockParam, type AdmitsFilter } from "../views";
 

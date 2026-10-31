@@ -232,6 +232,7 @@ describe("every catalogue parses", () => {
                 room: "x",
                 rooms: "101, 207",
                 rows: 100000,
+                scope: "x",
                 seconds: 2,
                 schedule: "every week",
                 sellable: 20,

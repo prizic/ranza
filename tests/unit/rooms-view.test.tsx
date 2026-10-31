@@ -842,8 +842,13 @@ describe("whom a room admits (RB-S5-13, RB-S5-14, RB-S5-15)", () => {
 
   it("a_hotel_room_for_anyone_shows_nothing_and_a_gendered_room_says_so_to_everybody", () => {
     render(screenOf("en", { data: gendered, mayConfigure: false }));
-    expect(screen.getByText("Women only")).toBeVisible();
-    expect(screen.queryByText("Anyone")).toBeNull();
+    // The room's own mark, beside the chip that narrows to such rooms.
+    expect(screen.getAllByText("Women only")).toHaveLength(2);
+    // A room for anyone carries no mark: "Anyone" is only the chip.
+    const marks = screen
+      .getAllByText("Anyone")
+      .filter((mark) => !mark.closest('[aria-label="Narrow the beds"]'));
+    expect(marks).toEqual([]);
     expect(screen.queryByRole("button", { name: /^Change who/ })).toBeNull();
   });
 

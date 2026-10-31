@@ -6,11 +6,28 @@
  * toggles — but never the start date or a search, which belong to the moment
  * (RC-S1-61). The URL always wins over the cookie.
  *
+ * A term is never remembered: it is a Property's own default, and a cookie is
+ * the browser's, shared by every Property the person opens (RC-S7-04).
+ *
  * One object rather than a scatter of search parameters, so the Property
  * defaults of slice 2 become one more source of the same shape.
  */
 
+import { ADMITS_FILTERS, type AdmitsFilter } from "../today/views";
+
 export const ROOM_CALENDAR_COOKIE = "ranza-room-calendar";
+
+/**
+ * The days of a term view: September to June and a few days past it. Mirrors
+ * `ROOM_CALENDAR_TERM_DAYS` in the Reservations module, which the browser may
+ * not import; a unit test holds the two equal (RC-S7-01).
+ */
+export const TERM_DAYS = 305;
+
+/** A window of this many days is read by month, not by day (RC-S7-03). */
+export function isTermScale(days: number): boolean {
+  return days >= TERM_DAYS;
+}
 
 /**
  * What a Unit can be filtered by. Allow-lists, so a link carrying anything
@@ -36,6 +53,10 @@ export interface RoomCalendarView {
   unitType: UnitTypeFilter | null;
   /** Null for every state of Unit (RC-S3-14). */
   unitState: UnitStateFilter | null;
+  /** A building's name — a block, in a dormitory — or null for every one (RC-S7-05). */
+  block: string | null;
+  /** Whom the rooms admit, or null for every room (RC-S7-05). */
+  admits: AdmitsFilter | null;
   showRequested: boolean;
   showDeparted: boolean;
   search: string;
@@ -126,6 +147,12 @@ export function parseView(
 ): RoomCalendarView {
   const allowed = (days: number | undefined) =>
     days !== undefined && lengths.includes(days) ? days : undefined;
+  // A browser's memory is a day count it chose for itself; a Property whose
+  // default is a term opens on it, and one that is not never inherits one.
+  const memory = (days: number | undefined) =>
+    isTermScale(defaultLength) || (days !== undefined && isTermScale(days))
+      ? undefined
+      : allowed(days);
   const from = first(params.from);
   const floor = first(params.floor);
   const collapsed = (first(params.collapsed) ?? "")
@@ -135,11 +162,13 @@ export function parseView(
     from: isCalendarDay(from) ? from : null,
     days:
       allowed(Number(first(params.days))) ??
-      allowed(remembered.days) ??
+      memory(remembered.days) ??
       defaultLength,
     floor: floor && FLOOR.test(floor) ? floor : null,
     unitType: oneOf(UNIT_TYPES, first(params.type)),
     unitState: oneOf(UNIT_STATES, first(params.state)),
+    block: first(params.block) || null,
+    admits: oneOf(ADMITS_FILTERS, first(params.admits)),
     showRequested:
       flag(first(params.requested)) ?? remembered.showRequested ?? true,
     showDeparted:
@@ -162,6 +191,8 @@ export function viewSearch(
   if (view.floor) params.set("floor", view.floor);
   if (view.unitType) params.set("type", view.unitType);
   if (view.unitState) params.set("state", view.unitState);
+  if (view.block) params.set("block", view.block);
+  if (view.admits) params.set("admits", view.admits);
   if (!view.showRequested) params.set("requested", "0");
   if (!view.showDeparted) params.set("departed", "0");
   if (view.search) params.set("q", view.search);

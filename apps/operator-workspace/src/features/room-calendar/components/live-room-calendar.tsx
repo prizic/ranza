@@ -16,9 +16,25 @@ import type { StayType } from "../../../lib/booking-defaults";
 import type { RoomCalendar } from "../../../server/viewer";
 import { NewReservationDialog } from "../../front-office/components/new-reservation-dialog";
 import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
-import { barKey, barsByKey, calendarRows, shiftDay } from "../layout";
+import { BedNarrowing } from "../../rooms/components/bed-narrowing";
+import {
+  freeIn,
+  inNarrowing,
+  knownBlock,
+  noticeFor,
+} from "../../rooms/narrowing";
+import { ListFilterNotice } from "../../today/components/list-filter-notice";
+import { blockParam } from "../../today/views";
+import {
+  barKey,
+  barsByKey,
+  calendarRows,
+  narrowedFree,
+  shiftDay,
+} from "../layout";
 import {
   isCalendarDay,
+  isTermScale,
   rememberedCookie,
   viewSearch,
   type RoomCalendarView,
@@ -102,6 +118,7 @@ export function LiveRoomCalendar({
   scope: Scope;
 }) {
   const t = useTranslations("roomCalendar");
+  const otherRooms = useTranslations("roomsPage")("otherRooms");
   const coarsePointer = useCoarsePointer();
   const [view, setView] = useState(initialView);
   // The date the reader jumped to. The window opens three days before it, so
@@ -209,6 +226,10 @@ export function LiveRoomCalendar({
     () => (calendar ? barsByKey(calendar) : new Map()),
     [calendar],
   );
+  const freeTonight = useMemo(
+    () => (calendar?.freeTonight ? new Set(calendar.freeTonight) : null),
+    [calendar],
+  );
   const bookable = useMemo(
     () => (booking ? new Set(booking.units.map((unit) => unit.unitId)) : null),
     [booking],
@@ -232,7 +253,36 @@ export function LiveRoomCalendar({
 
   const lastDay = shiftDay(calendar.from, calendar.days - 1);
   const nothingBooked = bars.size === 0;
+  const narrowing = {
+    block: knownBlock(view.block, calendar.units),
+    admits: view.admits,
+  };
+  // The free row counts the rooms on screen; the read's counts above the grid
+  // stay the whole house's (RC-S1-31).
+  const shownCalendar =
+    narrowing.block !== null || narrowing.admits !== null
+      ? { ...calendar, ...narrowedFree(calendar, narrowing) }
+      : calendar;
+  // Where the Rooms read could not say which places are free, a gender choice
+  // has no number to give back, so it is not said rather than said wrongly.
+  const notice =
+    freeTonight === null && narrowing.admits !== null
+      ? null
+      : noticeFor(
+          narrowing,
+          {
+            rooms: calendar.units.filter((room) => inNarrowing(room, narrowing))
+              .length,
+            free:
+              freeTonight === null
+                ? 0
+                : freeIn(calendar.units, freeTonight, narrowing),
+          },
+          otherRooms,
+        );
   const filtered =
+    narrowing.block !== null ||
+    narrowing.admits !== null ||
     view.floor !== null ||
     view.unitType !== null ||
     view.unitState !== null ||
@@ -267,9 +317,13 @@ export function LiveRoomCalendar({
   // One line beside New reservation, so the grid still starts where it did
   // (CALENDAR-12): a viewer who may move and book is told both in one
   // sentence, which leaves no room to describe the page as well.
-  const dragsToBook = booking !== null && !coarsePointer;
-  const usage =
-    calendar.mayAmend && dragsToBook
+  const term = isTermScale(calendar.days);
+  const dragsToBook = booking !== null && !coarsePointer && !term;
+  // A day is a few pixels wide on a term, so nothing there is dragged: the
+  // bar opens, and its drawer moves it and ends it with dates (RC-S7-03).
+  const usage = term
+    ? t("termHint")
+    : calendar.mayAmend && dragsToBook
       ? t("moveAndBookHint")
       : [
           t("subtitle"),
@@ -309,9 +363,31 @@ export function LiveRoomCalendar({
         calendar={calendar}
         lengths={lengths}
         locale={locale}
+        narrowingChips={
+          <BedNarrowing
+            free={freeTonight}
+            narrowing={narrowing}
+            onChange={(next) =>
+              update({
+                block:
+                  next.block === null ? null : blockParam(next.block.block),
+                admits: next.admits,
+              })
+            }
+            rooms={calendar.units}
+          />
+        }
         onChange={update}
         view={view}
       />
+
+      {notice === null ? null : (
+        <ListFilterNotice
+          allHref={`/${locale}/room-calendar`}
+          onShowAll={() => update({ block: null, admits: null })}
+          {...notice}
+        />
+      )}
 
       {(windowFailed || query.isError) && shown ? (
         <p
@@ -348,6 +424,8 @@ export function LiveRoomCalendar({
             <Button
               onClick={() =>
                 update({
+                  block: null,
+                  admits: null,
                   floor: null,
                   unitType: null,
                   unitState: null,
@@ -369,7 +447,7 @@ export function LiveRoomCalendar({
         <>
           <CalendarGrid
             bookable={bookable}
-            calendar={calendar}
+            calendar={shownCalendar}
             held={held?.drop ?? null}
             locale={locale}
             markedDay={markedDay}

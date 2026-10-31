@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   ChevronLeft,
@@ -26,8 +26,13 @@ import {
   SelectValue,
 } from "@ranza/ui";
 import type { RoomCalendar, RoomCalendarUnit } from "../../../server/viewer";
-import { daysBetween, lengthCovering, shiftDay } from "../layout";
-import { UNIT_STATES, UNIT_TYPES, type RoomCalendarView } from "../view";
+import { daysBetween, lengthCovering, shiftDay, shiftYear } from "../layout";
+import {
+  isTermScale,
+  UNIT_STATES,
+  UNIT_TYPES,
+  type RoomCalendarView,
+} from "../view";
 import { Legend } from "./legend";
 
 /** A window moves a week at a time, whatever its length. */
@@ -66,18 +71,34 @@ export function CalendarToolbar({
   calendar,
   lengths,
   locale,
+  narrowingChips,
   onChange,
   view,
 }: {
   calendar: RoomCalendar;
   lengths: number[];
   locale: SupportedLocale;
+  /**
+   * The block and gender chips (RC-S7-05). Always in view from a tablet up,
+   * where they are the first thing a yurt asks by; on a phone they fold behind
+   * Filters with the rest, which is why their choice counts toward it.
+   */
+  narrowingChips?: ReactNode;
   /** `marked` is the day a jump to a date was asked for, to be shown in its column. */
   onChange: (change: Partial<RoomCalendarView>, marked?: string) => void;
   view: RoomCalendarView;
 }) {
   const t = useTranslations("roomCalendar");
   const common = useTranslations();
+  // The date picker and the arrows work in days; a term is a scale of its own
+  // (RC-S7-03), so the picker offers only the lengths a range can be.
+  const dayLengths = lengths.filter((length) => !isTermScale(length));
+  const term = isTermScale(view.days);
+  // A term moves by an academic year, a day view by a week.
+  const step = (direction: 1 | -1) =>
+    term
+      ? shiftYear(calendar.from, direction)
+      : shiftDay(calendar.from, direction * STEP_DAYS);
   // Floor, type, state, the two toggles and the legend fold behind one button
   // on every screen, so the grid starts within a laptop's first screen
   // (CALENDAR-12). The button counts what narrows the grid; a link that opens
@@ -90,6 +111,8 @@ export function CalendarToolbar({
     view.unitState !== null,
     !view.showRequested,
     !view.showDeparted,
+    view.block !== null,
+    view.admits !== null,
   ].filter(Boolean).length;
   const [filtersOpen, setFiltersOpen] = useState(narrowing > 0);
   // Only what the Property has is offered, so no filter can empty the grid on
@@ -109,15 +132,21 @@ export function CalendarToolbar({
 
   return (
     <div className="space-y-3">
+      <div
+        className={cn(
+          "empty:hidden sm:block",
+          filtersOpen ? "block" : "hidden",
+        )}
+      >
+        {narrowingChips}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex items-center gap-1">
           <Button
-            aria-label={t("previous")}
-            onClick={() =>
-              onChange({ from: shiftDay(calendar.from, -STEP_DAYS) })
-            }
+            aria-label={t(term ? "previousTerm" : "previous")}
+            onClick={() => onChange({ from: step(-1) })}
             size="icon-sm"
-            title={t("previous")}
+            title={t(term ? "previousTerm" : "previous")}
             variant="outline"
           >
             <ChevronLeft aria-hidden="true" className="rtl:rotate-180" />
@@ -130,12 +159,10 @@ export function CalendarToolbar({
             {t("today")}
           </Button>
           <Button
-            aria-label={t("next")}
-            onClick={() =>
-              onChange({ from: shiftDay(calendar.from, STEP_DAYS) })
-            }
+            aria-label={t(term ? "nextTerm" : "next")}
+            onClick={() => onChange({ from: step(1) })}
             size="icon-sm"
-            title={t("next")}
+            title={t(term ? "nextTerm" : "next")}
             variant="outline"
           >
             <ChevronRight aria-hidden="true" className="rtl:rotate-180" />
@@ -161,7 +188,7 @@ export function CalendarToolbar({
               span: (days) => t("lengthOption", { days: days + 1 }),
             }}
             locale={locale}
-            maxSpan={Math.max(...lengths) - 1}
+            maxSpan={Math.max(...dayLengths) - 1}
             // Applied once both ends are chosen: the start alone is half a
             // choice, and reading the grid under an open calendar for it
             // would only be thrown away by the next press.
@@ -172,7 +199,7 @@ export function CalendarToolbar({
                     from: chosen.from,
                     days: lengthCovering(
                       daysBetween(chosen.from, chosen.to) + 1,
-                      lengths,
+                      dayLengths,
                     ),
                   },
                   chosen.from,
@@ -181,7 +208,7 @@ export function CalendarToolbar({
                 onChange({ from: null });
               }
             }}
-            presets={lengths.map((days) => ({
+            presets={dayLengths.map((days) => ({
               label: t("lengthOption", { days }),
               from: calendar.from,
               to: shiftDay(calendar.from, days - 1),
@@ -204,11 +231,20 @@ export function CalendarToolbar({
               aria-pressed={view.days === days}
               className="h-7 px-3 text-xs"
               key={days}
-              onClick={() => onChange({ days })}
+              onClick={() =>
+                // A term opens on its own start and leaves for today: a
+                // start chosen on one scale is meaningless on the other.
+                onChange({
+                  days,
+                  ...(isTermScale(days) !== term ? { from: null } : {}),
+                })
+              }
               size="sm"
               variant={view.days === days ? "default" : "ghost"}
             >
-              {t("lengthOption", { days })}
+              {isTermScale(days)
+                ? t("lengthTerm")
+                : t("lengthOption", { days })}
             </Button>
           ))}
         </div>

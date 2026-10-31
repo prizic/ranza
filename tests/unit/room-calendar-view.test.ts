@@ -89,6 +89,8 @@ describe("the view in the URL and the cookie", () => {
       floor: "3",
       unitType: "suite",
       unitState: "blocked",
+      block: "Blok A",
+      admits: "female",
       showRequested: false,
       showDeparted: false,
       search: "Ada",

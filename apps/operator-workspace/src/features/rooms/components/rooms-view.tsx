@@ -57,20 +57,20 @@ import type {
   UnitMap,
   UnitState,
 } from "../../../server/viewer";
-import {
-  FREE_FILTER_KEY,
-  ListFilterNotice,
-} from "../../today/components/list-filter-notice";
+import { ListFilterNotice } from "../../today/components/list-filter-notice";
 import {
   admitsOf,
-  freeTonight,
+  blockParam,
+  freePlaces,
   inBlock,
   UNIT_STATE_FILTERS,
   type AdmitsFilter,
   type BlockFilter,
   type UnitStateFilter,
 } from "../../today/views";
+import { freeIn, noticeFor, type Narrowing } from "../narrowing";
 import { AddRoomsDialog } from "./add-rooms-dialog";
+import { BedNarrowing } from "./bed-narrowing";
 import { BlockUnitDialog } from "./block-unit-dialog";
 import { RoomAdmits } from "./room-admits";
 
@@ -285,12 +285,28 @@ export function RoomsView({
     return named && inState && isReady && admitted && inBlock(room, block);
   });
   // The figure Today showed, from the same count, so the notice gives it back.
-  const freeAdmitted = data.units
-    .filter(
-      (room) =>
-        (admits === null || admitsOf(room) === admits) && inBlock(room, block),
-    )
-    .reduce((sum, room) => sum + freeTonight(room), 0);
+  const narrowing: Narrowing = { admits, block };
+  const freeIds = new Set(data.units.flatMap((room) => freePlaces(room)));
+  const notice = noticeFor(
+    narrowing,
+    {
+      rooms: visibleUnits.length,
+      free: freeIn(data.units, freeIds, narrowing),
+    },
+    rp("otherRooms"),
+  );
+
+  // The address follows the chips, so a narrowed board can be sent as a link.
+  function narrow(next: Narrowing) {
+    setAdmits(next.admits);
+    setBlock(next.block);
+    const url = new URL(window.location.href);
+    if (next.admits === null) url.searchParams.delete("admits");
+    else url.searchParams.set("admits", next.admits);
+    if (next.block === null) url.searchParams.delete("block");
+    else url.searchParams.set("block", blockParam(next.block.block));
+    window.history.replaceState(null, "", url);
+  }
 
   function clearFilters() {
     setQuery("");
@@ -459,6 +475,13 @@ export function RoomsView({
             </StatTile>
           </div>
 
+          <BedNarrowing
+            free={freeIds}
+            narrowing={narrowing}
+            onChange={narrow}
+            rooms={data.units}
+          />
+
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-[160px] flex-1 sm:flex-none">
               <Search
@@ -524,21 +547,10 @@ export function RoomsView({
               </Link>
             ) : null}
           </div>
-          {admits === null && block === null ? null : (
+          {notice === null ? null : (
             <ListFilterNotice
-              admits={admits ?? undefined}
               allHref={`/${locale}/rooms?property=${propertyId}`}
-              block={
-                block === null ? undefined : (block.block ?? rp("otherRooms"))
-              }
-              count={admits === null ? visibleUnits.length : freeAdmitted}
-              filter={
-                admits === null
-                  ? "filterBlock"
-                  : block === null
-                    ? FREE_FILTER_KEY[admits]
-                    : "filterFreeInBlock"
-              }
+              {...notice}
             />
           )}
         </>
