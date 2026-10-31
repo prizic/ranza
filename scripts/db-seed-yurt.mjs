@@ -26,9 +26,10 @@ const PROPERTY = "Demo Yurt Kadıköy";
 // The term a Turkish university dormitory lets its beds for.
 const TERM = { startsOn: "2026-09-15", endsOn: "2027-06-15" };
 
-// Per floor, the beds in each room: twenty, so three floors make sixty a block.
-const ROOM_BEDS = [2, 3, 4, 3, 4, 4];
-const FLOORS = [1, 2, 3];
+// Per floor, the beds in each room: fifteen, so four floors make sixty a block,
+// with a single, a double, a triple and quads, as a yurt lets them.
+const ROOM_BEDS = [1, 2, 3, 4, 1, 4];
+const FLOORS = [1, 2, 3, 4];
 const BLOCKS = [
   { name: "Blok A", prefix: "A", admits: "female" },
   { name: "Blok B", prefix: "B", admits: "male" },
