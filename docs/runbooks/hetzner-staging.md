@@ -153,6 +153,20 @@ are hard-wired to `localhost:54322` and refuse anything else; a tunnel landing
 there would make this database look like a developer's throwaway one to the
 two scripts that overwrite role passwords and seed demo data.
 
+## A dormitory to look at
+
+Everything a dormitory sees — beds taken, empty beds by gender, a student's
+guardian — needs a Property let by the bed, and the hotel has none. Through the
+same tunnel:
+
+```sh
+DIRECT_URL="postgresql://ranza:<POSTGRES_PASSWORD>@localhost:54329/ranza" pnpm db:seed:yurt
+```
+
+It adds "Demo Yurt Kadıköy" to Prizic Demo and assigns it to nobody: the Owner
+reaches it, and anybody else is given it on People, as for any Property. Run
+again, it creates nothing twice.
+
 ## When something is wrong
 
 ```sh

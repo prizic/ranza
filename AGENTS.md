@@ -177,6 +177,7 @@ pnpm db:up       # PostgreSQL in Docker, built with pgTAP
 pnpm db:setup    # apply migrations, set local role passwords
 pnpm db:reset    # down -v, up, setup — local only, never touches a hosted database
 pnpm db:seed:dev # a demo Organization and a Staff Member to sign in as
+pnpm db:seed:yurt # a student dormitory with Residents, in an Organization that exists
 pnpm db:drift    # do the migrations and schema.prisma still say the same thing
 ```
 
@@ -187,6 +188,12 @@ turning up later as a `DROP` in somebody's migration (ADR 0001).
 `db:seed:dev` needs `pnpm dev` running: it creates the account through the
 application's own sign-up route rather than writing the provider-subject mapping
 in SQL, because ADR 0005 keeps that mapping in one place.
+
+`db:seed:yurt` adds "Demo Yurt Kadıköy" — two blocks of women's and men's rooms
+let by the bed, and eighty Residents in house for the term — to the Organization
+named by `YURT_ORGANIZATION` (default `Prizic Demo`; locally, `Deniz Otelleri`).
+It writes through `DIRECT_URL`, refuses a host that is not this machine, and
+creates nothing twice.
 
 `.env` points at Supabase by default; the local URLs are commented in it.
 
