@@ -92,6 +92,7 @@ const ALL = {
   billing: true,
   maintenance: true,
   guestExperience: true,
+  attendance: true,
 };
 
 function day(
@@ -2087,6 +2088,172 @@ describe("a dormitory's Today (RANZ-108)", () => {
       expect(
         needsFor(grantsFor([...MANAGER, ...REQUESTS]), ALL).guestRequests,
       ).toBe(false);
+    });
+  });
+});
+
+describe("the Residents' standing on Today (TD-S10-15, TD-S10-16)", () => {
+  const ROLL_CALL = ["attendance.take"];
+  const OVERDUE = {
+    students: 3,
+    instalments: 5,
+    overdueMinor: 1_250_000,
+    currency: "TRY",
+  };
+  const NIGHT = {
+    propertyId: "p",
+    night: "2026-09-25",
+    curfewPassed: true,
+    inHouse: 12,
+    onLeave: 2,
+    present: 7,
+    absent: 1,
+    notCalled: 2,
+  };
+  const summaryOf = (
+    permissions: string[],
+    overrides: Partial<TodayInput> = {},
+    model: "dormitory" | "hotel" = "dormitory",
+  ) =>
+    deriveToday({
+      ...input(permissions, overrides),
+      day: day(permissions, { operatingModel: model }),
+    });
+
+  describe("instalments overdue", () => {
+    it("counts_the_residents_the_one_definition_of_overdue_names_and_the_money_overdue", () => {
+      expect(summaryOf(MANAGER, { overdue: ok(OVERDUE) }).overdue).toEqual({
+        status: "ok",
+        data: OVERDUE,
+      });
+    });
+
+    it("draws_nothing_for_nobody_overdue_so_a_property_with_no_plans_has_no_card", () => {
+      expect(
+        summaryOf(MANAGER, {
+          overdue: ok({
+            ...OVERDUE,
+            students: 0,
+            instalments: 0,
+            overdueMinor: 0,
+          }),
+        }).overdue,
+      ).toBeUndefined();
+      expect(summaryOf(MANAGER).overdue).toBeUndefined();
+    });
+
+    it("says_a_failed_read_and_never_shows_it_as_nobody", () => {
+      expect(summaryOf(MANAGER, { overdue: { ok: false } }).overdue).toEqual({
+        status: "unavailable",
+      });
+    });
+
+    it("is_for_the_viewers_who_may_see_money_and_nobody_else", () => {
+      expect(
+        summaryOf(FINANCE, { overdue: ok(OVERDUE) }).overdue,
+      ).toMatchObject({ status: "ok" });
+      // A desk without finance.manage_folio, and a role leading nowhere, are
+      // handed the read by mistake and still see nothing.
+      for (const permissions of [
+        ["front_desk.check_in", "front_desk.check_out"],
+        ["staff.administer", "audit.read"],
+      ]) {
+        expect(
+          summaryOf(permissions, { overdue: ok(OVERDUE) }).overdue,
+        ).toBeUndefined();
+      }
+      expect(
+        summaryOf(MANAGER, {
+          overdue: ok(OVERDUE),
+          capabilities: { ...ALL, billing: false },
+        }).overdue,
+      ).toBeUndefined();
+    });
+
+    it("is_read_wherever_the_viewer_may_see_money_and_never_keyed_on_the_operating_model", () => {
+      const grants = grantsFor(MANAGER);
+      for (const model of ["dormitory", "hotel"] as const) {
+        expect(needsFor(grants, ALL, model).overdue).toBe(true);
+      }
+      expect(needsFor(grantsFor(FRONT_DESK.slice(0, 3)), ALL).overdue).toBe(
+        false,
+      );
+      expect(
+        needsFor(grants, { ...ALL, billing: false }, "dormitory").overdue,
+      ).toBe(false);
+      // A manager who may not see money is not asked the money's question.
+      expect(
+        needsFor(grantsFor(["staff.administer", "audit.read"]), ALL).overdue,
+      ).toBe(false);
+      expect(
+        summaryOf(MANAGER, { overdue: ok(OVERDUE) }, "hotel").overdue,
+      ).toMatchObject({ status: "ok" });
+    });
+  });
+
+  describe("tonight's roll call", () => {
+    it("says_who_is_on_leave_missing_and_not_yet_called", () => {
+      expect(
+        summaryOf([...MANAGER, ...ROLL_CALL], { rollCall: ok(NIGHT) }).rollCall,
+      ).toEqual({
+        status: "ok",
+        data: {
+          inHouse: 12,
+          onLeave: 2,
+          missing: 1,
+          notCalled: 2,
+          curfewPassed: true,
+        },
+      });
+    });
+
+    it("draws_nothing_where_nobody_is_in_house_or_the_property_is_not_found", () => {
+      const permissions = [...MANAGER, ...ROLL_CALL];
+      expect(
+        summaryOf(permissions, { rollCall: ok({ ...NIGHT, inHouse: 0 }) })
+          .rollCall,
+      ).toBeUndefined();
+      expect(
+        summaryOf(permissions, { rollCall: ok(null) }).rollCall,
+      ).toBeUndefined();
+    });
+
+    it("says_a_failed_read_and_never_shows_it_as_a_calm_night", () => {
+      expect(
+        summaryOf([...MANAGER, ...ROLL_CALL], { rollCall: { ok: false } })
+          .rollCall,
+      ).toEqual({ status: "unavailable" });
+    });
+
+    it("needs_the_capability_and_either_attendance_permission", () => {
+      const withRead = { rollCall: ok(NIGHT) };
+      for (const permissions of [
+        [...MANAGER, "leave.grant"],
+        [...MANAGER, ...ROLL_CALL],
+      ]) {
+        expect(summaryOf(permissions, withRead).rollCall).toMatchObject({
+          status: "ok",
+        });
+      }
+      expect(summaryOf(MANAGER, withRead).rollCall).toBeUndefined();
+      expect(
+        summaryOf([...MANAGER, ...ROLL_CALL], {
+          ...withRead,
+          capabilities: { ...ALL, attendance: false },
+        }).rollCall,
+      ).toBeUndefined();
+      expect(summaryOf(ROLL_CALL, withRead).rollCall).toBeUndefined();
+    });
+
+    it("is_read_wherever_the_property_keeps_a_roll_call_never_keyed_on_the_operating_model", () => {
+      const grants = grantsFor([...MANAGER, ...ROLL_CALL]);
+      for (const model of ["dormitory", "hotel"] as const) {
+        expect(needsFor(grants, ALL, model).rollCall).toBe(true);
+        expect(
+          needsFor(grants, { ...ALL, attendance: false }, model).rollCall,
+        ).toBe(false);
+      }
+      expect(needsFor(grantsFor(MANAGER), ALL).rollCall).toBe(false);
     });
   });
 });

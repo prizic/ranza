@@ -1,6 +1,8 @@
+import type { TonightFigures } from "@ranza/attendance";
 import type { DaysWaiting } from "@ranza/business-day";
 import type { AuditPage, OperatingModel, WorkingDay } from "@ranza/core";
 import type { OpenServiceRequests } from "@ranza/guest-services";
+import type { OverdueFigure } from "@ranza/payment-plans";
 import type { ChargesPosted, FolioSummary } from "@ranza/folios";
 import { isOwing, owedAcrossFolios, owedOnFolio } from "../lib/owed";
 import type {
@@ -194,6 +196,32 @@ export interface OpenWorkCard {
     /** Rooms and beds held out of order, each counted once. */
     outOfOrder: number;
   } | null;
+}
+
+/**
+ * Residents with an instalment past its date, as the one definition of overdue
+ * counts them (`app.payment_plans_overdue`). It is the money overdue, never the
+ * money owed in all, and it is drawn only for a viewer who may see money.
+ */
+export interface OverdueInstalmentsCard {
+  students: number;
+  instalments: number;
+  overdueMinor: number;
+  currency: string;
+}
+
+/**
+ * Tonight's roll call at a Property that keeps one: who is out on leave, who
+ * was marked missing, and who nobody has called yet. `inHouse` is every
+ * Resident the roll call concerns, so a reader can tell a calm night from an
+ * empty one.
+ */
+export interface RollCallCard {
+  inHouse: number;
+  onLeave: number;
+  missing: number;
+  notCalled: number;
+  curfewPassed: boolean;
 }
 
 export type CleanPriority =
@@ -402,6 +430,10 @@ export interface TodaySummary {
   emptyBeds?: Section<EmptyBedsCard>;
   /** Only at a dormitory: requests and maintenance still open. */
   openWork?: Section<OpenWorkCard>;
+  /** Wherever a Resident is overdue and the viewer may see money; see the card. */
+  overdue?: Section<OverdueInstalmentsCard>;
+  /** Wherever the Property keeps a roll call and somebody is in house. */
+  rollCall?: Section<RollCallCard>;
   rooms?: Section<RoomsCard>;
   money?: Section<MoneyCard>;
   maintenance?: Section<MaintenanceCard>;
@@ -434,6 +466,8 @@ export interface Grants {
   audit: boolean;
   /** Either guest_services permission: the requests of the Property. */
   guestServices: boolean;
+  /** attendance.take or leave.grant: what the roll call screen is for. */
+  attendance: boolean;
 }
 
 export function grantsFor(permissions: readonly string[]): Grants {
@@ -452,6 +486,7 @@ export function grantsFor(permissions: readonly string[]): Grants {
     guestServices:
       has("guest_services.create_request") ||
       has("guest_services.manage_requests"),
+    attendance: has("attendance.take") || has("leave.grant"),
   };
 }
 
@@ -496,6 +531,10 @@ export interface Needs {
   closeDay: boolean;
   /** Open service requests, for a dormitory's open work card. */
   guestRequests: boolean;
+  /** Residents overdue on an instalment: the money's own viewers (TD-S10-15). */
+  overdue: boolean;
+  /** Tonight's roll call, where the Property keeps one (TD-S10-16). */
+  rollCall: boolean;
 }
 
 export interface Capabilities {
@@ -504,6 +543,7 @@ export interface Capabilities {
   billing: boolean;
   maintenance: boolean;
   guestExperience: boolean;
+  attendance: boolean;
 }
 
 export function needsFor(
@@ -540,6 +580,11 @@ export function needsFor(
       capabilities.guestExperience &&
       grants.guestServices &&
       focus !== "none",
+    // Whether the Property takes instalments or keeps a roll call is what the
+    // reads answer, never the operating model: a Property with neither draws
+    // nothing (ADR 0057).
+    overdue: money && (focus === "manager" || focus === "finance"),
+    rollCall: capabilities.attendance && grants.attendance && focus !== "none",
   };
 }
 
@@ -562,6 +607,8 @@ export interface TodayInput {
   daysWaiting?: Read<DaysWaiting | null>;
   inHouse?: Read<readonly Departure[]>;
   guestRequests?: Read<OpenServiceRequests>;
+  overdue?: Read<OverdueFigure>;
+  rollCall?: Read<TonightFigures | null>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -646,6 +693,33 @@ function openWorkFrom(
           }
         : null,
     },
+  };
+}
+
+/**
+ * Nobody overdue is not a card: a Property that takes no instalments would
+ * otherwise carry a standing zero. A read that failed is said, never a zero.
+ */
+function overdueFrom(
+  read: Read<OverdueFigure> | undefined,
+): Section<OverdueInstalmentsCard> | undefined {
+  if (read === undefined) return undefined;
+  if (!read.ok) return { status: "unavailable" };
+  if (read.value.students === 0) return undefined;
+  return { status: "ok", data: { ...read.value } };
+}
+
+/** Tonight's roll call, or nothing where nobody is in house to call. */
+function rollCallFrom(
+  read: Read<TonightFigures | null> | undefined,
+): Section<RollCallCard> | undefined {
+  if (read === undefined) return undefined;
+  if (!read.ok) return { status: "unavailable" };
+  if (read.value === null || read.value.inHouse === 0) return undefined;
+  const { inHouse, onLeave, absent, notCalled, curfewPassed } = read.value;
+  return {
+    status: "ok",
+    data: { inHouse, onLeave, missing: absent, notCalled, curfewPassed },
   };
 }
 
@@ -1425,6 +1499,15 @@ export function deriveToday(input: TodayInput): TodaySummary {
         : undefined,
     );
     if (openWork) summary.openWork = openWork;
+  }
+
+  if (money && (focus === "manager" || focus === "finance")) {
+    const overdue = overdueFrom(input.overdue);
+    if (overdue) summary.overdue = overdue;
+  }
+  if (input.capabilities.attendance && grants.attendance && focus !== "none") {
+    const rollCall = rollCallFrom(input.rollCall);
+    if (rollCall) summary.rollCall = rollCall;
   }
 
   // Checked again here, as the maintenance items are: a read handed in by

@@ -28,6 +28,11 @@ import {
   createGuestServicesModule,
   GUEST_SERVICES_CAPABILITY,
 } from "../../packages/ranza/guest-services/src";
+import {
+  ATTENDANCE_CAPABILITY,
+  createAttendanceModule,
+} from "../../packages/ranza/attendance/src";
+import { createPaymentPlansModule } from "../../packages/ranza/payment-plans/src";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
 import {
   createMaintenanceModule,
@@ -75,6 +80,8 @@ const modules = {
   maintenance: createMaintenanceModule({ db: prisma }),
   businessDay: createBusinessDayModule({ db: prisma }),
   guestServices: createGuestServicesModule({ db: prisma }),
+  paymentPlans: createPaymentPlansModule({ db: prisma }),
+  attendance: createAttendanceModule({ db: prisma }),
 };
 
 const CAPABILITIES = {
@@ -83,6 +90,7 @@ const CAPABILITIES = {
   billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
   maintenance: MAINTENANCE_CAPABILITY,
   guestExperience: GUEST_SERVICES_CAPABILITY,
+  attendance: ATTENDANCE_CAPABILITY,
 };
 
 const failures: unknown[] = [];

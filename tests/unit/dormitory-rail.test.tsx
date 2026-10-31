@@ -74,13 +74,14 @@ afterEach(() => {
 describe("the rail at a dormitory", () => {
   it("lists_the_beds_first_and_close_the_day_below_the_buildings_work", () => {
     const rail = railAt(YURT);
-    expect(flat(rail).slice(0, 10)).toEqual([
+    expect(flat(rail).slice(0, 11)).toEqual([
       "today",
       "rooms",
       "room-calendar",
       "reservations",
       "arrivals",
       "departures",
+      "roll-call",
       "guest-experience",
       "maintenance",
       "housekeeping",
@@ -109,7 +110,7 @@ describe("the rail at a dormitory", () => {
       "arrivals",
       "departures",
       "close-day",
-      "guest-experience",
+      "roll-call",
     ]);
     expect(screensFor("hotel")).toBe(SCREENS);
     expect(screensFor(null)).toBe(SCREENS);

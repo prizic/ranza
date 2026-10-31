@@ -457,8 +457,8 @@ export const SCREENS: Screen[] = [
 
 /**
  * What a dormitory works from first, in order (RANZ-108): the beds, the
- * calendar of who is in them, the registrations, what students and staff have
- * asked for, then the building. The rest follow in the hotel's own order.
+ * calendar of who is in them, the registrations, the night's roll call, what
+ * students and staff have asked for, then the building. The rest follow in the hotel's own order.
  */
 const DORMITORY_FIRST = [
   "today",
@@ -476,6 +476,7 @@ const DORMITORY_FRONT_OFFICE = [
   "reservations",
   "arrivals",
   "departures",
+  "roll-call",
 ] as const;
 
 const FRONT_OFFICE = SCREENS.find(

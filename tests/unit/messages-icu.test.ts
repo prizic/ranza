@@ -186,6 +186,7 @@ describe("every catalogue parses", () => {
                 height: 64,
                 hours: 24,
                 inHouse: "x",
+                instalments: 3,
                 label: "x",
                 last: "140",
                 later: "₺1.500,00",

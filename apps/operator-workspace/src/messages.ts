@@ -910,6 +910,14 @@ export interface Messages {
     owingSummary: string;
     owingSummaryLater: string;
     showAll: string;
+    overdueNotice: string;
+    overdueResident: string;
+    overdueInstalments: string;
+    overdueAmount: string;
+    overdueSince: string;
+    overdueNameHidden: string;
+    overdueEmptyTitle: string;
+    overdueEmptyDescription: string;
     empty: {
       owingTitle: string;
       owingDescription: string;
@@ -2236,6 +2244,14 @@ export interface Messages {
     openWorkMaintenanceLink: string;
     openWorkOutOfOrderLink: string;
     openWorkUrgent: string;
+    overdueTitle: string;
+    overdueHint: string;
+    overdueResidents: string;
+    overdueSummary: string;
+    overdueLink: string;
+    rollCallTitle: string;
+    rollCallHint: string;
+    rollCallLink: string;
     filterShowAll: string;
     filterReadyCount: string;
     roomOccupiedNoMark: string;
@@ -4563,6 +4579,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       owingSummaryLater:
         "{count, plural, one {# folyoda} other {# folyoda}} toplam {amount} borç var: {now} folyolarda, {later} çıkışta ücretlendirilecek gecelerden",
       showAll: "Tümünü göster",
+      overdueNotice:
+        "Taksit tarihi geçmiş {count, plural, other {# sakin}}. Toplam borç değil, yalnızca geciken tutar.",
+      overdueResident: "Sakin",
+      overdueInstalments: "Taksit",
+      overdueAmount: "Geciken",
+      overdueSince: "En eski vade",
+      overdueNameHidden: "Ad gösterilmiyor",
+      overdueEmptyTitle: "Geciken taksit yok",
+      overdueEmptyDescription: "Vadesi geçmiş taksit bulunmuyor.",
       empty: {
         owingTitle: "Kimsenin borcu yok",
         owingDescription:
@@ -5119,6 +5144,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       openWorkOutOfOrderLink:
         "{count, plural, other {# oda ya da yatak bakımda}}",
       openWorkUrgent: "{count, plural, other {# acil}}",
+      overdueTitle: "Geciken taksitler",
+      overdueHint: "Taksit tarihi geçmiş sakinler. Rakam onları açar.",
+      overdueResidents: "{count, plural, other {sakin gecikmiş}}",
+      overdueSummary:
+        "{instalments, plural, other {# taksit}} · {amount} gecikmiş",
+      overdueLink: "Taksidi geciken {count, plural, other {# sakin}}, {amount}",
+      rollCallTitle: "Bu geceki yoklama",
+      rollCallHint:
+        "{count, plural, other {# sakin}} içeride. Her rakam yoklamayı açar.",
+      rollCallLink: "{label}: {count, number}",
       filterShowAll: "Tümünü göster",
       filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
       roomOccupiedNoMark: "İçinde misafir var; ayrılınca temizlenir.",
@@ -8599,6 +8634,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       owingSummaryLater:
         "{count, plural, one {# folio owes} other {# folios owe}} {amount} in all: {now} already on the bills and {later} for nights check-out will charge",
       showAll: "Show all",
+      overdueNotice:
+        "{count, plural, one {# resident has} other {# residents have}} an instalment past its date. This is the money overdue, not the money owed in all.",
+      overdueResident: "Resident",
+      overdueInstalments: "Instalments",
+      overdueAmount: "Overdue",
+      overdueSince: "Oldest due",
+      overdueNameHidden: "Name not shown",
+      overdueEmptyTitle: "No instalment is overdue",
+      overdueEmptyDescription: "Nothing is past its date.",
       empty: {
         owingTitle: "Nobody owes anything",
         owingDescription:
@@ -9162,6 +9206,19 @@ export const messages: Record<SupportedLocale, Messages> = {
       openWorkOutOfOrderLink:
         "{count, plural, one {# room or bed out of order} other {# rooms or beds out of order}}",
       openWorkUrgent: "{count} urgent",
+      overdueTitle: "Instalments overdue",
+      overdueHint:
+        "Residents with an instalment past its date. The figure opens them.",
+      overdueResidents:
+        "{count, plural, one {resident overdue} other {residents overdue}}",
+      overdueSummary:
+        "{instalments, plural, one {# instalment} other {# instalments}} · {amount} overdue",
+      overdueLink:
+        "{count, plural, one {# resident} other {# residents}} with an overdue instalment, {amount}",
+      rollCallTitle: "Tonight's roll call",
+      rollCallHint:
+        "{count, plural, one {# resident is} other {# residents are}} in house. Each figure opens the roll call.",
+      rollCallLink: "{label}: {count, number}",
       filterShowAll: "Show all",
       filterReadyCount: "{count, plural, one {# ready} other {# ready}}",
       roomOccupiedNoMark:
@@ -12601,6 +12658,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       owingSummaryLater:
         "{count, plural, zero {لا حسابات} one {حساب واحد} two {حسابان} few {# حسابات} many {# حسابًا} other {# حساب}} عليها رصيد، مجموعه {amount}: {now} على الحسابات و{later} عن ليالٍ ستُحتسب عند المغادرة",
       showAll: "اعرض الكل",
+      overdueNotice:
+        "{count, plural, one {مقيم واحد فات موعد قسطه} two {مقيمان فات موعد قسطهما} few {# مقيمين فات موعد قسطهم} many {# مقيمًا فات موعد قسطهم} other {# مقيم فات موعد قسطهم}}. هذا هو المبلغ المتأخر لا ما يُستحق في المجمل.",
+      overdueResident: "المقيم",
+      overdueInstalments: "الأقساط",
+      overdueAmount: "المتأخر",
+      overdueSince: "أقدم استحقاق",
+      overdueNameHidden: "الاسم غير معروض",
+      overdueEmptyTitle: "لا قسط متأخر",
+      overdueEmptyDescription: "لا شيء فات موعده.",
       empty: {
         owingTitle: "لا أحد مدين بشيء",
         owingDescription:
@@ -13155,6 +13221,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       openWorkOutOfOrderLink:
         "{count, plural, zero {لا غرف أو أسرّة خارج الخدمة} one {غرفة أو سرير واحد خارج الخدمة} two {غرفتان أو سريران خارج الخدمة} few {# غرف أو أسرّة خارج الخدمة} many {# غرفة أو سريرًا خارج الخدمة} other {# غرفة أو سرير خارج الخدمة}}",
       openWorkUrgent: "منها {count, number} عاجل",
+      overdueTitle: "أقساط متأخرة",
+      overdueHint: "مقيمون فات موعد قسط عليهم. يفتحهم الرقم.",
+      overdueResidents: "{count, plural, other {مقيمون متأخرون}}",
+      overdueSummary:
+        "{instalments, plural, one {قسط واحد} two {قسطان} few {# أقساط} many {# قسطًا} other {# قسط}} · متأخر {amount}",
+      overdueLink:
+        "{count, plural, one {مقيم واحد} two {مقيمان} few {# مقيمين} many {# مقيمًا} other {# مقيم}} عليهم قسط متأخر، {amount}",
+      rollCallTitle: "كشف الحضور الليلة",
+      rollCallHint:
+        "{count, plural, one {مقيم واحد في السكن} two {مقيمان في السكن} few {# مقيمين في السكن} many {# مقيمًا في السكن} other {# مقيم في السكن}}. كل رقم يفتح كشف الحضور.",
+      rollCallLink: "{label}: {count, number}",
       filterShowAll: "اعرض الكل",
       filterReadyCount:
         "{count, plural, zero {لا جاهزة} one {واحدة جاهزة} two {اثنتان جاهزتان} few {# جاهزة} many {# جاهزة} other {# جاهزة}}",

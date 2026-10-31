@@ -75,6 +75,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       expectedTonight: "Bu gece beklenen {count} / {of} uygun yatak ({value})",
       readyRooms: "Boş yatak",
       openWorkRequests: "Öğrenci talepleri",
+      overdueHint: "Taksit tarihi geçmiş öğrenciler. Rakam onları açar.",
+      overdueResidents: "{count, plural, other {öğrenci gecikmiş}}",
+      overdueLink:
+        "Taksidi geciken {count, plural, other {# öğrenci}}, {amount}",
+      rollCallHint:
+        "{count, plural, other {# öğrenci}} içeride. Her rakam yoklamayı açar.",
     },
     todayLayouts: {
       rooms: {
@@ -94,6 +100,11 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     dataExport: { datasets: { residents_guests: "Konuklar ve öğrenciler" } },
+    finance: {
+      overdueResident: "Öğrenci",
+      overdueNotice:
+        "Taksit tarihi geçmiş {count, plural, other {# öğrenci}}. Toplam borç değil, yalnızca geciken tutar.",
+    },
     analytics: {
       month: {
         residentNights: "Öğrenci geceleri",
@@ -167,6 +178,14 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
         "Expected tonight {count} / {of} available beds ({value})",
       readyRooms: "Empty beds",
       openWorkRequests: "Student requests",
+      overdueHint:
+        "Students with an instalment past its date. The figure opens them.",
+      overdueResidents:
+        "{count, plural, one {student overdue} other {students overdue}}",
+      overdueLink:
+        "{count, plural, one {# student} other {# students}} with an overdue instalment, {amount}",
+      rollCallHint:
+        "{count, plural, one {# student is} other {# students are}} in house. Each figure opens the roll call.",
     },
     todayLayouts: {
       rooms: {
@@ -186,6 +205,11 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     dataExport: { datasets: { residents_guests: "Guests and students" } },
+    finance: {
+      overdueResident: "Student",
+      overdueNotice:
+        "{count, plural, one {# student has} other {# students have}} an instalment past its date. This is the money overdue, not the money owed in all.",
+    },
     analytics: {
       month: {
         residentNights: "Student nights",
@@ -253,6 +277,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       expectedTonight: "المتوقع الليلة {count} من {of} سريرًا متاحًا ({value})",
       readyRooms: "أسرّة فارغة",
       openWorkRequests: "طلبات الطلاب",
+      overdueHint: "طلاب فات موعد قسط عليهم. يفتحهم الرقم.",
+      overdueResidents: "{count, plural, other {طلاب متأخرون}}",
+      overdueLink:
+        "{count, plural, one {طالب واحد} two {طالبان} few {# طلاب} many {# طالبًا} other {# طالب}} عليهم قسط متأخر، {amount}",
+      rollCallHint:
+        "{count, plural, one {طالب واحد في السكن} two {طالبان في السكن} few {# طلاب في السكن} many {# طالبًا في السكن} other {# طالب في السكن}}. كل رقم يفتح كشف الحضور.",
     },
     todayLayouts: {
       rooms: {
@@ -272,6 +302,11 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     dataExport: { datasets: { residents_guests: "الضيوف والطلاب" } },
+    finance: {
+      overdueResident: "الطالب",
+      overdueNotice:
+        "{count, plural, one {طالب واحد فات موعد قسطه} two {طالبان فات موعد قسطهما} few {# طلاب فات موعد قسطهم} many {# طالبًا فات موعد قسطهم} other {# طالب فات موعد قسطهم}}. هذا هو المبلغ المتأخر لا ما يُستحق في المجمل.",
+    },
     analytics: {
       month: {
         residentNights: "ليالي الطلاب",

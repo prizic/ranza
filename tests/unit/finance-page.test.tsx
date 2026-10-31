@@ -14,6 +14,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 const screenProperties = vi.fn();
 const folio = vi.fn();
 const folioPage = vi.fn();
+const overdueStanding = vi.fn();
 const permittedProperties = vi.fn();
 const whyDenied = vi.fn();
 
@@ -57,6 +58,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   screenProperties,
   folio,
   folioPage,
+  overdueStanding,
   permittedProperties,
   whyDenied,
   requireViewer: async () => ({
@@ -126,6 +128,9 @@ beforeEach(() => {
   screenProperties.mockReset().mockResolvedValue([PROPERTY]);
   folio.mockReset().mockResolvedValue(null);
   folioPage.mockReset().mockResolvedValue({ folios: [], total: 0 });
+  overdueStanding
+    .mockReset()
+    .mockResolvedValue({ currency: "TRY", residents: [] });
   permittedProperties.mockReset().mockResolvedValue([]);
   whyDenied.mockReset().mockResolvedValue({ reason: "not_reachable" });
   folioPanel.mockReset();
@@ -305,5 +310,56 @@ describe("the list a folio is opened from (FINANCE-05, FINANCE-12)", () => {
     folioPage.mockResolvedValue({ folios: [ROW(-5, 0)], total: 1 });
     await show({ property: PROPERTY.propertyId, show: "open" });
     expect(screen.queryByTestId("owing-summary")).toBeNull();
+  });
+});
+
+describe("the Residents Today's overdue figure opens (TD-S10-15)", () => {
+  const RESIDENTS = [
+    {
+      reservationId: "d9100006-0000-4000-8000-000000000001",
+      residentName: "Elif Yurt",
+      instalments: 2,
+      overdueMinor: 800_000,
+      oldestDueOn: "2026-09-10",
+    },
+    {
+      reservationId: "d9100006-0000-4000-8000-000000000002",
+      residentName: null,
+      instalments: 1,
+      overdueMinor: 400_000,
+      oldestDueOn: "2026-10-01",
+    },
+  ];
+
+  it("lists the Residents the figure counts with what each has overdue, instead of the Folios", async () => {
+    overdueStanding.mockResolvedValue({
+      currency: "TRY",
+      residents: RESIDENTS,
+    });
+    await show({ property: PROPERTY.propertyId, show: "overdue" });
+    expect(overdueStanding).toHaveBeenCalledWith(PROPERTY.propertyId);
+    expect(folioPage).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("folios-table")).toBeNull();
+    expect(screen.getByTestId("overdue-notice")).toHaveTextContent(
+      "2 residents have an instalment past its date",
+    );
+    expect(screen.getByText("Elif Yurt")).toBeVisible();
+    expect(screen.getByText("Name not shown")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Show all" })).toHaveAttribute(
+      "href",
+      `/en/finance?property=${PROPERTY.propertyId}`,
+    );
+  });
+
+  it("says nobody is overdue when the figure was open on a day somebody has paid", async () => {
+    await show({ property: PROPERTY.propertyId, show: "overdue" });
+    expect(screen.getByText("No instalment is overdue")).toBeVisible();
+  });
+
+  it("reaches the read only through the same gate as the Folios", async () => {
+    screenProperties.mockResolvedValue([]);
+    await show({ property: PROPERTY.propertyId, show: "overdue" });
+    expectFinanceIsNotOn();
+    expect(overdueStanding).not.toHaveBeenCalled();
   });
 });

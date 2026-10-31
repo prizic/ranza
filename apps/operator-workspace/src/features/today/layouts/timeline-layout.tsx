@@ -16,6 +16,7 @@ import { todayHref } from "../links";
 import { DoNow } from "./do-now";
 import { EmptyBedsCard } from "../components/empty-beds-card";
 import { OpenWorkCard } from "../components/open-work-card";
+import { StandingCards } from "../components/standing-cards";
 import { RoomsBar, UnclosedDaysCard } from "./side-cards";
 import {
   ArrivalCommand,
@@ -204,6 +205,12 @@ export function TimelineLayout(props: LayoutProps) {
             counts={counts}
             locale={locale}
             propertyId={scope.propertyId}
+          />
+          <StandingCards
+            locale={locale}
+            onRetry={onChanged}
+            propertyId={scope.propertyId}
+            summary={summary}
           />
           {unclosed ? (
             <UnclosedDaysCard

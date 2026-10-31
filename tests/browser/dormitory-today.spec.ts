@@ -77,7 +77,7 @@ async function expectNoChipClipped(page: Page, card: string): Promise<void> {
  * Two blocks let by the bed, no arrival or departure today: a Student in one of
  * Block A's two beds, two requests (one urgent) and one maintenance request.
  */
-function aQuietYurt(): string {
+function aQuietYurt(extraCapabilities: readonly string[] = []): string {
   const { propertyId } = aFreshProperty("dormitory today", {
     capabilities: [
       "today",
@@ -85,6 +85,7 @@ function aQuietYurt(): string {
       "housekeeping",
       "guest_experience",
       "maintenance",
+      ...extraCapabilities,
     ],
   });
   psql(
@@ -328,6 +329,8 @@ test("a hotel keeps the Today and the rail it had", async ({ page }) => {
       "housekeeping",
       "guest_experience",
       "maintenance",
+      "finance",
+      "attendance",
     ],
   });
   psql(
@@ -356,6 +359,14 @@ test("a hotel keeps the Today and the rail it had", async ({ page }) => {
   await expect(
     page.getByRole("region", { name: "Empty beds tonight" }),
   ).toHaveCount(0);
+  // Finance and a roll call are on here, and there is no plan and nobody in
+  // house to call: the Residents' cards draw only where their data exists.
+  await expect(
+    page.getByRole("region", { name: "Instalments overdue" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Tonight's roll call" }),
+  ).toHaveCount(0);
 
   const rail = await page
     .locator("aside nav a[href]")
@@ -373,4 +384,202 @@ test("a hotel keeps the Today and the rail it had", async ({ page }) => {
     "departures",
     "close-day",
   ]);
+});
+
+/**
+ * The yurt above with finance and a roll call on and three Students in house:
+ * Elif (a plan with two instalments past their date, marked missing tonight),
+ * Burak (on leave tonight) and Cem (nobody has called him yet).
+ */
+function aYurtWithStanding(): string {
+  const yurt = aQuietYurt(["finance", "attendance"]);
+  const owner = userIdOf(OWNER_EMAIL);
+  const student = (bed: string, name: string) =>
+    psql(
+      `with unit as (
+         select id, property_id, organization_id
+           from public.accommodation_units
+          where property_id = '${yurt}' and name = '${bed}'
+       ), guest as (
+         insert into public.guests (organization_id, full_name, gender)
+         select organization_id, '${name}', 'male' from unit
+         returning id
+       ), booked as (
+         insert into public.reservations
+           (organization_id, property_id, accommodation_unit_id, guest_id,
+            stay_type, status, starts_on, ends_on)
+         select unit.organization_id, unit.property_id, unit.id, guest.id,
+                'resident', 'checked_in',
+                app.property_today(unit.property_id) - 30,
+                app.property_today(unit.property_id) + 90
+           from unit, guest
+         returning id, organization_id, property_id, accommodation_unit_id,
+                   starts_on, ends_on
+       )
+       insert into public.stays
+         (organization_id, property_id, accommodation_unit_id, reservation_id,
+          stay_type, status, starts_on, ends_on)
+       select organization_id, property_id, accommodation_unit_id, id,
+              'resident', 'in_house', starts_on, ends_on
+         from booked`,
+    );
+  student("B-1-a", "Burak Yurt");
+  student("B-1-b", "Cem Yurt");
+
+  psql(
+    `select set_config('app.user_id', '${owner}', false);
+     with plan as (
+       insert into public.payment_plans
+         (organization_id, property_id, reservation_id, currency, created_by)
+       select reservation.organization_id, reservation.property_id,
+              reservation.id, 'TRY', '${owner}'
+         from public.reservations as reservation
+         join public.guests as guest on guest.id = reservation.guest_id
+        where reservation.property_id = '${yurt}'
+          and guest.full_name = 'Elif Yurt'
+       returning id, organization_id, property_id
+     )
+     insert into public.plan_instalments
+       (organization_id, property_id, plan_id, ordinal, amount_minor,
+        due_on, revision)
+     select plan.organization_id, plan.property_id, plan.id, due.ordinal,
+            400000, app.property_today(plan.property_id) - due.days, 1
+       from plan
+      cross join (values (1, 40), (2, 10)) as due (ordinal, days)`,
+  );
+
+  psql(
+    `select set_config('app.user_id', '${owner}', false);
+     insert into public.attendance_marks
+       (organization_id, property_id, stay_id, night, status, marked_by)
+     select stay.organization_id, stay.property_id, stay.id,
+            app.property_today(stay.property_id), 'absent', '${owner}'
+       from public.stays as stay
+       join public.reservations as reservation on reservation.id = stay.reservation_id
+       join public.guests as guest on guest.id = reservation.guest_id
+      where stay.property_id = '${yurt}' and guest.full_name = 'Elif Yurt'`,
+  );
+  psql(
+    `select set_config('app.user_id', '${owner}', false);
+     with leave as (
+       insert into public.attendance_leaves
+         (organization_id, property_id, stay_id, from_night, to_night,
+          planned_to_night, granted_by)
+       select stay.organization_id, stay.property_id, stay.id,
+              app.property_today(stay.property_id),
+              app.property_today(stay.property_id) + 2,
+              app.property_today(stay.property_id) + 2, '${owner}'
+         from public.stays as stay
+         join public.reservations as reservation on reservation.id = stay.reservation_id
+         join public.guests as guest on guest.id = reservation.guest_id
+        where stay.property_id = '${yurt}' and guest.full_name = 'Burak Yurt'
+       returning id, organization_id, property_id
+     )
+     insert into public.attendance_leave_reasons
+       (leave_id, organization_id, property_id, reason)
+     select id, organization_id, property_id, 'Family visit' from leave`,
+  );
+  return yurt;
+}
+
+test("the Residents' standing: tonight's roll call and the instalments overdue, each opening what it counts", async ({
+  page,
+}) => {
+  const yurt = aYurtWithStanding();
+  await signIn(page, OWNER_EMAIL);
+  await drawTodayAs(page, "timeline");
+  await page.goto(`/en/today?property=${yurt}`);
+
+  const rollCall = page.getByRole("region", { name: "Tonight's roll call" });
+  for (const name of ["On leave: 1", "Missing: 1", "Not yet called: 1"]) {
+    await expect(rollCall.getByRole("link", { name })).toHaveAttribute(
+      "href",
+      new RegExp(`/en/roll-call\\?property=${yurt}$`),
+    );
+  }
+  await expect(rollCall).toContainText("3 students are in house");
+  await expectNoChipClipped(page, "Rooms");
+
+  const overdue = page.getByRole("region", { name: "Instalments overdue" });
+  const figure = overdue.getByRole("link", {
+    name: /^1 student with an overdue instalment, /,
+  });
+  await expect(figure).toContainText("2 instalments");
+  await expect(figure).toContainText(/8[.,]000/);
+  await page.screenshot({
+    path: path.join(EVIDENCE, "standing-timeline-en.png"),
+    fullPage: true,
+  });
+
+  // The figure opens the Students it counts, and the list says the same number.
+  await figure.click();
+  await expect(page).toHaveURL(
+    new RegExp(`/en/finance\\?property=${yurt}&show=overdue$`),
+  );
+  await expect(page.getByTestId("overdue-notice")).toContainText(
+    "1 student has an instalment past its date",
+  );
+  await expect(page.getByText("Elif Yurt")).toBeVisible();
+  await expect(page.getByText("Cem Yurt")).toHaveCount(0);
+  await page.getByRole("link", { name: "Show all" }).click();
+  await expect(page).toHaveURL(new RegExp(`/en/finance\\?property=${yurt}$`));
+
+  // A roll call figure opens the roll call at the same Property.
+  await page.goto(`/en/today?property=${yurt}`);
+  await page
+    .getByRole("region", { name: "Tonight's roll call" })
+    .getByRole("link", { name: "Missing: 1" })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/en/roll-call\\?property=${yurt}$`));
+  await expect(
+    page.getByRole("region", { name: "Tonight's figures" }),
+  ).toBeVisible();
+});
+
+test("the Residents' standing reads in Turkish and Arabic, mirrored, on the overview too", async ({
+  page,
+}) => {
+  const yurt = aYurtWithStanding();
+  await signIn(page, OWNER_EMAIL);
+  await drawTodayAs(page, "timeline");
+
+  await page.goto(`/tr/today?property=${yurt}`);
+  await expect(
+    page.getByRole("region", { name: "Bu geceki yoklama" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Geciken taksitler" }),
+  ).toBeVisible();
+  await expectNoChipClipped(page, "Odalar");
+  await page.screenshot({
+    path: path.join(EVIDENCE, "standing-timeline-tr.png"),
+    fullPage: true,
+  });
+
+  await page.goto(`/ar/today?property=${yurt}`);
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  await expect(
+    page.getByRole("region", { name: "كشف الحضور الليلة" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "أقساط متأخرة" }),
+  ).toBeVisible();
+  await expectNoChipClipped(page, "الغرف");
+  await page.screenshot({
+    path: path.join(EVIDENCE, "standing-timeline-ar.png"),
+    fullPage: true,
+  });
+
+  await drawTodayAs(page, "overview");
+  await page.goto(`/en/today?property=${yurt}`);
+  await expect(
+    page.getByRole("region", { name: "Tonight's roll call" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Instalments overdue" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: path.join(EVIDENCE, "standing-overview-en.png"),
+    fullPage: true,
+  });
 });

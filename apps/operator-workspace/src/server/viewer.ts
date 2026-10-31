@@ -22,7 +22,8 @@ import type {
   EntitledProperty,
   PropertySettings,
 } from "@ranza/core";
-import type { RollCall } from "@ranza/attendance";
+import { ATTENDANCE_CAPABILITY, type RollCall } from "@ranza/attendance";
+import type { OverdueResident } from "@ranza/payment-plans";
 import type { CloseTheDay } from "@ranza/business-day";
 import type { GuestDocumentType, StoredGuestParticulars } from "@ranza/guests";
 import { LOCATION_HEADER, signInHref } from "../lib/return-path";
@@ -1007,6 +1008,25 @@ export async function folioPage(
 }
 
 /**
+ * The Residents with an instalment past its date, longest overdue first, and
+ * the Property's currency to say the money in: the rows Today's overdue figure
+ * counts, read through the same module. Empty for a viewer who reaches no such
+ * Property, as every read here is (the Finance screen has already gated it).
+ */
+export async function overdueStanding(
+  propertyId: string,
+): Promise<{ currency: string; residents: readonly OverdueResident[] }> {
+  const viewer = await currentViewer();
+  if (!viewer) return { currency: "", residents: [] };
+  const plans = getComposition().paymentPlans;
+  const [figure, residents] = await Promise.all([
+    plans.overdueFigure(viewer.userId, propertyId),
+    plans.overdueResidents(viewer.userId, propertyId),
+  ]);
+  return { currency: figure.currency, residents };
+}
+
+/**
  * One Folio and its lines.
  *
  * Null for a Folio the viewer cannot reach and for one that does not exist,
@@ -1226,6 +1246,7 @@ export async function todaySummary(
       billing: FOLIO_CAPABILITY,
       maintenance: MAINTENANCE_CAPABILITY,
       guestExperience: GUEST_SERVICES_CAPABILITY,
+      attendance: ATTENDANCE_CAPABILITY,
     },
     (section, error) =>
       console.error("today.section_failed", {

@@ -40,6 +40,7 @@ const ALL = {
   billing: true,
   maintenance: true,
   guestExperience: true,
+  attendance: true,
 };
 
 const day = (permissions: string[]): WorkingDay => ({

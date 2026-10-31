@@ -17,6 +17,7 @@ export function todayHref(
     | "finance"
     | "rooms"
     | "reservations"
+    | "roll-call"
     | "room-calendar"
     | "audit-log"
     | "close-day",

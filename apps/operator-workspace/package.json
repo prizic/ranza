@@ -27,6 +27,7 @@
     "@ranza/i18n": "workspace:*",
     "@ranza/integrations": "workspace:*",
     "@ranza/maintenance": "workspace:*",
+    "@ranza/payment-plans": "workspace:*",
     "@ranza/platform-finance": "workspace:*",
     "@ranza/rates": "workspace:*",
     "@ranza/reservations": "workspace:*",

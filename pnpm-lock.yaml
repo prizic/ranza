@@ -165,6 +165,9 @@ importers:
       '@ranza/maintenance':
         specifier: workspace:*
         version: link:../../packages/ranza/maintenance
+      '@ranza/payment-plans':
+        specifier: workspace:*
+        version: link:../../packages/ranza/payment-plans
       '@ranza/platform-finance':
         specifier: workspace:*
         version: link:../../packages/platform/finance

@@ -32,6 +32,7 @@ import { ChargesCard } from "./charges-card";
 import { CleanFirstCard } from "./clean-first-card";
 import { MaintenanceCard } from "./maintenance-card";
 import { OpenWorkCard } from "./open-work-card";
+import { StandingCards } from "./standing-cards";
 import { MoneyLists } from "./money-cards";
 import { MovementsCard } from "./movements-card";
 import { EmptyBedsCard } from "./empty-beds-card";
@@ -692,6 +693,8 @@ function MainRow({
   const side =
     emptyBeds ||
     summary.openWork ||
+    summary.overdue ||
+    summary.rollCall ||
     summary.rooms ||
     summary.maintenance ||
     summary.charges;
@@ -752,6 +755,12 @@ function MainRow({
               work={summary.openWork}
             />
           ) : null}
+          <StandingCards
+            locale={locale}
+            onRetry={onRetry}
+            propertyId={propertyId}
+            summary={summary}
+          />
           {summary.rooms ? (
             <RoomsCard
               locale={locale}

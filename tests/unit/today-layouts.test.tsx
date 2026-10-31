@@ -1359,6 +1359,133 @@ describe("a dormitory's Today (RANZ-108)", () => {
     }
   });
 
+  describe("the Residents' standing (TD-S10-15, TD-S10-16)", () => {
+    const OVERDUE = {
+      status: "ok",
+      data: {
+        students: 3,
+        instalments: 5,
+        overdueMinor: 1_250_000,
+        currency: "TRY",
+      },
+    } as const;
+    const ROLL_CALL = {
+      status: "ok",
+      data: {
+        inHouse: 12,
+        onLeave: 2,
+        missing: 1,
+        notCalled: 4,
+        curfewPassed: true,
+      },
+    } as const;
+    const standing = (overrides: Partial<TodaySummary> = {}) => ({
+      ...quietDay("dormitory"),
+      overdue: OVERDUE,
+      rollCall: ROLL_CALL,
+      ...overrides,
+    });
+
+    it("the_overdue_figure_opens_the_residents_it_counts_in_finance_with_the_money_overdue", () => {
+      view(standing(), { layout: "timeline" });
+      const card = within(
+        screen.getByRole("region", { name: "Instalments overdue" }),
+      );
+      const figure = card.getByRole("link", {
+        name: /3 students with an overdue instalment/,
+      });
+      expect(figure).toHaveAttribute(
+        "href",
+        `/en/finance?property=${PROPERTY}&show=overdue`,
+      );
+      expect(figure).toHaveTextContent("3");
+      expect(figure).toHaveTextContent("5 instalments");
+      expect(figure).toHaveTextContent(/12\.500,00|12,500\.00/);
+    });
+
+    it("each_roll_call_figure_opens_the_roll_call_at_the_same_property", () => {
+      view(standing(), { layout: "timeline" });
+      const card = within(
+        screen.getByRole("region", { name: "Tonight's roll call" }),
+      );
+      for (const [name, count] of [
+        ["On leave", "2"],
+        ["Missing", "1"],
+        ["Not yet called", "4"],
+      ] as const) {
+        const link = card.getByRole("link", { name: `${name}: ${count}` });
+        expect(link).toHaveAttribute(
+          "href",
+          `/en/roll-call?property=${PROPERTY}`,
+        );
+      }
+      expect(card.getByText("Curfew has passed")).toBeVisible();
+    });
+
+    it("every_layout_draws_both_cards_and_a_failed_read_is_a_retry_not_a_zero", () => {
+      for (const layout of [
+        "timeline",
+        "overview",
+        "house",
+        "next-up",
+        "night",
+      ] as const) {
+        view(standing(), { layout });
+        expect(
+          screen.getByRole("region", { name: "Instalments overdue" }),
+        ).toBeVisible();
+        expect(
+          screen.getByRole("region", { name: "Tonight's roll call" }),
+        ).toBeVisible();
+        cleanup();
+      }
+      view(
+        standing({
+          overdue: { status: "unavailable" },
+          rollCall: { status: "unavailable" },
+        }),
+        { layout: "timeline" },
+      );
+      expect(
+        screen.queryByRole("region", { name: "Instalments overdue" }),
+      ).toBeNull();
+      expect(
+        screen.getAllByRole("button", { name: /Try again|Retry/i }),
+      ).not.toHaveLength(0);
+    });
+
+    it("reads_in_turkish_and_arabic_with_the_students_words", () => {
+      view(standing(), { layout: "timeline", locale: "tr" });
+      expect(
+        screen.getByRole("region", { name: "Geciken taksitler" }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("region", { name: "Bu geceki yoklama" }),
+      ).toBeVisible();
+      cleanup();
+      view(standing(), { layout: "timeline", locale: "ar" });
+      expect(
+        screen.getByRole("region", { name: "أقساط متأخرة" }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("region", { name: "كشف الحضور الليلة" }),
+      ).toBeVisible();
+    });
+
+    it("a_property_with_no_plan_and_no_roll_call_draws_neither_card", () => {
+      for (const model of ["dormitory", "hotel"] as const) {
+        view(quietDay(model));
+        expect(
+          screen.queryByRole("region", { name: "Instalments overdue" }),
+        ).toBeNull();
+        expect(
+          screen.queryByRole("region", { name: "Tonight's roll call" }),
+        ).toBeNull();
+        cleanup();
+      }
+    });
+  });
+
   it("a_hotel_draws_neither_card_under_the_other_layouts", () => {
     for (const layout of ["house", "next-up", "night"] as const) {
       view({ ...quietDay("hotel"), emptyBeds: undefined }, { layout });

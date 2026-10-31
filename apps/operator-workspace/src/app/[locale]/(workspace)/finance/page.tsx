@@ -7,6 +7,7 @@ import {
   AUDIT_READ_PERMISSION,
   folio,
   folioPage,
+  overdueStanding,
   permittedProperties,
   POST_CHARGE_PERMISSION,
   POST_PAYMENT_PERMISSION,
@@ -23,6 +24,7 @@ import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
 import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
 import { owedAcrossFolios } from "../../../../lib/owed";
 import { FolioNotFound } from "../../../../features/finance/components/folio-not-found";
+import { OverdueResidents } from "../../../../features/finance/components/overdue-residents";
 
 /**
  * Finance: what each Stay at a Property has accrued, and the charges on one.
@@ -146,6 +148,23 @@ export default async function FinancePage({
   }
 
   const financeHref = `${localizeHref(locale, "finance")}?property=${property.propertyId}`;
+  // Today's overdue figure opens here: the Residents it counts, not Folios.
+  if (search.show === "overdue") {
+    const { currency, residents } = await overdueStanding(property.propertyId);
+    return (
+      <>
+        <p className="text-sm text-muted-foreground">
+          {t("foliosAt")} {property.propertyName}
+        </p>
+        <OverdueResidents
+          allHref={financeHref}
+          currency={currency}
+          locale={locale}
+          residents={residents}
+        />
+      </>
+    );
+  }
   const tab = parseFolioTab(search.show);
   const { folios: shown, total } = await folioPage(property.propertyId, tab);
   // The one figure for what Guests owe (`owedAcrossFolios`), the same Today

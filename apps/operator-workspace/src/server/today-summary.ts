@@ -1,3 +1,4 @@
+import type { AttendanceModule, TonightFigures } from "@ranza/attendance";
 import type { BusinessDayModule, DaysWaiting } from "@ranza/business-day";
 import type {
   AuditPage,
@@ -15,6 +16,7 @@ import type {
   OpenServiceRequests,
 } from "@ranza/guest-services";
 import type { MaintenanceModule, TodayMaintenance } from "@ranza/maintenance";
+import type { OverdueFigure, PaymentPlansModule } from "@ranza/payment-plans";
 import type {
   Arrival,
   Departure,
@@ -65,6 +67,10 @@ export interface TodayReads {
   daysWaiting: (propertyId: string) => Promise<DaysWaiting | null>;
   /** Requests still waiting on somebody: a dormitory's open work card. */
   guestRequests: (propertyId: string) => Promise<OpenServiceRequests>;
+  /** Residents past an instalment's date: the one definition of overdue. */
+  overdue: (propertyId: string) => Promise<OverdueFigure>;
+  /** Tonight's roll call figures; null where the Property is not found. */
+  rollCall: (propertyId: string) => Promise<TonightFigures | null>;
 }
 
 export interface TodayModules {
@@ -76,6 +82,8 @@ export interface TodayModules {
   maintenance: MaintenanceModule;
   businessDay: BusinessDayModule;
   guestServices: GuestServicesModule;
+  paymentPlans: PaymentPlansModule;
+  attendance: AttendanceModule;
 }
 
 export function todayReads(modules: TodayModules, userId: string): TodayReads {
@@ -109,6 +117,10 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
       modules.businessDay.daysWaiting(userId, propertyId),
     guestRequests: (propertyId) =>
       modules.guestServices.openCounts(userId, propertyId),
+    overdue: (propertyId) =>
+      modules.paymentPlans.overdueFigure(userId, propertyId),
+    rollCall: (propertyId) =>
+      modules.attendance.figuresTonight(userId, propertyId),
   };
 }
 
@@ -153,6 +165,7 @@ export async function readTodaySummary(
     billing: CapabilityRef;
     maintenance: CapabilityRef;
     guestExperience: CapabilityRef;
+    attendance: CapabilityRef;
   },
   report: Report,
 ): Promise<TodaySummary | null> {
@@ -162,6 +175,7 @@ export async function readTodaySummary(
     capabilities.billing,
     capabilities.maintenance,
     capabilities.guestExperience,
+    capabilities.attendance,
   ]);
   if (!day) return null;
 
@@ -171,6 +185,7 @@ export async function readTodaySummary(
     billing: day.capabilities[2] === true,
     maintenance: day.capabilities[3] === true,
     guestExperience: day.capabilities[4] === true,
+    attendance: day.capabilities[5] === true,
   };
   const needs = needsFor(grantsFor(day.permissions), has, day.operatingModel);
   const input: TodayInput = { day, capabilities: has };
@@ -248,6 +263,20 @@ export async function readTodaySummary(
     input.guestRequests = await attempt(
       "guestRequests",
       () => reads.guestRequests(propertyId),
+      report,
+    );
+  }
+  if (needs.overdue) {
+    input.overdue = await attempt(
+      "overdue",
+      () => reads.overdue(propertyId),
+      report,
+    );
+  }
+  if (needs.rollCall) {
+    input.rollCall = await attempt(
+      "rollCall",
+      () => reads.rollCall(propertyId),
       report,
     );
   }
