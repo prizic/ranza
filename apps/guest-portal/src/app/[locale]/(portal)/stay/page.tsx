@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   formatDate,
+  formatMoney,
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
@@ -15,16 +16,24 @@ import {
   PageHeader,
   Separator,
 } from "@ranza/ui";
+import type { OwnStay } from "@ranza/stays";
 import { brandStyle } from "../../../../lib/brand-style";
 import { ownStays, stayBrands } from "../../../../server/viewer";
 
 /**
- * The viewer's own Stay: where, which Unit, and for how long.
+ * The viewer's own Stay: where they sleep, for how long, and what they owe.
  *
- * The Property leads and the Unit sits opposite it, in the place the Workspace
- * puts the clock — on a phone, in a corridor, the room number is the fact worth
- * reading at arm's length. Everything else is stored and shown plainly; nothing
- * here is derived or invented.
+ * The room leads, in the largest type on the page: on a phone, in a corridor,
+ * it is the fact worth reading at arm's length. A bed names its room first and
+ * itself after it ("A-101", then "Bed B"), because the room is what is on the
+ * door. The dates follow, then the balance as one large figure. Everything is
+ * stored and shown plainly; nothing here is derived but the balance, which the
+ * database sums (ADR 0015).
+ *
+ * The balance is absent when the database returned none — no Folio yet, billing
+ * not held, finance off at the Property — and is never drawn as a zero, which
+ * would tell a student they owe nothing when the truth is that nothing is
+ * known (GP-S4-09).
  *
  * The list is whatever survived the policies and the capability gate. It is not
  * filtered again here, because a second application-side check would be the
@@ -32,9 +41,10 @@ import { ownStays, stayBrands } from "../../../../server/viewer";
  *
  * An empty list renders an empty state rather than an error. Having no current
  * Stay is a normal thing to be — and it is the same answer given to a departed
- * Resident, to a Staff Member who signed in here, and to a Property whose
- * Organization is not entitled to this capability. Telling those four apart
- * from the interface is exactly what the Portal must not do (ADR 0009).
+ * Resident, to a Staff Member who signed in here, to a student invited at
+ * registration whose Stay does not exist yet, and to a Property whose
+ * Organization is not entitled to this capability. Telling those apart from the
+ * interface is exactly what the Portal must not do (ADR 0009).
  */
 
 /**
@@ -47,6 +57,46 @@ function formatStayDate(iso: string, locale: SupportedLocale): string {
     month: "long",
     timeZone: "UTC",
   });
+}
+
+/** Which way a balance points: positive is owed, negative is credit (ADR 0015). */
+function balanceDirection(
+  balance: NonNullable<OwnStay["balance"]>,
+): "owed" | "credit" | "settled" {
+  const minor = Number(balance.amountMinor);
+  return minor > 0 ? "owed" : minor < 0 ? "credit" : "settled";
+}
+
+/**
+ * What they owe, as one figure in the Folio's own currency, labelled in words
+ * because a bare number cannot say which way it points (ADR 0015: positive is
+ * owed). The sign is dropped from the figure and carried by the label, so a
+ * credit is "In your favour" and not a minus sign a student has to interpret.
+ */
+function BalanceFigure({
+  direction,
+  figure,
+  heading,
+}: {
+  direction: string;
+  figure: string;
+  heading: string;
+}) {
+  return (
+    <div
+      className="mt-8 rounded-2xl border border-border bg-card p-6"
+      data-testid="stay-balance"
+    >
+      <p className="text-step--1 text-muted-foreground">{heading}</p>
+      <p
+        className="mt-1 text-[clamp(2.25rem,10vw,3.5rem)] leading-tight font-light tabular-nums"
+        data-testid="stay-balance-figure"
+      >
+        {figure}
+      </p>
+      <p className="mt-1 text-step-0 font-medium">{direction}</p>
+    </div>
+  );
 }
 
 export async function generateMetadata({
@@ -113,34 +163,33 @@ export default async function StayPage({
               ) ?? defaultBrandVariables
             }
           >
-            <PageHeader
-              aside={
-                // The Unit takes the place the Workspace gives the clock: on a
-                // phone, in a corridor, the room number is the one fact worth
-                // reading at arm's length.
-                <p className="flex flex-col items-end text-end">
-                  <span className="text-step-2 leading-none">
-                    {stay.unitName}
-                  </span>
-                  <span className="text-step--1 text-muted-foreground">
-                    {t(`unitType.${stay.unitType}`)} ·{" "}
-                    {t("sleeps", { count: stay.unitCapacity })}
-                  </span>
-                </p>
-              }
-            >
-              {/* A Property name is not a weekday: several words, sometimes long,
-                read on a 390px screen. Same role as Today's heading, smaller
-                voice. */}
-              <h2 className="text-[clamp(1.75rem,6vw,2.75rem)] leading-[1.05] font-light">
-                {stay.propertyName}
+            <PageHeader>
+              <p className="text-step--1 text-muted-foreground">
+                {stay.propertyName} · {t(`stayStatus.${stay.status}`)}
+              </p>
+              {/* A room name is a few characters and can be set very large; a
+                  Property name cannot, which is why it is the small line. */}
+              <h2 className="mt-2 text-[clamp(3rem,14vw,5rem)] leading-none font-light">
+                {stay.roomName ?? stay.unitName}
               </h2>
-              <p className="mt-2 text-muted-foreground">
-                {t(`stayStatus.${stay.status}`)}
+              <p className="mt-3 text-step-0 text-muted-foreground">
+                {[
+                  stay.roomName === null
+                    ? `${t(`unitType.${stay.unitType}`)} · ${t("sleeps", { count: stay.unitCapacity })}`
+                    : t("myStay.bed", { name: stay.unitName }),
+                  stay.building,
+                  stay.floor === null
+                    ? null
+                    : t("myStay.floor", { floor: stay.floor }),
+                ]
+                  .filter((part) => part !== null && part !== "")
+                  .join(" · ")}
               </p>
             </PageHeader>
 
-            <FactList>
+            {/* Two columns even on a phone, so the dates sit side by side and the
+                balance below them is not pushed off the first screen. */}
+            <FactList className="grid-cols-2 gap-x-4 gap-y-6">
               <Fact label={t("arrival")}>
                 <time dateTime={stay.startsOn}>
                   {formatStayDate(stay.startsOn, locale)}
@@ -159,6 +208,18 @@ export default async function StayPage({
                 {t(`stayType.${stay.stayType}`)}
               </Fact>
             </FactList>
+
+            {stay.balance ? (
+              <BalanceFigure
+                direction={t(`myStay.${balanceDirection(stay.balance)}`)}
+                figure={formatMoney(
+                  Math.abs(Number(stay.balance.amountMinor)),
+                  stay.balance.currency,
+                  locale,
+                )}
+                heading={t("myStay.balance")}
+              />
+            ) : null}
           </section>
         </Fragment>
       ))}

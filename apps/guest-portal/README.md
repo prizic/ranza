@@ -7,9 +7,15 @@ deployable, and it imports nothing from `operator-workspace` —
 
 ## What it shows
 
-One thing: the viewer's own current Stay — Property, Accommodation Unit,
-arrival and departure. Blueprint 4.3 lists more (service requests,
-announcements, meal choices, attendance declarations, Folio balances) and none
+One thing: the viewer's own current Stay — the room, and the bed in it when
+the Unit is a bed ([ADR 0025](../../docs/adr/0025-a-bed-is-a-unit-under-a-room.md)),
+the building and floor, arrival and departure (or no end date), and what the
+Folio stands at, as one figure in its own currency labelled owed, in credit or
+settled. The balance is left out, never drawn as a zero, when the database
+returned none: no Folio yet, billing not held, or finance off at the Property
+([ADR 0015](../../docs/adr/0015-money-is-an-integer-a-balance-is-a-sum-and-a-correction-is-a-line.md)).
+Blueprint 4.3 lists more (service requests, announcements, meal choices,
+attendance declarations, a statement of account, the next instalment) and none
 of them are built, so none of them appear.
 
 Everything comes from two reads in [`src/server/viewer.ts`](src/server/viewer.ts),
@@ -18,6 +24,23 @@ and logo of the Organization each Stay is with
 ([ADR 0046](../../docs/adr/0046-an-organization-brands-the-portal-with-one-colour-and-one-logo.md)).
 The logo is served by `app/api/brand/[stayId]/logo`, which is keyed by Stay too:
 a Resident is not told which Organization they are with.
+
+## How a Guest gets in
+
+The front desk hands a Guest a link, `/<language>/invite/<token>`
+([ADR 0060](../../docs/adr/0060-a-resident-gets-the-portal-by-an-invitation-of-their-guest.md),
+proposed). The page behind it creates an account or signs in and connects that
+account to the Guest in one step; every link that does not work says why, in
+Turkish, English or Arabic.
+
+Two things in [`src/server/portal-invitation.ts`](src/server/portal-invitation.ts)
+are not bounded by the viewer's own Stay, and each is narrow on purpose. Reading
+a link's state takes no session, because the person holding it cannot sign in
+yet; its argument is a digest of 256 random bits, so nobody can name a row they
+do not hold, and it names the Guest and the Organization and nothing else.
+Accepting is made as the signed-in user, never as an argument, through
+`app/api/portal-invitation/accept`, which refuses a request from another site
+or one that is not JSON and logs a fault without the token.
 
 ## The boundary that defines this application
 
@@ -52,11 +75,14 @@ src/
   server/startup.ts       the refusal instrumentation.ts runs, and the exit
   server/viewer.ts        session -> Ranza user -> request context (ADR 0007)
   server/brand.ts         the logo route's answer, from the Resident's own policies
+  server/portal-invitation.ts  the link's state, and accepting it (ADR 0060)
   lib/brand-style.ts      an Organization's colour as the two theme tokens it sets
   app/[locale]/           every route is locale-prefixed
     (portal)/stay/        the Stay
-  app/api/brand/          the logo of a Stay's Organization, versioned by its hash
     sign-in/              outside (portal): the shell above it requires a viewer
+    invite/[token]/       outside (portal) for the same reason: the visitor may have no account
+  app/api/brand/          the logo of a Stay's Organization, versioned by its hash
+  app/api/portal-invitation/accept/  connects the signed-in account to the Guest
   messages.ts             tr, en and ar — no fallback locale
   i18n/request.ts         what next-intl reads per request (ADR 0023)
   app/globals.css         the shared theme, plus this app's Tailwind scan path

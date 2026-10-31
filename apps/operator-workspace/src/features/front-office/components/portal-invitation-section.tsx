@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, Copy, UserPlus } from "lucide-react";
 import { DialogSection, Button, Input } from "@ranza/ui";
@@ -67,6 +67,7 @@ export function PortalInvitationSection({
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<"yes" | "failed" | null>(null);
+  const issuedBlock = useRef<HTMLDivElement>(null);
 
   const load = useCallback(
     async (signal?: AbortSignal): Promise<void> => {
@@ -106,6 +107,18 @@ export function PortalInvitationSection({
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+
+  // The link is made at the foot of a long sheet, below the fold on a short
+  // screen: it is brought into view, because a result the desk has to scroll to
+  // find reads as nothing having happened.
+  useEffect(() => {
+    if (issued) {
+      issuedBlock.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }
+  }, [issued]);
 
   async function invite(): Promise<void> {
     setBusy(true);
@@ -259,7 +272,7 @@ export function PortalInvitationSection({
         ) : null}
 
         {issued ? (
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-wrap items-start gap-4" ref={issuedBlock}>
             <PortalQrCode label={t("qrLabel")} value={issued.url} />
             <div className="min-w-0 flex-1 basis-60 space-y-2">
               <p className="m-0 text-sm font-medium">{t("linkLabel")}</p>

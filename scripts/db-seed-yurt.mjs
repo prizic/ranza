@@ -127,6 +127,18 @@ psql(`
      and property.name = ${literal(PROPERTY)}
   on conflict (property_id, capability_key) do update set enabled = true`);
 
+// The yurt gives its students the Portal (RANZ-87): a desk invites a student
+// from the booking, and My stay shows the bed, the term and the balance. Its
+// own statement for the same reason as the one above.
+psql(`
+  insert into public.property_capabilities
+    (property_id, organization_id, capability_key, enabled)
+  select property.id, property.organization_id, 'portal_stay_overview', true
+    from public.properties as property
+   where property.organization_id = ${literal(organizationId)}
+     and property.name = ${literal(PROPERTY)}
+  on conflict (property_id, capability_key) do update set enabled = true`);
+
 const propertyId = psql(
   `select id from public.properties
     where organization_id = ${literal(organizationId)}

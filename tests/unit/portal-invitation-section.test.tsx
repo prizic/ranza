@@ -40,8 +40,13 @@ const { PortalInvitationSection } =
 const RESERVATION = "e8000000-0000-4000-8000-000000000001";
 const LINK = "https://portal.example/invite/" + "A".repeat(43);
 
+// jsdom does not lay anything out, so it has no scrolling to do.
+const scrollIntoView = vi.fn();
+Element.prototype.scrollIntoView = scrollIntoView;
+
 afterEach(() => {
   cleanup();
+  scrollIntoView.mockClear();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   inviteToPortal.mockReset();
@@ -116,6 +121,8 @@ describe("a booking's invitation to the Portal", () => {
     expect(await screen.findByDisplayValue(LINK)).toBeVisible();
     expect(inviteToPortal).toHaveBeenCalledWith("en", RESERVATION);
     expect(screen.getByRole("img", { name: copy.qrLabel })).toBeVisible();
+    // The result is brought into view, at the foot of a long sheet.
+    expect(scrollIntoView).toHaveBeenCalled();
     // The link is not sent from here, and the desk is told so.
     expect(screen.getByText(copy.qrHint)).toBeVisible();
 

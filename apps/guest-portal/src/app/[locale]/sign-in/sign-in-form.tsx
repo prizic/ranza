@@ -5,18 +5,8 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button, FormError, Input, Label } from "@ranza/ui";
-
-/*
- * EduBoard's login fields, in Ranza's colours: a visible label over a tall,
- * softly rounded field, and a full-width emerald call to action. 16px text on
- * a phone, so iOS does not zoom into the field.
- */
-const LABEL = "text-sm font-semibold text-foreground";
-const FIELD =
-  "h-13 rounded-md bg-card px-4 text-base shadow-none md:text-[15px]";
-const SUBMIT = "h-13 w-full rounded-md text-[15px] font-medium";
-const ERROR =
-  "rounded-lg border border-danger/15 bg-danger-soft p-3 text-sm font-medium text-danger";
+import { codeOf, post } from "../../../lib/auth-request";
+import { ERROR, FIELD, LABEL, SUBMIT } from "../form-classes";
 
 type Failure =
   | "mismatch"
@@ -56,15 +46,6 @@ const FAILURE = {
   unavailable: "signInUnavailable",
 } as const;
 
-function codeOf(body: unknown): string | undefined {
-  return typeof body === "object" &&
-    body !== null &&
-    "code" in body &&
-    typeof body.code === "string"
-    ? body.code
-    : undefined;
-}
-
 /**
  * What went wrong. Anything this does not recognise is signing in not working,
  * and is logged, because this application has no client error reporter yet
@@ -80,25 +61,6 @@ async function failureOf(response: Response | null): Promise<Failure> {
   if (code && MISMATCH.has(code)) return "mismatch";
   console.error("sign-in refused unexpectedly", response.status, code ?? body);
   return "unavailable";
-}
-
-/**
- * The request, or null when there was no answer at all. Logged, because this
- * application has no client error reporter yet and the console is the only
- * place a request that never answered can be seen; the form says it is not
- * working.
- */
-async function post(url: string, body: unknown): Promise<Response | null> {
-  try {
-    return await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch (error) {
-    console.error("sign-in request failed", url, error);
-    return null;
-  }
 }
 
 /**
