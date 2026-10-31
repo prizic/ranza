@@ -85,6 +85,28 @@ nightly list. Nothing here is approved: every row is `proposed`.
     delivery foundation (RANZ-85). The figures name who is missing; the
     message is LA-DEF-01.
 
+19. **How does a dormitory created later get the roll call?** From the
+    control plane, as every capability is. The migration backfilled the
+    capability for the dormitories that existed; it does not follow the
+    operating model, because the model only picks defaults and words (ADR 0057) and a capability is the commercial gate. `apps/control-plane` is not
+    yet implemented, so until it is the capability is given by the seed
+    scripts and by an operator in the database, and a Property without it
+    simply has no Roll call in the rail (LA-S2-13, LA-S2-01).
+20. **How is the screen built?** One page of tonight: the five figures, each a
+    button that narrows the list to the people it counts; then the people by
+    block and floor. The row is the target: a tap marks present, a button says
+    absent, P and A do the same from the keyboard, and a floor is answered
+    from its heading. Leave is given from the row and opens prefilled on that
+    person and tonight; from the toolbar it asks who first. Recommended
+    because the desk calls the roll with a phone or tablet in one hand, and
+    every step between a Resident and their answer is a step a warden skips
+    (Mews and Apaleo housekeeping boards mark a room by tapping it).
+21. **Is an answer shown before the server keeps it?** Yes, and a Saving line
+    says it is not yet kept; a refusal puts the row back and says so, a fault
+    says nothing changed. Recommended because a roll call of two hundred rows
+    cannot wait on a round trip per tap, and a silent rollback would be a
+    lie in the other direction.
+
 ## Open facts
 
 - Whether the partner yurt keeps a second roll call, in the morning (an

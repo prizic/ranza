@@ -22,6 +22,7 @@ import type {
   EntitledProperty,
   PropertySettings,
 } from "@ranza/core";
+import type { RollCall } from "@ranza/attendance";
 import type { CloseTheDay } from "@ranza/business-day";
 import type { GuestDocumentType, StoredGuestParticulars } from "@ranza/guests";
 import { LOCATION_HEADER, signInHref } from "../lib/return-path";
@@ -811,6 +812,20 @@ export async function closeTheDay(
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().businessDay.getCloseTheDay(viewer.userId, propertyId);
+}
+
+/**
+ * Tonight's roll call at one Property: who is in house, where they sleep,
+ * where each stands, the figures, the leaves in force and what this viewer may
+ * do — or null when the Property is out of reach, keeps no roll call, or the
+ * viewer may neither call it nor give leave.
+ *
+ * Not `cache`d: every mark, leave and curfew change re-reads it.
+ */
+export async function rollCall(propertyId: string): Promise<RollCall | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().attendance.rollCall(viewer.userId, propertyId);
 }
 
 /**

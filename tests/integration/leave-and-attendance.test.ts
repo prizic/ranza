@@ -23,7 +23,9 @@ import {
   LeaveOverlapsError,
   createAttendanceModule,
 } from "../../packages/ranza/attendance/src";
+import { createCoreModule } from "../../packages/ranza/core/src";
 import { createPrismaClient } from "../../packages/db/src";
+import { gateOf } from "../../apps/operator-workspace/src/lib/screens";
 import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import { latestRecord } from "./audit-record";
 
@@ -40,6 +42,7 @@ const prisma = createPrismaClient(process.env.DATABASE_URL!);
 const attendance = createAttendanceModule({ db: prisma });
 const reservations = createReservationsModule({ db: prisma });
 const accommodation = createAccommodationModule({ db: prisma });
+const core = createCoreModule({ db: prisma });
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 let today: string;
@@ -554,5 +557,38 @@ describe("the curfew", () => {
       (error: unknown) => error,
     );
     expect((bad as AttendanceInputError).field).toBe("curfew");
+  });
+});
+
+describe("the roll call as a destination", () => {
+  /** The Properties the rail offers Roll call at, for one person. */
+  async function offeredAt(userId: string): Promise<string[]> {
+    const gate = gateOf("roll-call");
+    const [properties] = await core.listPermittedPropertiesByGate(userId, [
+      {
+        permissions:
+          typeof gate.permission === "string"
+            ? [gate.permission]
+            : (gate.permission ?? []),
+        capability: gate.capability,
+        organizationWide: gate.organizationWide,
+      },
+    ]);
+    return (properties ?? []).map((property) => property.propertyId);
+  }
+
+  it("LA-S2-01: the roll call is offered where the capability is on and the viewer may call it or give leave", async () => {
+    // The desk may do both and the warden only calls: each is offered the
+    // yurt, and no hotel. This Organization keeps a yurt for every run, so the
+    // answer is read for these two Properties and not for its length.
+    for (const userId of [OWNER, WARDEN]) {
+      const offered = await offeredAt(userId);
+      expect(offered).toContain(PROPERTY);
+      expect(offered).not.toContain(HOTEL);
+    }
+    // A housekeeper holds neither permission, and somebody in another
+    // Organization reaches none of these Properties.
+    expect(await offeredAt(HOUSEKEEPER)).toEqual([]);
+    expect(await offeredAt(OUTSIDER)).toEqual([]);
   });
 });

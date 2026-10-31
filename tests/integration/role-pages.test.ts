@@ -46,6 +46,7 @@ const FRONT_OFFICE = [
   "arrivals",
   "departures",
   "close-day",
+  "roll-call",
 ];
 
 /** The pages each shipped role is offered, besides Today. */

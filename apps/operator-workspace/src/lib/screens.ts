@@ -11,6 +11,7 @@ import {
   CalendarDays,
   CalendarRange,
   ChefHat,
+  ClipboardCheck,
   Download,
   History,
   Hotel,
@@ -244,6 +245,18 @@ export const SCREENS: Screen[] = [
         module: "front_office",
         icon: CalendarCheck,
         blueprint: "6.4",
+        built: true,
+      },
+      // A Property keeps a roll call only where it switched the capability on:
+      // a dormitory does, a hotel never sees the entry (LA-S2-01).
+      {
+        segment: "roll-call",
+        capability: "attendance",
+        permission: ["attendance.take", "leave.grant"],
+        requires: "attendance",
+        module: "front_office",
+        icon: ClipboardCheck,
+        blueprint: "5.3",
         built: true,
       },
     ],

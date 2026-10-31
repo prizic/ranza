@@ -3147,6 +3147,88 @@ export interface Messages {
   >;
 
   /**
+   * The nightly roll call and Residents' leave (RANZ-101, docs/features/
+   * leave-and-attendance). It names the people it lists by what they are
+   * called and never by the noun for what they are, so a dormitory and any
+   * other Property that keeps a roll read the same sentences.
+   */
+  attendance: {
+    tonight: string;
+    curfew: string;
+    curfewNone: string;
+    curfewDefault: string;
+    curfewPassed: string;
+    curfewChange: string;
+    curfewTitle: string;
+    curfewHint: string;
+    curfewLabel: string;
+    curfewSave: string;
+    curfewClear: string;
+    curfewInvalid: string;
+    figuresLabel: string;
+    figures: {
+      inHouse: string;
+      onLeave: string;
+      present: string;
+      missing: string;
+      notCalled: string;
+    };
+    figureHint: string;
+    afterCurfew: string;
+    showEveryone: string;
+    search: string;
+    floor: string;
+    noFloor: string;
+    otherRooms: string;
+    present: string;
+    absent: string;
+    onLeave: string;
+    notCalled: string;
+    presentFor: string;
+    absentFor: string;
+    markRest: string;
+    keyboardHint: string;
+    saving: string;
+    leaveUntil: string;
+    giveLeave: string;
+    giveLeaveFor: string;
+    backFromLeave: string;
+    backFromLeaveFor: string;
+    cancelLeave: string;
+    cancelLeaveFor: string;
+    leaveDialogEyebrow: string;
+    leaveWho: string;
+    leaveWhoHint: string;
+    leaveWhoPlaceholder: string;
+    leaveNights: string;
+    leaveNightsHint: string;
+    leaveNightsCount: string;
+    leaveFirst: string;
+    leaveLast: string;
+    leaveEmptyFrom: string;
+    leaveEmptyTo: string;
+    leavePickFrom: string;
+    leavePickTo: string;
+    leaveReason: string;
+    leaveReasonHint: string;
+    leaveReasonExample: string;
+    leaveSubmit: string;
+    leaveSubmitting: string;
+    leavesTitle: string;
+    leavesEmpty: string;
+    leaveRange: string;
+    emptyTitle: string;
+    emptyHint: string;
+    noMatches: string;
+    problem: {
+      failed: string;
+      refused: string;
+      overlaps: string;
+      invalidNights: string;
+      closed: string;
+    };
+  };
+  /**
    * Close the day (ADR 0034). `{date}` is a business date, already formatted;
    * `{time}` is the Property's cutoff. Nothing here mentions Accounting or says
    * a close cannot be undone: nothing receives the day's totals yet, and
@@ -7022,6 +7104,87 @@ export const messages: Record<SupportedLocale, Messages> = {
       attendance_leave: "İzin",
       payment_plan: "Ödeme planı",
     },
+    attendance: {
+      tonight: "Bu gece, {date}",
+      curfew: "Yoklama saati {time}",
+      curfewNone: "Yoklama saati yok",
+      curfewDefault: "varsayılan",
+      curfewPassed: "Saat geçti",
+      curfewChange: "Saati değiştir",
+      curfewTitle: "Yoklama saati",
+      curfewHint:
+        "Bu saatten sonra yoklaması alınmayanlar eksik sayılır. Saat istemiyorsanız boş bırakın.",
+      curfewLabel: "Saat",
+      curfewSave: "Kaydet",
+      curfewClear: "Saat olmasın",
+      curfewInvalid: "23:00 gibi bir saat yazın.",
+      figuresLabel: "Bu gecenin sayıları",
+      figures: {
+        inHouse: "Kalan",
+        onLeave: "İzinli",
+        present: "Var",
+        missing: "Eksik",
+        notCalled: "Henüz okunmadı",
+      },
+      figureHint: "Bir sayıya basın, kimleri saydığını görün.",
+      afterCurfew: "saatten sonra",
+      showEveryone: "Herkesi göster",
+      search: "Ad veya oda ara",
+      floor: "{n}. kat",
+      noFloor: "Katsız",
+      otherRooms: "Diğer odalar",
+      present: "Var",
+      absent: "Yok",
+      onLeave: "İzinli",
+      notCalled: "Okunmadı",
+      presentFor: "{name} var",
+      absentFor: "{name} yok",
+      markRest: "{count, plural, other {Kalan # kişiyi var işaretle}}",
+      keyboardHint:
+        "Ok tuşları satırlar arasında gezinir. P var, A yok işaretler.",
+      saving: "Kaydediliyor…",
+      leaveUntil: "{date} gecesine kadar izinli",
+      giveLeave: "İzin ver",
+      giveLeaveFor: "{name} için izin ver",
+      backFromLeave: "Döndü",
+      backFromLeaveFor: "{name} döndü",
+      cancelLeave: "İzni iptal et",
+      cancelLeaveFor: "{name} için izni iptal et",
+      leaveDialogEyebrow: "İzin ver",
+      leaveWho: "Kim gidiyor?",
+      leaveWhoHint: "Yurtta kalanlardan biri.",
+      leaveWhoPlaceholder: "Ad ara",
+      leaveNights: "Hangi geceler?",
+      leaveNightsHint:
+        "İlk ve son gece yurtta olunmayacak geceler. Son geceyi izleyen sabah döner.",
+      leaveNightsCount: "{count, plural, other {# gece}}",
+      leaveFirst: "İlk gece",
+      leaveLast: "Son gece",
+      leaveEmptyFrom: "Seçin",
+      leaveEmptyTo: "Seçin",
+      leavePickFrom: "İlk geceyi seçin",
+      leavePickTo: "Son geceyi seçin",
+      leaveReason: "Neden?",
+      leaveReasonHint:
+        "Yalnızca izin verebilen kişiler okur. Sağlık ve aile ayrıntıları gerekmedikçe yazılmaz.",
+      leaveReasonExample: "Hafta sonu ailesinin yanında",
+      leaveSubmit: "İzin ver",
+      leaveSubmitting: "Veriliyor…",
+      leavesTitle: "İzinler",
+      leavesEmpty: "Verilmiş ya da yaklaşan izin yok.",
+      leaveRange: "{from} – {to}",
+      emptyTitle: "Bu gece yurtta kimse yok",
+      emptyHint: "Giriş yapılanlar burada görünür.",
+      noMatches: "Eşleşen kimse yok.",
+      problem: {
+        failed: "Kaydedilemedi. Hiçbir şey değişmedi; yeniden deneyin.",
+        refused:
+          "Bu işlem yapılamadı. Sayfa eskimiş olabilir; yenileyip yeniden deneyin.",
+        overlaps: "Bu geceler için zaten izin verilmiş.",
+        invalidNights: "Geceleri ve nedeni kontrol edin.",
+        closed: "Bu izin artık bu şekilde kapatılamaz.",
+      },
+    },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
       dueTitle: "{date} kapatılmayı bekliyor",
@@ -7190,6 +7353,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       arrivals: "Girişler",
       departures: "Çıkışlar",
       "close-day": "Günü kapat",
+      "roll-call": "Yoklama",
       "guest-experience": "Misafir deneyimi",
       housekeeping: "Kat hizmetleri",
       maintenance: "Bakım",
@@ -10961,6 +11125,88 @@ export const messages: Record<SupportedLocale, Messages> = {
       attendance_leave: "Leave",
       payment_plan: "Payment plan",
     },
+    attendance: {
+      tonight: "Tonight, {date}",
+      curfew: "Curfew {time}",
+      curfewNone: "No curfew",
+      curfewDefault: "default",
+      curfewPassed: "Curfew has passed",
+      curfewChange: "Change curfew",
+      curfewTitle: "Curfew",
+      curfewHint:
+        "After this time, anyone not yet called counts as missing. Leave it empty for no curfew.",
+      curfewLabel: "Time",
+      curfewSave: "Save",
+      curfewClear: "No curfew",
+      curfewInvalid: "Enter a time like 23:00.",
+      figuresLabel: "Tonight's figures",
+      figures: {
+        inHouse: "In house",
+        onLeave: "On leave",
+        present: "Present",
+        missing: "Missing",
+        notCalled: "Not yet called",
+      },
+      figureHint: "Press a figure to see who it counts.",
+      afterCurfew: "after curfew",
+      showEveryone: "Show everyone",
+      search: "Search by name or room",
+      floor: "Floor {n}",
+      noFloor: "No floor",
+      otherRooms: "Other rooms",
+      present: "Present",
+      absent: "Absent",
+      onLeave: "On leave",
+      notCalled: "Not called",
+      presentFor: "{name} is present",
+      absentFor: "{name} is absent",
+      markRest:
+        "{count, plural, one {Mark the other one present} other {Mark the other # present}}",
+      keyboardHint:
+        "Arrow keys move between rows. P marks present, A marks absent.",
+      saving: "Saving…",
+      leaveUntil: "On leave through {date}",
+      giveLeave: "Give leave",
+      giveLeaveFor: "Give {name} leave",
+      backFromLeave: "Back",
+      backFromLeaveFor: "{name} is back",
+      cancelLeave: "Cancel leave",
+      cancelLeaveFor: "Cancel leave for {name}",
+      leaveDialogEyebrow: "Give leave",
+      leaveWho: "Who is going?",
+      leaveWhoHint: "Anyone in house tonight.",
+      leaveWhoPlaceholder: "Search by name",
+      leaveNights: "Which nights?",
+      leaveNightsHint:
+        "The first and last night away. They are back the morning after the last night.",
+      leaveNightsCount: "{count, plural, one {# night} other {# nights}}",
+      leaveFirst: "First night",
+      leaveLast: "Last night",
+      leaveEmptyFrom: "Choose",
+      leaveEmptyTo: "Choose",
+      leavePickFrom: "Choose the first night",
+      leavePickTo: "Choose the last night",
+      leaveReason: "Why?",
+      leaveReasonHint:
+        "Only people who may give leave can read this. Leave out medical and family detail unless it is needed.",
+      leaveReasonExample: "Weekend with family",
+      leaveSubmit: "Give leave",
+      leaveSubmitting: "Giving…",
+      leavesTitle: "Leave",
+      leavesEmpty: "No leave is given or coming up.",
+      leaveRange: "{from} – {to}",
+      emptyTitle: "Nobody is in house tonight",
+      emptyHint: "People who have checked in appear here.",
+      noMatches: "Nobody matches.",
+      problem: {
+        failed: "That did not save. Nothing changed; try again.",
+        refused:
+          "That could not be done. The page may be out of date; refresh and try again.",
+        overlaps: "That person is already on leave for some of those nights.",
+        invalidNights: "Check the nights and the reason.",
+        closed: "That leave can no longer be closed that way.",
+      },
+    },
     closeDay: {
       at: "Closing the day at",
       dueTitle: "{date} is ready to close",
@@ -11127,6 +11373,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       arrivals: "Arrivals",
       departures: "Departures",
       "close-day": "Close the day",
+      "roll-call": "Roll call",
       "guest-experience": "Guest Experience",
       housekeeping: "Housekeeping",
       maintenance: "Maintenance",
@@ -14814,6 +15061,87 @@ export const messages: Record<SupportedLocale, Messages> = {
       attendance_leave: "إجازة",
       payment_plan: "خطة دفع",
     },
+    attendance: {
+      tonight: "الليلة، {date}",
+      curfew: "موعد التحضير {time}",
+      curfewNone: "بلا موعد تحضير",
+      curfewDefault: "افتراضي",
+      curfewPassed: "انتهى الموعد",
+      curfewChange: "تغيير الموعد",
+      curfewTitle: "موعد التحضير",
+      curfewHint:
+        "بعد هذا الوقت يُحسب من لم يُنادَ عليه غائبًا. اتركه فارغًا إن لم يكن هناك موعد.",
+      curfewLabel: "الوقت",
+      curfewSave: "حفظ",
+      curfewClear: "بلا موعد",
+      curfewInvalid: "اكتب وقتًا مثل 23:00.",
+      figuresLabel: "أرقام الليلة",
+      figures: {
+        inHouse: "في السكن",
+        onLeave: "في إجازة",
+        present: "حاضر",
+        missing: "غائب",
+        notCalled: "لم يُنادَ عليه",
+      },
+      figureHint: "اضغط على رقم لترى من يشملهم.",
+      afterCurfew: "بعد الموعد",
+      showEveryone: "إظهار الجميع",
+      search: "ابحث بالاسم أو الغرفة",
+      floor: "الطابق {n}",
+      noFloor: "بلا طابق",
+      otherRooms: "غرف أخرى",
+      present: "حاضر",
+      absent: "غائب",
+      onLeave: "في إجازة",
+      notCalled: "لم يُنادَ عليه",
+      presentFor: "{name} حاضر",
+      absentFor: "{name} غائب",
+      markRest:
+        "{count, plural, one {تسجيل الباقي حاضرًا} other {تسجيل الباقين (#) حاضرين}}",
+      keyboardHint: "مفاتيح الأسهم تنتقل بين الصفوف. P للحضور وA للغياب.",
+      saving: "جارٍ الحفظ…",
+      leaveUntil: "في إجازة حتى ليلة {date}",
+      giveLeave: "منح إجازة",
+      giveLeaveFor: "منح {name} إجازة",
+      backFromLeave: "عاد",
+      backFromLeaveFor: "{name} عاد",
+      cancelLeave: "إلغاء الإجازة",
+      cancelLeaveFor: "إلغاء إجازة {name}",
+      leaveDialogEyebrow: "منح إجازة",
+      leaveWho: "من سيغادر؟",
+      leaveWhoHint: "أي شخص في السكن الليلة.",
+      leaveWhoPlaceholder: "ابحث بالاسم",
+      leaveNights: "أي ليالٍ؟",
+      leaveNightsHint:
+        "أول ليلة وآخر ليلة خارج السكن. يعود صباح اليوم التالي لآخر ليلة.",
+      leaveNightsCount:
+        "{count, plural, one {ليلة} two {ليلتان} few {# ليالٍ} other {# ليلة}}",
+      leaveFirst: "أول ليلة",
+      leaveLast: "آخر ليلة",
+      leaveEmptyFrom: "اختر",
+      leaveEmptyTo: "اختر",
+      leavePickFrom: "اختر أول ليلة",
+      leavePickTo: "اختر آخر ليلة",
+      leaveReason: "ما السبب؟",
+      leaveReasonHint:
+        "لا يقرؤه إلا من يملك صلاحية منح الإجازة. لا تكتب تفاصيل صحية أو عائلية إلا للحاجة.",
+      leaveReasonExample: "عطلة نهاية الأسبوع مع العائلة",
+      leaveSubmit: "منح الإجازة",
+      leaveSubmitting: "جارٍ المنح…",
+      leavesTitle: "الإجازات",
+      leavesEmpty: "لا إجازات ممنوحة أو قادمة.",
+      leaveRange: "{from} – {to}",
+      emptyTitle: "لا أحد في السكن الليلة",
+      emptyHint: "يظهر هنا من سجّل وصوله.",
+      noMatches: "لا نتائج مطابقة.",
+      problem: {
+        failed: "تعذّر الحفظ. لم يتغيّر شيء، حاول مرة أخرى.",
+        refused: "تعذّر تنفيذ ذلك. ربما الصفحة قديمة، حدّثها وحاول مرة أخرى.",
+        overlaps: "هذا الشخص في إجازة أصلًا في بعض هذه الليالي.",
+        invalidNights: "راجع الليالي والسبب.",
+        closed: "لم يعد ممكنًا إنهاء هذه الإجازة بهذه الطريقة.",
+      },
+    },
     closeDay: {
       at: "إغلاق اليوم في",
       dueTitle: "{date} جاهز للإغلاق",
@@ -14985,6 +15313,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       arrivals: "الوصول",
       departures: "المغادرة",
       "close-day": "إغلاق اليوم",
+      "roll-call": "التحضير",
       "guest-experience": "تجربة الضيف",
       housekeeping: "التدبير الفندقي",
       maintenance: "الصيانة",
