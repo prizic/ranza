@@ -38,6 +38,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       title: "Öğrenci bilgileri",
       show: "Öğrenci bilgisi ekle",
     },
+    portalInvite: {
+      title: "Öğrenci portalı",
+      hint: "Öğrenciye kendi girişini verin; yatağını, dönemini ve bakiyesini telefonundan görsün.",
+      connected:
+        "{date} tarihinde bağlandı. Öğrenci kaydını portaldan görüyor.",
+    },
     stayType: { resident: "Öğrenci konaklaması" },
     departureRequiredHint:
       "Misafir rezervasyonunun bir ayrılış tarihi olmalı. Yalnızca bir öğrencinin kaydı açık uçlu bırakılabilir.",
@@ -106,6 +112,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     takeBooking: "Create registration",
     reservationDetails: "Registration details",
     particulars: { title: "Student details", show: "Add student details" },
+    portalInvite: {
+      title: "Student portal",
+      hint: "Give the student their own login to see their bed, term and balance on their phone.",
+      connected:
+        "Connected on {date}. The student sees their stay on the portal.",
+    },
     stayType: { resident: "Student stay" },
     departureRequiredHint:
       "A Guest booking needs a departure date. Only a Student's registration may be left open-ended.",
@@ -172,6 +184,11 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     takeBooking: "إنشاء التسجيل",
     reservationDetails: "تفاصيل التسجيل",
     particulars: { title: "بيانات الطالب", show: "إضافة بيانات الطالب" },
+    portalInvite: {
+      title: "بوابة الطالب",
+      hint: "امنح الطالب حسابه الخاص ليرى سريره وفترة إقامته ورصيده من هاتفه.",
+      connected: "تم الربط في {date}. يرى الطالب إقامته على البوابة.",
+    },
     stayType: { resident: "إقامة طالب" },
     departureRequiredHint:
       "يحتاج حجز الضيف إلى تاريخ مغادرة. يمكن ترك تسجيل الطالب وحده مفتوح المدة.",

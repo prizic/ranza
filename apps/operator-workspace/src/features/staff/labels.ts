@@ -65,6 +65,7 @@ export const PERMISSION_CATALOGUE = [
   "guests.read_particulars",
   "attendance.take",
   "leave.grant",
+  "guests.invite_to_portal",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -136,6 +137,7 @@ const MESSAGE_KEYS = {
   "guests.read_particulars": "readGuestParticulars",
   "attendance.take": "takeAttendance",
   "leave.grant": "grantLeave",
+  "guests.invite_to_portal": "inviteGuestsToPortal",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =
@@ -198,6 +200,7 @@ export const PERMISSION_SECTIONS = [
     key: "guests",
     permissions: [
       "guests.read_particulars",
+      "guests.invite_to_portal",
       "guest_services.create_request",
       "guest_services.manage_requests",
     ],

@@ -571,7 +571,8 @@ export interface Messages {
       | "manageBranding"
       | "readGuestParticulars"
       | "takeAttendance"
-      | "grantLeave",
+      | "grantLeave"
+      | "inviteGuestsToPortal",
       string
     >;
     emptyRosterTitle: string;
@@ -708,6 +709,39 @@ export interface Messages {
     invalid: string;
     /** On the booking, when they could not be read: said, never shown as none. */
     unavailable: string;
+  };
+  /**
+   * Handing a Guest the Portal by a link, on the booking (GP-S2-*): where the
+   * invitation stands, the link and its QR code once it is made, and why there
+   * is nothing to offer.
+   */
+  portalInvite: {
+    title: string;
+    hint: string;
+    invite: string;
+    waiting: string;
+    waitingNote: string;
+    newLink: string;
+    newLinkNote: string;
+    withdraw: string;
+    withdrawn: string;
+    expired: string;
+    connected: string;
+    linkLabel: string;
+    copy: string;
+    copied: string;
+    copyFailed: string;
+    qrLabel: string;
+    qrHint: string;
+    expiresNote: string;
+    replaced: string;
+    portalOff: string;
+    unavailable: string;
+    failed: string;
+    addressMissing: string;
+    notAllowed: string;
+    alreadyConnected: string;
+    nothingToWithdraw: string;
   };
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
@@ -3998,6 +4032,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         takeAttendance: "Yoklama alma (öğrenciyi var veya yok işaretleme)",
         grantLeave:
           "Öğrenciye izin verme, izni bitirme veya iptal etme ve izin nedenini görme",
+        inviteGuestsToPortal: "Misafirleri portala davet etme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -4150,6 +4185,39 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Kişisel bilgilerden biri yazıldığı gibi kaydedilemiyor: doğum tarihi 1900'den sonra ve gelecekte olmayan bir gün, sınıf 1 ile 8 arası, adlar en az iki karakter olmalı, kimlik numarası belge türüne uygun olmalı.",
       unavailable:
         "Kişisel bilgiler şu anda okunamadı. Rezervasyonu yeniden açın.",
+    },
+    portalInvite: {
+      title: "Misafir portalı",
+      hint: "Misafire kendi girişini verin; odasını ve bakiyesini telefonundan görsün.",
+      invite: "Portala davet et",
+      waiting: "Davet edildi. Bağlantı {date} tarihine kadar geçerli.",
+      waitingNote:
+        "Bağlantı yalnızca oluşturulduğunda gösterilir. Kaybolduysa yenisini oluşturun.",
+      newLink: "Yeni bağlantı oluştur",
+      newLinkNote: "Önceki bağlantı çalışmaz hale gelir.",
+      withdraw: "Bağlantıyı geri çek",
+      withdrawn: "Bağlantı geri çekildi.",
+      expired: "Bağlantının süresi {date} tarihinde doldu.",
+      connected:
+        "{date} tarihinde bağlandı. Misafir kalışını portaldan görüyor.",
+      linkLabel: "Teslim edilecek bağlantı",
+      copy: "Bağlantıyı kopyala",
+      copied: "Kopyalandı",
+      copyFailed: "Bağlantı kopyalanamadı. Seçip elle kopyalayın.",
+      qrLabel: "Bağlantının karekodu. Telefonla okutulur.",
+      qrHint:
+        "Bunu gösterin ya da bağlantıyı paylaşın. Buradan hiçbir şey gönderilmez.",
+      expiresNote: "{date} tarihine kadar, tek kullanımlık.",
+      replaced: "Önceki bağlantı artık çalışmıyor.",
+      portalOff: "Portal bu tesis için kapalı; davet edilecek bir şey yok.",
+      unavailable: "Portal daveti okunamadı. Rezervasyonu yeniden açın.",
+      failed: "Bağlantı oluşturulamadı. Yeniden deneyin.",
+      addressMissing:
+        "Bu çalışma alanı portalın adresini bilmiyor, bu yüzden bağlantı oluşturulamıyor. Bir yöneticiye bildirin.",
+      notAllowed: "Rolünüz portala davet etmeye izin vermiyor.",
+      alreadyConnected: "Bu kişi zaten bağlı.",
+      nothingToWithdraw:
+        "Geri çekilecek geçerli bir bağlantı yoktu. Sayfa eskimişti; yenilendi.",
     },
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
@@ -7821,6 +7889,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "Call the nightly roll (mark Residents present or absent)",
         grantLeave:
           "Give, end and cancel Residents' leave, and read why it was given",
+        inviteGuestsToPortal: "Invite Guests to the Portal",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -7970,6 +8039,41 @@ export const messages: Record<SupportedLocale, Messages> = {
         "A personal detail cannot be recorded as typed: a date of birth from 1900 and not in the future, a year of study from 1 to 8, names of at least two characters, and a document number that fits its kind.",
       unavailable:
         "The personal details could not be read just now. Open the booking again.",
+    },
+    portalInvite: {
+      title: "Guest portal",
+      hint: "Give the guest their own login to see their room and balance on their phone.",
+      invite: "Invite to the portal",
+      waiting: "Invited. The link works until {date}.",
+      waitingNote:
+        "The link is only shown when it is made. Make a new one if it was lost.",
+      newLink: "Make a new link",
+      newLinkNote: "The earlier link stops working.",
+      withdraw: "Withdraw the link",
+      withdrawn: "The link was withdrawn.",
+      expired: "The link expired on {date}.",
+      connected:
+        "Connected on {date}. The guest sees their stay on the portal.",
+      linkLabel: "Link to hand over",
+      copy: "Copy link",
+      copied: "Copied",
+      copyFailed:
+        "The link could not be copied. Select it and copy it by hand.",
+      qrLabel: "QR code for the link. Scan it with a phone.",
+      qrHint: "Show this, or share the link. Nothing is sent from here.",
+      expiresNote: "Works until {date}, once.",
+      replaced: "The earlier link no longer works.",
+      portalOff:
+        "The portal is switched off for this property, so there is nothing to invite them to.",
+      unavailable:
+        "The portal invitation could not be read. Reopen the booking.",
+      failed: "The link could not be made. Try again.",
+      addressMissing:
+        "This workspace does not know the portal's address, so no link can be made. Tell an administrator.",
+      notAllowed: "Your role may not invite people to the portal.",
+      alreadyConnected: "This person is already connected.",
+      nothingToWithdraw:
+        "There was no live link to withdraw. The page was out of date and has been refreshed.",
     },
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
@@ -11627,6 +11731,7 @@ export const messages: Record<SupportedLocale, Messages> = {
           "قراءة البيانات الشخصية للضيوف (تاريخ الميلاد، الدراسة، وليّ الأمر، جهة الطوارئ)",
         takeAttendance: "أخذ التحضير الليلي (تسجيل حضور المقيمين أو غيابهم)",
         grantLeave: "منح المقيمين إجازات وإنهاؤها وإلغاؤها وقراءة سبب منحها",
+        inviteGuestsToPortal: "دعوة الضيوف إلى البوابة",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -11773,6 +11878,36 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalid:
         "لا يمكن تسجيل إحدى البيانات الشخصية كما كُتبت: تاريخ ميلاد من عام 1900 وليس في المستقبل، وسنة دراسية من 1 إلى 8، وأسماء من حرفين على الأقل، ورقم وثيقة يوافق نوعها.",
       unavailable: "تعذّرت قراءة البيانات الشخصية الآن. افتح الحجز مرة أخرى.",
+    },
+    portalInvite: {
+      title: "بوابة الضيف",
+      hint: "امنح الضيف حسابه الخاص ليرى غرفته ورصيده من هاتفه.",
+      invite: "ادعُه إلى البوابة",
+      waiting: "تمت الدعوة. الرابط صالح حتى {date}.",
+      waitingNote: "يُعرض الرابط عند إنشائه فقط. أنشئ رابطًا جديدًا إن ضاع.",
+      newLink: "أنشئ رابطًا جديدًا",
+      newLinkNote: "يتوقف الرابط السابق عن العمل.",
+      withdraw: "اسحب الرابط",
+      withdrawn: "تم سحب الرابط.",
+      expired: "انتهت صلاحية الرابط في {date}.",
+      connected: "تم الربط في {date}. يرى الضيف إقامته على البوابة.",
+      linkLabel: "الرابط المراد تسليمه",
+      copy: "انسخ الرابط",
+      copied: "تم النسخ",
+      copyFailed: "تعذّر نسخ الرابط. حدّده وانسخه يدويًا.",
+      qrLabel: "رمز QR للرابط. يُمسح بالهاتف.",
+      qrHint: "اعرض هذا أو شارك الرابط. لا يُرسل شيء من هنا.",
+      expiresNote: "صالح حتى {date}، لمرة واحدة.",
+      replaced: "لم يعد الرابط السابق يعمل.",
+      portalOff: "البوابة معطّلة لهذا السكن، فلا شيء يُدعى إليه.",
+      unavailable: "تعذّرت قراءة دعوة البوابة. أعد فتح الحجز.",
+      failed: "تعذّر إنشاء الرابط. حاول مرة أخرى.",
+      addressMissing:
+        "لا يعرف مكان العمل عنوان البوابة، لذا لا يمكن إنشاء رابط. أبلغ المسؤول.",
+      notAllowed: "دورك لا يسمح بدعوة الأشخاص إلى البوابة.",
+      alreadyConnected: "هذا الشخص مرتبط بالفعل.",
+      nothingToWithdraw:
+        "لم يكن هناك رابط صالح للسحب. كانت الصفحة قديمة وقد حُدّثت.",
     },
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",

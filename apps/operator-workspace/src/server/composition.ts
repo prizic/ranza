@@ -16,6 +16,7 @@ import { createMaintenanceModule } from "@ranza/maintenance";
 import { createRatesModule } from "@ranza/rates";
 import { createReservationsModule } from "@ranza/reservations";
 import { createStaffModule } from "@ranza/staff";
+import { createStaysModule } from "@ranza/stays";
 
 /**
  * The composition root.
@@ -125,8 +126,30 @@ function compose() {
     hr: createHrModule({ db: tenantDb }),
     branding: createBrandingModule({ db: tenantDb }),
     dataExport: createDataExportModule({ db: tenantDb }),
+    // The Resident's module, here for the other side of it: the desk makes the
+    // link a student opens on the Portal (RANZ-87). It reads nothing the Portal
+    // does not, and every refusal in it is the database's.
+    stays: createStaysModule({ db: tenantDb }),
     db: tenantDb,
   };
+}
+
+/**
+ * Where the Portal is served, as the link a student opens must name it: it is a
+ * different host from this one, so nothing in a request can say what it is.
+ * Null when it was never set, which the desk is told in words instead of being
+ * handed a link to this workspace that would open nothing. Read when a link is
+ * made and not at start-up, so a workspace without a Portal still serves.
+ */
+export function portalOrigin(): string | null {
+  const configured = process.env.PORTAL_URL;
+  if (!configured) return null;
+  try {
+    return new URL(configured).origin;
+  } catch (error: unknown) {
+    console.error("PORTAL_URL is not an address", { configured }, error);
+    return null;
+  }
 }
 
 type Composition = ReturnType<typeof compose>;

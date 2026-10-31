@@ -43,6 +43,11 @@ vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   checkInReservation: vi.fn(),
   reverseCheckIn: vi.fn(),
 }));
+// The booking sheet's invitation buttons are server actions it only calls.
+vi.mock(
+  "../../apps/operator-workspace/src/server/portal-invitation-actions",
+  () => ({}),
+);
 
 const { ReservationsTable } =
   await import("../../apps/operator-workspace/src/features/front-office/components/reservations-table");

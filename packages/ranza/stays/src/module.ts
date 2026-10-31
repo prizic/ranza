@@ -1,6 +1,14 @@
 import { withOrganizationContext } from "@ranza/db";
 import { PORTAL_STAY_CAPABILITY, type OwnStay } from "./contracts";
+import { createPortalInvitations } from "./portal-invitation";
 import type { StaysDeps } from "./ports";
+
+/** A row as the read returns it, before the balance columns become one value. */
+type OwnStayRow = Omit<OwnStay, "balance"> & {
+  balanceCurrency: string | null;
+  balanceMinor: string | null;
+  folioStatus: "open" | "closed" | null;
+};
 
 /**
  * Stays: the record connecting a Guest or Resident to an Accommodation Unit.
@@ -27,17 +35,23 @@ export function createStaysModule(deps: StaysDeps) {
    * A Staff Member calling this gets an empty array: a membership is not a
    * Stay, and the Portal grants no staff capability (blueprint 4.3).
    *
+   * The room around a bed is read through `accommodation_units_read_own_stay_room`
+   * and the balance through `app.resident_folio_balances()`, each the Resident's
+   * own path and neither a widening of a Staff one (ADR 0009, GP-S4-*). Either
+   * can be absent without the Stay being absent: a Stay with no Folio has no
+   * balance, which is not a zero one.
+   *
    * Empty is the correct answer to "you have nothing current here" — for a
    * departed Resident, for an Organization that lost the Entitlement, and for a
    * Property that never enabled the capability. Those are different situations
    * with deliberately identical answers.
    */
   async function listOwnStays(userId: string): Promise<OwnStay[]> {
-    return withOrganizationContext(
+    const rows = await withOrganizationContext(
       deps.db,
       { userId },
       (tx) =>
-        tx.$queryRaw<OwnStay[]>`
+        tx.$queryRaw<OwnStayRow[]>`
         select
           stay.id                                as "stayId",
           stay.stay_type                         as "stayType",
@@ -50,12 +64,22 @@ export function createStaysModule(deps: StaysDeps) {
           unit.id                                as "unitId",
           unit.name                              as "unitName",
           unit.unit_type                         as "unitType",
-          unit.capacity                          as "unitCapacity"
+          unit.capacity                          as "unitCapacity",
+          room.name                              as "roomName",
+          coalesce(room.building, unit.building) as "building",
+          coalesce(room.floor, unit.floor)       as "floor",
+          balance.currency                       as "balanceCurrency",
+          balance.balance_minor                  as "balanceMinor",
+          balance.folio_status                   as "folioStatus"
         from public.stays as stay
         join public.properties as property
           on property.id = stay.property_id
         join public.accommodation_units as unit
           on unit.id = stay.accommodation_unit_id
+        left join public.accommodation_units as room
+          on room.id = unit.parent_id
+        left join app.resident_folio_balances() as balance
+          on balance.stay_id = stay.id
         where stay.status in ('reserved', 'in_house')
           and app.resident_can_use_capability(
             stay.property_id,
@@ -65,9 +89,24 @@ export function createStaysModule(deps: StaysDeps) {
         order by stay.starts_on desc, stay.id
       `,
     );
+    return rows.map(
+      ({ balanceCurrency, balanceMinor, folioStatus, ...stay }) => ({
+        ...stay,
+        balance:
+          balanceCurrency === null ||
+          balanceMinor === null ||
+          folioStatus === null
+            ? null
+            : {
+                currency: balanceCurrency,
+                amountMinor: balanceMinor,
+                folioStatus,
+              },
+      }),
+    );
   }
 
-  return { listOwnStays };
+  return { listOwnStays, ...createPortalInvitations(deps) };
 }
 
 export type StaysModule = ReturnType<typeof createStaysModule>;

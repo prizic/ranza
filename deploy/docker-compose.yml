@@ -93,6 +93,9 @@ services:
     environment:
       <<: *app-environment
       BETTER_AUTH_URL: https://${WORKSPACE_HOST:?}
+      # The Portal is another host. The desk's invitation link names it, and
+      # nothing in a request to the workspace can say what it is (RANZ-87).
+      PORTAL_URL: https://${PORTAL_HOST:?}
     networks:
       - web
       - internal

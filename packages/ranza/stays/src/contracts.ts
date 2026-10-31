@@ -54,4 +54,93 @@ export interface OwnStay {
   unitName: string;
   unitType: AccommodationUnitType;
   unitCapacity: number;
+  /**
+   * The room around the bed, when the Unit they hold is a bed (ADR 0025); null
+   * when it is let whole, so the Unit named above is the room itself.
+   */
+  roomName: string | null;
+  /** Where the room is, from the room (a bed has none); null when not recorded. */
+  building: string | null;
+  floor: number | null;
+  /**
+   * What their Folio stands at, or null when there is nothing to say: no Folio
+   * yet, billing not held, or finance off at the Property. Null is not a zero
+   * balance (ADR 0015, GP-S4-06).
+   */
+  balance: OwnBalance | null;
+}
+
+export interface OwnBalance {
+  /** ISO 4217, the Folio's own currency. */
+  currency: string;
+  /** Signed minor units as a decimal string, positive meaning owed (ADR 0015). */
+  amountMinor: string;
+  folioStatus: "open" | "closed";
+}
+
+/**
+ * Where a Guest's invitation to the Portal stands, as the desk reads it
+ * (GP-S2-11). `expired` is read from the clock, not stored.
+ */
+export type PortalInvitationStanding =
+  "none" | "waiting" | "expired" | "withdrawn" | "connected";
+
+/**
+ * What the booking sheet needs to draw the invitation.
+ *
+ * `availability` is why the section may not offer a link: `portal_off` is said
+ * to a Staff Member who holds the permission, and `not_permitted` draws nothing
+ * at all, because a role that cannot invite has no use for the explanation.
+ */
+export interface PortalInvitationOverview {
+  guestId: string;
+  availability: "available" | "portal_off" | "not_permitted";
+  standing: PortalInvitationStanding;
+  /** ISO instant; set for `waiting` and `expired`. */
+  expiresAt: string | null;
+  /** ISO instant; set for `connected`. */
+  connectedAt: string | null;
+}
+
+/** A link just made. The token exists here and nowhere else (GP-S2-03). */
+export interface IssuedPortalInvitation {
+  /** What goes in the link and the QR code. Shown once, never stored. */
+  token: string;
+  /** ISO instant. */
+  expiresAt: string;
+  /** True when an earlier live link was withdrawn to make this one. */
+  replacedEarlier: boolean;
+}
+
+/** What the page behind a link may know about it (GP-S3-11). */
+export interface PortalLink {
+  state: "pending" | "expired" | "revoked" | "accepted";
+  organizationName: string;
+  guestName: string;
+  /** The address the desk typed; a suggestion, never a requirement. */
+  guestEmail: string | null;
+}
+
+/** Why a link did not work, or that it did (GP-S3-03 to GP-S3-07). */
+export type PortalAcceptanceOutcome =
+  "accepted" | "unknown" | "revoked" | "used" | "expired" | "another_guest";
+
+export interface PortalAcceptance {
+  outcome: PortalAcceptanceOutcome;
+  /** How many of the Guest's Stays now belong to this account. */
+  linkedStays: number;
+}
+
+/** Why the desk could not make or withdraw a link. */
+export type PortalInvitationRefusal = "not_allowed" | "already_connected";
+
+export class PortalInvitationRefusedError extends Error {
+  constructor(readonly reason: PortalInvitationRefusal) {
+    super(
+      reason === "already_connected"
+        ? "that Guest already has a Portal login"
+        : "that Guest cannot be invited",
+    );
+    this.name = "PortalInvitationRefusedError";
+  }
 }

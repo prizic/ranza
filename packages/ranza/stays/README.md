@@ -53,6 +53,36 @@ the Entitlement, and for a Property that never enabled
 `portal_stay_overview`. Those are different situations given deliberately
 identical answers.
 
+## Giving a Guest the Portal
+
+A Resident reaches the Portal by a link the desk hands over
+([ADR 0060](../../../docs/adr/0060-a-resident-gets-the-portal-by-an-invitation-of-their-guest.md)).
+The invitation is of a Guest, so a student registered in move-in week can have
+one before any Stay exists, and accepting it gives that Guest's own current
+Stays to the account.
+
+```ts
+await stays.overview(userId, reservationId); // where the invitation stands, and may the desk offer one
+await stays.invite(userId, reservationId); // { token, expiresAt, replacedEarlier }, the token shown once
+await stays.withdraw(userId, reservationId); // false when no link was live
+await stays.link(token); // what the page behind a link may say; null if it never existed
+await stays.accept(userId, token); // { outcome, linkedStays }, a refusal is an outcome
+```
+
+The token is made here and only its SHA-256 digest crosses into the database, in
+a column the runtime role is not granted. Every rule is in
+`app.invite_guest_to_portal`, `app.withdraw_portal_invitation`,
+`app.portal_invitation_state` and `app.accept_portal_invitation`; this module
+asks inside the right request context and turns a SQLSTATE into a word.
+`link` runs without a request context because the person holding the link cannot
+sign in yet. Instants cross the driver as UTC text, because a `timestamptz` read
+through a raw query came back shifted by the session's offset.
+
+`listOwnStays` also returns the room around a bed (a policy of its own on
+`accommodation_units`) and the balance of the Stay's Folio
+(`app.resident_folio_balances()`). A Stay with no Folio has `balance: null`,
+which is not a zero balance (ADR 0015).
+
 ## Rules
 
 - Receives its client; never constructs one and never reads `process.env`.

@@ -104,6 +104,9 @@ export default defineConfig({
           process.env.BETTER_AUTH_SECRET ??
           "browser-tests-only-and-never-a-real-secret",
         BETTER_AUTH_URL: WORKSPACE,
+        // The desk's invitation link names the Portal, which is a server of its
+        // own here (RANZ-87).
+        PORTAL_URL: PORTAL,
       },
     },
     {
