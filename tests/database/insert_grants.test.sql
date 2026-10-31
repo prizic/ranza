@@ -177,8 +177,8 @@ select set_eq(
   $$select column_name::text from information_schema.column_privileges
      where table_schema='public' and table_name='guests'
        and grantee='ranza_app' and privilege_type='INSERT'$$,
-  array['organization_id','full_name','email','phone'],
-  'guests: the four identifyGuestWithin names');
+  array['organization_id','full_name','email','phone','gender'],
+  'guests: the five identifyGuestWithin names');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges
@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  87,
-  'the definer sweep looked at 87 functions; change this number deliberately');
+  93,
+  'the definer sweep looked at 93 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  29,
-  'twenty-nine of them write, which is what makes the assertion above a test');
+  30,
+  'thirty of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so an eighty-eighth definer is a red test
+-- Part B: the inventory itself, so a ninety-fourth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -647,6 +647,15 @@ select is(
 -- acting user has a current Stay with. A definer, as resident_stay_property_ids()
 -- is, so that each policy asking owns the answer and does not lean on the Stays
 -- read policy beneath it.
+-- Which gender a room admits (20260916013600) brought six, and one writes.
+-- Four triggers, booking_is_admitted(), stay_is_admitted(),
+-- room_keeps_whom_it_admits() and guest_keeps_their_rooms(), and room_admits(),
+-- which the first two ask: definers for unit_is_sellable()'s reason, so the
+-- rule holds whatever the writer may read, and none writes but NEW. set_room_admits() is the only way a room's
+-- gender changes after it is added, because a column grant would be shared by
+-- the maintenance policy on the same table; it asks reach, the front desk
+-- capability and accommodation.configure before it writes, the thirtieth
+-- writer.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -693,8 +702,12 @@ select set_eq(
         'post_folio_line_to_ledger', 'change_expected_arrival',
         'hr_employee_is_reachable', 'hr_employee_is_manageable', 'hr_today',
         'resident_organization_ids', 'staff_invitation_state',
-        'hr_payroll_approved_through'],
-  'and they are exactly the eighty-seven the design gives a reason for');
+        'hr_payroll_approved_through',
+        'room_admits',
+        'booking_is_admitted', 'stay_is_admitted',
+        'room_keeps_whom_it_admits', 'guest_keeps_their_rooms',
+        'set_room_admits'],
+  'and they are exactly the ninety-three the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

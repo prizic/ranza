@@ -235,6 +235,15 @@ export const CONFIGURATION_MANAGE_PERMISSION = "configuration.manage";
 export const OPERATING_MODELS = ["hotel", "dormitory"] as const;
 export type OperatingModel = (typeof OPERATING_MODELS)[number];
 
+/**
+ * A Guest's recorded gender, and whom a room admits: the same two values,
+ * because the room's answer is compared with the Guest's (RB-S5-*). A setting
+ * any Property may use, not a dormitory's (ADR 0057). Null, where either is
+ * stored, means not recorded or anyone.
+ */
+export const GENDERS = ["female", "male"] as const;
+export type Gender = (typeof GENDERS)[number];
+
 /** The settings a form may change, and the only names a refusal points at. */
 export type ConfigurationField =
   | "name"

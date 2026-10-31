@@ -4,5 +4,6 @@ export {
   GuestWriteError,
   identifyGuestWithin,
   recallGuestWithin,
+  recordGenderWithin,
 } from "./write";
 export type { GuestWriteClient, IdentifiedGuest } from "./write";

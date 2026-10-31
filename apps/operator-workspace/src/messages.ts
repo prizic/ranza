@@ -656,6 +656,19 @@ export interface Messages {
   chosenUnitTakenThoseNights: string;
   bookingAvailabilityUnknown: string;
   bookingOverOccupant: string;
+  /** A gendered room refused the Guest on save (RB-S5-04, RB-S5-05). */
+  bookingNotAdmitted: string;
+  /** The booking dialog's gender field, shown only for a gendered room (RB-S5-16). */
+  genderTitle: string;
+  gender: { female: string; male: string };
+  /** `{admits}` is the room's answer: female or male. */
+  genderHint: string;
+  /** `{gender}` is what a picked Guest's file already says. */
+  genderRecorded: string;
+  /** `{admits}`: the room's answer, when the Guest's gender is not it. */
+  genderRefused: string;
+  /** Whom a room admits, as a chip, a marker and a choice (RB-S5-14). */
+  roomAdmits: { female: string; male: string; anyone: string };
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingArrivalInvalid: string;
@@ -2134,6 +2147,16 @@ export interface Messages {
   /** The Rooms & beds screen's own words, beyond the shared room labels. */
   roomsPage: {
     addDescription: string;
+    /** Whom a room admits (RB-S5-14, RB-S5-15). `{room}` is its number. */
+    admitsTitle: string;
+    admitsHint: string;
+    admitsChange: string;
+    admitsHeading: string;
+    admitsChangeHint: string;
+    admitsSave: string;
+    admitsSaving: string;
+    admitsStillHeld: string;
+    admitsRefused: string;
     roomTypeLabel: string;
     firstNumberHint: string;
     previewRange: string;
@@ -2913,6 +2936,7 @@ export interface Messages {
       | "added"
       | "blocked"
       | "unblocked"
+      | "admits_changed"
       | "taken_out_of_order"
       | "returned_to_service",
       string
@@ -4013,6 +4037,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Bu geceler için hangi birimlerin boş olduğu kontrol edilemedi. Yine de seçebilirsiniz; çakışma varsa kayıt reddedilir.",
     bookingOverOccupant:
       "Bu birimde o gecelerin bazısında konaklayan biri var.",
+    bookingNotAdmitted:
+      "Bu oda bu misafiri kabul etmiyor. Başka bir oda seçin ya da misafirin kaydındaki cinsiyeti kontrol edin.",
+    genderTitle: "Cinsiyet",
+    gender: { female: "Kadın", male: "Erkek" },
+    genderHint:
+      "{admits, select, female {Bu oda yalnızca kadınları kabul ediyor} other {Bu oda yalnızca erkekleri kabul ediyor}}; cinsiyet misafirin kaydına işlenir.",
+    genderRecorded:
+      "Misafirin kaydında: {gender, select, female {kadın} other {erkek}}.",
+    genderRefused:
+      "{admits, select, female {Bu oda yalnızca kadınları kabul ediyor} other {Bu oda yalnızca erkekleri kabul ediyor}}. Bu misafir için başka bir oda seçin.",
+    roomAdmits: {
+      female: "Yalnızca kadın",
+      male: "Yalnızca erkek",
+      anyone: "Herkes",
+    },
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
     guestRequired: "Misafirin adını girin.",
@@ -5642,6 +5681,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     roomsPage: {
       addDescription:
         "Odaları tek seferde oluşturun. Sırayla numaralandırılırlar.",
+      admitsTitle: "Kimleri kabul eder",
+      admitsHint:
+        "Eklenen her oda için geçerlidir. Yalnızca kadın ya da yalnızca erkek odası, rezervasyonda başkasını reddeder.",
+      admitsChange: "{room} odasının kimleri kabul ettiğini değiştir",
+      admitsHeading: "{room} kimleri kabul eder",
+      admitsChangeHint:
+        "Oda ve içindeki her yatak için geçerlidir. İçinde kalan ya da rezervasyonu olan birini reddedecek bir değişiklik reddedilir.",
+      admitsSave: "Kaydet",
+      admitsSaving: "Kaydediliyor…",
+      admitsStillHeld:
+        "Bu odada rezervasyonu olan ya da kalan biri artık kabul edilmeyecek. Önce onu taşıyın ya da odayı herkese açın.",
+      admitsRefused: "Bu odanın kimleri kabul ettiğini değiştiremezsiniz.",
       roomTypeLabel: "Oda türü",
       firstNumberHint:
         "Yalnızca rakam, en çok 8 hane, örneğin 101. Odalar bu numaradan başlayarak sırayla numaralandırılır.",
@@ -6458,6 +6509,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       capacity: "Kapasite",
       building: "Bina",
       floor: "Kat",
+      admits: "Kabul ettiği",
       letByTheBed: "Yatak bazında kiralanır",
       hadBeenBlockedFor: "Kapatılma gerekçesi",
       status: "Durum",
@@ -6543,6 +6595,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Oda veya yatak eklendi",
         blocked: "Oda veya yatak kapatıldı",
         unblocked: "Oda veya yatak açıldı",
+        admits_changed: "Odanın kimleri kabul ettiği değiştirildi",
         taken_out_of_order: "Oda hizmet dışı bırakıldı",
         returned_to_service: "Oda hizmete döndü",
       },
@@ -7729,6 +7782,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Could not check which Units are free for these nights. You can still choose one; saving will refuse a clash.",
     bookingOverOccupant:
       "Somebody is staying in that Unit for some of those nights.",
+    bookingNotAdmitted:
+      "That room does not admit this Guest. Choose another room, or check the gender recorded on their file.",
+    genderTitle: "Gender",
+    gender: { female: "Female", male: "Male" },
+    genderHint:
+      "{admits, select, female {This room admits women only} other {This room admits men only}}, so the gender is recorded on the Guest's file.",
+    genderRecorded:
+      "On the Guest's file: {gender, select, female {female} other {male}}.",
+    genderRefused:
+      "{admits, select, female {This room admits women only} other {This room admits men only}}. Choose another room for this Guest.",
+    roomAdmits: { female: "Women only", male: "Men only", anyone: "Anyone" },
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     guestRequired: "Enter the Guest's name.",
@@ -9374,6 +9438,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     roomsPage: {
       addDescription: "Create rooms in one go. They are numbered in sequence.",
+      admitsTitle: "Who it admits",
+      admitsHint:
+        "For every room added. A room for women or men only refuses anybody else when they are booked.",
+      admitsChange: "Change who {room} admits",
+      admitsHeading: "Who {room} admits",
+      admitsChangeHint:
+        "For the room and every bed in it. A change that would refuse somebody booked into it, or staying in it, is refused.",
+      admitsSave: "Save",
+      admitsSaving: "Saving…",
+      admitsStillHeld:
+        "Somebody booked into this room, or staying in it, would no longer be admitted. Move them first, or open the room to anyone.",
+      admitsRefused: "You cannot change who this room admits.",
       roomTypeLabel: "Room type",
       firstNumberHint:
         "Digits only, 1 to 8 of them, for example 101. Rooms are numbered in sequence from here.",
@@ -10185,6 +10261,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       capacity: "Capacity",
       building: "Building",
       floor: "Floor",
+      admits: "Admits",
       letByTheBed: "Let by the bed",
       hadBeenBlockedFor: "Had been blocked for",
       status: "Status",
@@ -10270,6 +10347,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "Room or bed added",
         blocked: "Room or bed blocked",
         unblocked: "Room or bed unblocked",
+        admits_changed: "Who a room admits changed",
         taken_out_of_order: "Room taken out of order",
         returned_to_service: "Room returned to service",
       },
@@ -11430,6 +11508,21 @@ export const messages: Record<SupportedLocale, Messages> = {
     bookingAvailabilityUnknown:
       "تعذر التحقق من الوحدات المتاحة لهذه الليالي. يمكنك الاختيار، وسيُرفض الحفظ عند وجود تعارض.",
     bookingOverOccupant: "هناك ضيف يقيم في هذه الوحدة خلال بعض تلك الليالي.",
+    bookingNotAdmitted:
+      "هذه الغرفة لا تقبل هذا الضيف. اختر غرفة أخرى، أو تحقق من الجنس المسجل في ملفه.",
+    genderTitle: "الجنس",
+    gender: { female: "أنثى", male: "ذكر" },
+    genderHint:
+      "{admits, select, female {هذه الغرفة للنساء فقط} other {هذه الغرفة للرجال فقط}}، لذا يُسجَّل الجنس في ملف الضيف.",
+    genderRecorded:
+      "في ملف الضيف: {gender, select, female {أنثى} other {ذكر}}.",
+    genderRefused:
+      "{admits, select, female {هذه الغرفة للنساء فقط} other {هذه الغرفة للرجال فقط}}. اختر غرفة أخرى لهذا الضيف.",
+    roomAdmits: {
+      female: "للنساء فقط",
+      male: "للرجال فقط",
+      anyone: "للجميع",
+    },
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",
     guestRequired: "أدخل اسم الضيف.",
@@ -13036,6 +13129,18 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
     roomsPage: {
       addDescription: "أنشئ الغرف دفعة واحدة. تُرقَّم بالتسلسل.",
+      admitsTitle: "من تقبل",
+      admitsHint:
+        "يسري على كل غرفة مضافة. ترفض غرفة النساء فقط أو الرجال فقط أي شخص آخر عند الحجز.",
+      admitsChange: "غيّر من تقبل الغرفة {room}",
+      admitsHeading: "من تقبل الغرفة {room}",
+      admitsChangeHint:
+        "يسري على الغرفة وكل سرير فيها. يُرفض أي تغيير يرفض شخصًا محجوزًا فيها أو مقيمًا بها.",
+      admitsSave: "حفظ",
+      admitsSaving: "جارٍ الحفظ…",
+      admitsStillHeld:
+        "شخص محجوز في هذه الغرفة أو مقيم بها لن يُقبل بعد الآن. انقله أولًا، أو افتح الغرفة للجميع.",
+      admitsRefused: "لا يمكنك تغيير من تقبل هذه الغرفة.",
       roomTypeLabel: "نوع الغرفة",
       firstNumberHint:
         "أرقام فقط، من 1 إلى 8 خانات، مثل 101. تُرقَّم الغرف بالتسلسل بدءًا من هذا الرقم.",
@@ -13834,6 +13939,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       capacity: "السعة",
       building: "المبنى",
       floor: "الطابق",
+      admits: "تقبل",
       letByTheBed: "يُؤجَّر بالسرير",
       hadBeenBlockedFor: "سبب الإغلاق السابق",
       status: "الحالة",
@@ -13919,6 +14025,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         added: "تمت إضافة غرفة أو سرير",
         blocked: "تم إغلاق الغرفة أو السرير",
         unblocked: "تم فتح الغرفة أو السرير",
+        admits_changed: "تغيّر من تقبل الغرفة",
         taken_out_of_order: "أُخرجت الغرفة من الخدمة",
         returned_to_service: "أُعيدت الغرفة إلى الخدمة",
       },

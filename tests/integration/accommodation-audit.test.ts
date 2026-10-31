@@ -91,6 +91,7 @@ describe("a room command records the Property it happened at", () => {
       count: 2,
       capacity: 2,
       letByTheBed: false,
+      admits: null,
     });
     const addition = await latestRecord(owner, "unit.added", PROPERTY);
     expect(addition?.locationId).toBe(PROPERTY);

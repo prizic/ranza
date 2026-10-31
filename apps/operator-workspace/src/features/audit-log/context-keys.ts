@@ -83,6 +83,7 @@ export const CONTEXT_KEYS = [
   "bedCount",
   "building",
   "floor",
+  "admits",
   "letByTheBed",
   "hadBeenBlockedFor",
   "status",

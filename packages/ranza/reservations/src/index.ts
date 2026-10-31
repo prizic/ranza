@@ -34,6 +34,7 @@ export {
   PriceChangedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
+  GuestNotAdmittedError,
   UnitNotReadyError,
   UnitUnavailableError,
 } from "./contracts";

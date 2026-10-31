@@ -39,6 +39,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("../../apps/operator-workspace/src/server/accommodation", () => ({
   addRooms: vi.fn(),
   blockUnit: vi.fn(),
+  setRoomAdmits: vi.fn(),
   unblockUnit: vi.fn(),
 }));
 
@@ -63,6 +64,7 @@ function unit(name: string, state: UnitEntry["state"]): UnitEntry {
           ? "out_of_service"
           : "available",
     state,
+    admits: null,
     beds: [],
   };
 }
@@ -97,6 +99,7 @@ function screenOf(
   options: {
     data?: UnitMap;
     mayConfigure?: boolean;
+    offerAdmits?: boolean;
     readiness?: Readonly<Record<string, RoomReadiness>> | null;
     reportable?: boolean;
   } = {},
@@ -110,6 +113,7 @@ function screenOf(
         locale={locale}
         maintenance={{ holds: [], mayReport: options.reportable ?? false }}
         mayConfigure={options.mayConfigure ?? true}
+        offerAdmits={options.offerAdmits ?? false}
         propertyId="dd000003-0000-4000-8000-000000000001"
         readiness={options.readiness ?? null}
       />
@@ -660,5 +664,84 @@ describe("which rooms housekeeping says can be let now (CALENDAR-19)", () => {
       screen.queryByRole("button", { name: "Ready" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Dirty")).not.toBeInTheDocument();
+  });
+});
+
+describe("whom a room admits (RB-S5-13, RB-S5-14, RB-S5-15)", () => {
+  const gendered: UnitMap = {
+    ...map,
+    units: map.units.map((room) =>
+      room.name === "101" ? { ...room, admits: "female" } : room,
+    ),
+  };
+
+  it("a_hotel_room_for_anyone_shows_nothing_and_a_gendered_room_says_so_to_everybody", () => {
+    render(screenOf("en", { data: gendered, mayConfigure: false }));
+    expect(screen.getByText("Women only")).toBeVisible();
+    expect(screen.queryByText("Anyone")).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Change who/ })).toBeNull();
+  });
+
+  it("a_dormitory_offers_the_choice_on_every_room_to_whoever_may_configure_it", () => {
+    render(screenOf("en", { offerAdmits: true }));
+    expect(
+      screen.getByRole("button", { name: "Change who 103 admits" }),
+    ).toHaveTextContent("Anyone");
+    cleanup();
+    render(screenOf("en", { mayConfigure: false, offerAdmits: true }));
+    expect(screen.queryByRole("button", { name: /^Change who/ })).toBeNull();
+  });
+
+  it("a_change_is_saved_from_the_tile_and_a_room_still_held_is_said_in_our_words", async () => {
+    vi.mocked(accommodation.setRoomAdmits).mockResolvedValue({
+      status: "stillHeld",
+    });
+    render(screenOf("en", { offerAdmits: true }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Change who 103 admits" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const save = within(dialog).getByRole("button", { name: "Save" });
+    // Choosing what the room already admits is nothing to save.
+    expect(save).toBeDisabled();
+
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Women only" }));
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+
+    await waitFor(() => expect(accommodation.setRoomAdmits).toHaveBeenCalled());
+    const sent = vi.mocked(accommodation.setRoomAdmits).mock
+      .calls[0]![1] as FormData;
+    expect(sent.get("admits")).toBe("female");
+    expect(sent.get("unitId")).toBe(map.units[2]!.unitId);
+    expect(
+      await within(dialog).findByText(
+        "Somebody booked into this room, or staying in it, would no longer be admitted. Move them first, or open the room to anyone.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("rooms are added for women or men only, and the preview says so", async () => {
+    render(screenOf("en"));
+    fireEvent.click(screen.getByRole("button", { name: "Add rooms" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText("First room number"), {
+      target: { value: "301" },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Number of rooms"), {
+      target: { value: "4" },
+    });
+    expect(
+      within(dialog).getByTestId("add-rooms-preview"),
+    ).not.toHaveTextContent("Women only");
+
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Women only" }));
+    expect(within(dialog).getByTestId("add-rooms-preview")).toHaveTextContent(
+      "Women only",
+    );
+    const form = within(dialog)
+      .getByTestId("add-rooms-preview")
+      .closest("form")!;
+    expect(new FormData(form).get("admits")).toBe("female");
   });
 });

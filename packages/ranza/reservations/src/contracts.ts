@@ -2,7 +2,7 @@ import type {
   AccommodationUnitStatus,
   AccommodationUnitType,
 } from "@ranza/accommodation";
-import type { CapabilityRef } from "@ranza/core";
+import type { CapabilityRef, Gender } from "@ranza/core";
 
 /**
  * The public vocabulary of Reservations and Front Office.
@@ -440,6 +440,20 @@ export class UnitHasOccupantError extends Error {
 }
 
 /**
+ * The room admits women or men only, and this Guest is not one of them, or has
+ * no gender recorded (RB-S5-04, RB-S5-05). Raised by the booking and Stay
+ * triggers for every role, so a booking, an amend, a check-in and a move all
+ * answer alike (RB-S5-07). The desk acts on it by choosing another room, or by
+ * recording the gender the room asks for.
+ */
+export class GuestNotAdmittedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GuestNotAdmittedError";
+  }
+}
+
+/**
  * The Unit is blocked or out of service, or is a bed under a room that is
  * (ADR 0032), so nobody may be put in it.
  *
@@ -591,6 +605,12 @@ export interface BookableUnit {
   roomName: string | null;
   unitType: AccommodationUnitType;
   /**
+   * Whom the room admits, read from the room for a bed: `female`, `male`, or
+   * null for anyone. The dialog asks for a gender only when this is set
+   * (RB-S5-16); the trigger decides on save.
+   */
+  admits: Gender | null;
+  /**
    * What a night here costs on the price list now, for the dialog to quote:
    * minor units of `rateCurrency`, or null when this kind is unpriced or its
    * price is stale (ADR 0038). A quote, not the price — the database stamps
@@ -704,6 +724,8 @@ export interface GuestMatch {
   fullName: string;
   email: string | null;
   phone: string | null;
+  /** Recorded gender, so a gendered room's question is already answered. */
+  gender: Gender | null;
 }
 
 /**
@@ -731,6 +753,12 @@ export interface NewReservation {
    * for a person nobody chose, who is matched by an exact email or recorded new.
    */
   existingGuestId?: string | null;
+  /**
+   * The Guest's gender, asked only when the room is gendered (RB-S5-16).
+   * Recorded on the Guest where none was, whether new, matched or chosen; a
+   * recorded one is never overwritten by a booking.
+   */
+  guestGender?: Gender | null;
   stayType: ReservationStayType;
   /** Calendar date as `YYYY-MM-DD`. */
   startsOn: string;

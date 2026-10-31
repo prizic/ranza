@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { GENDERS, type Gender } from "@ranza/core";
 import { isSupportedLocale } from "@ranza/i18n";
 import {
+  RoomStillHoldsSomeoneError,
   UnitConfigurationError,
   UnitNameTakenError,
   UnitOccupiedError,
@@ -41,6 +43,14 @@ export type AddRoomsOutcome =
   | { status: "notPermitted" }
   | { status: "refused" };
 
+/**
+ * What changing whom a room admits came to (RB-S5-13): `stillHeld` when
+ * somebody booked or in house would no longer be admitted (RB-S5-08).
+ */
+export type RoomAdmitsOutcome = {
+  status: "idle" | "done" | "stillHeld" | "invalid" | "refused";
+};
+
 export interface BlockOutcome {
   status: "idle" | "done" | "occupied" | "invalid" | "refused";
   message?: string;
@@ -73,6 +83,27 @@ function isUnitRefusedError(error: unknown): error is UnitRefusedError {
     error instanceof UnitRefusedError ||
     (error instanceof Error && error.name === "UnitRefusedError")
   );
+}
+
+function isRoomStillHoldsSomeoneError(
+  error: unknown,
+): error is RoomStillHoldsSomeoneError {
+  return (
+    error instanceof RoomStillHoldsSomeoneError ||
+    (error instanceof Error && error.name === "RoomStillHoldsSomeoneError")
+  );
+}
+
+/**
+ * Whom a room admits, as a form sends it: empty for anyone, `undefined` for a
+ * value this screen never sends.
+ */
+function admitsOf(form: FormData): Gender | null | undefined {
+  const value = String(form.get("admits") ?? "");
+  if (value === "") return null;
+  return (GENDERS as readonly string[]).includes(value)
+    ? (value as Gender)
+    : undefined;
 }
 
 function isUnitOccupiedError(error: unknown): error is UnitOccupiedError {
@@ -108,6 +139,8 @@ export async function addRooms(
   const capacity = Number(form.get("capacity") ?? 1);
   const letByTheBed =
     form.get("letByTheBed") === "on" || form.get("letByTheBed") === "true";
+  const admits = admitsOf(form);
+  if (admits === undefined) return { status: "invalid", field: "admits" };
 
   const input: NewUnits = {
     propertyId,
@@ -118,6 +151,7 @@ export async function addRooms(
     count,
     capacity,
     letByTheBed,
+    admits,
   };
 
   try {
@@ -202,6 +236,36 @@ export async function unblockUnit(
     if (isUnitRefusedError(error)) {
       return { status: "refused", message: error.message };
     }
+    throw error;
+  }
+}
+
+export async function setRoomAdmits(
+  _previous: RoomAdmitsOutcome,
+  form: FormData,
+): Promise<RoomAdmitsOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { status: "refused" };
+
+  const admits = admitsOf(form);
+  if (admits === undefined) return { status: "invalid" };
+
+  try {
+    const { accommodation } = getComposition();
+    await accommodation.setRoomAdmits(
+      viewer.userId,
+      String(form.get("unitId") ?? ""),
+      admits,
+    );
+    revalidateRooms(locale);
+    return { status: "done" };
+  } catch (error: unknown) {
+    if (isRoomStillHoldsSomeoneError(error)) return { status: "stillHeld" };
+    if (isUnitConfigurationError(error)) return { status: "invalid" };
+    if (isUnitRefusedError(error)) return { status: "refused" };
     throw error;
   }
 }

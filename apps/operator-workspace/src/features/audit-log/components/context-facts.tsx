@@ -21,6 +21,7 @@ import {
   maintenanceSettingChanges,
   useConfiguredValue,
   useMaintenanceSettingWords,
+  useRoomAdmitsWord,
 } from "../summary";
 import type { AuditWords } from "../words";
 
@@ -202,6 +203,7 @@ export function ContextFacts({
   words: AuditWords;
 }) {
   const t = useTranslations();
+  const admitsWord = useRoomAdmitsWord();
   const currency =
     typeof context.currency === "string" ? context.currency : undefined;
   const entries = Object.entries(context).filter(
@@ -268,6 +270,13 @@ export function ContextFacts({
         value,
         typeof authored === "boolean" ? authored : undefined,
       );
+    }
+    // A room added with an answer, and a room's answer changed: null is anyone.
+    if (
+      key === "admits" ||
+      (CHANGE.has(key) && action === "unit.admits_changed")
+    ) {
+      return admitsWord(value);
     }
     if (CHANGE.has(key) && action === "housekeeping.inspection_set") {
       if (value === "on") return t("housekeeping.on");

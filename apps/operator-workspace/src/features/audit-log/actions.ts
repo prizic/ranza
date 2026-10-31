@@ -47,6 +47,7 @@ export const KNOWN_ACTIONS = [
   "unit.added",
   "unit.blocked",
   "unit.unblocked",
+  "unit.admits_changed",
   "housekeeping.status_changed",
   "housekeeping.inspection_set",
   "business_day.closed",

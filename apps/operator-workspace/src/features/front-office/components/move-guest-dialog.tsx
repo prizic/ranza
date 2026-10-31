@@ -243,9 +243,11 @@ export function MoveGuestDialog({
               ? t("changeBookingNotInService")
               : outcome === "invalidNote"
                 ? t("changeBookingNoteInvalid")
-                : refusal
-                  ? t(refusal)
-                  : null;
+                : outcome === "notAdmitted"
+                  ? t("bookingNotAdmitted")
+                  : refusal
+                    ? t(refusal)
+                    : null;
 
   const canSave =
     known.length === 0 &&

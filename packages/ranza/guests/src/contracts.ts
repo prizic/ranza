@@ -1,3 +1,5 @@
+import type { Gender } from "@ranza/core";
+
 /**
  * The public vocabulary of Guests.
  *
@@ -50,6 +52,11 @@ export interface GuestDetails {
   fullName: string;
   email: string | null;
   phone: string | null;
+  /**
+   * Asked only when a gendered room needs it (RB-S5-16), and null otherwise.
+   * Recorded where none was; a recorded one is never overwritten by a booking.
+   */
+  gender: Gender | null;
 }
 
 /**

@@ -4,7 +4,11 @@ import {
   closeSettledFolioWithin,
   openFolioWithin,
 } from "@ranza/folios";
-import { identifyGuestWithin, recallGuestWithin } from "@ranza/guests";
+import {
+  identifyGuestWithin,
+  recallGuestWithin,
+  recordGenderWithin,
+} from "@ranza/guests";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
 import {
@@ -42,6 +46,7 @@ import {
   PriceChangedError,
   UnitHasOccupantError,
   UnitNotInServiceError,
+  GuestNotAdmittedError,
   UnitNotReadyError,
   UnitUnavailableError,
   type AmendedBooking,
@@ -159,6 +164,13 @@ const UNIT_NOT_READY = "RZ002";
 
 /** Raised by `stay_may_be_withdrawn` for a Stay whose Guest has been moved. */
 const STAY_MOVED = "RZ004";
+
+/**
+ * Raised by `reservations_room_admits_the_guest` and
+ * `stays_room_admits_the_guest`: the room admits women or men only, and this
+ * Guest is not one, or has no gender recorded (RB-S5-04..07).
+ */
+const GUEST_NOT_ADMITTED = "RZ005";
 
 /**
  * Whether a failure carries a particular SQLSTATE.
@@ -705,6 +717,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (raised(error, UNIQUE_VIOLATION) || raised(error, UNIT_OCCUPIED)) {
           throw new UnitHasOccupantError(
             "that Accommodation Unit has somebody in it",
+          );
+        }
+        if (raised(error, GUEST_NOT_ADMITTED)) {
+          throw new GuestNotAdmittedError(
+            "that room does not admit this Guest",
           );
         }
         // Blocked or out of service, or a bed under a room that is (ADR 0032),
@@ -1578,6 +1595,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                   as "unitName",
           room.name                   as "roomName",
           unit.unit_type              as "unitType",
+          coalesce(room.admits, unit.admits) as "admits",
           -- The price the stamp would read now: this kind's, and only while it
           -- is stated in the Property's currency (ADR 0038).
           rate.amount_minor::text     as "nightlyRateMinor",
@@ -1926,6 +1944,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         // caller cannot read are one answer, like the Unit above.
         throw new ReservationRefusedError("that booking cannot be taken");
       }
+      const gender = booking.guestGender ?? null;
       const guest =
         picked ??
         (await identifyGuestWithin(tx, {
@@ -1933,7 +1952,13 @@ export function createReservationsModule(deps: ReservationsDeps) {
           fullName: booking.guestName,
           email: booking.guestEmail,
           phone: booking.guestPhone,
+          gender,
         }));
+      // A chosen Guest's profile is not edited by a booking, save the one
+      // blank a gendered room asks to fill (RB-S5-12).
+      if (picked && gender) {
+        await recordGenderWithin(tx, picked.guestId, gender);
+      }
 
       let reservationId: string;
       let price: {
@@ -2008,6 +2033,14 @@ export function createReservationsModule(deps: ReservationsDeps) {
         if (raised(error, UNIT_OCCUPIED)) {
           throw new UnitHasOccupantError(
             "that Accommodation Unit has somebody staying over those nights",
+          );
+        }
+        // A women's or men's room, and a Guest who is not one or has no
+        // gender recorded (RB-S5-04, RB-S5-05). The throw rolls back a Guest
+        // this booking created, as every refusal here does.
+        if (raised(error, GUEST_NOT_ADMITTED)) {
+          throw new GuestNotAdmittedError(
+            "that room does not admit this Guest",
           );
         }
         // Begun before the cutoff and committing after the day closed:
@@ -2433,6 +2466,9 @@ export function createReservationsModule(deps: ReservationsDeps) {
         throw new UnitHasOccupantError(
           "that Accommodation Unit has somebody staying over those nights",
         );
+      }
+      if (raised(error, GUEST_NOT_ADMITTED)) {
+        throw new GuestNotAdmittedError("that room does not admit this Guest");
       }
       if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
         throw new UnitNotInServiceError(
@@ -3034,6 +3070,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
             "that Accommodation Unit has somebody staying in it",
           );
         }
+        if (raised(error, GUEST_NOT_ADMITTED)) {
+          throw new GuestNotAdmittedError(
+            "that room does not admit this Guest",
+          );
+        }
         if (raised(error, NOT_IN_PREREQUISITE_STATE)) {
           throw new UnitNotInServiceError(
             "that Accommodation Unit cannot take this Guest",
@@ -3501,7 +3542,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
         select guest.id          as "guestId",
                guest.full_name   as "fullName",
                guest.email       as "email",
-               guest.phone       as "phone"
+               guest.phone       as "phone",
+               guest.gender      as "gender"
           from public.guests as guest
           cross join typed
           join public.properties as property

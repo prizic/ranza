@@ -20,6 +20,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import type { ComponentProps } from "react";
 import {
   afterEach,
   beforeAll,
@@ -89,6 +90,7 @@ const UNITS = [
     unitType: "room",
     nightlyRateMinor: 150000,
     rateCurrency: "TRY",
+    admits: null,
   },
   {
     unitId: "u2",
@@ -97,17 +99,20 @@ const UNITS = [
     unitType: "bed",
     nightlyRateMinor: null,
     rateCurrency: null,
+    admits: null,
   },
 ] as const;
 
-function openForm() {
+function openForm(
+  units: ComponentProps<typeof NewReservationDialog>["units"] = UNITS,
+) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <NewReservationDialog
         locale="en"
         propertyId="d9000003-0000-4000-8000-000000000001"
         today="2026-09-25"
-        units={UNITS}
+        units={units}
       />
     </NextIntlClientProvider>,
   );
@@ -768,5 +773,161 @@ describe("what the desk needs while choosing (RESERVATIONS-02, RESERVATIONS-03)"
 
     const footer = takeBooking().closest("[data-slot=dialog-footer]")!;
     expect(footer).toHaveTextContent(/3 nights: .*4,500\.00 in total/);
+  });
+});
+
+describe("a room that admits women or men only (RB-S5-16, RB-S5-17)", () => {
+  const GENDERED = [
+    ...UNITS,
+    {
+      unitId: "u3",
+      unitName: "201",
+      roomName: null,
+      unitType: "room",
+      nightlyRateMinor: 150000,
+      rateCurrency: "TRY",
+      admits: "female",
+    },
+  ] as const;
+
+  const ON_FILE = {
+    guestId: "22222222-2222-4222-8222-222222222222",
+    fullName: "Kerem Aydın",
+    email: null,
+    phone: "+90 532 000 00 01",
+    gender: "male",
+  };
+
+  const formData = () =>
+    new FormData(
+      screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+    );
+
+  function nameTheGuest() {
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Ayşe Kaya" },
+    });
+  }
+
+  it("a_room_for_anyone_never_asks_the_guests_gender", async () => {
+    openForm(GENDERED);
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/^101/);
+    expect(screen.queryByText(messages.en.genderTitle)).toBeNull();
+    expect(formData().get("guestGender")).toBeNull();
+  });
+
+  it("a_gendered_room_says_so_in_the_picker_and_asks_the_gender_before_the_booking_is_taken", async () => {
+    openForm(GENDERED);
+    nameTheGuest();
+    chooseDates("2026-10-01", "2026-10-04");
+    expect(
+      await screen.findByRole("radio", { name: /201.*Women only/ }),
+    ).toBeEnabled();
+    await chooseUnit(/201/);
+
+    expect(screen.getByText(messages.en.genderTitle)).toBeVisible();
+    expect(
+      screen.getByText(
+        "This room admits women only, so the gender is recorded on the Guest's file.",
+      ),
+    ).toBeVisible();
+    expect(takeBooking()).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole("radio", { name: messages.en.gender.female }),
+    );
+    expect(takeBooking()).toBeEnabled();
+    expect(formData().get("guestGender")).toBe("female");
+  });
+
+  it("a_gender_the_room_refuses_is_said_and_the_booking_is_not_taken", async () => {
+    openForm(GENDERED);
+    nameTheGuest();
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/201/);
+
+    fireEvent.click(
+      screen.getByRole("radio", { name: messages.en.gender.male }),
+    );
+    expect(
+      screen.getByText(
+        "This room admits women only. Choose another room for this Guest.",
+      ),
+    ).toHaveAttribute("role", "status");
+    expect(takeBooking()).toBeDisabled();
+  });
+
+  it("a_guest_on_file_with_a_gender_is_not_asked_again_and_a_room_that_refuses_them_is_marked", async () => {
+    vi.stubGlobal("fetch", (url: string) =>
+      url.includes("guest-lookup")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({ guests: [ON_FILE] }),
+          })
+        : availability(url).then((body: unknown) => ({
+            ok: true,
+            json: async () => body,
+          })),
+    );
+    openForm(GENDERED);
+    fireEvent.change(screen.getByLabelText(messages.en.guestPhone), {
+      target: { value: "0532 000 00 01" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /Kerem Aydın/ }));
+    chooseDates("2026-10-01", "2026-10-04");
+
+    // Marked like a booked room, never hidden.
+    expect(
+      await screen.findByRole("radio", { name: /201.*Women only/ }),
+    ).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /^101/ })).toBeEnabled();
+  });
+
+  it("a_gender_on_file_is_sent_with_the_booking_without_asking", async () => {
+    vi.stubGlobal("fetch", (url: string) =>
+      url.includes("guest-lookup")
+        ? Promise.resolve({
+            ok: true,
+            json: async () => ({
+              guests: [
+                { ...ON_FILE, fullName: "Elif Şahin", gender: "female" },
+              ],
+            }),
+          })
+        : availability(url).then((body: unknown) => ({
+            ok: true,
+            json: async () => body,
+          })),
+    );
+    openForm(GENDERED);
+    fireEvent.change(screen.getByLabelText(messages.en.guestPhone), {
+      target: { value: "0532 000 00 01" },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: /Elif Şahin/ }));
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/201/);
+
+    expect(screen.getByText("On the Guest's file: female.")).toBeVisible();
+    expect(
+      screen.queryByRole("radio", { name: messages.en.gender.female }),
+    ).toBeNull();
+    expect(formData().get("guestGender")).toBe("female");
+    expect(takeBooking()).toBeEnabled();
+  });
+
+  it("a_refusal_from_the_database_is_said_in_our_words", async () => {
+    createReservation.mockResolvedValue("notAdmitted");
+    openForm(GENDERED);
+    nameTheGuest();
+    chooseDates("2026-10-01", "2026-10-04");
+    await chooseUnit(/201/);
+    fireEvent.click(
+      screen.getByRole("radio", { name: messages.en.gender.female }),
+    );
+    takeBooking().closest("form")!.requestSubmit();
+    expect(
+      await screen.findByText(messages.en.bookingNotAdmitted),
+    ).toBeVisible();
   });
 });

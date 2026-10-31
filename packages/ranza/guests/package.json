@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*"
   }
 }

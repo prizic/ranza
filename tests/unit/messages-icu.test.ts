@@ -141,6 +141,7 @@ describe("every catalogue parses", () => {
             expect(() =>
               translate(path.join("."), {
                 actions: "x",
+                admits: "female",
                 age: "3 hr. ago",
                 amount: "₺3.000,00",
                 available: 200,
@@ -176,6 +177,7 @@ describe("every catalogue parses", () => {
                 foreground: "x",
                 free: 3,
                 from: "16 Sep",
+                gender: "male",
                 guest: "x",
                 height: 64,
                 hours: 24,

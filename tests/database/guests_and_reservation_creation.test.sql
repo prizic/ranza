@@ -391,8 +391,8 @@ select set_eq(
   $$select column_name::text from information_schema.column_privileges
      where table_schema = 'public' and table_name = 'guests'
        and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
-  array['updated_at'],
-  'the runtime role may update exactly one column of a Guest');
+  array['updated_at', 'gender'],
+  'the runtime role may update exactly two columns of a Guest: its stamp, and the gender a room asks for (RB-S5-*)');
 
 -- ---------------------------------------------------------------------------
 -- Each gate denies on its own (blueprint 3.5), against an Organization-scoped

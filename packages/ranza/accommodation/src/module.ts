@@ -1,3 +1,4 @@
+import { GENDERS, type Gender } from "@ranza/core";
 import { withOrganizationContext } from "@ranza/db";
 import { recordWithin } from "@ranza/platform-audit";
 import {
@@ -9,6 +10,7 @@ import {
   ROOMS_CAPABILITY,
   UNIT_BATCH,
   UNIT_CAPACITY,
+  RoomStillHoldsSomeoneError,
   UnitConfigurationError,
   UnitNameTakenError,
   UnitOccupiedError,
@@ -50,6 +52,16 @@ const INSUFFICIENT_PRIVILEGE = "42501";
 const NOT_PERMITTED_BY_STATE = "55000";
 
 /**
+ * Raised by `accommodation_units_keep_whom_they_admit` when a room would stop
+ * admitting somebody booked into it or in house (RB-S5-08).
+ */
+const ROOM_STILL_HOLDS_SOMEONE = "RZ006";
+
+function isGender(value: unknown): value is Gender {
+  return (GENDERS as readonly unknown[]).includes(value);
+}
+
+/**
  * Whether a failure carries a particular SQLSTATE.
  *
  * Read from the code rather than from a constraint or trigger name, so renaming
@@ -86,6 +98,7 @@ interface UnitRow {
   floor: number | null;
   status: AccommodationUnitStatus;
   statusReason: string | null;
+  admits: Gender | null;
   /** The status of the room above a bed; null for anything with no parent. */
   roomStatus: AccommodationUnitStatus | null;
   hasChildren: boolean;
@@ -101,6 +114,14 @@ interface UnitRow {
 }
 
 /** Tonight, for a leaf, in the order of precedence the contract states. */
+/** What `app.set_room_admits` hands back for the audit record. */
+interface RoomAdmitsChange {
+  organizationId: string;
+  propertyId: string;
+  name: string;
+  previous: Gender | null;
+}
+
 function stateOf(row: UnitRow): UnitState {
   if (row.stayId !== null) {
     return {
@@ -134,6 +155,7 @@ function entryOf(row: UnitRow, beds: readonly UnitEntry[]): UnitEntry {
     building: row.building,
     floor: row.floor,
     status: row.status,
+    admits: row.admits,
     state: row.hasChildren ? null : stateOf(row),
     beds,
   };
@@ -176,6 +198,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           unit.floor         as "floor",
           unit.status        as "status",
           unit.status_reason as "statusReason",
+          unit.admits        as "admits",
           room.status        as "roomStatus",
           exists (
             select 1 from public.accommodation_units as child
@@ -346,6 +369,12 @@ export function createAccommodationModule(deps: AccommodationDeps) {
         "letByTheBed",
       );
     }
+    if (input.admits !== null && !isGender(input.admits)) {
+      throw new UnitConfigurationError(
+        "a room admits women, men or anyone",
+        "admits",
+      );
+    }
     if (input.letByTheBed && input.capacity > BEDS_PER_ROOM.max) {
       throw new UnitConfigurationError(
         "a room holds at most twenty-six beds",
@@ -363,9 +392,9 @@ export function createAccommodationModule(deps: AccommodationDeps) {
         >(
           `insert into public.accommodation_units
              (organization_id, property_id, name, unit_type, capacity,
-              building, floor)
+              building, floor, admits)
            select property.organization_id, property.id, wanted.name,
-                  $3, $4::int, $5, $6::int
+                  $3, $4::int, $5, $6::int, $9
            from public.properties as property
            cross join unnest($2::text[]) as wanted (name)
            where property.id = $1::uuid
@@ -379,6 +408,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           input.floor,
           ROOMS_CAPABILITY.moduleKey,
           ROOMS_CAPABILITY.capabilityKey,
+          input.admits,
         );
 
         const [first] = rooms;
@@ -426,6 +456,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
             floor: input.floor,
             letByTheBed: input.letByTheBed,
             bedCount,
+            admits: input.admits,
           },
         });
 
@@ -615,7 +646,72 @@ export function createAccommodationModule(deps: AccommodationDeps) {
     });
   }
 
-  return { addUnits, blockUnit, listUnits, unblockUnit };
+  /**
+   * Whom a room admits from now on: women, men, or anyone (RB-S5-13).
+   *
+   * Through `app.set_room_admits`, never an UPDATE: the table's maintenance
+   * policy would share any column grant. The function asks reach, the front
+   * desk and `accommodation.configure`, and refuses a bed, all as 42501; the
+   * trigger refuses a room somebody holds that would no longer admit them.
+   * Choosing what the room already admits changes nothing and records nothing.
+   */
+  async function setRoomAdmits(
+    userId: string,
+    roomId: string,
+    admits: Gender | null,
+  ): Promise<void> {
+    if (admits !== null && !isGender(admits)) {
+      throw new UnitConfigurationError(
+        "a room admits women, men or anyone",
+        "admits",
+      );
+    }
+
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let changed: RoomAdmitsChange[];
+      try {
+        changed = await tx.$queryRaw<RoomAdmitsChange[]>`
+          select room_organization_id as "organizationId",
+                 room_property_id     as "propertyId",
+                 room_name            as "name",
+                 previous_admits      as "previous"
+            from app.set_room_admits(${roomId}::uuid, ${admits})
+        `;
+      } catch (error: unknown) {
+        if (raised(error, ROOM_STILL_HOLDS_SOMEONE)) {
+          throw new RoomStillHoldsSomeoneError(
+            "that room has somebody booked it would no longer admit",
+          );
+        }
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new UnitRefusedError("that room cannot be changed");
+        }
+        throw error;
+      }
+
+      const [room] = changed;
+      if (!room) {
+        throw new UnitRefusedError("that room cannot be changed");
+      }
+      if (room.previous === admits) return;
+
+      await recordWithin(tx, {
+        organizationId: room.organizationId,
+        locationId: room.propertyId,
+        actorId: userId,
+        action: "unit.admits_changed",
+        subjectType: "accommodation_unit",
+        subjectId: roomId,
+        context: {
+          name: room.name,
+          from: room.previous,
+          to: admits,
+        },
+      });
+    });
+  }
+
+  return { addUnits, blockUnit, listUnits, setRoomAdmits, unblockUnit };
 }
 
 export type AccommodationModule = ReturnType<typeof createAccommodationModule>;

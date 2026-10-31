@@ -59,6 +59,7 @@ import type {
 } from "../../../server/viewer";
 import { AddRoomsDialog } from "./add-rooms-dialog";
 import { BlockUnitDialog } from "./block-unit-dialog";
+import { RoomAdmits } from "./room-admits";
 
 type StateKind = UnitState["kind"];
 
@@ -83,6 +84,7 @@ export function RoomsView({
   initialView,
   maintenance,
   mayConfigure,
+  offerAdmits,
   readiness,
   targetUnitId,
 }: {
@@ -95,6 +97,11 @@ export function RoomsView({
   maintenance: RoomsMaintenance;
   /** Whether the viewer holds `accommodation.configure` at this Property. */
   mayConfigure: boolean;
+  /**
+   * Whether a room for anyone offers the choice of whom it admits: a
+   * dormitory's do, a hotel's show only a gendered room's mark (ADR 0057).
+   */
+  offerAdmits: boolean;
   /**
    * What housekeeping says of each room, so a room that can be let now is
    * marked and can be asked for. Null when the Property has no board, or the
@@ -571,6 +578,12 @@ export function RoomsView({
                                   )}
                                 </p>
                               )}
+                              <RoomAdmits
+                                locale={locale}
+                                mayChange={mayConfigure}
+                                offer={offerAdmits}
+                                room={room}
+                              />
                               {/* Not prefetched: one tile is one request, and
                                   all it would fetch is the loading boundary —
                                   the report form is read on the click. */}
@@ -700,6 +713,11 @@ export function RoomsView({
                     >
                       <TableCell className="font-medium">
                         {room.name} &mdash; {bed.name}
+                        {room.admits ? (
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            {t(`roomAdmits.${room.admits}`)}
+                          </span>
+                        ) : null}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {room.building ?? "—"}
@@ -737,7 +755,14 @@ export function RoomsView({
                         "bg-primary/5 ring-1 ring-primary/30",
                     )}
                   >
-                    <TableCell className="font-medium">{room.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {room.name}
+                      {room.admits ? (
+                        <span className="block text-xs font-normal text-muted-foreground">
+                          {t(`roomAdmits.${room.admits}`)}
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
                       {room.building ?? "—"}
                     </TableCell>

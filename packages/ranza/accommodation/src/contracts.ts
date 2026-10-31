@@ -1,4 +1,4 @@
-import type { CapabilityRef } from "@ranza/core";
+import type { CapabilityRef, Gender } from "@ranza/core";
 
 /**
  * The public vocabulary of Accommodation: what kind of space a Unit is, what
@@ -104,6 +104,11 @@ export interface UnitEntry {
   floor: number | null;
   status: AccommodationUnitStatus;
   /**
+   * Whom the room admits: `female`, `male`, or null for anyone. Always null on
+   * a bed, which answers as its room (RB-S5-01).
+   */
+  admits: Gender | null;
+  /**
    * Tonight, for a Unit that is sellable. Null for a room let by the bed: it
    * carries no state of its own, and its beds carry theirs (RB-S1-06).
    */
@@ -152,6 +157,8 @@ export interface NewUnits {
   capacity: number;
   /** One bed per sleeping place, named A, B, C… Rooms only (RB-S2-12). */
   letByTheBed: boolean;
+  /** Whom every room added admits; null for anyone (RB-S5-14). */
+  admits: Gender | null;
 }
 
 export interface UnitsAdded {
@@ -173,7 +180,13 @@ export class UnitNameTakenError extends Error {
 
 /** The input an add can name when it is refused for its shape. */
 export type UnitConfigurationField =
-  "building" | "floor" | "firstNumber" | "count" | "capacity" | "letByTheBed";
+  | "building"
+  | "floor"
+  | "firstNumber"
+  | "count"
+  | "capacity"
+  | "letByTheBed"
+  | "admits";
 
 /**
  * A shape the caller can correct: a count, a capacity, a reason's length.
@@ -199,6 +212,17 @@ export class UnitRefusedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "UnitRefusedError";
+  }
+}
+
+/**
+ * A room cannot be made to refuse somebody already booked into it or in house
+ * (RB-S5-08). The desk moves them first, or opens the room to anyone.
+ */
+export class RoomStillHoldsSomeoneError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RoomStillHoldsSomeoneError";
   }
 }
 

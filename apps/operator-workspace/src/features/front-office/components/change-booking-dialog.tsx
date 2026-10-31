@@ -379,9 +379,11 @@ export function ChangeBookingDialog({
                   ? t("bookingArrivalInvalid")
                   : outcome === "priceChanged"
                     ? t("bookingPriceChanged")
-                    : refusal
-                      ? t(refusal)
-                      : null;
+                    : outcome === "notAdmitted"
+                      ? t("bookingNotAdmitted")
+                      : refusal
+                        ? t(refusal)
+                        : null;
 
   // The booking's own Unit may have gone out of order or been split into beds
   // since it was taken: its dates can still change there, and the desk is told

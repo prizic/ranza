@@ -16,6 +16,7 @@ export {
   ROOMS_CAPABILITY,
   UNIT_BATCH,
   UNIT_CAPACITY,
+  RoomStillHoldsSomeoneError,
   UnitConfigurationError,
   UnitNameTakenError,
   UnitOccupiedError,

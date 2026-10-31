@@ -179,6 +179,10 @@ model AccommodationUnit {
   /// exactly when `status` is `blocked`: a check constraint says so, and the
   /// audit record keeps the history of it.
   statusReason   String?  @map("status_reason")
+  /// Which gender the room admits, `female` or `male`; null for anyone. On a
+  /// room only: a bed admits whom its room does (RB-S5-*). Written after the
+  /// room exists only through `app.set_room_admits`.
+  admits         String?
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -604,6 +608,9 @@ model Guest {
   /// avoid. Null when the front desk was given none, which is normal.
   email          String?
   phone          String?
+  /// `female` or `male` when recorded, null when not. Asked for only when a
+  /// gendered room needs it (RB-S5-*).
+  gender         String?
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

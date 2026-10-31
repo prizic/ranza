@@ -1,3 +1,4 @@
+import type { Gender } from "@ranza/core";
 import type { TenantClient } from "@ranza/db";
 import {
   GUEST_DETAILS,
@@ -112,7 +113,8 @@ function normalize(value: string | null, lower = false): string | null {
  * "nobody", and one of them hits the unique index — and this has none.
  * The existing row's own details are kept: somebody booking as "A. Lovelace"
  * must not silently rewrite the profile, which is an edit and belongs to a
- * screen that says so.
+ * screen that says so. A gender is the one exception, and only where none was
+ * recorded: a gendered room asks for it, and filling a blank rewrites nothing.
  */
 export async function identifyGuestWithin(
   tx: GuestWriteClient,
@@ -159,18 +161,20 @@ export async function identifyGuestWithin(
   let rows: { id: string; created: boolean }[];
   try {
     rows = await tx.$queryRaw<{ id: string; created: boolean }[]>`
-      insert into public.guests (organization_id, full_name, email, phone)
+      insert into public.guests
+        (organization_id, full_name, email, phone, gender)
       values (
         ${details.organizationId}::uuid,
         ${fullName},
         ${email},
-        ${phone}
+        ${phone},
+        ${details.gender}
       )
       on conflict (organization_id, email) where email is not null
-        -- A no-op that is still an UPDATE, which is what makes RETURNING give
-        -- back the existing row. Assigning anything else would edit a profile
-        -- because somebody booked a second time.
-        do update set updated_at = public.guests.updated_at
+        -- Still an UPDATE when nothing changes, which is what makes RETURNING
+        -- give back the existing row. Assigning anything but a blank gender
+        -- would edit a profile because somebody booked a second time.
+        do update set gender = coalesce(public.guests.gender, excluded.gender)
       returning id, (xmax = 0) as created
     `;
   } catch (error: unknown) {
@@ -223,4 +227,22 @@ export async function recallGuestWithin(
        and organization_id = ${organizationId}::uuid
   `;
   return rows[0] ? { guestId: rows[0].id, created: false } : null;
+}
+
+/**
+ * A gender for a Guest who has none recorded, as a gendered room asks for
+ * (RB-S5-12). A recorded one is left as it is: correcting it is an edit, and
+ * `guests_keep_their_rooms` refuses one that would strand a booking.
+ */
+export async function recordGenderWithin(
+  tx: GuestWriteClient,
+  guestId: string,
+  gender: Gender,
+): Promise<void> {
+  await tx.$queryRaw`
+    update public.guests
+       set gender = ${gender}
+     where id = ${guestId}::uuid
+       and gender is null
+  `;
 }

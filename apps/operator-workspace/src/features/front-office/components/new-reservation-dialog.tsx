@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { CircleAlert, Plus } from "lucide-react";
+import type { Gender } from "@ranza/core";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
 import type {
   BookableUnit,
@@ -80,6 +81,11 @@ import { refusalMessage } from "../refusal";
  * database stamps the booking from the price list when it is taken — so it is
  * shown and never submitted. An unpriced kind and a Resident each say what that
  * means before the booking is taken, rather than after.
+ *
+ * A room that admits women or men only asks the Guest's gender, and only then
+ * (RB-S5-16): a hotel desk is never asked it. A Guest picked with a gender on
+ * file has already answered, and a room their file refuses is marked and cannot
+ * be chosen. The booking trigger still decides on save (RB-S5-04).
  */
 
 /**
@@ -215,6 +221,7 @@ export function NewReservationDialog({
   const [nameTyped, setNameTyped] = useState(false);
   const [matches, setMatches] = useState<readonly GuestMatch[]>([]);
   const [picked, setPicked] = useState<GuestMatch | null>(null);
+  const [gender, setGender] = useState<Gender | null>(null);
   const phoneField = useRef<HTMLInputElement>(null);
   const guestField = useRef<HTMLInputElement>(null);
   // Set by the browser refusing the address and by the server doing so, and
@@ -259,6 +266,7 @@ export function NewReservationDialog({
     setNameTyped(false);
     setMatches([]);
     setPicked(null);
+    setGender(null);
   }, [defaultStayType, onClose]);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
@@ -377,6 +385,13 @@ export function NewReservationDialog({
   }
 
   const chosen = units.find((unit) => unit.unitId === unitId);
+  const roomAdmits = chosen?.admits ?? null;
+  const recordedGender = picked?.gender ?? null;
+  const guestGender = recordedGender ?? gender;
+  const genderRefused =
+    roomAdmits !== null && guestGender !== null && guestGender !== roomAdmits;
+  const genderAnswered =
+    roomAdmits === null || (guestGender !== null && !genderRefused);
   // A Guest booking taken with no price charges nothing for its nights: a
   // warning on the booking, not a grey remark (RES-06).
   const unpricedWarning =
@@ -428,40 +443,59 @@ export function NewReservationDialog({
               ? t("bookingArrivalInvalid")
               : outcome === "priceChanged"
                 ? t("bookingPriceChanged")
-                : outcome === "refused"
-                  ? t("bookingRefused")
-                  : refusal
-                    ? t(refusal)
-                    : null;
+                : outcome === "notAdmitted"
+                  ? t("bookingNotAdmitted")
+                  : outcome === "refused"
+                    ? t("bookingRefused")
+                    : refusal
+                      ? t(refusal)
+                      : null;
 
   const unitItems: OptionListItem[] = units.map((unit) => {
     const blocker = taken.get(unit.unitId);
+    // Marked like a booked room, for a Guest whose file the room refuses.
+    const refusesGuest =
+      unit.admits !== null &&
+      recordedGender !== null &&
+      unit.admits !== recordedGender;
     return {
       value: unit.unitId,
       title: unitLabel(unit.roomName, unit.unitName),
-      description:
-        stayType === "guest" &&
+      description: [
+        t(`unitType.${unit.unitType}`),
+        ...(unit.admits ? [t(`roomAdmits.${unit.admits}`)] : []),
+        ...(stayType === "guest" &&
         unit.nightlyRateMinor !== null &&
         unit.rateCurrency !== null
-          ? `${t(`unitType.${unit.unitType}`)} · ${t("quotePerNight", {
-              price: formatMoney(
-                unit.nightlyRateMinor,
-                unit.rateCurrency,
-                locale,
-              ),
-            })}`
-          : t(`unitType.${unit.unitType}`),
+          ? [
+              t("quotePerNight", {
+                price: formatMoney(
+                  unit.nightlyRateMinor,
+                  unit.rateCurrency,
+                  locale,
+                ),
+              }),
+            ]
+          : []),
+      ].join(" · "),
       chip:
-        blocker === undefined
-          ? t("unitChipFree")
-          : blocker === "booked"
-            ? t("unitBookedThoseNights")
-            : t("unitOccupiedThoseNights"),
-      chipMuted: blocker !== undefined,
-      disabled: blocker !== undefined,
+        blocker === "booked"
+          ? t("unitBookedThoseNights")
+          : blocker === "occupied"
+            ? t("unitOccupiedThoseNights")
+            : refusesGuest && unit.admits
+              ? t(`roomAdmits.${unit.admits}`)
+              : t("unitChipFree"),
+      chipMuted: blocker !== undefined || refusesGuest,
+      disabled: blocker !== undefined || refusesGuest,
     };
   });
-  const complete = nameTyped && asking && unitId !== "" && !taken.has(unitId);
+  const complete =
+    nameTyped &&
+    asking &&
+    unitId !== "" &&
+    !taken.has(unitId) &&
+    genderAnswered;
   const freeUnits = units.length - taken.size;
 
   return (
@@ -873,6 +907,50 @@ export function NewReservationDialog({
                     </p>
                   ) : null}
                 </DialogSection>
+
+                {roomAdmits ? (
+                  <DialogSection
+                    hint={t("genderHint", { admits: roomAdmits })}
+                    tag={{ label: t("dialogTagRequired"), required: true }}
+                    title={t("genderTitle")}
+                    titleId="booking-gender"
+                  >
+                    {recordedGender ? (
+                      <>
+                        <input
+                          name="guestGender"
+                          type="hidden"
+                          value={recordedGender}
+                        />
+                        <p className="m-0 text-sm font-medium">
+                          {t("genderRecorded", { gender: recordedGender })}
+                        </p>
+                      </>
+                    ) : (
+                      <ChoiceGroup
+                        labelledBy="booking-gender"
+                        name="guestGender"
+                        onChange={(value) =>
+                          setGender(value === "male" ? "male" : "female")
+                        }
+                        options={[
+                          { label: t("gender.female"), value: "female" },
+                          { label: t("gender.male"), value: "male" },
+                        ]}
+                        required
+                        value={gender ?? ""}
+                      />
+                    )}
+                    {genderRefused ? (
+                      <p
+                        className="m-0 text-step--1 text-warning"
+                        role="status"
+                      >
+                        {t("genderRefused", { admits: roomAdmits })}
+                      </p>
+                    ) : null}
+                  </DialogSection>
+                ) : null}
 
                 {quote && (unpricedWarning || stayType === "resident") ? (
                   // Polite: it changes as the Unit, the kind of stay and the dates

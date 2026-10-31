@@ -40,6 +40,7 @@ const room: NewUnits = {
   count: 1,
   capacity: 2,
   letByTheBed: false,
+  admits: null,
 };
 
 async function refusal(input: NewUnits): Promise<string> {
@@ -110,5 +111,13 @@ describe("adding rooms is refused by its shape, before any statement runs", () =
     expect(await field({ ...room, unitType: "suite", letByTheBed: true })).toBe(
       "letByTheBed",
     );
+    // Only women, men, or anyone: a value from an edited form is refused here,
+    // under its field, before the check constraint would refuse it (RB-S5-14).
+    expect(
+      await field({
+        ...room,
+        admits: "other" as unknown as NewUnits["admits"],
+      }),
+    ).toBe("admits");
   });
 });

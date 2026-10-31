@@ -119,9 +119,19 @@ export function useConfiguredValue() {
       : String(value);
 }
 
+/** Whom a room admits, as the rooms screen says it; null is anyone (RB-S5-13). */
+export function useRoomAdmitsWord() {
+  const t = useTranslations();
+  return (value: unknown): string =>
+    t(
+      `roomAdmits.${value === "female" || value === "male" ? value : "anyone"}`,
+    );
+}
+
 export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
   const t = useTranslations();
   const configuredValue = useConfiguredValue();
+  const admitsWord = useRoomAdmitsWord();
 
   const fromTo = (from: string, to: string) => t("auditFromTo", { from, to });
 
@@ -160,6 +170,9 @@ export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
     switch (action) {
       case "housekeeping.inspection_set":
         return fromTo(inspection(context.from), inspection(context.to));
+
+      case "unit.admits_changed":
+        return fromTo(admitsWord(context.from), admitsWord(context.to));
 
       case "housekeeping.status_changed":
         return fromTo(

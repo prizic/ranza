@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { GENDERS, type Gender } from "@ranza/core";
 import { isSupportedLocale } from "@ranza/i18n";
 import type { GuestDetailsError } from "@ranza/guests";
 import {
@@ -340,6 +341,7 @@ export type CreateReservationOutcome =
   | "invalidEmail"
   | "invalidArrival"
   | "priceChanged"
+  | "notAdmitted"
   | RefusalOutcome;
 
 /** Only the two the database will accept; anything else is not a stay type. */
@@ -348,6 +350,10 @@ function stayType(value: unknown): ReservationStayType | null {
 }
 
 /** An empty optional field is absent, not an empty string. */
+function isGender(value: string): value is Gender {
+  return (GENDERS as readonly string[]).includes(value);
+}
+
 function optional(form: FormData, field: string): string | null {
   const value = String(form.get(field) ?? "").trim();
   return value.length > 0 ? value : null;
@@ -420,6 +426,10 @@ export async function createReservation(
   const pickedGuest = optional(form, "existingGuestId");
   if (pickedGuest !== null && !UUID.test(pickedGuest)) return "refused";
 
+  // Sent only when the room is gendered (RB-S5-16); empty otherwise.
+  const genderField = optional(form, "guestGender");
+  if (genderField !== null && !isGender(genderField)) return "refused";
+
   try {
     await getComposition().reservations.createReservation(viewer.userId, {
       propertyId,
@@ -428,6 +438,7 @@ export async function createReservation(
       guestEmail: optional(form, "guestEmail"),
       guestPhone: optional(form, "guestPhone"),
       existingGuestId: pickedGuest,
+      guestGender: genderField,
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),
@@ -447,6 +458,7 @@ export async function createReservation(
         : "invalidGuest";
     }
     if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
+    if (isA(error, "GuestNotAdmittedError")) return "notAdmitted";
     // The dialog is read again with the price that stands now.
     if (isA(error, "PriceChangedError")) {
       revalidateFrontDesk(locale);
@@ -545,6 +557,7 @@ export type ChangeBookingOutcome =
   | "invalidArrival"
   | "priceChanged"
   | "changed"
+  | "notAdmitted"
   | RefusalOutcome;
 
 /**
@@ -613,6 +626,7 @@ export async function changeBooking(
     if (isA(error, "ReservationPeriodError")) return "invalidPeriod";
     if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
     if (isA(error, "PriceChangedError")) return "priceChanged";
+    if (isA(error, "GuestNotAdmittedError")) return "notAdmitted";
     if (isA(error, "ChangeNoteError")) return "invalidNote";
     if (isA(error, "BookingChangedError")) {
       revalidateFrontDesk(locale);
@@ -716,6 +730,7 @@ export type MoveGuestOutcome =
   | "notInService"
   | "invalidNote"
   | "changed"
+  | "notAdmitted"
   | RefusalOutcome;
 
 function moveReason(value: FormDataEntryValue | null): MoveReason | null {
@@ -775,6 +790,7 @@ export async function moveGuest(
     if (isA(error, "UnitHasOccupantError")) return "occupied";
     if (isA(error, "UnitUnavailableError")) return "unavailable";
     if (isA(error, "UnitNotInServiceError")) return "notInService";
+    if (isA(error, "GuestNotAdmittedError")) return "notAdmitted";
     if (isA(error, "ChangeNoteError")) return "invalidNote";
     if (isA(error, "BookingChangedError")) {
       revalidateFrontDesk(locale);

@@ -55,6 +55,8 @@ interface Draft {
   count: string;
   capacity: string;
   letByTheBed: boolean;
+  /** Empty for anyone, otherwise female or male (RB-S5-14). */
+  admits: string;
 }
 
 const BLANK: Draft = {
@@ -65,6 +67,7 @@ const BLANK: Draft = {
   count: "1",
   capacity: "2",
   letByTheBed: false,
+  admits: "",
 };
 
 /**
@@ -292,6 +295,24 @@ function AddRoomsForm({
         </DialogSection>
 
         <DialogSection
+          hint={t("admitsHint")}
+          title={t("admitsTitle")}
+          titleId="add-rooms-admits"
+        >
+          <ChoiceGroup
+            labelledBy="add-rooms-admits"
+            name="admits"
+            onChange={(admits) => set({ admits })}
+            options={[
+              { label: all("roomAdmits.anyone"), value: "" },
+              { label: all("roomAdmits.female"), value: "female" },
+              { label: all("roomAdmits.male"), value: "male" },
+            ]}
+            value={draft.admits}
+          />
+        </DialogSection>
+
+        <DialogSection
           hint={t("firstNumberHint")}
           tag={{ label: all("dialogTagRequired"), required: true }}
           title={t("addNumbersTitle")}
@@ -448,6 +469,7 @@ function previewOf(draft: Draft): Preview | null {
 
 function PreviewLine({ draft, preview }: { draft: Draft; preview: Preview }) {
   const t = useTranslations("roomsPage");
+  const all = useTranslations();
   const capacity = Number(draft.capacity);
   const building = draft.building.trim();
   const floor = draft.floor === "" ? null : Number(draft.floor);
@@ -473,6 +495,9 @@ function PreviewLine({ draft, preview }: { draft: Draft; preview: Preview }) {
       : Number.isInteger(capacity) && capacity > 0
         ? [t("previewSleeps", { count: capacity })]
         : []),
+    ...(draft.admits === "female" || draft.admits === "male"
+      ? [all(`roomAdmits.${draft.admits}`)]
+      : []),
   ];
   return <>{parts.join(", ")}</>;
 }
@@ -510,7 +535,9 @@ function OutcomeError({
                     ? t("buildingInvalid")
                     : outcome.field === "letByTheBed"
                       ? t("bedsOnlyRoom")
-                      : t("invalidGeneric")}
+                      : outcome.field === "admits"
+                        ? t("admitsRefused")
+                        : t("invalidGeneric")}
         </FormError>
       );
     default:

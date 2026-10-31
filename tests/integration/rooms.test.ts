@@ -656,6 +656,7 @@ describe("adding rooms", { timeout: BUDGET_MS }, () => {
     count: 4,
     capacity: 2,
     letByTheBed: false,
+    admits: null,
     ...overrides,
   });
 

@@ -78,6 +78,7 @@ export default async function RoomsPage({
       locale={locale}
       maintenance={maintenance}
       mayConfigure={mayConfigure}
+      offerAdmits={property.operatingModel === "dormitory"}
       propertyId={property.propertyId}
       readiness={readiness}
       targetUnitId={search.unit ?? null}
