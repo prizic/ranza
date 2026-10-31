@@ -12,6 +12,7 @@ import {
 } from "@ranza/i18n";
 import type { BookableUnit } from "@ranza/reservations";
 import { Button, EmptyState, Skeleton } from "@ranza/ui";
+import type { StayType } from "../../../lib/booking-defaults";
 import type { RoomCalendar } from "../../../server/viewer";
 import { NewReservationDialog } from "../../front-office/components/new-reservation-dialog";
 import { frontOfficeKeys, type Scope } from "../../front-office/query-keys";
@@ -89,7 +90,11 @@ export function LiveRoomCalendar({
    * What New reservation needs, for a viewer holding `front_desk.book` at a
    * Property with a Unit to sell; null otherwise, and nothing is offered.
    */
-  booking: { units: readonly BookableUnit[]; today: string } | null;
+  booking: {
+    units: readonly BookableUnit[];
+    today: string;
+    defaultStayType: StayType;
+  } | null;
   defaultLength: number;
   initialView: RoomCalendarView;
   lengths: number[];
@@ -289,6 +294,7 @@ export function LiveRoomCalendar({
         {booking ? (
           <div className="ms-auto">
             <NewReservationDialog
+              defaultStayType={booking.defaultStayType}
               locale={locale}
               onClose={() => void query.refetch()}
               propertyId={scope.propertyId}
@@ -415,6 +421,7 @@ export function LiveRoomCalendar({
 
       {booking && newBooking ? (
         <NewReservationDialog
+          defaultStayType={booking.defaultStayType}
           key={`${newBooking.unitId}:${newBooking.from}:${newBooking.to}`}
           locale={locale}
           onClose={() => {

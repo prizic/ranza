@@ -19,6 +19,7 @@ import { minorUnitsOf, shownAmount } from "../amounts";
 import { HIDDEN_CONTEXT_KEYS, isContextKey } from "../context-keys";
 import {
   maintenanceSettingChanges,
+  useConfiguredValue,
   useMaintenanceSettingWords,
 } from "../summary";
 import type { AuditWords } from "../words";
@@ -103,6 +104,7 @@ const SETTINGS = [
   "timezone",
   "currency",
   "businessDateCutoff",
+  "operatingModel",
 ] as const;
 type Setting = (typeof SETTINGS)[number];
 const isSetting = (value: unknown): value is Setting =>
@@ -324,6 +326,7 @@ export function ContextFacts({
       ? maintenanceSettingChanges(context.from, context.to)
       : null;
   const { settingName, settingWord } = useMaintenanceSettingWords();
+  const configuredValue = useConfiguredValue();
   const priced =
     action === "price_list.changed" ? priceChangesOf(context.changes) : null;
   const price = (value: Price | null) =>
@@ -413,12 +416,12 @@ export function ContextFacts({
                 <TableCell className="break-words">
                   {change ? (
                     <span className="inline-flex flex-wrap items-center gap-2">
-                      <bdi>{change.from}</bdi>
+                      <bdi>{configuredValue(setting, change.from)}</bdi>
                       <ArrowRight
                         aria-label={t("auditChangedTo")}
                         className="size-3.5 text-muted-foreground rtl:-scale-x-100"
                       />
-                      <bdi>{change.to}</bdi>
+                      <bdi>{configuredValue(setting, change.to)}</bdi>
                     </span>
                   ) : (
                     scalar(context[setting])

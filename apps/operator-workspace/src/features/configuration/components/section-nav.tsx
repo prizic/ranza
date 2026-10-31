@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Banknote,
+  BedDouble,
   Building2,
   CalendarClock,
   ExternalLink,
@@ -21,6 +22,7 @@ const ICONS = {
   organization: Landmark,
   property: Building2,
   time: CalendarClock,
+  model: BedDouble,
   rates: Banknote,
   housekeeping: Sparkles,
   maintenance: Wrench,

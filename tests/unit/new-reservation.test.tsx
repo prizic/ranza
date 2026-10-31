@@ -117,6 +117,39 @@ function openForm() {
 }
 
 describe("the booking form", () => {
+  it("starts as a Guest stay by default, and as a student at a dormitory (ADR 0057)", () => {
+    openForm();
+    expect(
+      screen.getByRole("radio", { name: messages.en.stayType.guest }),
+    ).toBeChecked();
+    cleanup();
+
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <NewReservationDialog
+          defaultStayType="resident"
+          locale="en"
+          propertyId="d9000003-0000-4000-8000-000000000001"
+          today="2026-09-25"
+          units={UNITS}
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.en.newReservation }),
+    );
+    expect(
+      screen.getByRole("radio", { name: messages.en.stayType.resident }),
+    ).toBeChecked();
+    // A default, not a rule: a summer Guest is one click away.
+    fireEvent.click(
+      screen.getByRole("radio", { name: messages.en.stayType.guest }),
+    );
+    expect(
+      screen.getByRole("radio", { name: messages.en.stayType.guest }),
+    ).toBeChecked();
+  });
+
   it("stops at the lengths the Guest table will accept", () => {
     openForm();
 

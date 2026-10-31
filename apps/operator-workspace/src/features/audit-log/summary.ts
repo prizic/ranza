@@ -63,6 +63,7 @@ const CONFIGURATION_FIELDS = [
   "timezone",
   "currency",
   "businessDateCutoff",
+  "operatingModel",
 ] as const;
 
 const PRICED_KINDS = ["room", "bed", "apartment", "suite"] as const;
@@ -105,8 +106,22 @@ export function useMaintenanceSettingWords() {
   return { settingName, settingWord };
 }
 
+/**
+ * A configured setting's value as a reader says it. Most are recorded as they
+ * read (a name, a zone, `04:00`); the operating model is recorded as its code
+ * and named in the reader's language (ADR 0057).
+ */
+export function useConfiguredValue() {
+  const t = useTranslations();
+  return (setting: string, value: unknown): string =>
+    setting === "operatingModel" && (value === "hotel" || value === "dormitory")
+      ? t(`configuration.operatingModels.${value}`)
+      : String(value);
+}
+
 export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
   const t = useTranslations();
+  const configuredValue = useConfiguredValue();
 
   const fromTo = (from: string, to: string) => t("auditFromTo", { from, to });
 
@@ -179,8 +194,8 @@ export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
           return change
             ? [
                 `${t(`configuration.fields.${field}`)}: ${fromTo(
-                  String(change.from),
-                  String(change.to),
+                  configuredValue(field, change.from),
+                  configuredValue(field, change.to),
                 )}`,
               ]
             : [];

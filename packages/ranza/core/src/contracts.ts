@@ -157,6 +157,8 @@ export interface EntitledProperty {
   propertyId: string;
   propertyName: string;
   timezone: string;
+  /** What its screens default to and call things (ADR 0057). */
+  operatingModel: OperatingModel;
   organizationId: string;
   organizationName: string;
 }
@@ -226,9 +228,21 @@ export const CONFIGURATION_CAPABILITY: CapabilityRef = {
  */
 export const CONFIGURATION_MANAGE_PERMISSION = "configuration.manage";
 
+/**
+ * What a Property's screens default to, show first and call things (ADR 0057).
+ * Never a rule: no policy, trigger or function reads it.
+ */
+export const OPERATING_MODELS = ["hotel", "dormitory"] as const;
+export type OperatingModel = (typeof OPERATING_MODELS)[number];
+
 /** The settings a form may change, and the only names a refusal points at. */
 export type ConfigurationField =
-  "name" | "timezone" | "currency" | "businessDateCutoff" | "organizationName";
+  | "name"
+  | "timezone"
+  | "currency"
+  | "businessDateCutoff"
+  | "operatingModel"
+  | "organizationName";
 
 /**
  * A Property's settings as the screen shows them, with the versions a save
@@ -245,6 +259,7 @@ export interface PropertySettings {
   currency: string;
   /** `HH:MM`, local to the Property. */
   businessDateCutoff: string;
+  operatingModel: OperatingModel;
   version: string;
   /** The business date at this Property now, `YYYY-MM-DD`. */
   businessDate: string;
@@ -265,6 +280,7 @@ export interface PropertySettingsInput {
   timezone: string;
   currency: string;
   businessDateCutoff: string;
+  operatingModel: OperatingModel;
   version: string;
 }
 

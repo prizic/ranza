@@ -16,6 +16,7 @@ import {
 } from "../../../../server/viewer";
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
+import { defaultStayTypeFor } from "../../../../lib/booking-defaults";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /** Adding, blocking and splitting rooms (accommodation_units' write policies). */
@@ -127,6 +128,7 @@ export default async function ReservationsPage({
           <NoBookableUnit roomsHref={roomsHref} />
         ) : today ? (
           <NewReservationDialog
+            defaultStayType={defaultStayTypeFor(property.operatingModel)}
             locale={locale}
             propertyId={property.propertyId}
             startOpen={search.new === "1"}

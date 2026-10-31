@@ -115,6 +115,7 @@ export function createCoreModule(deps: CoreDeps) {
           property.id              as "propertyId",
           property.name            as "propertyName",
           property.timezone        as "timezone",
+          property.operating_model as "operatingModel",
           organization.id          as "organizationId",
           organization.name        as "organizationName"
         from public.properties as property
@@ -160,6 +161,7 @@ export function createCoreModule(deps: CoreDeps) {
           property.id              as "propertyId",
           property.name            as "propertyName",
           property.timezone        as "timezone",
+          property.operating_model as "operatingModel",
           organization.id          as "organizationId",
           organization.name        as "organizationName"
         from unnest(
@@ -186,6 +188,7 @@ export function createCoreModule(deps: CoreDeps) {
           propertyId: row.propertyId,
           propertyName: row.propertyName,
           timezone: row.timezone,
+          operatingModel: row.operatingModel,
           organizationId: row.organizationId,
           organizationName: row.organizationName,
         })),
@@ -217,6 +220,8 @@ export function createCoreModule(deps: CoreDeps) {
         `select property.id              as "propertyId",
                 property.name            as "propertyName",
                 property.timezone        as "timezone",
+                property.operating_model as "operatingModel",
+          property.operating_model as "operatingModel",
                 organization.id          as "organizationId",
                 organization.name        as "organizationName"
            from public.properties as property
@@ -275,6 +280,7 @@ export function createCoreModule(deps: CoreDeps) {
           property.id              as "propertyId",
           property.name            as "propertyName",
           property.timezone        as "timezone",
+          property.operating_model as "operatingModel",
           organization.id          as "organizationId",
           organization.name        as "organizationName"
         from unnest(
@@ -307,6 +313,7 @@ export function createCoreModule(deps: CoreDeps) {
           propertyId: row.propertyId,
           propertyName: row.propertyName,
           timezone: row.timezone,
+          operatingModel: row.operatingModel,
           organizationId: row.organizationId,
           organizationName: row.organizationName,
         })),

@@ -28,6 +28,7 @@ import {
 } from "../../../server/viewer";
 import { BillingNotice } from "./billing-notice";
 import { PropertyLink } from "./property-link";
+import { PropertyWords } from "./property-words";
 import { PropertySwitcher } from "./property-switcher";
 import { SignOutItem } from "./sign-out-item";
 import { WorkspaceLanguageSwitcher } from "./workspace-language-switcher";
@@ -180,6 +181,18 @@ export default async function WorkspaceLayout({
 
   const root = localizeHref(locale, "today");
 
+  // Whose screens read in a dormitory's words (ADR 0057), from the same reads
+  // that built the rail: a Property appears in them if any destination is
+  // open there, which is every Property the switcher can choose.
+  const dormitoryIds = [
+    ...new Set(
+      [...reachBySegment.values()]
+        .flat()
+        .filter((property) => property.operatingModel === "dormitory")
+        .map((property) => property.propertyId),
+    ),
+  ];
+
   // A role with a handful of pages is offered them across the top of the page,
   // and the sidebar's column goes to the page instead (`navModeFor`).
   const mode = navModeFor(reachable);
@@ -210,147 +223,149 @@ export default async function WorkspaceLayout({
   );
 
   return (
-    <AppShell
-      bottomNav={
-        mode === "sidebar" ? (
-          <WorkspaceBottomNav
+    <PropertyWords dormitoryIds={dormitoryIds}>
+      <AppShell
+        bottomNav={
+          mode === "sidebar" ? (
+            <WorkspaceBottomNav
+              defaultProperty={first?.propertyId}
+              reachable={reachable}
+              segmentsByProperty={segmentsByProperty}
+              label={t("mainNavigation")}
+              locale={locale}
+              root={root}
+            />
+          ) : undefined
+        }
+        pageBar={
+          <WorkspacePageBar
+            brand={
+              <PropertyLink
+                aria-label={t("productName")}
+                className="hidden size-9 shrink-0 items-center justify-center rounded-xl sm:flex bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                defaultProperty={first?.propertyId}
+                href={root}
+                knownProperties={Object.keys(segmentsByProperty)}
+              >
+                <BrandMark className="size-5" />
+              </PropertyLink>
+            }
+            action={
+              <>
+                <div className="flex min-w-0 items-center gap-1">
+                  {first ? (
+                    <PropertySwitcher
+                      chooseLabel={t("chooseProperty")}
+                      defaultId={first.propertyId}
+                      label={t("propertySwitcher")}
+                      locale={locale}
+                      slots={switchable.map((property) => ({
+                        id: property.propertyId,
+                        name: property.propertyName,
+                        organization: property.organizationName,
+                        segments: property.segments,
+                      }))}
+                    />
+                  ) : null}
+                  <WorkspaceLanguageSwitcher
+                    label={t("languageLabel")}
+                    locale={locale}
+                  />
+                </div>
+                {/* One account control per layout (SHELL-12): the sidebar's
+                  carries it from a tablet up, so the bar's is for a phone,
+                  which has no sidebar, and for a role with chips instead. */}
+                <div
+                  className={
+                    mode === "sidebar"
+                      ? "flex items-center gap-2 md:hidden sm:gap-3"
+                      : "flex items-center gap-2 sm:gap-3"
+                  }
+                >
+                  <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+                  <AccountMenu
+                    email={viewer.email}
+                    label={t("account")}
+                    locale={locale}
+                    name={viewer.name}
+                    variant="compact"
+                  >
+                    {accountItems}
+                  </AccountMenu>
+                </div>
+              </>
+            }
             defaultProperty={first?.propertyId}
             reachable={reachable}
             segmentsByProperty={segmentsByProperty}
-            label={t("mainNavigation")}
             locale={locale}
-            root={root}
+            mode={mode}
           />
-        ) : undefined
-      }
-      pageBar={
-        <WorkspacePageBar
-          brand={
-            <PropertyLink
-              aria-label={t("productName")}
-              className="hidden size-9 shrink-0 items-center justify-center rounded-xl sm:flex bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-transform duration-500 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              defaultProperty={first?.propertyId}
-              href={root}
-              knownProperties={Object.keys(segmentsByProperty)}
-            >
-              <BrandMark className="size-5" />
-            </PropertyLink>
-          }
-          action={
-            <>
-              <div className="flex min-w-0 items-center gap-1">
-                {first ? (
-                  <PropertySwitcher
-                    chooseLabel={t("chooseProperty")}
-                    defaultId={first.propertyId}
-                    label={t("propertySwitcher")}
-                    locale={locale}
-                    slots={switchable.map((property) => ({
-                      id: property.propertyId,
-                      name: property.propertyName,
-                      organization: property.organizationName,
-                      segments: property.segments,
-                    }))}
-                  />
-                ) : null}
-                <WorkspaceLanguageSwitcher
-                  label={t("languageLabel")}
-                  locale={locale}
-                />
-              </div>
-              {/* One account control per layout (SHELL-12): the sidebar's
-                  carries it from a tablet up, so the bar's is for a phone,
-                  which has no sidebar, and for a role with chips instead. */}
-              <div
-                className={
-                  mode === "sidebar"
-                    ? "flex items-center gap-2 md:hidden sm:gap-3"
-                    : "flex items-center gap-2 sm:gap-3"
-                }
-              >
-                <div aria-hidden="true" className="mx-1 h-6 w-px bg-border" />
+        }
+        rail={
+          mode === "sidebar" ? (
+            <WorkspaceRail
+              actions={
                 <AccountMenu
                   email={viewer.email}
                   label={t("account")}
                   locale={locale}
                   name={viewer.name}
-                  variant="compact"
                 >
                   {accountItems}
                 </AccountMenu>
-              </div>
-            </>
-          }
-          defaultProperty={first?.propertyId}
-          reachable={reachable}
-          segmentsByProperty={segmentsByProperty}
-          locale={locale}
-          mode={mode}
-        />
-      }
-      rail={
-        mode === "sidebar" ? (
-          <WorkspaceRail
-            actions={
-              <AccountMenu
-                email={viewer.email}
-                label={t("account")}
-                locale={locale}
-                name={viewer.name}
-              >
-                {accountItems}
-              </AccountMenu>
-            }
-            brand={<BrandMark className="size-5" />}
-            defaultProperty={first?.propertyId}
-            reachable={reachable}
-            segmentsByProperty={segmentsByProperty}
-            labels={{
-              collapse: t("collapse"),
-              sections: {
-                operations: t("navigationSections.operations"),
-                management: t("navigationSections.management"),
-                system: t("navigationSections.system"),
-              },
-              expand: t("expand"),
-              home: t("productName"),
-              mainNavigation: t("mainNavigation"),
-              badge: t("workspaceBadge"),
-            }}
-            locale={locale}
-            {...(first ? { organization: first.organizationName } : {})}
-            organizations={Object.fromEntries(
-              switchable.map((property) => [
-                property.propertyId,
-                property.organizationName,
-              ]),
-            )}
-            root={root}
-          />
-        ) : undefined
-      }
-      skipLabel={t("skip")}
-    >
-      {/* Here rather than in the root layout, so sign-in and every public page
+              }
+              brand={<BrandMark className="size-5" />}
+              defaultProperty={first?.propertyId}
+              reachable={reachable}
+              segmentsByProperty={segmentsByProperty}
+              labels={{
+                collapse: t("collapse"),
+                sections: {
+                  operations: t("navigationSections.operations"),
+                  management: t("navigationSections.management"),
+                  system: t("navigationSections.system"),
+                },
+                expand: t("expand"),
+                home: t("productName"),
+                mainNavigation: t("mainNavigation"),
+                badge: t("workspaceBadge"),
+              }}
+              locale={locale}
+              {...(first ? { organization: first.organizationName } : {})}
+              organizations={Object.fromEntries(
+                switchable.map((property) => [
+                  property.propertyId,
+                  property.organizationName,
+                ]),
+              )}
+              root={root}
+            />
+          ) : undefined
+        }
+        skipLabel={t("skip")}
+      >
+        {/* Here rather than in the root layout, so sign-in and every public page
           carry no tenant cache at all. Scoped to the viewer: a different Staff
           Member on the same browser drops everything held for the last one
           (ADR 0019). */}
-      <BillingNotice
-        description={t("billingNotice.description")}
-        notices={overdue}
-        title={(organization) => t("billingNotice.title", { organization })}
-      />
-      <WorkspaceSession
-        copy={{
-          description: t("sessionEnded.description"),
-          signIn: t("signIn"),
-          title: t("sessionEnded.title"),
-        }}
-        locale={locale}
-        scope={viewer.userId}
-      >
-        {children}
-      </WorkspaceSession>
-    </AppShell>
+        <BillingNotice
+          description={t("billingNotice.description")}
+          notices={overdue}
+          title={(organization) => t("billingNotice.title", { organization })}
+        />
+        <WorkspaceSession
+          copy={{
+            description: t("sessionEnded.description"),
+            signIn: t("signIn"),
+            title: t("sessionEnded.title"),
+          }}
+          locale={locale}
+          scope={viewer.userId}
+        >
+          {children}
+        </WorkspaceSession>
+      </AppShell>
+    </PropertyWords>
   );
 }

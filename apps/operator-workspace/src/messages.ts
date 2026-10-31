@@ -981,6 +981,12 @@ export interface Messages {
     businessDateAfter: string;
     businessDateForward: string;
     businessDateBack: string;
+    /** The operating model card (ADR 0057): defaults and words, never rules. */
+    modelTitle: string;
+    modelHint: string;
+    operatingModels: Record<"hotel" | "dormitory", string>;
+    /** What each model changes, said under its choice. */
+    operatingModelHints: Record<"hotel" | "dormitory", string>;
     housekeepingTitle: string;
     modulesTitle: string;
     modulesHint: string;
@@ -1019,10 +1025,15 @@ export interface Messages {
     invalidTimezone: string;
     invalidCurrency: string;
     invalidCutoff: string;
+    invalidOperatingModel: string;
     /** `{permission}`: the permission that would let this reader change it. */
     readOnly: string;
     fields: Record<
-      "name" | "timezone" | "currency" | "businessDateCutoff",
+      | "name"
+      | "timezone"
+      | "currency"
+      | "businessDateCutoff"
+      | "operatingModel",
       string
     >;
   };
@@ -4773,6 +4784,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       businessDateForward: "Bugün {date} tarihine ilerler.",
       businessDateBack:
         "Bugün {date} tarihine geri döner. Kaydettikten sonra girişleri ve çıkışları kontrol edin.",
+      modelTitle: "Tesis nasıl çalışıyor",
+      modelHint:
+        "Ekranların neyle başladığını ve nelere ne dendiğini belirler. Hiçbir kuralı ve kaydı değiştirmez; istediğiniz zaman geri dönebilirsiniz.",
+      operatingModels: { hotel: "Otel", dormitory: "Öğrenci yurdu" },
+      operatingModelHints: {
+        hotel:
+          "Gecelik misafirler. Rezervasyonlar misafir konaklaması olarak başlar.",
+        dormitory:
+          "Dönemlik öğrenciler. Ekranlar Öğrenci ve Kayıt der; yeni kayıtlar sakin konaklaması olarak başlar.",
+      },
       housekeepingTitle: "Kat hizmetleri",
       modulesTitle: "Bu tesiste açık olanlar",
       modulesHint: "Ekibinizin bu tesiste kullanabildikleri.",
@@ -4814,6 +4835,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidTimezone: "Listeden bir saat dilimi seçin.",
       invalidCurrency: "Listeden bir para birimi seçin.",
       invalidCutoff: "03:00 ile 11:45 arasında bir saat seçin.",
+      invalidOperatingModel: "Otel ya da öğrenci yurdu seçin.",
       readOnly:
         "Bu ayarları görebilirsiniz. Değiştirmek için rolünüzün “{permission}” yetkisi gerekir.",
       fields: {
@@ -4821,6 +4843,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         timezone: "Saat dilimi",
         currency: "Para birimi",
         businessDateCutoff: "İş gününün bitişi",
+        operatingModel: "Çalışma şekli",
       },
     },
     integrations: {
@@ -8493,6 +8516,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       businessDateForward: "Today moves forward to {date}.",
       businessDateBack:
         "Today moves back to {date}. Check arrivals and departures after saving.",
+      modelTitle: "How this Property works",
+      modelHint:
+        "Sets what the screens start with and what they call things. It changes no rule and no record, so you can switch back at any time.",
+      operatingModels: { hotel: "Hotel", dormitory: "Student dormitory" },
+      operatingModelHints: {
+        hotel: "Guests by the night. Bookings start as a Guest stay.",
+        dormitory:
+          "Students for a term. The screens say Student and Registration, and new bookings start as a Resident stay.",
+      },
       housekeepingTitle: "Housekeeping",
       modulesTitle: "Switched on here",
       modulesHint: "What your team can use at this Property.",
@@ -8535,6 +8567,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidTimezone: "Choose a time zone from the list.",
       invalidCurrency: "Choose a currency from the list.",
       invalidCutoff: "Choose a time between 03:00 and 11:45.",
+      invalidOperatingModel: "Choose hotel or student dormitory.",
       readOnly:
         "You can see these settings. To change them, your role needs “{permission}”.",
       fields: {
@@ -8542,6 +8575,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         timezone: "Time zone",
         currency: "Currency",
         businessDateCutoff: "Business day ends at",
+        operatingModel: "Operating model",
       },
     },
     integrations: {
@@ -12164,6 +12198,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       businessDateForward: "يتقدم اليوم إلى {date}.",
       businessDateBack:
         "يعود اليوم إلى {date}. راجع الوصول والمغادرة بعد الحفظ.",
+      modelTitle: "طريقة عمل المنشأة",
+      modelHint:
+        "يحدد ما تبدأ به الشاشات وما تسمّي به الأشياء. لا يغيّر أي قاعدة ولا أي سجل، ويمكنك العودة في أي وقت.",
+      operatingModels: { hotel: "فندق", dormitory: "سكن طلابي" },
+      operatingModelHints: {
+        hotel: "ضيوف بالليلة. يبدأ الحجز إقامةَ ضيف.",
+        dormitory:
+          "طلاب لفصل دراسي. تقول الشاشات طالب وتسجيل، ويبدأ الحجز الجديد إقامةَ مقيم.",
+      },
       housekeepingTitle: "التدبير الفندقي",
       modulesTitle: "المفعّل هنا",
       modulesHint: "ما يستطيع فريقك استخدامه في هذه المنشأة.",
@@ -12204,6 +12247,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       invalidTimezone: "اختر منطقة زمنية من القائمة.",
       invalidCurrency: "اختر عملة من القائمة.",
       invalidCutoff: "اختر وقتًا بين 03:00 و11:45.",
+      invalidOperatingModel: "اختر فندقًا أو سكنًا طلابيًا.",
       readOnly:
         "يمكنك رؤية هذه الإعدادات. لتغييرها يحتاج دورك إلى صلاحية «{permission}».",
       fields: {
@@ -12211,6 +12255,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         timezone: "المنطقة الزمنية",
         currency: "العملة",
         businessDateCutoff: "نهاية يوم العمل",
+        operatingModel: "نموذج التشغيل",
       },
     },
     integrations: {

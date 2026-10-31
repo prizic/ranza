@@ -8,7 +8,9 @@ import {
   ConfigurationInputError,
   ConfigurationRefusedError,
   ConfigurationStaleError,
+  OPERATING_MODELS,
   type BusinessDatePreview,
+  type OperatingModel,
   type OrganizationNameInput,
   type PropertySettings,
   type PropertySettingsInput,
@@ -37,10 +39,11 @@ const CONSTRAINT_FIELDS: Record<string, PropertySettingsField> = {
   properties_timezone_check: "timezone",
   properties_currency_check: "currency",
   properties_business_date_cutoff_check: "businessDateCutoff",
+  properties_operating_model_check: "operatingModel",
 };
 
 type PropertySettingsField =
-  "name" | "timezone" | "currency" | "businessDateCutoff";
+  "name" | "timezone" | "currency" | "businessDateCutoff" | "operatingModel";
 
 const NAME_MIN = 2;
 const NAME_MAX = 120;
@@ -106,6 +109,10 @@ function isRuntimeZone(value: string): boolean {
   }
 }
 
+function isOperatingModel(value: string): value is OperatingModel {
+  return (OPERATING_MODELS as readonly string[]).includes(value);
+}
+
 function assertPropertyInput(input: PropertySettingsInput): void {
   if (!VERSION.test(input.version)) throw new ConfigurationInputError(null);
   if (!isName(input.name)) throw new ConfigurationInputError("name");
@@ -118,6 +125,9 @@ function assertPropertyInput(input: PropertySettingsInput): void {
   if (!isCutoff(input.businessDateCutoff)) {
     throw new ConfigurationInputError("businessDateCutoff");
   }
+  if (!isOperatingModel(input.operatingModel)) {
+    throw new ConfigurationInputError("operatingModel");
+  }
 }
 
 interface SettingsRow {
@@ -126,6 +136,7 @@ interface SettingsRow {
   timezone: string;
   currency: string;
   businessDateCutoff: string;
+  operatingModel: OperatingModel;
   version: string;
   businessDate: string;
   currencyFixed: boolean;
@@ -152,6 +163,7 @@ async function readSettings(
            property.currency::text                       as "currency",
            to_char(property.business_date_cutoff, 'HH24:MI')
                                                          as "businessDateCutoff",
+           property.operating_model                      as "operatingModel",
            to_char(property.updated_at at time zone 'UTC',
                    'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')      as "version",
            app.property_today(property.id)::text         as "businessDate",
@@ -185,6 +197,7 @@ async function readSettings(
     timezone: row.timezone,
     currency: row.currency,
     businessDateCutoff: row.businessDateCutoff,
+    operatingModel: row.operatingModel,
     version: row.version,
     businessDate: row.businessDate,
     currencyFixed: row.currencyFixed,
@@ -205,6 +218,7 @@ interface PropertyChange {
   fromTimezone: string;
   fromCurrency: string;
   fromCutoff: string;
+  fromOperatingModel: string;
 }
 
 /** Each setting that moved, from and to — what the audit record carries. */
@@ -271,7 +285,8 @@ export function createConfiguration(deps: CoreDeps) {
                    property.name,
                    property.timezone,
                    property.currency::text as currency,
-                   to_char(property.business_date_cutoff, 'HH24:MI') as cutoff
+                   to_char(property.business_date_cutoff, 'HH24:MI') as cutoff,
+                   property.operating_model
               from public.properties as property
              where property.id = ${propertyId}::uuid
           )
@@ -279,22 +294,24 @@ export function createConfiguration(deps: CoreDeps) {
              set name = ${input.name},
                  timezone = ${input.timezone},
                  currency = ${input.currency},
-                 business_date_cutoff = ${input.businessDateCutoff}::time
+                 business_date_cutoff = ${input.businessDateCutoff}::time,
+                 operating_model = ${input.operatingModel}
             from previous
            where property.id = previous.id
              and property.updated_at = ${input.version}::timestamptz
              and (property.name, property.timezone, property.currency::text,
-                  property.business_date_cutoff)
+                  property.business_date_cutoff, property.operating_model)
                  is distinct from
                  (${input.name}, ${input.timezone}, ${input.currency},
-                  ${input.businessDateCutoff}::time)
+                  ${input.businessDateCutoff}::time, ${input.operatingModel})
           returning property.organization_id as "organizationId",
                     to_char(property.updated_at at time zone 'UTC',
                             'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "version",
                     previous.name as "fromName",
                     previous.timezone as "fromTimezone",
                     previous.currency as "fromCurrency",
-                    previous.cutoff as "fromCutoff"
+                    previous.cutoff as "fromCutoff",
+                    previous.operating_model as "fromOperatingModel"
         `;
       } catch (error: unknown) {
         if (raised(error, BUSINESS_DAY_CLOSED)) {
@@ -321,12 +338,14 @@ export function createConfiguration(deps: CoreDeps) {
           timezone: saved.fromTimezone,
           currency: saved.fromCurrency,
           businessDateCutoff: saved.fromCutoff,
+          operatingModel: saved.fromOperatingModel,
         },
         {
           name: input.name,
           timezone: input.timezone,
           currency: input.currency,
           businessDateCutoff: input.businessDateCutoff,
+          operatingModel: input.operatingModel,
         },
       );
       await recordWithin(tx, {
@@ -499,9 +518,34 @@ export function createConfiguration(deps: CoreDeps) {
     return rows.map((row) => row.name).filter(isRuntimeZone);
   }
 
+  /**
+   * The operating model of a Property the viewer reaches, for choosing words
+   * and defaults (ADR 0057). Null for one out of reach, which then reads in
+   * the canonical words: the answer says nothing about a Property the viewer
+   * cannot see. No capability gate, because every screen of a reachable
+   * Property speaks the same words, not only Configuration.
+   */
+  async function operatingModel(
+    userId: string,
+    propertyId: string,
+  ): Promise<OperatingModel | null> {
+    const [row] = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<{ model: string }[]>`
+        select property.operating_model as "model"
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+      `,
+    );
+    return row && isOperatingModel(row.model) ? row.model : null;
+  }
+
   return {
     propertySettings,
     configureProperty,
+    operatingModel,
     renameOrganization,
     businessDatePreview,
     timezoneNames,

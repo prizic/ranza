@@ -9,6 +9,7 @@ import {
   ConfigurationStaleError,
   type BusinessDatePreview,
   type ConfigurationField,
+  type OperatingModel,
 } from "@ranza/core";
 import { isSupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -93,7 +94,10 @@ function outcomeOf(error: unknown, locale: string): SettingsOutcome {
   throw error;
 }
 
-/** A Property's name, currency, timezone and business-day cutoff (slice 1). */
+/**
+ * A Property's name, currency, timezone, business-day cutoff (slice 1) and
+ * operating model (ADR 0057).
+ */
 export async function saveProperty(
   _previous: SettingsOutcome,
   form: FormData,
@@ -116,6 +120,7 @@ export async function saveProperty(
         timezone: text(form, "timezone"),
         currency: text(form, "currency").trim().toUpperCase(),
         businessDateCutoff: text(form, "businessDateCutoff"),
+        operatingModel: text(form, "operatingModel") as OperatingModel,
         version: text(form, "version"),
       },
     );

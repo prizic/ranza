@@ -121,8 +121,9 @@ select set_eq(
   $$select column_name::text from information_schema.column_privileges
      where table_schema = 'public' and table_name = 'properties'
        and grantee = 'ranza_app' and privilege_type = 'UPDATE'$$,
-  array['name', 'timezone', 'currency', 'business_date_cutoff'],
-  'CF-S1-11: a Property update may change its four settings and nothing else');
+  array['name', 'timezone', 'currency', 'business_date_cutoff',
+        'operating_model'],
+  'CF-S1-11: a Property update may change its five settings and nothing else');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges

@@ -113,6 +113,10 @@ model Property {
   /// night shift at 02:00 is still working the day before; `app.property_today()`
   /// is the only place the two are combined.
   businessDateCutoff DateTime @default(dbgenerated("'04:00:00'::time without time zone")) @map("business_date_cutoff") @db.Time(6)
+  /// `hotel` or `dormitory` (ADR 0057): what the screens default to, show
+  /// first and call things. No policy, trigger or function reads it, so it
+  /// never changes a rule; `operating_model.test.sql` fails if one starts to.
+  operatingModel     String   @default("hotel") @map("operating_model")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

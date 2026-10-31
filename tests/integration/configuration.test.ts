@@ -47,6 +47,7 @@ const BASELINE = {
   timezone: "Europe/Istanbul",
   currency: "TRY",
   businessDateCutoff: "04:00",
+  operatingModel: "hotel" as const,
 };
 
 /** Fixtures go in as the owner: ranza_app may not create Properties. */
@@ -78,7 +79,7 @@ async function seed() {
   await owner.$executeRawUnsafe(
     `update public.properties
         set name = $2, timezone = $3, currency = $4,
-            business_date_cutoff = $5::time
+            business_date_cutoff = $5::time, operating_model = 'hotel'
       where id = $1`,
     PROPERTY,
     BASELINE.name,
@@ -230,6 +231,7 @@ describe("configuring a Property", () => {
         timezone: before.timezone,
         currency: before.currency,
         businessDateCutoff: "06:30",
+        operatingModel: "hotel",
         version: before.version,
       });
       expect((await settings()).businessDateCutoff).toBe("06:30");
@@ -245,6 +247,7 @@ describe("configuring a Property", () => {
         timezone: read.timezone,
         currency: read.currency,
         businessDateCutoff: read.businessDateCutoff,
+        operatingModel: read.operatingModel,
         version: read.version,
       };
       // Two people, the same version, at the same moment.
@@ -270,6 +273,61 @@ describe("configuring a Property", () => {
   );
 
   it(
+    "a_property_becomes_a_dormitory_and_back_audited_each_way",
+    async () => {
+      const before = await settings();
+      expect(before.operatingModel).toBe("hotel");
+      await core.configureProperty(MANAGER, PROPERTY, {
+        name: before.name,
+        timezone: before.timezone,
+        currency: before.currency,
+        businessDateCutoff: before.businessDateCutoff,
+        operatingModel: "dormitory",
+        version: before.version,
+      });
+      const record = await latestRecord(owner, "property.configured", PROPERTY);
+      expect(record?.context).toEqual({
+        changed: ["operatingModel"],
+        operatingModel: { from: "hotel", to: "dormitory" },
+      });
+      expect(await core.operatingModel(MANAGER, PROPERTY)).toBe("dormitory");
+      // Any Staff Member who reaches the Property reads its words, not only
+      // whoever may configure it.
+      expect(await core.operatingModel(DESK, PROPERTY)).toBe("dormitory");
+
+      const dormitory = await settings();
+      await core.configureProperty(MANAGER, PROPERTY, {
+        name: dormitory.name,
+        timezone: dormitory.timezone,
+        currency: dormitory.currency,
+        businessDateCutoff: dormitory.businessDateCutoff,
+        operatingModel: "hotel",
+        version: dormitory.version,
+      });
+      expect((await settings()).operatingModel).toBe("hotel");
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "a_third_operating_model_is_refused_before_the_database",
+    async () => {
+      const before = await settings();
+      await expect(
+        core.configureProperty(MANAGER, PROPERTY, {
+          name: before.name,
+          timezone: before.timezone,
+          currency: before.currency,
+          businessDateCutoff: before.businessDateCutoff,
+          operatingModel: "hostel" as never,
+          version: before.version,
+        }),
+      ).rejects.toMatchObject({ field: "operatingModel" });
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
     "every_property_change_is_audited_from_and_to",
     async () => {
       const before = await settings();
@@ -278,6 +336,7 @@ describe("configuring a Property", () => {
         timezone: before.timezone,
         currency: before.currency,
         businessDateCutoff: "05:00",
+        operatingModel: "hotel",
         version: before.version,
       });
       const record = await latestRecord(owner, "property.configured", PROPERTY);
@@ -304,6 +363,7 @@ describe("configuring a Property", () => {
         timezone: after.timezone,
         currency: after.currency,
         businessDateCutoff: after.businessDateCutoff,
+        operatingModel: after.operatingModel,
         version: after.version,
       });
       expect(unchanged).toEqual({
@@ -325,6 +385,7 @@ describe("configuring a Property", () => {
           timezone: read.timezone,
           currency: read.currency,
           businessDateCutoff: read.businessDateCutoff,
+          operatingModel: read.operatingModel,
           version: read.version,
         }),
       ).rejects.toMatchObject({
@@ -337,6 +398,7 @@ describe("configuring a Property", () => {
           timezone: read.timezone,
           currency: read.currency,
           businessDateCutoff: "02:00",
+          operatingModel: "hotel",
           version: read.version,
         }),
       ).rejects.toBeInstanceOf(ConfigurationInputError);
@@ -354,6 +416,7 @@ describe("configuring a Property", () => {
           timezone: read.timezone,
           currency: read.currency,
           businessDateCutoff: read.businessDateCutoff,
+          operatingModel: read.operatingModel,
           version: read.version,
         }),
       ).rejects.toBeInstanceOf(ConfigurationRefusedError);
@@ -506,6 +569,7 @@ describe("a first Folio and a currency change at once", () => {
         timezone: before.timezone,
         currency: "EUR",
         businessDateCutoff: before.businessDateCutoff,
+        operatingModel: before.operatingModel,
         version: before.version,
       });
 
@@ -585,6 +649,7 @@ describe("beside close the day", () => {
           timezone: "Asia/Dubai",
           currency: before.currency,
           businessDateCutoff: before.businessDateCutoff,
+          operatingModel: before.operatingModel,
           version: before.version,
         }),
       ).rejects.toBeInstanceOf(ConfigurationClosedDayError);
@@ -594,6 +659,7 @@ describe("beside close the day", () => {
         timezone: before.timezone,
         currency: before.currency,
         businessDateCutoff: before.businessDateCutoff,
+        operatingModel: before.operatingModel,
         version: before.version,
       });
       expect(renamed.status).toBe("saved");
@@ -638,6 +704,7 @@ describe("beside close the day", () => {
           timezone: before.timezone,
           currency: before.currency,
           businessDateCutoff: before.businessDateCutoff,
+          operatingModel: before.operatingModel,
           version: before.version,
         }),
       ).rejects.toBeInstanceOf(ConfigurationRefusedError);
@@ -674,6 +741,7 @@ describe("beside close the day", () => {
         timezone: before.timezone,
         currency: before.currency,
         businessDateCutoff: "05:00",
+        operatingModel: "hotel",
         version: before.version,
       });
       await wait(400);

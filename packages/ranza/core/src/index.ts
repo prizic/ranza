@@ -10,6 +10,7 @@ export {
   ConfigurationInputError,
   ConfigurationRefusedError,
   ConfigurationStaleError,
+  OPERATING_MODELS,
   PLATFORM_CORE_MODULE,
   TODAY_CAPABILITY,
 } from "./contracts";
@@ -23,6 +24,7 @@ export type {
   Denial,
   DenialQuestion,
   ConfigurationField,
+  OperatingModel,
   OrganizationNameInput,
   PropertySettings,
   PropertySettingsInput,

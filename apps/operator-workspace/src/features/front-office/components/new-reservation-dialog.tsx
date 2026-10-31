@@ -41,6 +41,7 @@ import {
   createReservation,
   type CreateReservationOutcome,
 } from "../../../server/front-office";
+import type { StayType } from "../../../lib/booking-defaults";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
@@ -155,6 +156,7 @@ async function fetchGuestMatches(
 const PHONE_CHARACTERS = /^[0-9\s+().-]*$/;
 
 export function NewReservationDialog({
+  defaultStayType = "guest",
   locale,
   onClose,
   propertyId,
@@ -163,6 +165,8 @@ export function NewReservationDialog({
   today,
   units,
 }: {
+  /** What a booking starts as, and returns to when the form is reset. */
+  defaultStayType?: StayType;
   locale: SupportedLocale;
   /** Told when it closes, taken or not, for a screen that keeps its own data. */
   onClose?: () => void;
@@ -188,7 +192,7 @@ export function NewReservationDialog({
   const [open, setOpen] = useState(startOpen || start !== undefined);
   const startUnit = start?.unitId ?? "";
   const [unitId, setUnitId] = useState(startUnit);
-  const [stayType, setStayType] = useState("guest");
+  const [stayType, setStayType] = useState<StayType>(defaultStayType);
   const [dates, setDates] = useState<{ from?: string; to?: string }>(
     start ? { from: start.from, to: start.to } : {},
   );
@@ -244,7 +248,7 @@ export function NewReservationDialog({
     setOpen(false);
     onClose?.();
     setUnitId("");
-    setStayType("guest");
+    setStayType(defaultStayType);
     setDates({});
     setGuestMissing(false);
     setEmailRejected(false);
@@ -255,7 +259,7 @@ export function NewReservationDialog({
     setNameTyped(false);
     setMatches([]);
     setPicked(null);
-  }, [onClose]);
+  }, [defaultStayType, onClose]);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
   }, [outcome, closeAndReset]);
@@ -565,7 +569,9 @@ export function NewReservationDialog({
                   <ChoiceGroup
                     labelledBy="booking-stay-type"
                     name="stayType"
-                    onChange={setStayType}
+                    onChange={(value) =>
+                      setStayType(value === "resident" ? "resident" : "guest")
+                    }
                     options={[
                       { label: t("stayType.guest"), value: "guest" },
                       { label: t("stayType.resident"), value: "resident" },

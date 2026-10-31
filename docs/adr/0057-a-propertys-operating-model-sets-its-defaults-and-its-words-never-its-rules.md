@@ -73,11 +73,22 @@ model, and every rule stays testable without one.
 
 The code, the database and the canonical vocabulary keep Resident, Guest and
 Reservation (blueprint section 2). What a dormitory reader sees comes from the
-same typed catalogue (ADR 0023) through an ICU `select` on the model, for
-example `{model, select, dormitory {Öğrenci} other {Sakin}}`, so each label is
-reviewed in all three languages in the same change. This is not the free-text
-terminology mapping of blueprint section 8, which an Organization would author
-itself and which remains unbuilt.
+same typed catalogue (ADR 0023) through an overlay: the strings a dormitory
+says differently, in all three languages, typed against the catalogue's own
+interface and laid over it where the catalogue is loaded. On the server that
+is the request config, which reads the `?property=` the proxy saw; on the
+client it is a provider in the workspace layout that follows the URL, because
+the layout is not rendered again on a client navigation. Each label is still
+reviewed in all three languages in the same change, and a unit test fails if
+one language overrides a string the others do not, or if a dormitory's Turkish
+or English still says Resident.
+
+The first draft of this ADR said an ICU `select` on the model. That needs the
+model passed to every `t()` call in the workspace, hundreds of them, and a call
+that forgets it silently shows the hotel word, which is the failure an overlay
+cannot have. This is not the free-text terminology mapping of blueprint
+section 8, which an Organization would author itself and which remains
+unbuilt.
 
 ## Alternatives rejected
 

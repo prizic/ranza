@@ -138,6 +138,7 @@ const MANAGER: PropertySettings = {
   timezone: "Europe/Istanbul",
   currency: "TRY",
   businessDateCutoff: "04:00",
+  operatingModel: "hotel",
   version: "2026-09-25T13:00:00.000000Z",
   businessDate: "2026-09-25",
   currencyFixed: false,
@@ -255,7 +256,7 @@ describe("who may change what", () => {
       screen.getAllByText(
         "You can see these settings. To change them, your role needs “Change Property and Organization settings”.",
       ),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
   });
 
   it("the_organization_card_needs_organization_wide_reach", async () => {
@@ -424,10 +425,52 @@ describe("saving", () => {
       currency: "TRY",
       timezone: "Europe/Istanbul",
       businessDateCutoff: "04:00",
+      operatingModel: "hotel",
     });
     await waitFor(() =>
       expect(within(card("property")).getByText("Saved")).toBeVisible(),
     );
+  });
+
+  it("offers both operating models, each saying what it changes, and saves the one chosen alone", async () => {
+    saveProperty.mockResolvedValue({ status: "saved", version: "v2" });
+    await show(MANAGER);
+    const model = card("model");
+    const hotel = within(model).getByRole("radio", { name: /^Hotel/ });
+    const dormitory = within(model).getByRole("radio", {
+      name: /^Student dormitory/,
+    });
+    expect(hotel).toBeChecked();
+    expect(
+      within(model).getByText(/new bookings start as a Resident stay/),
+    ).toBeVisible();
+    const save = within(model).getByRole("button", { name: "Save changes" });
+    expect(save).toBeDisabled();
+
+    fireEvent.click(dormitory);
+    expect(dormitory).toBeChecked();
+    await act(async () => {
+      fireEvent.click(save);
+    });
+    const form = saveProperty.mock.calls[0]?.[1] as FormData;
+    expect(Object.fromEntries(form)).toMatchObject({
+      name: MANAGER.name,
+      businessDateCutoff: MANAGER.businessDateCutoff,
+      operatingModel: "dormitory",
+    });
+  });
+
+  it("shows a reader the operating model without letting them change it", async () => {
+    await show({
+      ...MANAGER,
+      operatingModel: "dormitory",
+      mayConfigure: false,
+    });
+    const model = card("model");
+    expect(
+      within(model).getByRole("radio", { name: /^Student dormitory/ }),
+    ).toBeChecked();
+    expect(within(model).getByRole("radio", { name: /^Hotel/ })).toBeDisabled();
   });
 
   it("locks the other card while one is saving, so its draft is not lost to a stale answer", async () => {

@@ -4,13 +4,15 @@ import {
   isSupportedLocale,
   type SupportedLocale,
 } from "@ranza/i18n";
-import { messages, type Messages } from "../messages";
+import type { Messages } from "../messages";
+import { requestOperatingModel } from "../server/operating-model";
+import { catalogueFor } from "../words/catalogue";
 
 /**
  * Where next-intl gets the copy for a request.
  *
  * The catalogue stays TypeScript rather than becoming JSON, which is why this
- * file is three lines of logic and why a language missing a string is still a
+ * file holds so little logic and why a language missing a string is still a
  * compile error — [ADR 0023](../../../../docs/adr/0023-copy-is-icu-through-next-intl-and-the-catalogue-stays-typed.md)
  * has the reasoning and the cost. The other application has this file too,
  * pointed at its own catalogue: they share a vocabulary, not a set of screens.
@@ -27,7 +29,14 @@ export default getRequestConfig(async ({ requestLocale }) => {
     ? requested
     : defaultLocale;
 
-  return { locale, messages: messages[locale] };
+  // The Property's words (ADR 0057): a dormitory's screens say Student and
+  // Registration. Chosen per request from the `?property=` the proxy saw, so a
+  // server-rendered page and its title read in the same words; the client
+  // follows a navigation between Properties itself (`PropertyWords`).
+  return {
+    locale,
+    messages: catalogueFor(locale, await requestOperatingModel()),
+  };
 });
 
 /**

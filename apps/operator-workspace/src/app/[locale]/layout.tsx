@@ -7,12 +7,12 @@ import { notFound } from "next/navigation";
 import { directionFor, isSupportedLocale, supportedLocales } from "@ranza/i18n";
 import { DirectionProvider, OverlayLabelsProvider } from "@ranza/ui";
 import {
-  getMessages,
   getTimeZone,
   getTranslations,
   setRequestLocale,
 } from "next-intl/server";
 import { StableIntlProvider } from "../../i18n/stable-intl-provider";
+import { messages } from "../../messages";
 import { LOCATION_HEADER } from "../../lib/return-path";
 
 /**
@@ -103,7 +103,6 @@ export default async function LocaleLayout({
   // generateStaticParams above would be prerendering nothing.
   setRequestLocale(locale);
   const t = await getTranslations();
-  const messages = await getMessages();
   const timeZone = await getTimeZone();
 
   return (
@@ -114,10 +113,13 @@ export default async function LocaleLayout({
     >
       <body>
         {/* The catalogue crosses to the client once, here, rather than
-            being handed to each client component as a `copy` prop. */}
+            being handed to each client component as a `copy` prop. Always
+            the canonical words: a dormitory's are laid over them by
+            `PropertyWords` for as long as the URL names one, so a client
+            navigation to a hotel never keeps a dormitory's words. */}
         <StableIntlProvider
           locale={locale}
-          messages={messages}
+          messages={messages[locale]}
           timeZone={timeZone}
         >
           <DirectionProvider dir={directionFor(locale)}>

@@ -23,6 +23,7 @@ import {
 } from "../../../../server/viewer";
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
+import { defaultStayTypeFor } from "../../../../lib/booking-defaults";
 import { frontDeskProperty } from "../../../../server/front-desk";
 
 /**
@@ -106,7 +107,15 @@ export default async function RoomCalendarPage({
   return (
     <Hydrated client={client}>
       <LiveRoomCalendar
-        booking={today ? { units, today } : null}
+        booking={
+          today
+            ? {
+                units,
+                today,
+                defaultStayType: defaultStayTypeFor(property.operatingModel),
+              }
+            : null
+        }
         defaultLength={ROOM_CALENDAR_DEFAULT_LENGTH}
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}

@@ -135,6 +135,7 @@ export default async function ConfigurationPage({
     { id: "organization", label: t("configuration.organizationTitle") },
     { id: "property", label: t("configuration.propertyTitle") },
     { id: "time", label: t("configuration.timeTitle") },
+    { id: "model", label: t("configuration.modelTitle") },
     ...(prices
       ? [
           {

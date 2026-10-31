@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
-import { Building2, CalendarClock, Lock } from "lucide-react";
+import type { OperatingModel } from "@ranza/core";
+import { BedDouble, Building2, CalendarClock, Lock } from "lucide-react";
 import {
   formatCurrencyName,
   formatDate,
@@ -35,8 +36,9 @@ import { SearchablePicker } from "./searchable-picker";
 import { SettingsCard } from "./settings-card";
 
 /**
- * A Property's four settings, as two cards: what it is called and trades in,
- * and which clock it runs on.
+ * A Property's five settings, as three cards: what it is called and trades in,
+ * which clock it runs on, and how it works — a hotel or a student dormitory,
+ * which sets what the screens start with and call things (ADR 0057).
  *
  * They are one command in the database, so each card saves its own edits with
  * the saved values of the other — never the other card's unsaved draft, which
@@ -55,7 +57,7 @@ interface ClockDraft {
   businessDateCutoff: string;
 }
 
-type Card = "identity" | "clock";
+type Card = "identity" | "clock" | "model";
 
 /** What the server holds, as far as this form knows, and at which version. */
 interface Saved {
@@ -63,6 +65,7 @@ interface Saved {
   currency: string;
   timezone: string;
   businessDateCutoff: string;
+  operatingModel: OperatingModel;
   version: string;
 }
 
@@ -81,11 +84,15 @@ function newest(settings: PropertySettings, local: Saved | null): Saved {
     currency: settings.currency,
     timezone: settings.timezone,
     businessDateCutoff: settings.businessDateCutoff,
+    operatingModel: settings.operatingModel,
     version: settings.version,
   };
 }
 
 const IDLE: SettingsOutcome = { status: "idle" };
+
+/** In the order offered; the core module refuses anything else. */
+const OPERATING_MODELS: readonly OperatingModel[] = ["hotel", "dormitory"];
 
 /** A saved draft, a stale one and a refusal that is not about a value all end the draft. */
 function endsTheDraft(outcome: SettingsOutcome): boolean {
@@ -109,9 +116,11 @@ export function PropertySettingsForm({
   const permissions = useTranslations("staff.permissions");
   const [identity, setIdentity] = useState<IdentityDraft | null>(null);
   const [clock, setClock] = useState<ClockDraft | null>(null);
+  const [model, setModel] = useState<OperatingModel | null>(null);
   const [outcomes, setOutcomes] = useState<Record<Card, SettingsOutcome>>({
     identity: IDLE,
     clock: IDLE,
+    model: IDLE,
   });
   const [saving, setSaving] = useState<Card | null>(null);
   const [lastSaved, setLastSaved] = useState<Saved | null>(null);
@@ -121,6 +130,7 @@ export function PropertySettingsForm({
   const currencyRef = useRef<HTMLButtonElement>(null);
   const timezoneRef = useRef<HTMLButtonElement>(null);
   const cutoffRef = useRef<HTMLButtonElement>(null);
+  const modelRef = useRef<HTMLInputElement>(null);
 
   const saved = newest(settings, lastSaved);
   // Once a Folio has fixed the currency, a draft of another one is not
@@ -132,6 +142,7 @@ export function PropertySettingsForm({
     currency: fixed ? saved.currency : (identity?.currency ?? saved.currency),
     timezone: clock?.timezone ?? saved.timezone,
     businessDateCutoff: clock?.businessDateCutoff ?? saved.businessDateCutoff,
+    operatingModel: model ?? saved.operatingModel,
   };
   const identityDirty =
     identity !== null &&
@@ -140,6 +151,8 @@ export function PropertySettingsForm({
     clock !== null &&
     (shown.timezone !== saved.timezone ||
       shown.businessDateCutoff !== saved.businessDateCutoff);
+  const modelDirty =
+    model !== null && shown.operatingModel !== saved.operatingModel;
   const editable = settings.mayConfigure;
 
   function save(card: Card) {
@@ -153,6 +166,8 @@ export function PropertySettingsForm({
       timezone: card === "clock" ? shown.timezone : saved.timezone,
       businessDateCutoff:
         card === "clock" ? shown.businessDateCutoff : saved.businessDateCutoff,
+      operatingModel:
+        card === "model" ? shown.operatingModel : saved.operatingModel,
     };
     form.set("version", saved.version);
     for (const [key, value] of Object.entries(sent)) form.set(key, value);
@@ -168,7 +183,8 @@ export function PropertySettingsForm({
         }
         if (endsTheDraft(outcome)) {
           if (card === "identity") setIdentity(null);
-          else setClock(null);
+          else if (card === "clock") setClock(null);
+          else setModel(null);
         }
       });
       // A refusal points at a field, and that is where attention goes, so
@@ -178,6 +194,7 @@ export function PropertySettingsForm({
         currency: currencyRef,
         timezone: timezoneRef,
         businessDateCutoff: cutoffRef,
+        operatingModel: modelRef,
       } as const;
       // A closed day is about the clock as a whole; point at the half that
       // changed, the time zone when it alone did.
@@ -402,6 +419,71 @@ export function PropertySettingsForm({
             timezone={shown.timezone}
           />
         </div>
+      </SettingsCard>
+
+      <SettingsCard
+        footer={
+          <SaveBar
+            dirty={modelDirty}
+            locked={saving !== null}
+            mayChange={editable}
+            onDiscard={() => setModel(null)}
+            onSave={() => save("model")}
+            outcome={outcomes.model}
+            pending={saving === "model"}
+            readOnly={t("readOnly", {
+              permission: permissions("manageConfiguration"),
+            })}
+          />
+        }
+        hint={t("modelHint")}
+        icon={BedDouble}
+        id="model"
+        title={t("modelTitle")}
+      >
+        <fieldset
+          aria-describedby={
+            fieldError("model", "operatingModel")
+              ? "operating-model-error"
+              : undefined
+          }
+          className="grid gap-3 md:grid-cols-2"
+          disabled={!editable}
+        >
+          <legend className="sr-only">{t("fields.operatingModel")}</legend>
+          {OPERATING_MODELS.map((option, index) => (
+            <label
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-4 has-checked:border-primary has-checked:bg-primary/5 has-disabled:cursor-default has-focus-visible:ring-2 has-focus-visible:ring-ring"
+              key={option}
+            >
+              <input
+                checked={shown.operatingModel === option}
+                className="mt-1 size-4 accent-primary"
+                name="operatingModel"
+                onChange={() => setModel(option)}
+                ref={index === 0 ? modelRef : undefined}
+                type="radio"
+                value={option}
+              />
+              <span className="grid gap-1">
+                <span className="text-step-0 font-medium">
+                  {t(`operatingModels.${option}`)}
+                </span>
+                <span className="text-step--1 text-muted-foreground">
+                  {t(`operatingModelHints.${option}`)}
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+        {fieldError("model", "operatingModel") ? (
+          <p
+            className="mt-2 text-step--1 text-destructive"
+            id="operating-model-error"
+          >
+            {t("invalidOperatingModel")}
+          </p>
+        ) : null}
       </SettingsCard>
     </>
   );
