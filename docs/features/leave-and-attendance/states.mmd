@@ -1,0 +1,37 @@
+%% The states of a leave and of a Resident's night (RANZ-101, ADR 0064).
+%% Anything not drawn here is forbidden. Every transition carries its command.
+%% A leave is a record: it is ended or cancelled and never deleted.
+%% A Resident's night is derived, never stored: the leave, if any, outranks the
+%% latest mark, and a mark is a revision above the one before it.
+stateDiagram-v2
+  direction LR
+
+  state "granted" as l_granted
+  state "ended (back early)" as l_ended
+  state "cancelled (none of it happened)" as l_cancelled
+
+  [*] --> l_granted : grantLeave / s1
+  l_granted --> l_cancelled : cancelLeave or returnFromLeave, while no night of it has passed / s1
+  l_granted --> l_ended : returnFromLeave, once a night of it has passed / s1
+  l_ended --> [*]
+  l_cancelled --> [*]
+
+  note right of l_granted
+    A leave that has run its last night is not a state: it is a granted
+    leave whose nights are all in the past.
+  end note
+
+  state "not yet called" as n_none
+  state "present" as n_present
+  state "absent" as n_absent
+  state "on leave" as n_leave
+
+  [*] --> n_none : the night begins
+  n_none --> n_present : record present / s1
+  n_none --> n_absent : record absent / s1
+  n_present --> n_absent : record absent, a correction / s1
+  n_absent --> n_present : record present, a correction / s1
+  n_none --> n_leave : a leave covers the night / derived
+  n_present --> n_leave : a leave covers the night / derived
+  n_absent --> n_leave : a leave covers the night / derived
+  n_leave --> n_none : the leave is cancelled or ended before the night / derived

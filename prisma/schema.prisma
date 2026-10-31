@@ -34,6 +34,10 @@ model User {
   invitesSent             StaffInvitation[]        @relation("StaffInvitationAuthor")
   wageChangesMade         HrWageChange[]           @relation("WageChangeAuthor")
   closedDays              BusinessDayClose[]
+  attendanceSettingsMade  AttendanceSetting[]      @relation("AttendanceSettingAuthor")
+  leavesGranted           AttendanceLeave[]        @relation("LeaveGrantor")
+  leavesClosed            AttendanceLeave[]        @relation("LeaveCloser")
+  attendanceMarked        AttendanceMark[]
   ratesSet                PropertyRate[]
   bookingChanges          ReservationChange[]
   serviceRequestsAssigned ServiceRequest[]         @relation("ServiceRequestAssignee")
@@ -132,6 +136,8 @@ model Property {
   folios               Folio[]
   housekeepingSettings HousekeepingSetting[]
   closes               BusinessDayClose[]
+  /// At most one: `attendance_settings.property_id` is its primary key.
+  attendanceSettings   AttendanceSetting[]
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
@@ -798,6 +804,8 @@ model Stay {
   reservation     Reservation?        @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   folio           Folio?
   changes         ReservationChange[]
+  leaves          AttendanceLeave[]
+  attendanceMarks AttendanceMark[]
   serviceRequests ServiceRequest[]
 
   // The composite foreign key above forces property and organization to be the
@@ -1105,6 +1113,85 @@ model BusinessDayClose {
 
   @@unique([propertyId, businessDate])
   @@map("business_day_closes")
+}
+
+/// A Property's curfew for the roll call (LA-S1-*). No row means the
+/// application's default; a row with no time means no curfew, on purpose.
+model AttendanceSetting {
+  propertyId     String   @id @map("property_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  curfewTime     DateTime? @map("curfew_time") @db.Time(0)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedBy      String?   @map("updated_by") @db.Uuid
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_settings_property_fkey")
+  author   User?    @relation("AttendanceSettingAuthor", fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("attendance_settings")
+}
+
+/// The nights a Resident is away (izin). `toNight` is the last night away and
+/// `plannedToNight` what was first granted. Never deleted: ended or cancelled,
+/// with who and when. The checks, the exclusion that keeps one Resident away
+/// once a night, the triggers and the policies are hand-written in the
+/// migration.
+model AttendanceLeave {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  stayId         String    @map("stay_id") @db.Uuid
+  fromNight      DateTime  @map("from_night") @db.Date
+  toNight        DateTime  @map("to_night") @db.Date
+  plannedToNight DateTime  @map("planned_to_night") @db.Date
+  status         String    @default("granted")
+  grantedBy      String    @map("granted_by") @db.Uuid
+  grantedAt      DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  closedBy       String?   @map("closed_by") @db.Uuid
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz(6)
+
+  stay     Stay                  @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_leaves_stay_fkey")
+  grantor  User                  @relation("LeaveGrantor", fields: [grantedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  closer   User?                 @relation("LeaveCloser", fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  /// At most one: `attendance_leave_reasons.leave_id` is its primary key.
+  reasons  AttendanceLeaveReason[]
+
+  @@unique([id, propertyId, organizationId], map: "attendance_leaves_id_property_key")
+  @@index([propertyId, fromNight, toNight], map: "attendance_leaves_property_nights_idx")
+  @@map("attendance_leaves")
+}
+
+/// Why a Resident is away. Apart from the leave because the roll call needs to
+/// know who is away and only `leave.grant` needs to know why (KVKK).
+model AttendanceLeaveReason {
+  leaveId        String @id @map("leave_id") @db.Uuid
+  organizationId String @map("organization_id") @db.Uuid
+  propertyId     String @map("property_id") @db.Uuid
+  reason         String
+
+  leave AttendanceLeave @relation(fields: [leaveId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_leave_reasons_leave_fkey")
+
+  @@map("attendance_leave_reasons")
+}
+
+/// Present or absent for one Resident on one night, one row per revision and
+/// never changed: the latest is the current answer. The roll call of a
+/// Property for a night is the marks that share the two.
+model AttendanceMark {
+  id             BigInt   @id @default(autoincrement())
+  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String   @map("property_id") @db.Uuid
+  stayId         String   @map("stay_id") @db.Uuid
+  night          DateTime @db.Date
+  status         String
+  markedBy       String   @map("marked_by") @db.Uuid
+  markedAt       DateTime @default(now()) @map("marked_at") @db.Timestamptz(6)
+
+  stay     Stay     @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_marks_stay_fkey")
+  marker   User     @relation(fields: [markedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([stayId, night, id(sort: Desc)], map: "attendance_marks_current_idx")
+  @@index([propertyId, night], map: "attendance_marks_night_idx")
+  @@map("attendance_marks")
 }
 
 /// One change to a booking or a Stay's dates or Unit (ADR 0039): what it was,

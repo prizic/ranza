@@ -102,6 +102,12 @@ export const CONTEXT_KEYS = [
   "bytes",
   "rangeFrom",
   "rangeTo",
+  "night",
+  "present",
+  "absent",
+  "fromNight",
+  "toNight",
+  "setting",
 ] as const;
 
 export type ContextKey = (typeof CONTEXT_KEYS)[number];

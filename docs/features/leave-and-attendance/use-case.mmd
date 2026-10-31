@@ -1,0 +1,48 @@
+%% Leave (izin) and the nightly roll call (yoklama) (RANZ-101, ADR 0064).
+%% Slice 1: the records, their permissions and the figures. Slice 2: the screen.
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% A Property capability, `attendance`, available to any Property whatever its
+%% operating model (ADR 0057); a dormitory has it on from the start.
+%% Open question: whether a Resident may ask for leave from the Portal (LA-DEF-05).
+flowchart TD
+
+  GRANTER["Staff Member holding leave.grant<br/>the desk"]
+  WARDEN["Staff Member holding attendance.take<br/>the night warden, or the desk"]
+  MANAGER["Staff Member holding configuration.manage<br/>sets the curfew"]
+  TODAY["Today<br/>RANZ-108, added by the orchestrator"]
+
+  subgraph S1["slice 1 &mdash; the records"]
+    GRANT(["Give a Resident leave<br/>nights from and to, and a reason"])
+    REASON(["Keep the reason apart<br/>read only with leave.grant"])
+    CLOSE(["End or cancel a leave<br/>never delete"])
+    CALL(["Mark a Resident present or absent<br/>for tonight"])
+    CORRECT(["Correct an answer<br/>a revision with who and when"])
+    CURFEW(["Set the curfew<br/>a Property setting, a default for a dormitory"])
+    FIGURES(["Count tonight<br/>on leave, absent, not yet called"])
+  end
+
+  subgraph S2["slice 2 &mdash; the screen"]
+    ROLL(["Roll call<br/>by block, floor and room; one tap on the row"])
+    REST(["Mark the rest of a floor present"])
+    KEYS(["Call the roll from the keyboard"])
+    BACK(["Back from leave<br/>one press on the row"])
+  end
+
+  GRANTER --- GRANT
+  GRANTER --- CLOSE
+  WARDEN --- CALL
+  WARDEN --- ROLL
+  MANAGER --- CURFEW
+  TODAY --- FIGURES
+
+  GRANT --> REASON
+  CALL -. "extend: when an answer already stands" .-> CORRECT
+  ROLL --> CALL
+  REST --> CALL
+  KEYS --> CALL
+  ROLL --> FIGURES
+  BACK --> CLOSE
+  FIGURES --> CURFEW

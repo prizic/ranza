@@ -569,7 +569,9 @@ export interface Messages {
       | "viewIntegrations"
       | "manageIntegrations"
       | "manageBranding"
-      | "readGuestParticulars",
+      | "readGuestParticulars"
+      | "takeAttendance"
+      | "grantLeave",
       string
     >;
     emptyRosterTitle: string;
@@ -2998,6 +3000,9 @@ export interface Messages {
     branding: Record<"changed" | "reset", string>;
     webhook_endpoint: Record<"registered" | "removed" | "test_sent", string>;
     failed_operation: Record<"retried" | "cancelled" | "resolved", string>;
+    resident_leave: Record<"granted" | "ended" | "cancelled", string>;
+    roll_call: Record<"recorded" | "corrected", string>;
+    attendance_setting: Record<"changed", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -3017,7 +3022,8 @@ export interface Messages {
     | "payroll_run"
     | "organization_brand"
     | "webhook_endpoint"
-    | "failed_operation",
+    | "failed_operation"
+    | "attendance_leave",
     string
   >;
 
@@ -3963,6 +3969,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageBranding: "Organizasyonun markasını (renk ve logo) yönetme",
         readGuestParticulars:
           "Misafirlerin kişisel bilgilerini görme (doğum tarihi, öğrenim, veli, acil durum kişisi)",
+        takeAttendance: "Yoklama alma (öğrenciyi var veya yok işaretleme)",
+        grantLeave:
+          "Öğrenciye izin verme, izni bitirme veya iptal etme ve izin nedenini görme",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -6603,6 +6612,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsCharged: "Ücretlendirilen oda geceleri",
       roomNightsNotCharged: "Ücretlendirilmeyen oda geceleri",
       roomWasNotReady: "Giriş yapılırken oda hazır değildi",
+      night: "Gece",
+      present: "Var",
+      absent: "Yok",
+      fromNight: "İznin ilk gecesi",
+      toNight: "İznin son gecesi",
+      setting: "Ayar",
       servicedOn: "Bakım günü",
       title: "Başlık",
       unitId: "Oda",
@@ -6711,6 +6726,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "Başarısız gönderimin denenmesi bırakıldı",
         resolved: "Başarısız gönderim çözüldü olarak işaretlendi",
       },
+      resident_leave: {
+        granted: "İzin verildi",
+        ended: "İzin erken sona erdi",
+        cancelled: "İzin iptal edildi",
+      },
+      roll_call: {
+        recorded: "Yoklama alındı",
+        corrected: "Yoklama cevabı düzeltildi",
+      },
+      attendance_setting: { changed: "Yurda giriş saati değişti" },
     },
     auditArea: {
       bookings: "Rezervasyonlar ve konaklamalar",
@@ -6740,6 +6765,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization_brand: "Organizasyon markası",
       webhook_endpoint: "Webhook uç noktası",
       failed_operation: "Başarısız gönderim",
+      attendance_leave: "İzin",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -7735,6 +7761,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageBranding: "Manage the Organization's brand (colour and logo)",
         readGuestParticulars:
           "Read Guests' personal details (date of birth, studies, guardian, emergency contact)",
+        takeAttendance:
+          "Call the nightly roll (mark Residents present or absent)",
+        grantLeave:
+          "Give, end and cancel Residents' leave, and read why it was given",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -10380,6 +10410,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsCharged: "Room nights charged",
       roomNightsNotCharged: "Room nights not charged",
       roomWasNotReady: "Room was not ready at check-in",
+      night: "Night",
+      present: "Present",
+      absent: "Absent",
+      fromNight: "First night of leave",
+      toNight: "Last night of leave",
+      setting: "Setting",
       servicedOn: "Serviced on",
       title: "Title",
       unitId: "Room",
@@ -10488,6 +10524,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "Failed delivery cancelled",
         resolved: "Failed delivery marked resolved",
       },
+      resident_leave: {
+        granted: "Leave given",
+        ended: "Leave ended early",
+        cancelled: "Leave cancelled",
+      },
+      roll_call: {
+        recorded: "Roll call taken",
+        corrected: "Roll call answer corrected",
+      },
+      attendance_setting: { changed: "Curfew changed" },
     },
     auditArea: {
       bookings: "Bookings and stays",
@@ -10517,6 +10563,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization_brand: "Organization brand",
       webhook_endpoint: "Webhook endpoint",
       failed_operation: "Failed delivery",
+      attendance_leave: "Leave",
     },
     closeDay: {
       at: "Closing the day at",
@@ -11491,6 +11538,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageBranding: "إدارة هوية المؤسسة البصرية (اللون والشعار)",
         readGuestParticulars:
           "قراءة البيانات الشخصية للضيوف (تاريخ الميلاد، الدراسة، وليّ الأمر، جهة الطوارئ)",
+        takeAttendance: "أخذ التحضير الليلي (تسجيل حضور المقيمين أو غيابهم)",
+        grantLeave: "منح المقيمين إجازات وإنهاؤها وإلغاؤها وقراءة سبب منحها",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -14081,6 +14130,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       roomNightsCharged: "ليالي الغرف المحتسبة",
       roomNightsNotCharged: "ليالي الغرف غير المحاسَب عليها",
       roomWasNotReady: "لم تكن الغرفة جاهزة عند تسجيل الوصول",
+      night: "الليلة",
+      present: "حاضر",
+      absent: "غائب",
+      fromNight: "أول ليلة من الإجازة",
+      toNight: "آخر ليلة من الإجازة",
+      setting: "الإعداد",
       servicedOn: "تاريخ الصيانة",
       title: "العنوان",
       unitId: "الغرفة",
@@ -14189,6 +14244,16 @@ export const messages: Record<SupportedLocale, Messages> = {
         cancelled: "أُوقفت محاولات إرسال فاشل",
         resolved: "عُلِّم إرسال فاشل كمحلول",
       },
+      resident_leave: {
+        granted: "مُنحت إجازة",
+        ended: "انتهت الإجازة مبكرًا",
+        cancelled: "أُلغيت الإجازة",
+      },
+      roll_call: {
+        recorded: "أُخذ التحضير",
+        corrected: "صُحّح جواب التحضير",
+      },
+      attendance_setting: { changed: "تغيّر موعد العودة إلى السكن" },
     },
     auditArea: {
       bookings: "الحجوزات والإقامات",
@@ -14218,6 +14283,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       organization_brand: "الهوية البصرية للمؤسسة",
       webhook_endpoint: "نقطة استقبال ويب هوك",
       failed_operation: "إرسال فاشل",
+      attendance_leave: "إجازة",
     },
     closeDay: {
       at: "إغلاق اليوم في",

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@ranza/accommodation": "workspace:*",
+    "@ranza/attendance": "workspace:*",
     "@ranza/auth": "workspace:*",
     "@ranza/branding": "workspace:*",
     "@ranza/business-day": "workspace:*",

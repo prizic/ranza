@@ -120,6 +120,9 @@ importers:
       '@ranza/accommodation':
         specifier: workspace:*
         version: link:../../packages/ranza/accommodation
+      '@ranza/attendance':
+        specifier: workspace:*
+        version: link:../../packages/ranza/attendance
       '@ranza/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -318,6 +321,18 @@ importers:
         version: link:../../db
 
   packages/ranza/accommodation:
+    dependencies:
+      '@ranza/core':
+        specifier: workspace:*
+        version: link:../core
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
+
+  packages/ranza/attendance:
     dependencies:
       '@ranza/core':
         specifier: workspace:*

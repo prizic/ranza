@@ -48,6 +48,13 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "Misafirin konaklamasının bir çıkış tarihi olmalı; yalnızca öğrencinin konaklaması açık uçlu olabilir.",
     roomCalendar: { resident: "Öğrenci" },
+    staff: {
+      permissions: {
+        takeAttendance: "Yoklama alma (öğrenciyi var veya yok işaretleme)",
+        grantLeave:
+          "Öğrenciye izin verme, izni bitirme veya iptal etme ve izin nedenini görme",
+      },
+    },
     dashboard: {
       newBooking: "Yeni kayıt",
       expectedTonight: "Bu gece beklenen {count} / {of} uygun yatak ({value})",
@@ -109,6 +116,14 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "A Guest's stay needs a departure; only a Student's may be open-ended.",
     roomCalendar: { resident: "Student" },
+    staff: {
+      permissions: {
+        takeAttendance:
+          "Call the nightly roll (mark students present or absent)",
+        grantLeave:
+          "Give, end and cancel students' leave, and read why it was given",
+      },
+    },
     dashboard: {
       newBooking: "New registration",
       expectedTonight:
@@ -167,6 +182,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "تحتاج إقامة الضيف إلى موعد مغادرة؛ الإقامة المفتوحة للطالب وحده.",
     roomCalendar: { resident: "طالب" },
+    staff: {
+      permissions: {
+        takeAttendance: "أخذ التحضير الليلي (تسجيل حضور الطلاب أو غيابهم)",
+        grantLeave: "منح الطلاب إجازات وإنهاؤها وإلغاؤها وقراءة سبب منحها",
+      },
+    },
     dashboard: {
       newBooking: "تسجيل جديد",
       expectedTonight: "المتوقع الليلة {count} من {of} سريرًا متاحًا ({value})",

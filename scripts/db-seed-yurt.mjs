@@ -90,7 +90,8 @@ if (!organizationId) {
 }
 
 // The Organization's own capabilities, from the Property it already has, so
-// the yurt switches on nothing its other Properties do not.
+// the yurt switches on nothing its other Properties do not, bar what a yurt
+// is for, below.
 psql(`
   with property as (
     insert into public.properties (organization_id, name, operating_model)
@@ -114,6 +115,17 @@ psql(`
     from property
     join public.property_capabilities as capability
       on capability.property_id = (select id from sibling)`);
+
+// The yurt keeps leave and a roll call (ADR 0064). Its own statement, so that a
+// yurt seeded before the capability existed is given it on a second run.
+psql(`
+  insert into public.property_capabilities
+    (property_id, organization_id, capability_key, enabled)
+  select property.id, property.organization_id, 'attendance', true
+    from public.properties as property
+   where property.organization_id = ${literal(organizationId)}
+     and property.name = ${literal(PROPERTY)}
+  on conflict (property_id, capability_key) do update set enabled = true`);
 
 const propertyId = psql(
   `select id from public.properties
