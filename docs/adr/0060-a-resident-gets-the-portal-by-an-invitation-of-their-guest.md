@@ -92,5 +92,9 @@ invitation (ADR 0057).
   `property_capabilities` row that only seeds and tests write. Until a screen
   exists, the invite section says the Portal is off and why instead of hiding.
 - A link claimed by the wrong person cannot be undone from a screen (GP-DEF-06).
-- Next instalment is not on My stay: the instalment tables are another lane's
-  and were not on `main` when this was written (GP-DEF-10).
+- Next instalment is not on My stay (GP-DEF-10). The instalment tables landed
+  after this slice was complete ([ADR 0059](0059-a-resident-pays-by-instalments-the-worker-charges-on-their-due-dates.md)),
+  but they are read by reach and `app.payment_plan_standing` is security
+  invoker, so a Resident gets no row from it. The slot needs a Resident's own
+  read path, of the same shape as the balance function, over that one
+  definition of overdue.
