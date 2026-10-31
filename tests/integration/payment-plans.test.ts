@@ -28,6 +28,7 @@ import {
   PaymentPlanRefusedError,
   PlanExistsError,
 } from "../../packages/ranza/payment-plans/src";
+import { createFoliosModule } from "../../packages/ranza/folios/src";
 import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import { latestRecord } from "./audit-record";
 
@@ -37,6 +38,7 @@ const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const plans = createPaymentPlansModule({ db: app });
 const reservations = createReservationsModule({ db: app });
+const folios = createFoliosModule({ db: app });
 const poster = createInstalmentPoster({ db: worker });
 
 const ORG = randomUUID();
@@ -684,6 +686,37 @@ describe("the worker's pass", () => {
 
     const plan = await plans.readPaymentPlan(DESK, reservationId);
     expect(plan?.instalments.map((i) => i.posted)).toEqual([true, true, false]);
+  });
+
+  it("the Folio names a charged instalment by its place in the plan, and a line somebody typed to look like one stays what they typed (PP-S3-05)", async () => {
+    const property = await aProperty();
+    const { reservationId, folioId } = await booking(property);
+    await plans.createPaymentPlan(
+      DESK,
+      reservationId,
+      await threeInstalments(property),
+    );
+    await poster.postDueInstalments();
+    await folios.postCharge(FINANCE, {
+      folioId: folioId!,
+      description: "Instalment 9 of 9",
+      amountMinor: 100,
+    });
+
+    const detail = await folios.folioDetail(FINANCE, folioId!);
+    const named = detail!.lines
+      .map((line) => ({
+        description: line.description,
+        instalment: line.instalment,
+      }))
+      .sort((a, b) => a.description.localeCompare(b.description));
+    expect(named).toEqual([
+      { description: "Instalment 1 of 3", instalment: { number: 1, count: 3 } },
+      { description: "Instalment 2 of 3", instalment: { number: 2, count: 3 } },
+      // Only a line the worker posted from a plan is one; a typed description
+      // that happens to read the same is not.
+      { description: "Instalment 9 of 9", instalment: null },
+    ]);
   });
 
   it("an instalment waits for a Resident who has not arrived and is charged, dated the day it fell due, once they have", async () => {

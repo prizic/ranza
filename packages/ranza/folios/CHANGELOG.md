@@ -36,6 +36,12 @@ everything lands under Unreleased.
 
 ### Added
 
+- `FolioLine.instalment`: which instalment of how many a charge posted from a
+  payment plan is (`{ number, count }`), null on every other line. The database
+  writes such a line's description in English, and a screen names it in the
+  reader's language, as it does a room night (PP-S3-05). Read from the
+  description's own numbering rather than from the plan's tables, so this module
+  reads nothing it does not own.
 - `chargesPostedToday()`: charges posted at a Property on its business date,
   less the reversals of charges, per currency, for a viewer holding
   `finance.manage_folio` and empty for anybody else (TD-S3-02). Payments are in

@@ -33,6 +33,7 @@ import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
 import { GuestParticularsFacts } from "./guest-particulars-facts";
+import { PaymentPlanSection } from "./payment-plan-section";
 import { PortalInvitationSection } from "./portal-invitation-section";
 import { CheckInAction } from "./check-in-action";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
@@ -265,6 +266,19 @@ export function ReservationDetailSheet({
             locale={locale}
             reservationId={reservation.reservationId}
           />
+
+          {stayType === "resident" ? (
+            <PaymentPlanSection
+              endsOn={endsOn}
+              locale={locale}
+              propertyId={propertyId}
+              reservationId={reservation.reservationId}
+              startsOn={effectiveStart}
+              status={status}
+              today={today}
+              unitId={unitId}
+            />
+          ) : null}
 
           <DialogSection title={t("financialDetails")}>
             <DialogFacts

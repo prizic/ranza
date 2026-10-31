@@ -100,6 +100,13 @@ export interface FolioLine {
    * rather than by the description the database wrote.
    */
   roomNightOf: string | null;
+  /**
+   * Which instalment of how many a charge is, when it was posted from a
+   * payment plan; null on every other line. A screen names such a line in the
+   * reader's language rather than by the English description the database wrote
+   * (PP-S3-05).
+   */
+  instalment: { number: number; count: number } | null;
 }
 
 /**

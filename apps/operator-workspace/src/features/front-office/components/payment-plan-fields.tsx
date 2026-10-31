@@ -20,6 +20,7 @@ import type { PaymentPlanState } from "../use-payment-plan";
  * the plan is a good one, and a plan it refuses leaves no booking behind.
  */
 export function PaymentPlanFields({
+  canRemove = true,
   currency,
   from,
   locale,
@@ -27,11 +28,13 @@ export function PaymentPlanFields({
   tagOptional,
   to,
 }: {
+  /** False where the plan is the point of the dialog and there is no "none". */
+  canRemove?: boolean;
   currency: string;
   from: string | undefined;
   locale: SupportedLocale;
   plan: PaymentPlanState;
-  tagOptional: string;
+  tagOptional?: string | undefined;
   to: string | undefined;
 }) {
   const t = useTranslations("paymentPlan");
@@ -70,7 +73,7 @@ export function PaymentPlanFields({
   return (
     <DialogSection
       hint={t("hint")}
-      tag={{ label: tagOptional }}
+      tag={tagOptional ? { label: tagOptional } : undefined}
       title={t("title")}
       titleId="booking-payment-plan"
     >
@@ -225,14 +228,16 @@ export function PaymentPlanFields({
               {t("resplit")}
             </Button>
           ) : null}
-          <Button
-            onClick={() => plan.choose(false)}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            {t("remove")}
-          </Button>
+          {canRemove ? (
+            <Button
+              onClick={() => plan.choose(false)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              {t("remove")}
+            </Button>
+          ) : null}
         </div>
       </div>
     </DialogSection>

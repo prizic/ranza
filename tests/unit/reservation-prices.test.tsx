@@ -32,6 +32,11 @@ vi.mock(
   "../../apps/operator-workspace/src/server/portal-invitation-actions",
   () => ({}),
 );
+// And its payment plan, whose add button calls a server action it only imports.
+vi.mock(
+  "../../apps/operator-workspace/src/server/payment-plan-actions",
+  () => ({}),
+);
 
 const { ReservationsTable } =
   await import("../../apps/operator-workspace/src/features/front-office/components/reservations-table");

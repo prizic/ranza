@@ -713,6 +713,28 @@ export interface Messages {
     invalid: string;
     afterTerm: string;
     notAllowed: string;
+    /** On the booking (PP-S3-*): the schedule, where it stands, and adding one later. */
+    state: {
+      waived: string;
+      paid: string;
+      overdue: string;
+      due: string;
+      upcoming: string;
+    };
+    paid: string;
+    outstanding: string;
+    onFolio: string;
+    count: string;
+    empty: string;
+    addPlan: string;
+    addNeedsDeparture: string;
+    addTitle: string;
+    addSummary: string;
+    save: string;
+    alreadyPlanned: string;
+    readFailed: string;
+    /** A Folio line made from an instalment, in the reader's language. */
+    folioLine: string;
   };
   /**
    * A Guest's date of birth, studies, guardian and emergency contact, in the
@@ -4397,6 +4419,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Bir taksit ayrılış tarihinden sonraya düşemez. Vade günlerini kontrol edin.",
       notAllowed:
         "Bu kayda ödeme planı eklenemez. Planı kaldırıp yeniden deneyin.",
+      state: {
+        waived: "İptal edildi",
+        paid: "Ödendi",
+        overdue: "Gecikti",
+        due: "Bugün vadesi geldi",
+        upcoming: "Yaklaşıyor",
+      },
+      paid: "Ödenen",
+      outstanding: "Ödenecek",
+      onFolio: "Folyoya işlendi",
+      count: "{count, plural, other {# taksit}}",
+      empty: "Ödeme planı yok. Ücretler Finans işledikçe folyoya yazılır.",
+      addPlan: "Ödeme planı ekle",
+      addNeedsDeparture:
+        "Ödeme planı için bir ayrılış tarihi gerekir. Kaydı değiştirip bir tarih verin.",
+      addTitle: "Ödeme planı ekle",
+      addSummary:
+        "Ücreti taksitlere bölün. Her taksit, vade gününde folyoya işlenir.",
+      save: "Planı kaydet",
+      alreadyPlanned: "Bu kaydın zaten bir ödeme planı var.",
+      readFailed:
+        "Ödeme planı okunamadı. Kaydı kapatıp yeniden açmayı deneyin.",
+      folioLine: "Taksit {number} / {count}",
     },
     particulars: {
       title: "Kişisel bilgiler",
@@ -8477,6 +8522,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "An instalment cannot fall due after the departure. Check the due days.",
       notAllowed:
         "This booking cannot take a payment plan. Remove the plan and try again.",
+      state: {
+        waived: "Waived",
+        paid: "Paid",
+        overdue: "Overdue",
+        due: "Due today",
+        upcoming: "Upcoming",
+      },
+      paid: "Paid",
+      outstanding: "Still to pay",
+      onFolio: "On the Folio",
+      count: "{count, plural, one {# instalment} other {# instalments}}",
+      empty: "No payment plan. Fees are charged as Finance posts them.",
+      addPlan: "Add a payment plan",
+      addNeedsDeparture:
+        "A payment plan needs a departure date. Change the booking to give it one.",
+      addTitle: "Add a payment plan",
+      addSummary:
+        "Split the fees into instalments. Each one is charged to the Folio on the day it falls due.",
+      save: "Save the plan",
+      alreadyPlanned: "This booking already has a payment plan.",
+      readFailed:
+        "The payment plan could not be read. Try closing the booking and opening it again.",
+      folioLine: "Instalment {number} of {count}",
     },
     particulars: {
       title: "Personal details",
@@ -12546,6 +12614,29 @@ export const messages: Record<SupportedLocale, Messages> = {
         "لا يمكن أن يستحق قسط بعد تاريخ المغادرة. راجع أيام الاستحقاق.",
       notAllowed:
         "لا يمكن إضافة خطة دفع إلى هذا الحجز. أزل الخطة وحاول مجددًا.",
+      state: {
+        waived: "أُلغي",
+        paid: "مدفوع",
+        overdue: "متأخر",
+        due: "مستحق اليوم",
+        upcoming: "قادم",
+      },
+      paid: "المدفوع",
+      outstanding: "المتبقي",
+      onFolio: "مسجَّل على الفوليو",
+      count:
+        "{count, plural, one {قسط واحد} two {قسطان} few {# أقساط} many {# قسطًا} other {# قسط}}",
+      empty: "لا خطة دفع. تُسجَّل الرسوم على الفوليو كما يقيّدها قسم المالية.",
+      addPlan: "إضافة خطة دفع",
+      addNeedsDeparture:
+        "تحتاج خطة الدفع إلى تاريخ مغادرة. عدّل الحجز لتحدد تاريخًا.",
+      addTitle: "إضافة خطة دفع",
+      addSummary:
+        "قسّم الرسوم إلى أقساط. يُسجَّل كل قسط على الفوليو في يوم استحقاقه.",
+      save: "حفظ الخطة",
+      alreadyPlanned: "لهذا الحجز خطة دفع بالفعل.",
+      readFailed: "تعذّرت قراءة خطة الدفع. أغلق الحجز ثم افتحه من جديد.",
+      folioLine: "القسط {number} من {count}",
     },
     particulars: {
       title: "البيانات الشخصية",

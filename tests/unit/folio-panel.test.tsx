@@ -85,6 +85,7 @@ const FOLIO: FolioDetail = {
       reversed: false,
       postedAt: new Date("2026-09-27T09:00:00Z"),
       roomNightOf: null,
+      instalment: null,
     },
     {
       lineId: "d9000007-0000-4000-8000-000000000012",
@@ -95,6 +96,7 @@ const FOLIO: FolioDetail = {
       reversed: false,
       postedAt: new Date("2026-09-26T20:00:00Z"),
       roomNightOf: null,
+      instalment: null,
     },
     {
       lineId: "d9000007-0000-4000-8000-000000000011",
@@ -105,6 +107,7 @@ const FOLIO: FolioDetail = {
       reversed: true,
       postedAt: new Date("2026-09-26T01:05:00Z"),
       roomNightOf: "2026-09-25",
+      instalment: null,
     },
     {
       lineId: "d9000007-0000-4000-8000-000000000010",
@@ -115,6 +118,7 @@ const FOLIO: FolioDetail = {
       reversed: false,
       postedAt: new Date("2026-09-25T01:05:00Z"),
       roomNightOf: "2026-09-24",
+      instalment: null,
     },
   ],
 };
@@ -156,6 +160,91 @@ describe("a room night on a Folio", () => {
       );
       const word = messages[locale].roomNightLine.split(" · ")[0]!;
       expect(screen.getAllByText(new RegExp(`${word} · `))).toHaveLength(3);
+    });
+  }
+});
+
+describe("an instalment on a Folio (PP-S3-05)", () => {
+  const INSTALMENT: FolioDetail["lines"][number] = {
+    lineId: "d9000007-0000-4000-8000-000000000040",
+    lineType: "charge",
+    description: "Instalment 2 of 3",
+    amountMinor: 52500,
+    paymentMethod: null,
+    reversesLineId: null,
+    reversed: true,
+    postedAt: new Date("2026-09-26T01:05:00Z"),
+    roomNightOf: null,
+    instalment: { number: 2, count: 3 },
+  };
+  const WITH_INSTALMENT: FolioDetail = {
+    ...FOLIO,
+    lines: [
+      {
+        lineId: "d9000007-0000-4000-8000-000000000041",
+        lineType: "reversal",
+        description: "Student withdrew",
+        amountMinor: -52500,
+        paymentMethod: null,
+        reversesLineId: INSTALMENT.lineId,
+        reversed: false,
+        postedAt: new Date("2026-09-27T09:00:00Z"),
+        roomNightOf: null,
+        instalment: null,
+      },
+      INSTALMENT,
+    ],
+  };
+  const show = (locale: (typeof supportedLocales)[number]) =>
+    render(
+      <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={WITH_INSTALMENT}
+          locale={locale}
+          mayReverse
+        />
+      </NextIntlClientProvider>,
+    );
+
+  it("an_instalment_reads_as_its_place_in_the_plan_and_so_does_its_reversal", () => {
+    show("en");
+    expect(screen.getByText("Instalment 2 of 3")).toBeTruthy();
+    expect(screen.getByText("Reversal of Instalment 2 of 3")).toBeTruthy();
+    // The reversal keeps the reason that was typed, as for any other charge.
+    expect(plain(screen.getByText(/^Reason: /))).toBe(
+      "Reason: Student withdrew",
+    );
+  });
+
+  it("an_instalment_is_named_by_its_numbers_never_by_the_description_the_database_wrote", () => {
+    const written: FolioDetail = {
+      ...WITH_INSTALMENT,
+      lines: WITH_INSTALMENT.lines.map((line) =>
+        line.instalment ? { ...line, description: "Taksit raw" } : line,
+      ),
+    };
+    render(
+      <NextIntlClientProvider locale="tr" messages={messages.tr}>
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={written}
+          locale="tr"
+          mayReverse
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("Taksit 2 / 3")).toBeTruthy();
+    expect(screen.queryByText("Taksit raw")).toBeNull();
+  });
+
+  for (const locale of supportedLocales) {
+    it(`an_instalment_reads_in_every_locale: ${locale}`, () => {
+      show(locale);
+      const named = messages[locale].paymentPlan.folioLine
+        .replace("{number}", "2")
+        .replace("{count}", "3");
+      expect(screen.getAllByText(new RegExp(named))).toHaveLength(2);
     });
   }
 });
@@ -242,6 +331,7 @@ const FOLIO_WITH_PAYMENT: FolioDetail = {
       reversed: false,
       postedAt: new Date("2026-09-27T10:00:00Z"),
       roomNightOf: null,
+      instalment: null,
     },
   ],
 };
@@ -367,6 +457,7 @@ describe("a line is dated by the Property's own clock", () => {
     reversed: false,
     postedAt: LATE,
     roomNightOf: null,
+    instalment: null,
   };
   const stamp = (container: HTMLElement): string =>
     container.querySelector(`time[datetime="${LATE.toISOString()}"]`)
@@ -571,6 +662,7 @@ describe("a correction reads as one (FIN-07)", () => {
         reversed: false,
         postedAt: new Date("2026-09-27T10:00:00Z"),
         roomNightOf: null,
+        instalment: null,
       },
       { ...CHARGE, reversed: true },
     ],

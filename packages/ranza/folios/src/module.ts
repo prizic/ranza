@@ -91,6 +91,8 @@ interface LineRow {
   reversed: boolean;
   postedAt: Date;
   roomNightOf: string | null;
+  instalmentNumber: number | null;
+  instalmentCount: number | null;
 }
 
 type Nullable<T> = { [K in keyof T]: T[K] | null };
@@ -139,6 +141,10 @@ function toLine(row: LineRow): FolioLine {
     reversed: row.reversed,
     postedAt: row.postedAt,
     roomNightOf: row.roomNightOf,
+    instalment:
+      row.instalmentNumber === null || row.instalmentCount === null
+        ? null
+        : { number: row.instalmentNumber, count: row.instalmentCount },
   };
 }
 
@@ -427,7 +433,13 @@ export function createFoliosModule(deps: FoliosDeps) {
                 line.posted_at          as "postedAt",
                 case when line.source = 'room_night'
                      then to_char(line.business_date, 'YYYY-MM-DD')
-                end                     as "roomNightOf"
+                end                     as "roomNightOf",
+                case when line.source = 'instalment'
+                     then substring(line.description from '^Instalment ([0-9]+) of [0-9]+$')::int
+                end                     as "instalmentNumber",
+                case when line.source = 'instalment'
+                     then substring(line.description from '^Instalment [0-9]+ of ([0-9]+)$')::int
+                end                     as "instalmentCount"
            from (${folioQuery("folio.id = $1::uuid", { pending: true })}) as summary
            left join public.folio_lines as line
              on line.folio_id = summary."folioId"

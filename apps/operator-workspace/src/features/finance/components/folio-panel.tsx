@@ -117,13 +117,20 @@ export function FolioPanel({
 
   // A room night reads in the reader's language, for the night it is for,
   // rather than as the description the database wrote (ADR 0038) — and so
-  // does its correction, which copies that description.
+  // does its correction, which copies that description. An instalment reads
+  // the same way, by its number in the plan (PP-S3-05).
   const nights = new Map(
     folio.lines.flatMap((line) =>
       line.roomNightOf ? [[line.lineId, line.roomNightOf] as const] : [],
     ),
   );
   const described = (line: FolioDetail["lines"][number]): string => {
+    if (line.instalment) {
+      return t("paymentPlan.folioLine", {
+        number: line.instalment.number,
+        count: line.instalment.count,
+      });
+    }
     const night =
       line.roomNightOf ??
       (line.reversesLineId ? nights.get(line.reversesLineId) : undefined);
