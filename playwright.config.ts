@@ -20,8 +20,13 @@ import { portalUrl } from "./tests/browser/portal-url";
  * theirs, pointed wherever their environment says, and the test fails plainly
  * if it is not this database — the seeded arrival simply will not be on the
  * list.
+ *
+ * `WORKSPACE_URL` moves it, as `db:seed:dev` reads it too: two worktrees each
+ * running the suite would otherwise share port 3000, and `reuseExistingServer`
+ * would quietly test one worktree's code against the other's spec.
  */
-const WORKSPACE = "http://localhost:3000";
+const WORKSPACE = new URL(process.env.WORKSPACE_URL ?? "http://localhost:3000")
+  .origin;
 
 /**
  * The Guest/Resident Portal, started beside the Workspace for the specs that
@@ -83,8 +88,7 @@ export default defineConfig({
       // second and says why — `Process from config.webServer was not able to
       // start. Exit code: 1` — measured rather than assumed, so that nobody adds
       // configuration for a case the tool already covers.
-      command:
-        "pnpm --filter @ranza/db generate && pnpm --filter @ranza/operator-workspace dev",
+      command: `pnpm --filter @ranza/db generate && pnpm --filter @ranza/operator-workspace exec next dev --port ${new URL(WORKSPACE).port || "3000"}`,
       url: `${WORKSPACE}/en/sign-in`,
       reuseExistingServer: !process.env.CI,
       // A cold `next dev` compiles the route before it answers, and CI starts
