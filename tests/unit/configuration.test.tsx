@@ -781,28 +781,36 @@ const PRICES: PriceList = {
   mayManage: true,
   entries: [
     {
+      key: "room",
       unitType: "room",
+      roomCapacity: null,
       amountMinor: 150000,
       currency: "TRY",
       stale: false,
       sellableUnits: 12,
     },
     {
+      key: "bed",
       unitType: "bed",
+      roomCapacity: null,
       amountMinor: null,
       currency: null,
       stale: false,
       sellableUnits: 1,
     },
     {
+      key: "apartment",
       unitType: "apartment",
+      roomCapacity: null,
       amountMinor: 900000,
       currency: "EUR",
       stale: true,
       sellableUnits: 2,
     },
     {
+      key: "suite",
       unitType: "suite",
+      roomCapacity: null,
       amountMinor: null,
       currency: null,
       stale: false,
@@ -810,6 +818,44 @@ const PRICES: PriceList = {
     },
   ],
 };
+
+/**
+ * A yurt's list: beds in rooms of one, three and four. `general` is the price
+ * of a bed in a room without a price of its own, `three` the price of the
+ * triple; the single and the room of four are priced.
+ */
+function sizedPrices(prices: {
+  general: number | null;
+  three: number | null;
+}): PriceList {
+  const entry = (
+    unitType: PriceList["entries"][number]["unitType"],
+    roomCapacity: number | null,
+    amountMinor: number | null,
+    sellableUnits: number,
+  ) => ({
+    key: roomCapacity === null ? unitType : `${unitType}:${roomCapacity}`,
+    unitType,
+    roomCapacity,
+    amountMinor,
+    currency: amountMinor === null ? null : "TRY",
+    stale: false,
+    sellableUnits,
+  });
+  return {
+    ...PRICES,
+    entries: [
+      entry("room", null, 150000, 0),
+      // Beds a size price does not already cover: the triple's.
+      entry("bed", null, prices.general, prices.three === null ? 3 : 0),
+      entry("bed", 1, 900000, 1),
+      entry("bed", 3, prices.three, 3),
+      entry("bed", 4, 400000, 4),
+      entry("apartment", null, null, 0),
+      entry("suite", null, null, 0),
+    ],
+  };
+}
 
 describe("nightly rates", () => {
   it("rates_section_lists_every_kind_with_its_price_and_units", async () => {
@@ -844,6 +890,85 @@ describe("nightly rates", () => {
     expect(card("rates").querySelector("[data-slot=card]")).toHaveClass(
       "border-warning/40",
     );
+  });
+
+  it("RT-S4-13: lists the general bed price and one row for each size of room", async () => {
+    pricesShown = sizedPrices({ general: 300000, three: null });
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    expect(rates.getByLabelText("Price per night for Bed")).toHaveValue("3000");
+    expect(
+      rates.getByLabelText("Price per night for Bed in a single room"),
+    ).toHaveValue("9000");
+    expect(
+      rates.getByLabelText("Price per night for Bed in a 3-bed room"),
+    ).toHaveValue("");
+    expect(
+      rates.getByLabelText("Price per night for Bed in a 4-bed room"),
+    ).toHaveValue("4000");
+    expect(rates.getByText("3 beds")).toBeVisible();
+    expect(
+      rates.getByText(
+        "Used for every size of room below that has no price of its own.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("RT-S4-15: only beds that would be unpriced are warned about", async () => {
+    // The general price is set: a size with none of its own is not a gap.
+    pricesShown = sizedPrices({ general: 300000, three: null });
+    await show(MANAGER);
+    expect(
+      within(card("rates")).getByText(
+        "No price of its own: these beds take the bed price above.",
+      ),
+    ).toBeVisible();
+    expect(
+      within(card("rates")).queryByText(
+        "Bookings of this kind are taken without a price, and their nights are not charged.",
+      ),
+    ).toBeNull();
+    expect(screen.getByRole("link", { name: "Nightly rates" })).toBeVisible();
+  });
+
+  it("RT-S4-15: with the general price blank, the beds of a size without one are unpriced", async () => {
+    pricesShown = sizedPrices({ general: null, three: null });
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    // The beds no size price covers fall to the blank general price, which is
+    // where they are counted and where the warning is: the section counts one
+    // unpriced kind, not one per size.
+    expect(
+      rates.getAllByText(
+        "Bookings of this kind are taken without a price, and their nights are not charged.",
+      ),
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("link", { name: "Nightly rates · 1 unpriced" }),
+    ).toBeVisible();
+  });
+
+  it("RT-S4-13: sends a size by its key, and only the prices touched", async () => {
+    savePrices.mockResolvedValue({ status: "saved", version: PRICES.version });
+    pricesShown = sizedPrices({ general: 300000, three: null });
+    await show(MANAGER);
+    const rates = within(card("rates"));
+    fireEvent.change(
+      rates.getByLabelText("Price per night for Bed in a 4-bed room"),
+      { target: { value: "4500" } },
+    );
+    fireEvent.change(
+      rates.getByLabelText("Price per night for Bed in a single room"),
+      { target: { value: "" } },
+    );
+    await act(async () => {
+      fireEvent.click(rates.getByRole("button", { name: "Save changes" }));
+    });
+    const form = savePrices.mock.calls[0]?.[1] as FormData;
+    expect(form.get("bed:4")).toBe("450000");
+    expect(form.get("bed:1")).toBe("");
+    expect(form.has("bed")).toBe(false);
+    expect(form.has("bed:3")).toBe(false);
   });
 
   it("a_stale_price_says_it_prices_nothing_until_saved_again", async () => {

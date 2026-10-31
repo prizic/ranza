@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { Banknote, TriangleAlert } from "lucide-react";
 import { formatMoney, type SupportedLocale } from "@ranza/i18n";
-import type { PriceList, PricedUnitType } from "@ranza/rates";
+import type { PriceList, PriceListEntry } from "@ranza/rates";
 import { FormError, Input, Label } from "@ranza/ui";
 import { toMinorUnits, toTypedAmount } from "../../../lib/amount";
 import { savePrices, type PricesOutcome } from "../../../server/rates";
@@ -14,11 +14,14 @@ import { SettingsCard } from "./settings-card";
 
 const IDLE: PricesOutcome = { status: "idle" };
 
-/** What each field holds, as typed. Only fields somebody touched are in it. */
-type Draft = Partial<Record<PricedUnitType, string>>;
+/** What each field holds, as typed, by `priceKey`. Only fields somebody touched are in it. */
+type Draft = Partial<Record<string, string>>;
+
+const keyOf = (entry: PriceListEntry): string => entry.key;
 
 /**
- * A Property's nightly prices, one per kind of Unit (ADR 0038).
+ * A Property's nightly prices, one per kind of Unit and, under beds, one for
+ * each size of room the Property has (ADR 0038, amended).
  *
  * Typed as a person writes an amount and converted to minor units here, by the
  * same rule every other money field uses, so the server receives whole numbers
@@ -42,53 +45,57 @@ export function RatesCard({
   const [draft, setDraft] = useState<Draft>({});
   const [outcome, setOutcome] = useState<PricesOutcome>(IDLE);
   const [pending, startSaving] = useTransition();
-  const fields = useRef<Partial<Record<PricedUnitType, HTMLInputElement>>>({});
+  const fields = useRef<Partial<Record<string, HTMLInputElement>>>({});
 
   const { currency } = priceList;
   // A kind the Property has Units of and no price for takes bookings that are
   // never charged: the one thing on this page that costs money when it is left
   // (CONFIG-01).
   const unpriced = unpricedKinds(priceList);
-  const saved = (unitType: PricedUnitType): string => {
-    const entry = priceList.entries.find((e) => e.unitType === unitType);
+  const entryByKey = (key: string) =>
+    priceList.entries.find((entry) => keyOf(entry) === key);
+  const saved = (key: string): string => {
+    const entry = entryByKey(key);
     return entry?.amountMinor == null || entry.currency === null
       ? ""
       : toTypedAmount(entry.amountMinor, entry.currency);
   };
-  const shown = (unitType: PricedUnitType) =>
-    draft[unitType] ?? saved(unitType);
+  const shown = (key: string) => draft[key] ?? saved(key);
   // A touched stale price is a change even at the same amount: saving it is
   // what restates it in the Property's currency.
   const dirty = priceList.entries.some((entry) => {
-    const typed = draft[entry.unitType];
+    const typed = draft[keyOf(entry)];
     return (
       typed !== undefined &&
-      (typed.trim() !== saved(entry.unitType) || entry.stale)
+      (typed.trim() !== saved(keyOf(entry)) || entry.stale)
     );
   });
   const unreadable = priceList.entries.find((entry) => {
-    const typed = draft[entry.unitType]?.trim();
+    const typed = draft[keyOf(entry)]?.trim();
     return typed !== undefined && typed !== "" && !isPrice(typed, currency);
   });
+  // Once beds are priced by room, the general bed price is what a size without
+  // one of its own falls back to, and the section says so under it.
+  const hasSizes = priceList.entries.some(
+    (entry) => entry.roomCapacity !== null,
+  );
+  const generalBedPriced = shown("bed").trim() !== "";
 
   function save() {
     if (unreadable) {
-      setOutcome({ status: "invalid", unitType: unreadable.unitType });
-      fields.current[unreadable.unitType]?.focus();
+      setOutcome({ status: "invalid", key: keyOf(unreadable) });
+      fields.current[keyOf(unreadable)]?.focus();
       return;
     }
     const form = new FormData();
     form.set("locale", locale);
     form.set("propertyId", priceList.propertyId);
     form.set("version", priceList.version);
-    // Only the types somebody touched: an untouched stale price stays as it is,
-    // visibly stale, rather than being restated by a save about another type.
-    for (const [unitType, typed] of Object.entries(draft)) {
-      const value = typed.trim();
-      form.set(
-        unitType,
-        value === "" ? "" : String(toMinorUnits(value, currency)),
-      );
+    // Only the prices somebody touched: an untouched stale price stays as it
+    // is, visibly stale, rather than being restated by a save about another.
+    for (const [key, typed] of Object.entries(draft)) {
+      const value = (typed ?? "").trim();
+      form.set(key, value === "" ? "" : String(toMinorUnits(value, currency)));
     }
     startSaving(async () => {
       const result = await savePrices(IDLE, form);
@@ -102,8 +109,8 @@ export function RatesCard({
           setDraft({});
         }
       });
-      if (result.status === "invalid" && result.unitType) {
-        fields.current[result.unitType]?.focus();
+      if (result.status === "invalid" && result.key) {
+        fields.current[result.key]?.focus();
       }
     });
   }
@@ -138,20 +145,31 @@ export function RatesCard({
     >
       <ul className="grid gap-5">
         {priceList.entries.map((entry) => {
-          const id = `rate-${entry.unitType}`;
-          const type = unitTypes(entry.unitType);
-          const refused =
-            outcome.status === "invalid" && outcome.unitType === entry.unitType;
+          const key = keyOf(entry);
+          const id = `rate-${key.replace(":", "-")}`;
+          const sized = entry.roomCapacity !== null;
+          const type =
+            entry.roomCapacity !== null
+              ? t("bedInRoom", { count: entry.roomCapacity })
+              : unitTypes(entry.unitType);
+          const refused = outcome.status === "invalid" && outcome.key === key;
           return (
             <li
-              className="grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start sm:gap-6"
-              key={entry.unitType}
+              className={`grid gap-2 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)] sm:items-start sm:gap-6${sized ? " border-s ps-4" : ""}`}
+              key={key}
             >
               <div className="grid gap-0.5 sm:pt-2">
                 <span className="text-step--1 font-medium">{type}</span>
                 <span className="text-step--2 text-muted-foreground">
-                  {t("units", { count: entry.sellableUnits })}
+                  {sized
+                    ? t("beds", { count: entry.sellableUnits })
+                    : t("units", { count: entry.sellableUnits })}
                 </span>
+                {entry.unitType === "bed" && !sized && hasSizes ? (
+                  <span className="text-step--2 text-muted-foreground">
+                    {t("bedAnyRoomHint")}
+                  </span>
+                ) : null}
               </div>
               <div className="grid gap-1.5">
                 {priceList.mayManage ? (
@@ -171,16 +189,13 @@ export function RatesCard({
                         inputMode="decimal"
                         onChange={(event) => {
                           const value = event.target.value;
-                          setDraft((current) => ({
-                            ...current,
-                            [entry.unitType]: value,
-                          }));
+                          setDraft((current) => ({ ...current, [key]: value }));
                         }}
                         placeholder={t("noPrice")}
                         ref={(element) => {
-                          if (element) fields.current[entry.unitType] = element;
+                          if (element) fields.current[key] = element;
                         }}
-                        value={shown(entry.unitType)}
+                        value={shown(key)}
                       />
                       <span className="shrink-0 text-step--1 text-muted-foreground">
                         {currency} · {t("perNight")}
@@ -189,7 +204,15 @@ export function RatesCard({
                     <div id={`${id}-note`}>
                       {refused ? (
                         <FormError>{t("invalid", { currency })}</FormError>
-                      ) : shown(entry.unitType).trim() === "" &&
+                      ) : shown(key).trim() === "" &&
+                        sized &&
+                        generalBedPriced ? (
+                        // A size with no price of its own is not a gap while
+                        // the bed price above covers it.
+                        <p className="text-step--2 text-muted-foreground">
+                          {t("sizeFallbackHint")}
+                        </p>
+                      ) : shown(key).trim() === "" &&
                         entry.sellableUnits > 0 ? (
                         // Only where it changes something: a kind the
                         // Property has none of cannot be booked unpriced.
@@ -200,7 +223,7 @@ export function RatesCard({
                           />
                           {t("unpricedHint")}
                         </p>
-                      ) : entry.sellableUnits === 0 ? (
+                      ) : entry.sellableUnits === 0 && !sized ? (
                         // A price for a kind it has none of is not wasted, and
                         // not yet in use: say which (CONFIG-12).
                         <p className="text-step--2 text-muted-foreground">

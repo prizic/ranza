@@ -6,8 +6,9 @@ import {
   RatesInputError,
   RatesRefusedError,
   RatesStaleError,
+  parsePriceKey,
+  priceKey,
   type PriceChange,
-  type PricedUnitType,
 } from "@ranza/rates";
 import { isSupportedLocale } from "@ranza/i18n";
 import { getComposition } from "./composition";
@@ -17,7 +18,8 @@ import { currentViewer } from "./viewer";
  * Saving the Rates section of the Configuration screen (ADR 0038).
  *
  * The prices arrive as minor units the form has already converted, one field
- * per unit type; an empty field clears that type's price. Whether the save
+ * per price named by `priceKey` - `bed` for a bed in any room, `bed:4` for a
+ * bed in a room of four; an empty field clears that price. Whether the save
  * lands is the policies' decision, so nothing here checks a permission. What
  * this layer owns is turning each way a save can end into an outcome the form
  * words in the reader's language.
@@ -25,8 +27,8 @@ import { currentViewer } from "./viewer";
 
 export interface PricesOutcome {
   status: "idle" | "saved" | "unchanged" | "invalid" | "refused" | "stale";
-  /** The type whose price was refused, when one was. */
-  unitType?: PricedUnitType | null;
+  /** The price that was refused - `bed`, `bed:4` - when one was; null when the form itself was malformed. */
+  key?: string | null;
   /** The version the next save names. */
   version?: string;
 }
@@ -49,16 +51,21 @@ function text(form: FormData, key: string): string {
   return String(form.get(key) ?? "");
 }
 
-/** Every type the form sends, as a change; null when one is not a whole number of minor units. */
+/** The fields that name a price rather than carry the form: a kind, with or without a size after it. */
+const PRICE_FIELD = new RegExp(`^(?:${PRICED_UNIT_TYPES.join("|")})(?::|$)`);
+
+/** Every price the form sends, as a change; null when one is not a whole number of minor units or names no price. */
 function pricesOf(form: FormData): PriceChange[] | null {
   const changes: PriceChange[] = [];
-  for (const unitType of PRICED_UNIT_TYPES) {
-    if (!form.has(unitType)) continue;
-    const value = text(form, unitType).trim();
+  for (const key of form.keys()) {
+    if (!PRICE_FIELD.test(key)) continue;
+    const target = parsePriceKey(key);
+    if (!target) return null;
+    const value = text(form, key).trim();
     if (value === "") {
-      changes.push({ unitType, amountMinor: null });
+      changes.push({ ...target, amountMinor: null });
     } else if (MINOR.test(value)) {
-      changes.push({ unitType, amountMinor: Number(value) });
+      changes.push({ ...target, amountMinor: Number(value) });
     } else {
       return null;
     }
@@ -77,7 +84,7 @@ export async function savePrices(
   const propertyId = text(form, "propertyId");
   const prices = pricesOf(form);
   if (!isSupportedLocale(locale) || !UUID.test(propertyId) || !prices) {
-    return { status: "invalid", unitType: null };
+    return { status: "invalid", key: null };
   }
 
   try {
@@ -92,7 +99,13 @@ export async function savePrices(
     return { status: saved.status, version: saved.version };
   } catch (error: unknown) {
     if (is(error, RatesInputError)) {
-      return { status: "invalid", unitType: error.unitType };
+      return {
+        status: "invalid",
+        key:
+          error.unitType === null
+            ? null
+            : priceKey(error.unitType, error.roomCapacity),
+      };
     }
     if (is(error, RatesStaleError) || is(error, RatesRefusedError)) {
       // Somebody else saved, or the permission went while the page was open:

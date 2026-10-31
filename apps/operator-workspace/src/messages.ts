@@ -1850,6 +1850,14 @@ export interface Messages {
     invalid: string;
     /** `{type}`: the kind of Unit, for the field's accessible name. */
     priceFor: string;
+    /** ICU plural on `count`: a bed in a room with that many beds (ADR 0038 amended). */
+    bedInRoom: string;
+    /** ICU plural on `count`: the beds in rooms of one size. */
+    beds: string;
+    /** Under the general bed price, once there are sizes below it. */
+    bedAnyRoomHint: string;
+    /** Under a size with no price of its own, while the general bed price is set. */
+    sizeFallbackHint: string;
   };
 
   /**
@@ -4891,6 +4899,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{currency} olarak girildi. Tesis artık {property} kullanıyor; bu fiyat yeniden kaydedilene kadar hiçbir rezervasyona uygulanmaz.",
       invalid: "Bu, {currency} cinsinden geçerli bir fiyat değil.",
       priceFor: "{type} için gecelik fiyat",
+      bedInRoom:
+        "{count, plural, =1 {Tek kişilik odada yatak} other {# yataklı odada yatak}}",
+      beds: "{count, plural, =0 {Bu tesiste henüz yok} one {# yatak} other {# yatak}}",
+      bedAnyRoomHint:
+        "Aşağıda kendi fiyatı olmayan her oda büyüklüğü için geçerlidir.",
+      sizeFallbackHint:
+        "Kendi fiyatı yok: bu yataklar yukarıdaki yatak fiyatını alır.",
     },
     configuration: {
       subtitle: "{property} ve organizasyonu için ayarlar",
@@ -8717,6 +8732,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "Set in {currency}. This Property now trades in {property}, so this price applies to no booking until it is saved again.",
       invalid: "That is not a price in {currency}.",
       priceFor: "Price per night for {type}",
+      bedInRoom:
+        "{count, plural, =1 {Bed in a single room} other {Bed in a #-bed room}}",
+      beds: "{count, plural, =0 {None at this Property yet} one {# bed} other {# beds}}",
+      bedAnyRoomHint:
+        "Used for every size of room below that has no price of its own.",
+      sizeFallbackHint:
+        "No price of its own: these beds take the bed price above.",
     },
     configuration: {
       subtitle: "Settings for {property} and its Organization",
@@ -12495,6 +12517,11 @@ export const messages: Record<SupportedLocale, Messages> = {
         "حُدِّد بعملة {currency}. تتعامل هذه المنشأة الآن بعملة {property}، لذا لا يُطبَّق هذا السعر على أي حجز حتى يُحفظ من جديد.",
       invalid: "هذا ليس سعرًا صالحًا بعملة {currency}.",
       priceFor: "سعر الليلة لـ{type}",
+      bedInRoom:
+        "{count, plural, =1 {سرير في غرفة فردية} two {سرير في غرفة من سريرين} few {سرير في غرفة من # أسرّة} many {سرير في غرفة من # سريرًا} other {سرير في غرفة من # سرير}}",
+      beds: "{count, plural, =0 {لا يوجد بعد في هذه المنشأة} one {سرير واحد} two {سريران} few {# أسرّة} many {# سريرًا} other {# سرير}}",
+      bedAnyRoomHint: "يسري على كل حجم غرفة أدناه ليس له سعر خاص به.",
+      sizeFallbackHint: "بلا سعر خاص: تأخذ هذه الأسرّة سعر السرير أعلاه.",
     },
     configuration: {
       subtitle: "إعدادات {property} ومؤسستها",

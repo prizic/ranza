@@ -44,6 +44,13 @@ stateDiagram-v2
     n_unposted --> [*]
   }
 
+  note right of p_priced
+    A bed has one entry for any room and one for each
+    size of room (RT-S4-*). The same three states apply
+    to each; the stamp reads the most specific entry
+    that has an amount.
+  end note
+
   note right of n_owed
     A night belongs to the business date it starts on.
     In house that night: begun on D or before, and

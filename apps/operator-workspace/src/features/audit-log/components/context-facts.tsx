@@ -149,6 +149,8 @@ interface Price {
 }
 interface PriceChange {
   unitType: PricedKind;
+  /** The size of room a bed price is for; null for a kind's own price. */
+  roomCapacity: number | null;
   from: Price | null;
   to: Price | null;
 }
@@ -167,7 +169,10 @@ function priceChangesOf(value: unknown): PriceChange[] | null {
   const changes: PriceChange[] = [];
   for (const item of value as unknown[]) {
     if (typeof item !== "object" || item === null) return null;
-    const { unitType, from, to } = item as Record<string, unknown>;
+    const { unitType, roomCapacity, from, to } = item as Record<
+      string,
+      unknown
+    >;
     const before = priceOf(from);
     const after = priceOf(to);
     if (
@@ -177,7 +182,12 @@ function priceChangesOf(value: unknown): PriceChange[] | null {
     ) {
       return null;
     }
-    changes.push({ unitType: unitType as PricedKind, from: before, to: after });
+    changes.push({
+      unitType: unitType as PricedKind,
+      roomCapacity: typeof roomCapacity === "number" ? roomCapacity : null,
+      from: before,
+      to: after,
+    });
   }
   return changes;
 }
@@ -355,9 +365,11 @@ export function ContextFacts({
       <TableBody>
         {priced ? (
           priced.map((change) => (
-            <TableRow key={change.unitType}>
+            <TableRow key={`${change.unitType}:${change.roomCapacity}`}>
               <TableCell className="text-muted-foreground">
-                {t(`unitType.${change.unitType}`)}
+                {change.roomCapacity === null
+                  ? t(`unitType.${change.unitType}`)
+                  : t("rates.bedInRoom", { count: change.roomCapacity })}
               </TableCell>
               <TableCell className="break-words">
                 <span className="inline-flex flex-wrap items-center gap-2">

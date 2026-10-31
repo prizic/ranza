@@ -228,12 +228,13 @@ export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
               money(price.amountMinor, price.currency) ?? t("rates.noPrice")
             );
           };
-          return [
-            `${t(`unitType.${kind as (typeof PRICED_KINDS)[number]}`)}: ${fromTo(
-              side(change.from),
-              side(change.to),
-            )}`,
-          ];
+          // A bed priced by its room's size is named by the size, or the log
+          // would read "Bed" twice with two different prices.
+          const label =
+            typeof change.roomCapacity === "number"
+              ? t("rates.bedInRoom", { count: change.roomCapacity })
+              : t(`unitType.${kind as (typeof PRICED_KINDS)[number]}`);
+          return [`${label}: ${fromTo(side(change.from), side(change.to))}`];
         });
         return parts.length === 0 ? null : parts.join("; ");
       }

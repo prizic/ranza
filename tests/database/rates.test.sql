@@ -103,8 +103,9 @@ select set_eq(
   $$select column_name::text from information_schema.column_privileges
      where table_schema = 'public' and table_name = 'property_rates'
        and grantee = 'ranza_app' and privilege_type = 'INSERT'$$,
-  array['organization_id', 'property_id', 'unit_type', 'amount_minor'],
-  'RT-S1-05: a price names its Property, its type and its amount, and nothing else');
+  array['organization_id', 'property_id', 'unit_type', 'room_capacity',
+        'amount_minor'],
+  'RT-S1-05: a price names its Property, its type, the size of its room and its amount, and nothing else');
 
 select set_eq(
   $$select column_name::text from information_schema.column_privileges

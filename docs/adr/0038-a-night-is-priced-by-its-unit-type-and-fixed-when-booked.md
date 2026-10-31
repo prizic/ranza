@@ -11,6 +11,17 @@ built: only a booking still to come moved to another kind of Unit takes that
 kind's price; dates alone never re-price, and a Guest moved in house keeps
 theirs ([ADR 0039](0039-a-booking-is-amended-through-commands-that-check-their-caller.md)).
 
+Proposed amendment: 2026-10-31 — a bed is priced by its room's size as well as its
+kind. `property_rates` gains a nullable `room_capacity`, meaningful for beds only: a
+bed takes the price for its room's size when that size has an amount, and the price
+for any room otherwise. A price for a size is a price like any other: set with
+`rates.manage`, stamped when the booking is taken, never changed after. A booking
+still to come moved to a room of another size takes that size's price, as one moved to
+another kind does, and a lower price still needs `rates.manage`. A price in a currency
+the Property has left prices nothing and does not hand its beds to the general price.
+Hotel prices, which have no size, are unchanged. Decisions 2 and 6 of the yurt-first
+plan; rows RT-S4-01..15 in `docs/features/rates/edge-cases.csv`.
+
 Amends [ADR 0030](0030-a-check-out-confirms-the-bill-it-reviewed.md),
 [ADR 0034](0034-a-business-day-closes-after-its-cutoff.md) and
 [ADR 0036](0036-a-property-is-configured-and-its-currency-is-fixed-by-its-first-folio.md).

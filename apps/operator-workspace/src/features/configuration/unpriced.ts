@@ -7,11 +7,20 @@ import type { PriceList, PricedUnitType } from "@ranza/rates";
  * undone (CONFIG-01). A kind it has no Units of is not on the list, because no
  * booking of it can be taken.
  *
+ * A bed's price for one size of room is not a kind of its own: the beds it
+ * would leave unpriced are counted against the general bed price, which is
+ * where they fall back to, so only the kind's own entry decides.
+ *
  * Not in the rates card's own file: that is a client component, and the page,
  * which counts these for the section list, runs on the server.
  */
 export function unpricedKinds(priceList: PriceList): PricedUnitType[] {
   return priceList.entries
-    .filter((entry) => entry.sellableUnits > 0 && entry.amountMinor === null)
+    .filter(
+      (entry) =>
+        entry.roomCapacity === null &&
+        entry.sellableUnits > 0 &&
+        entry.amountMinor === null,
+    )
     .map((entry) => entry.unitType);
 }

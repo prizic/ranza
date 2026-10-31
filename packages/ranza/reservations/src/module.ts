@@ -1601,20 +1601,16 @@ export function createReservationsModule(deps: ReservationsDeps) {
           room.name                   as "roomName",
           unit.unit_type              as "unitType",
           coalesce(room.admits, unit.admits) as "admits",
-          -- The price the stamp would read now: this kind's, and only while it
-          -- is stated in the Property's currency (ADR 0038).
+          -- The price the stamp would read now, asked the way the stamp asks
+          -- it: this kind's and, for a bed, its room's size, and only while it
+          -- is stated in the Property's currency (ADR 0038 amended).
           rate.amount_minor::text     as "nightlyRateMinor",
           trim(rate.currency)         as "rateCurrency"
         from public.accommodation_units as unit
-        join public.properties as property
-          on property.id = unit.property_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
-        left join public.property_rates as rate
-          on rate.property_id = unit.property_id
-         and rate.unit_type = unit.unit_type
-         and rate.amount_minor is not null
-         and rate.currency = property.currency
+        left join lateral app.rate_for_unit(unit.id, unit.property_id) as rate
+          on true
         where unit.property_id = ${propertyId}::uuid
           and unit.status not in ('out_of_service', 'blocked')
           -- A room out of order or blocked covers its beds (ADR 0032,
@@ -2155,7 +2151,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         (Omit<ChangePreview, "nightlyRateMinor" | "options"> & {
           nightlyRateMinor: string | null;
           propertyId: string;
-          unitType: string;
+          rateClass: string;
         })[]
       >`
         select
@@ -2170,7 +2166,10 @@ export function createReservationsModule(deps: ReservationsDeps) {
           reservation.nightly_rate_minor::text           as "nightlyRateMinor",
           trim(reservation.rate_currency)                as "rateCurrency",
           reservation.property_id                        as "propertyId",
-          unit.unit_type                                 as "unitType",
+          (select current_rate.rate_class
+             from app.rate_for_unit(reservation.accommodation_unit_id,
+                                    reservation.property_id) as current_rate)
+                                                         as "rateClass",
           to_char(app.property_today(reservation.property_id),
                   'YYYY-MM-DD')                          as "today",
           (select count(*)::int from public.reservation_changes as change
@@ -2207,7 +2206,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           unit.name                                as "unitName",
           room.name                                as "roomName",
           unit.unit_type                           as "unitType",
-          unit.unit_type = ${booking.unitType}     as "sameKind",
+          rate.rate_class = ${booking.rateClass}   as "sameKind",
           unit.id = ${booking.unitId}::uuid         as "current",
           unit.status not in ('out_of_service', 'blocked')
             and (room.status is null
@@ -2222,25 +2221,20 @@ export function createReservationsModule(deps: ReservationsDeps) {
           end                                      as "blocker",
           conflict.reference                       as "conflictReference",
           case
-            when unit.unit_type = ${booking.unitType}
+            when rate.rate_class = ${booking.rateClass}
               then ${booking.nightlyRateMinor}::bigint
             when ${booking.stayType} = 'guest' then rate.amount_minor
           end::text                                as "nightlyRateMinor",
           case
-            when unit.unit_type = ${booking.unitType} then ${booking.rateCurrency}
+            when rate.rate_class = ${booking.rateClass} then ${booking.rateCurrency}
             when ${booking.stayType} = 'guest' then trim(rate.currency)
           end                                      as "rateCurrency"
         from public.accommodation_units as unit
         cross join wanted
-        join public.properties as property
-          on property.id = unit.property_id
         left join public.accommodation_units as room
           on room.id = unit.parent_id
-        left join public.property_rates as rate
-          on rate.property_id = unit.property_id
-         and rate.unit_type = unit.unit_type
-         and rate.amount_minor is not null
-         and rate.currency = property.currency
+        left join lateral app.rate_for_unit(unit.id, unit.property_id) as rate
+          on true
         left join lateral (
           select other.reference
             from public.reservations as other
@@ -2276,7 +2270,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
           )
         order by
           conflict.reference is null and occupant.id is null desc,
-          unit.unit_type = ${booking.unitType} desc,
+          rate.rate_class = ${booking.rateClass} desc,
           coalesce(room.name, unit.name), unit.name
       `;
 

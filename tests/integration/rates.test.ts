@@ -150,12 +150,20 @@ describe("the price list", () => {
       expect(read.currency).toBe("TRY");
       expect(read.mayManage).toBe(true);
       expect(
-        read.entries.map((e) => [e.unitType, e.amountMinor, e.sellableUnits]),
+        read.entries.map((e) => [
+          e.unitType,
+          e.roomCapacity,
+          e.amountMinor,
+          e.sellableUnits,
+        ]),
       ).toEqual([
-        ["room", null, 2],
-        ["bed", null, 2],
-        ["apartment", null, 0],
-        ["suite", null, 0],
+        ["room", null, null, 2],
+        ["bed", null, null, 2],
+        // The one room let by the bed has two, so the beds have a size to be
+        // priced by whether or not anybody has priced it (RT-S4-13).
+        ["bed", 2, null, 2],
+        ["apartment", null, null, 0],
+        ["suite", null, null, 0],
       ]);
     },
     DATABASE_BUDGET_MS,
@@ -168,8 +176,8 @@ describe("the price list", () => {
       const saved = await rates.setPrices(MANAGER, property, {
         version: before.version,
         prices: [
-          { unitType: "room", amountMinor: 150000 },
-          { unitType: "bed", amountMinor: 45000 },
+          { unitType: "room", roomCapacity: null, amountMinor: 150000 },
+          { unitType: "bed", roomCapacity: null, amountMinor: 45000 },
         ],
       });
       expect(saved.status).toBe("saved");
@@ -188,11 +196,13 @@ describe("the price list", () => {
         changes: [
           {
             unitType: "room",
+            roomCapacity: null,
             from: null,
             to: { amountMinor: 150000, currency: "TRY" },
           },
           {
             unitType: "bed",
+            roomCapacity: null,
             from: null,
             to: { amountMinor: 45000, currency: "TRY" },
           },
@@ -209,8 +219,8 @@ describe("the price list", () => {
       const saved = await rates.setPrices(MANAGER, property, {
         version: current.version,
         prices: [
-          { unitType: "room", amountMinor: 150000 },
-          { unitType: "suite", amountMinor: null },
+          { unitType: "room", roomCapacity: null, amountMinor: 150000 },
+          { unitType: "suite", roomCapacity: null, amountMinor: null },
         ],
       });
       expect(saved).toEqual({ status: "unchanged", version: current.version });
@@ -224,11 +234,11 @@ describe("the price list", () => {
       const read = await list();
       await rates.setPrices(MANAGER, property, {
         version: read.version,
-        prices: [{ unitType: "room", amountMinor: 160000 }],
+        prices: [{ unitType: "room", roomCapacity: null, amountMinor: 160000 }],
       });
       const refused = rates.setPrices(MANAGER, property, {
         version: read.version,
-        prices: [{ unitType: "bed", amountMinor: 1 }],
+        prices: [{ unitType: "bed", roomCapacity: null, amountMinor: 1 }],
       });
       await expect(refused).rejects.toBeInstanceOf(RatesStaleError);
       expect((await list()).entries[1]?.amountMinor).toBe(45000);
@@ -242,7 +252,7 @@ describe("the price list", () => {
       const read = await list();
       await rates.setPrices(MANAGER, property, {
         version: read.version,
-        prices: [{ unitType: "bed", amountMinor: null }],
+        prices: [{ unitType: "bed", roomCapacity: null, amountMinor: null }],
       });
       expect((await list()).entries[1]?.amountMinor).toBeNull();
       const record = await latestRecord(owner, "price_list.changed", property);
@@ -250,6 +260,7 @@ describe("the price list", () => {
         changes: [
           {
             unitType: "bed",
+            roomCapacity: null,
             from: { amountMinor: 45000, currency: "TRY" },
             to: null,
           },
@@ -274,7 +285,7 @@ describe("the price list", () => {
 
       const saved = await rates.setPrices(MANAGER, property, {
         version: read.version,
-        prices: [{ unitType: "room", amountMinor: 160000 }],
+        prices: [{ unitType: "room", roomCapacity: null, amountMinor: 160000 }],
       });
       expect(saved.status).toBe("saved");
       expect((await list()).entries[0]).toMatchObject({
@@ -316,7 +327,9 @@ describe("the price list", () => {
         await expect(
           rates.setPrices(MANAGER, propertyId, {
             version: read!.version,
-            prices: [{ unitType: "room", amountMinor: 175000 }],
+            prices: [
+              { unitType: "room", roomCapacity: null, amountMinor: 175000 },
+            ],
           }),
         ).rejects.toBeInstanceOf(RatesStaleError);
       } finally {
@@ -347,7 +360,7 @@ describe("the price list", () => {
       await expect(
         rates.setPrices(DESK, property, {
           version: read.version,
-          prices: [{ unitType: "room", amountMinor: 1 }],
+          prices: [{ unitType: "room", roomCapacity: null, amountMinor: 1 }],
         }),
       ).rejects.toBeInstanceOf(RatesRefusedError);
     },
@@ -362,7 +375,7 @@ describe("the price list", () => {
         await expect(
           rates.setPrices(MANAGER, property, {
             version: read.version,
-            prices: [{ unitType: "room", amountMinor }],
+            prices: [{ unitType: "room", roomCapacity: null, amountMinor }],
           }),
         ).rejects.toMatchObject({ name: "RatesInputError", unitType: "room" });
       }
@@ -370,8 +383,8 @@ describe("the price list", () => {
         rates.setPrices(MANAGER, property, {
           version: read.version,
           prices: [
-            { unitType: "room", amountMinor: 1 },
-            { unitType: "room", amountMinor: 2 },
+            { unitType: "room", roomCapacity: null, amountMinor: 1 },
+            { unitType: "room", roomCapacity: null, amountMinor: 2 },
           ],
         }),
       ).rejects.toBeInstanceOf(RatesInputError);
@@ -386,11 +399,15 @@ describe("the price list", () => {
       const results = await Promise.allSettled([
         rates.setPrices(MANAGER, property, {
           version: read.version,
-          prices: [{ unitType: "suite", amountMinor: 300000 }],
+          prices: [
+            { unitType: "suite", roomCapacity: null, amountMinor: 300000 },
+          ],
         }),
         rates.setPrices(MANAGER, property, {
           version: read.version,
-          prices: [{ unitType: "apartment", amountMinor: 250000 }],
+          prices: [
+            { unitType: "apartment", roomCapacity: null, amountMinor: 250000 },
+          ],
         }),
       ]);
       const saved = results.filter((r) => r.status === "fulfilled");
@@ -435,7 +452,7 @@ async function pricedProperty(): Promise<{
   const read = await rates.getPriceList(MANAGER, propertyId);
   await rates.setPrices(MANAGER, propertyId, {
     version: read!.version,
-    prices: [{ unitType: "room", amountMinor: 150000 }],
+    prices: [{ unitType: "room", roomCapacity: null, amountMinor: 150000 }],
   });
   return { propertyId, roomId };
 }
@@ -504,7 +521,7 @@ describe("a booking carries its price (slice 2)", () => {
       const read = await rates.getPriceList(MANAGER, propertyId);
       await rates.setPrices(MANAGER, propertyId, {
         version: read!.version,
-        prices: [{ unitType: "room", amountMinor: 175000 }],
+        prices: [{ unitType: "room", roomCapacity: null, amountMinor: 175000 }],
       });
 
       const [row] = (
@@ -579,7 +596,7 @@ describe("a booking carries its price (slice 2)", () => {
       const read = await rates.getPriceList(MANAGER, propertyId);
       await rates.setPrices(MANAGER, propertyId, {
         version: read!.version,
-        prices: [{ unitType: "room", amountMinor: 175000 }],
+        prices: [{ unitType: "room", roomCapacity: null, amountMinor: 175000 }],
       });
       await expect(
         reservations.createReservation(
@@ -920,6 +937,292 @@ describe("a night is charged once (slice 3)", () => {
       expect(await roomNights(stayId)).toEqual([
         { day: plusDays(day, -1), amount: "150000" },
       ]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// A bed's price follows its room (RANZ-111, ADR 0038 amended)
+// ---------------------------------------------------------------------------
+
+/**
+ * A yurt: a single, a triple and a room of four, each let by the bed, and
+ * nothing priced. A Property of its own, so a re-run starts from an empty list.
+ */
+async function yurt() {
+  const propertyId = randomUUID();
+  await owner.$executeRawUnsafe(
+    `insert into public.properties (id, organization_id, name, currency)
+     values ($1, $2, 'Sized Yurt', 'TRY')`,
+    propertyId,
+    ORG,
+  );
+  await owner.$executeRawUnsafe(
+    `insert into public.property_capabilities
+       (property_id, organization_id, capability_key, enabled)
+     values ($1, $2, 'configuration', true), ($1, $2, 'front_desk', true)`,
+    propertyId,
+    ORG,
+  );
+  const rooms = [
+    { name: "S-101", beds: ["A"] },
+    { name: "S-301", beds: ["A", "B", "C"] },
+    { name: "S-401", beds: ["A", "B", "C", "D"] },
+  ];
+  for (const room of rooms) {
+    await owner.$executeRawUnsafe(
+      `with room as (
+         insert into public.accommodation_units
+           (property_id, organization_id, name, unit_type, capacity)
+         values ($1, $2, $3, 'room', $4)
+         returning id)
+       insert into public.accommodation_units
+         (property_id, organization_id, parent_id, parent_unit_type, name,
+          unit_type, capacity)
+       select $1, $2, room.id, 'room', bed.name, 'bed', 1
+         from room, unnest($5::text[]) as bed(name)`,
+      propertyId,
+      ORG,
+      room.name,
+      room.beds.length,
+      room.beds,
+    );
+  }
+  return propertyId;
+}
+
+async function bedIn(propertyId: string, room: string): Promise<string> {
+  const [row] = await owner.$queryRawUnsafe<{ id: string }[]>(
+    `select bed.id from public.accommodation_units as bed
+       join public.accommodation_units as room on room.id = bed.parent_id
+      where room.property_id = $1 and room.name = $2 and bed.name = 'A'`,
+    propertyId,
+    room,
+  );
+  return row!.id;
+}
+
+describe("a bed's price follows its room (RT-S4-*)", () => {
+  it(
+    "RT-S4-13: the section lists the general bed price and one row for each size of room the Property has",
+    async () => {
+      const propertyId = await yurt();
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      expect(
+        read!.entries.map((e) => [e.unitType, e.roomCapacity, e.sellableUnits]),
+      ).toEqual([
+        ["room", null, 0],
+        ["bed", null, 8],
+        ["bed", 1, 1],
+        ["bed", 3, 3],
+        ["bed", 4, 4],
+        ["apartment", null, 0],
+        ["suite", null, 0],
+      ]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "RT-S4-14: a size price is saved and audited with its size, and clearing it says what it was",
+    async () => {
+      const propertyId = await yurt();
+      const first = await rates.getPriceList(MANAGER, propertyId);
+      const saved = await rates.setPrices(MANAGER, propertyId, {
+        version: first!.version,
+        prices: [
+          { unitType: "bed", roomCapacity: null, amountMinor: 30000 },
+          { unitType: "bed", roomCapacity: 1, amountMinor: 90000 },
+          { unitType: "bed", roomCapacity: 4, amountMinor: 40000 },
+        ],
+      });
+      expect(saved.status).toBe("saved");
+
+      const record = await latestRecord(
+        owner,
+        "price_list.changed",
+        propertyId,
+      );
+      expect(record?.context).toEqual({
+        changes: [
+          {
+            unitType: "bed",
+            roomCapacity: null,
+            from: null,
+            to: { amountMinor: 30000, currency: "TRY" },
+          },
+          {
+            unitType: "bed",
+            roomCapacity: 1,
+            from: null,
+            to: { amountMinor: 90000, currency: "TRY" },
+          },
+          {
+            unitType: "bed",
+            roomCapacity: 4,
+            from: null,
+            to: { amountMinor: 40000, currency: "TRY" },
+          },
+        ],
+      });
+
+      const second = await rates.getPriceList(MANAGER, propertyId);
+      const unchanged = await rates.setPrices(MANAGER, propertyId, {
+        version: second!.version,
+        prices: [{ unitType: "bed", roomCapacity: 4, amountMinor: 40000 }],
+      });
+      expect(unchanged.status).toBe("unchanged");
+
+      await rates.setPrices(MANAGER, propertyId, {
+        version: second!.version,
+        prices: [{ unitType: "bed", roomCapacity: 4, amountMinor: null }],
+      });
+      const cleared = await latestRecord(
+        owner,
+        "price_list.changed",
+        propertyId,
+      );
+      expect(cleared?.context).toEqual({
+        changes: [
+          {
+            unitType: "bed",
+            roomCapacity: 4,
+            from: { amountMinor: 40000, currency: "TRY" },
+            to: null,
+          },
+        ],
+      });
+      // A cleared size keeps its row and its place in the list.
+      const after = await rates.getPriceList(MANAGER, propertyId);
+      expect(
+        after!.entries
+          .filter((e) => e.unitType === "bed")
+          .map((e) => [e.roomCapacity, e.amountMinor]),
+      ).toEqual([
+        [null, 30000],
+        [1, 90000],
+        [3, null],
+        [4, null],
+      ]);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "RT-S4-14: a size on anything but a bed, or one past the most a room sleeps, is not a price",
+    async () => {
+      const propertyId = await yurt();
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      for (const [unitType, roomCapacity] of [
+        ["room", 2],
+        ["bed", 0],
+        ["bed", 65],
+        ["bed", 1.5],
+      ] as const) {
+        await expect(
+          rates.setPrices(MANAGER, propertyId, {
+            version: read!.version,
+            prices: [{ unitType, roomCapacity, amountMinor: 1000 }],
+          }),
+        ).rejects.toBeInstanceOf(RatesInputError);
+      }
+      await expect(
+        rates.setPrices(MANAGER, propertyId, {
+          version: read!.version,
+          prices: [
+            { unitType: "bed", roomCapacity: 4, amountMinor: 1000 },
+            { unitType: "bed", roomCapacity: 4, amountMinor: 2000 },
+          ],
+        }),
+      ).rejects.toBeInstanceOf(RatesInputError);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "RT-S4-14: the desk, who holds no rates.manage, cannot price a size",
+    async () => {
+      const propertyId = await yurt();
+      const read = await rates.getPriceList(DESK, propertyId);
+      await expect(
+        rates.setPrices(DESK, propertyId, {
+          version: read!.version,
+          prices: [{ unitType: "bed", roomCapacity: 4, amountMinor: 40000 }],
+        }),
+      ).rejects.toBeInstanceOf(RatesRefusedError);
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "RT-S4-12: the quote is the stamp, in a single and in a room of four",
+    async () => {
+      const propertyId = await yurt();
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      await rates.setPrices(MANAGER, propertyId, {
+        version: read!.version,
+        prices: [
+          { unitType: "bed", roomCapacity: null, amountMinor: 30000 },
+          { unitType: "bed", roomCapacity: 1, amountMinor: 90000 },
+          { unitType: "bed", roomCapacity: 4, amountMinor: 40000 },
+        ],
+      });
+      const day = await today(propertyId);
+      const units = await reservations.listBookableUnits(MANAGER, propertyId);
+
+      const quoted = (room: string) =>
+        units.find((unit) => unit.roomName === room && unit.unitName === "A");
+      expect(quoted("S-101")?.nightlyRateMinor).toBe(90000);
+      expect(quoted("S-401")?.nightlyRateMinor).toBe(40000);
+      // The triple has no price of its own, so it is quoted the general one.
+      expect(quoted("S-301")?.nightlyRateMinor).toBe(30000);
+
+      for (const room of ["S-101", "S-301", "S-401"]) {
+        const unit = quoted(room)!;
+        const taken = await reservations.createReservation(MANAGER, {
+          ...booking(
+            propertyId,
+            await bedIn(propertyId, room),
+            plusDays(day, 1),
+            2,
+            { rate: unit.nightlyRateMinor, currency: unit.rateCurrency },
+          ),
+        });
+        expect(taken).toMatchObject({
+          nightlyRateMinor: unit.nightlyRateMinor,
+          rateCurrency: "TRY",
+        });
+      }
+    },
+    DATABASE_BUDGET_MS,
+  );
+
+  it(
+    "RT-S4-12: a quote that is not the size's price is refused, as a stale quote is",
+    async () => {
+      const propertyId = await yurt();
+      const read = await rates.getPriceList(MANAGER, propertyId);
+      await rates.setPrices(MANAGER, propertyId, {
+        version: read!.version,
+        prices: [
+          { unitType: "bed", roomCapacity: null, amountMinor: 30000 },
+          { unitType: "bed", roomCapacity: 4, amountMinor: 40000 },
+        ],
+      });
+      const day = await today(propertyId);
+      await expect(
+        reservations.createReservation(
+          MANAGER,
+          booking(
+            propertyId,
+            await bedIn(propertyId, "S-401"),
+            plusDays(day, 1),
+            2,
+            { rate: 30000, currency: "TRY" },
+          ),
+        ),
+      ).rejects.toBeInstanceOf(PriceChangedError);
     },
     DATABASE_BUDGET_MS,
   );

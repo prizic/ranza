@@ -2,6 +2,7 @@
 %%   s1 the price list: a nightly price per unit type at a Property
 %%   s2 a Guest booking carries the price it was taken at
 %%   s3 every night a Guest spends in house is charged once
+%%   s4 a bed's price follows its room (RANZ-111, ADR 0038 amended)
 %% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
 %% UML directions: include points base --> included. extend points extension --> base.
 %% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
@@ -44,10 +45,18 @@ flowchart TD
     FOLIO(["Read a room night on the Folio<br/>in the reader's language"])
   end
 
+  subgraph S4["slice 4 &mdash; a bed's price follows its room"]
+    SETSIZE(["Set a price for beds in rooms of one size,<br/>beside the price for beds in any room"])
+    BYSIZE(["The stamp reads the price for the bed's room size,<br/>or the price for any room when that size has none"])
+    SIZES(["See one row for each size of room the Property has"])
+    MOVESIZE(["Move a booking still to come to a room of another size:<br/>it takes that size's price"])
+  end
+
   subgraph OUT["Not this feature"]
     PLANS(["Rate plans, seasons, weekday or occupancy prices &mdash; deferred, blueprint 5.16"])
     OVERRIDE(["A price for one Unit, or typed at the desk &mdash; deferred"])
-    REPRICE(["Re-pricing a booking when it is amended &mdash; deferred to amending a booking"])
+    REPRICE(["Re-pricing a booking when its dates are amended &mdash; never, ADR 0039"])
+    DIMENSIONS(["A price by building, floor or season &mdash; deferred, RT-DEF-07"])
     RENT(["A Resident's monthly rent &mdash; deferred"])
     TAX(["Taxes, discounts, early-departure fees &mdash; deferred, blueprint 5.9"])
   end
@@ -55,6 +64,10 @@ flowchart TD
   PRICER --> SETPRICE
   PRICER --> CLEARPRICE
   PRICER --> SEEPRICE
+  PRICER --> SETSIZE
+  SIZES -. extend .-> SEEPRICE
+  BOOK -. include .-> BYSIZE
+  DESK --> MOVESIZE
   READER --> SEEPRICE
   STALE -. extend .-> SEEPRICE
   DESK --> BOOK

@@ -446,6 +446,10 @@ model PropertyRate {
   organizationId String   @map("organization_id") @db.Uuid
   propertyId     String   @map("property_id") @db.Uuid
   unitType       String   @map("unit_type")
+  /// How many beds the room has, for a bed priced by its room's size
+  /// (ADR 0038 amended). Null is the price of a bed in any room that has no
+  /// price of its own, and the only value any other kind has.
+  roomCapacity   Int?     @map("room_capacity")
   /// Integer minor units of `currency`, per night (ADR 0015). Null once the
   /// price is cleared: a row is never deleted, and a kind with no amount is
   /// unpriced exactly as a kind with no row is.
@@ -459,7 +463,12 @@ model PropertyRate {
   property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   updater  User?    @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
-  @@unique([propertyId, unitType])
+  /// Two partial indexes rather than one over three columns, because null is
+  /// not equal to null in a unique index and that version would allow any
+  /// number of general prices for one kind (the reason accommodation_units
+  /// gives for its names).
+  @@unique([propertyId, unitType], where: raw("room_capacity IS NULL"))
+  @@unique([propertyId, unitType, roomCapacity], map: "property_rates_sized_key", where: raw("room_capacity IS NOT NULL"))
   @@map("property_rates")
 }
 

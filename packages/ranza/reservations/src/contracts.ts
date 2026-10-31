@@ -922,7 +922,10 @@ export interface ChangeOption {
   /** The room a bed is in; null for a room. */
   roomName: string | null;
   unitType: AccommodationUnitType;
-  /** Of the booking's own kind, so its price would not change. */
+  /**
+   * Of the booking's own class of price - the same kind of Unit and, for a bed,
+   * a room of the same size - so its price would not change (ADR 0038 amended).
+   */
   sameKind: boolean;
   /** The Unit the booking holds now. */
   current: boolean;
