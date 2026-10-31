@@ -1,0 +1,40 @@
+%% Four parties: the Operator Workspace, @ranza/stays, PostgreSQL, and the Portal.
+%% The token is made by the module and shown once; only its SHA-256 digest is
+%% ever stored or compared, and the runtime role cannot read the digest column.
+%% Accepting is the one write the Portal makes, and it is a definer that asks for
+%% the signed-in student and the live link before it writes stays.user_id.
+sequenceDiagram
+  autonumber
+  actor SM as Staff Member
+  participant WS as Operator Workspace
+  participant ST as @ranza/stays
+  participant PG as PostgreSQL
+  participant PT as Guest Portal
+  actor GU as Guest or Resident
+
+  rect rgb(240, 248, 246)
+  note over SM,PG: s2, the desk invites
+  SM->>WS: Invite to the portal (on the registration)
+  WS->>ST: inviteToPortal(user, reservation)
+  ST->>ST: token = 32 random bytes; digest = sha256(token)
+  ST->>PG: app.invite_guest_to_portal(guest, digest)
+  PG->>PG: permission, front desk and portal capability; withdraw the live link;<br/>store the digest with expires_at = now + 14 days; audit guest.portal_invited
+  PG-->>ST: invitation id, expires_at
+  ST-->>WS: link = PORTAL_URL/invite/token (the only time the token exists)
+  WS-->>SM: link, copy button, QR
+  end
+
+  rect rgb(244, 244, 252)
+  note over GU,PG: s3, the student accepts
+  GU->>PT: opens /invite/token (QR or message)
+  PT->>ST: invitationState(digest of token)
+  ST->>PG: app.portal_invitation_state(digest)
+  PG-->>PT: pending | expired | used | withdrawn | nothing
+  GU->>PT: creates an account, or signs in
+  PT->>PT: Better Auth sign-up or sign-in (rate limited); Ranza user linked (ADR 0005)
+  PT->>ST: acceptInvitation(user, token)
+  ST->>PG: app.accept_portal_invitation(digest) as that user
+  PG->>PG: lock the invitation; refuse used, expired, withdrawn, another Guest's account;<br/>mark accepted; stays.user_id = user for that Guest's Stays; audit guest.portal_invitation_accepted
+  PG-->>PT: accepted, or why not
+  PT-->>GU: My stay
+  end

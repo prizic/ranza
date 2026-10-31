@@ -1,0 +1,29 @@
+%% Every allowed transition is drawn and labelled with the command that causes it.
+%% Anything not drawn is forbidden.
+%% The invitation is of a Guest. A Guest has at most one live invitation and at
+%% most one accepted one, and an Organization's account belongs to one Guest
+%% (ADR 0060). Expired is not stored: a pending invitation whose time has passed
+%% is read as expired, so nothing has to run to make it so.
+stateDiagram-v2
+
+  state "Invitation — the way to a Portal login" as I {
+    [*] --> Pending : invite_guest_to_portal
+    Pending --> Accepted : accept_portal_invitation
+    Pending --> Revoked : withdraw_portal_invitation
+    %% The new invitation starts at Pending; the one it replaces moves to Revoked.
+    Pending --> Revoked : invite_guest_to_portal
+    Pending --> Expired : time passes (read, not stored)
+    Accepted --> [*]
+    Revoked --> [*]
+    Expired --> [*]
+    %% A Guest who is Accepted is not invited again (GP-S2-07). Disconnecting a
+    %% login claimed by the wrong person is GP-DEF-06, not built.
+  }
+
+  state "A Stay's login" as S {
+    [*] --> NoLogin : a Stay is made for a Guest with no accepted invitation
+    [*] --> Linked : a Stay is made for a Guest with an accepted invitation (trigger)
+    NoLogin --> Linked : accept_portal_invitation
+    Linked --> [*]
+    %% A Stay that already names another account is never taken (GP-S3-08).
+  }

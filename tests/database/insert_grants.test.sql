@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  94,
-  'the definer sweep looked at 94 functions; change this number deliberately');
+  101,
+  'the definer sweep looked at 101 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  31,
-  'thirty-one of them write, which is what makes the assertion above a test');
+  34,
+  'thirty-four of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a ninety-fifth definer is a red test
+-- Part B: the inventory itself, so a hundred-and-second definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -661,6 +661,19 @@ select is(
 -- written, because a plain upsert would need the writer to pass the read policy
 -- too, and a role may book without reading particulars. It asks reach, the
 -- front desk capability and front_desk.book before it writes, the thirty-first.
+-- A Portal invitation (20260916013900) brought five, and three write:
+-- invite_guest_to_portal() and withdraw_portal_invitation() ask reach, the front
+-- desk, the Portal capability and guests.invite_to_portal before they write, and
+-- accept_portal_invitation() asks only that the user is signed in, because the
+-- link is its credential: the thirty-second to thirty-fourth. The holder of a
+-- link cannot sign in yet, so portal_invitation_state() reads without a user and
+-- answers only to the digest of a token. stay_follows_its_guests_login() writes
+-- NEW alone, to give a Stay the login its Guest has already.
+-- A Resident's room and balance (20260916013910) brought two, and neither
+-- writes: resident_stay_room_ids() is resident_stay_accommodation_unit_ids()'s
+-- parent, for a policy that may not ask the table it guards, and
+-- resident_folio_balances() sums the acting user's own current Folios because a
+-- policy on folio_lines would hand them every line the desk typed.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -711,8 +724,12 @@ select set_eq(
         'room_admits',
         'booking_is_admitted', 'stay_is_admitted',
         'room_keeps_whom_it_admits', 'guest_keeps_their_rooms',
-        'set_room_admits', 'record_guest_particulars'],
-  'and they are exactly the ninety-four the design gives a reason for');
+        'set_room_admits', 'record_guest_particulars',
+        'invite_guest_to_portal', 'withdraw_portal_invitation',
+        'portal_invitation_state', 'accept_portal_invitation',
+        'stay_follows_its_guests_login',
+        'resident_stay_room_ids', 'resident_folio_balances'],
+  'and they are exactly the hundred and one the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

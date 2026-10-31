@@ -1,0 +1,46 @@
+%% A Resident gets the Portal by invitation (RANZ-87, GP-DEF-02, ADR 0060).
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% The invitation is of a Guest, not of a Stay: a student is registered in move-in
+%% week long before there is a Stay, and a Stay made later still belongs to them.
+%% DECIDED (ADR 0060): the link is the credential and the student's address is
+%% their own to choose. The address on file is only a suggestion.
+flowchart TD
+
+  DESK["Staff Member holding guests.invite_to_portal<br/>the front desk, at the registration"]
+  STUDENT["Guest or Resident<br/>on their own phone"]
+
+  subgraph S2["slice 2 &mdash; the desk invites"]
+    INVITE(["Invite to the portal<br/>one link, shown once, with a QR"])
+    REPLACE(["Withdraw the earlier link<br/>a new invitation does this itself"])
+    WITHDRAW(["Withdraw the live link by hand<br/>it was shown to the wrong person"])
+    STATUS(["See where the invitation stands<br/>none, waiting, expired, withdrawn, connected"])
+  end
+
+  subgraph S3["slice 3 &mdash; the student accepts"]
+    OPEN(["Open the link<br/>/invite/&lt;token&gt;"])
+    CREATE(["Create an account<br/>name, address, password"])
+    SIGNIN(["Sign in to an account they have"])
+    ACCEPT(["Accept<br/>writes stays.user_id for that Guest's own Stays"])
+    REFUSED(["Be told why the link does not work<br/>unknown, expired, used, withdrawn, another resident's account"])
+  end
+
+  subgraph S4["slice 4 &mdash; My stay"]
+    STAY(["Read My stay<br/>room and bed, term, balance"])
+    NEXT(["Next instalment<br/>deferred until RANZ-96's tables are on main"])
+  end
+
+  DESK --- INVITE
+  DESK --- WITHDRAW
+  DESK --- STATUS
+  INVITE -. "include: when a link is live" .-> REPLACE
+  STUDENT --- OPEN
+  OPEN --> ACCEPT
+  CREATE -. "extend: no account yet" .-> ACCEPT
+  SIGNIN -. "extend: has an account" .-> ACCEPT
+  REFUSED -. "extend: the link cannot be used" .-> OPEN
+  STUDENT --- STAY
+  ACCEPT --> STAY
+  NEXT -. "extend: when instalments exist" .-> STAY

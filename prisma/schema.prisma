@@ -46,6 +46,9 @@ model User {
   payrollRunsApproved     HrPayrollRun[]
   brandsSet               OrganizationBrand[]
   brandLogosSet           OrganizationBrandLogo[]
+  portalInvitationsSent   GuestPortalInvitation[]  @relation("GuestPortalInvitationAuthor")
+  portalInvitationsTaken  GuestPortalInvitation[]  @relation("GuestPortalInvitationAcceptor")
+  portalInvitationsPulled GuestPortalInvitation[]  @relation("GuestPortalInvitationRevoker")
 
   @@map("users")
 }
@@ -622,6 +625,7 @@ model Guest {
   /// for a one-to-one, and an index to say what the primary key already does
   /// is not worth its writes.
   particulars     GuestParticulars[]
+  portalInvites   GuestPortalInvitation[]
 
   /// What a Reservation's composite foreign key resolves against, so a
   /// Reservation naming another Organization's Guest is unrepresentable rather
@@ -659,6 +663,45 @@ model GuestParticulars {
 
   @@index([organizationId], map: "guest_particulars_organization_idx")
   @@map("guest_particulars")
+}
+
+/// The way a Guest gets a Portal login: a link the desk hands over, good once
+/// (GP-S2-*, GP-S3-*, ADR 0060).
+///
+/// Of a Guest and not of a Stay, because a student is registered in move-in week
+/// long before any Stay exists. Only the SHA-256 digest of the token is stored,
+/// and `token_hash` is not granted to the runtime role at all: the definers are
+/// the only readers. Written only through `app.invite_guest_to_portal`,
+/// `app.withdraw_portal_invitation` and `app.accept_portal_invitation`. The
+/// checks, the unique indexes' predicates, the policy, the grants and the
+/// functions are hand-written in the migration.
+model GuestPortalInvitation {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  guestId        String    @map("guest_id") @db.Uuid
+  tokenHash      String    @unique(map: "guest_portal_invitations_token_key") @map("token_hash")
+  status         String    @default("pending")
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(6)
+  invitedBy      String    @map("invited_by") @db.Uuid
+  acceptedBy     String?   @map("accepted_by") @db.Uuid
+  acceptedAt     DateTime? @map("accepted_at") @db.Timestamptz(6)
+  revokedBy      String?   @map("revoked_by") @db.Uuid
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  guest    Guest @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "guest_portal_invitations_guest_fkey")
+  author   User  @relation("GuestPortalInvitationAuthor", fields: [invitedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  acceptor User? @relation("GuestPortalInvitationAcceptor", fields: [acceptedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  revoker  User? @relation("GuestPortalInvitationRevoker", fields: [revokedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  /// At most one live link per Guest: a new invitation withdraws the old one.
+  @@unique([guestId], map: "guest_portal_invitations_pending_key", where: raw("status = 'pending'"))
+  /// At most one accepted invitation per Guest, and per account within an
+  /// Organization: a login belongs to one Guest of it.
+  @@unique([guestId], map: "guest_portal_invitations_accepted_guest_key", where: raw("status = 'accepted'"))
+  @@unique([organizationId, acceptedBy], map: "guest_portal_invitations_accepted_account_key", where: raw("status = 'accepted'"))
+  @@index([organizationId], map: "guest_portal_invitations_organization_idx")
+  @@map("guest_portal_invitations")
 }
 
 /// A planned allocation of an Accommodation Unit for a period, which may become
