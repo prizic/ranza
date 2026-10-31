@@ -1,3 +1,4 @@
+import type { UnitEntry, UnitState } from "@ranza/accommodation";
 import type { FolioSummary } from "@ranza/folios";
 import { isOwing } from "../../lib/owed";
 import type { HousekeepingRoom } from "@ranza/housekeeping";
@@ -35,6 +36,20 @@ export type RoomFilter = (typeof ROOM_FILTERS)[number];
 export const FOLIO_FILTERS = ["open"] as const;
 export type FolioFilter = (typeof FOLIO_FILTERS)[number];
 
+/** `?show=` on Rooms: what a Unit is doing tonight, as the map's own chips name it. */
+export const UNIT_STATE_FILTERS = [
+  "free",
+  "reserved",
+  "in_house",
+  "blocked",
+  "out_of_service",
+] as const satisfies readonly UnitState["kind"][];
+export type UnitStateFilter = (typeof UNIT_STATE_FILTERS)[number];
+
+/** `?admits=` on Rooms: whom the room admits, a room for anyone being `anyone`. */
+export const ADMITS_FILTERS = ["female", "male", "anyone"] as const;
+export type AdmitsFilter = (typeof ADMITS_FILTERS)[number];
+
 function parse<T extends string>(
   allowed: readonly T[],
   raw: string | undefined,
@@ -50,6 +65,10 @@ export const parseRoomFilter = (raw: string | undefined) =>
   parse(ROOM_FILTERS, raw);
 export const parseFolioFilter = (raw: string | undefined) =>
   parse(FOLIO_FILTERS, raw);
+export const parseUnitStateFilter = (raw: string | undefined) =>
+  parse(UNIT_STATE_FILTERS, raw);
+export const parseAdmitsFilter = (raw: string | undefined) =>
+  parse(ADMITS_FILTERS, raw);
 
 /**
  * `?floor=` on the board: a number, or `none` for rooms with no floor. Anything
@@ -225,4 +244,30 @@ export function inRoomFilter(
     case "dirty":
       return room.status === "dirty" && !room.inHouse;
   }
+}
+
+export function admitsOf(room: Pick<UnitEntry, "admits">): AdmitsFilter {
+  return room.admits ?? "anyone";
+}
+
+/** A room's places free tonight: its free beds, or itself when it is let whole. */
+export function freeTonight(room: Pick<UnitEntry, "beds" | "state">): number {
+  const leaves = room.beds.length > 0 ? room.beds : [room];
+  return leaves.filter((leaf) => leaf.state?.kind === "free").length;
+}
+
+/**
+ * The places free tonight by whom their room admits, as Today's Empty beds card
+ * counts them and Rooms narrows to them (RB-S5-20). Free is the Empty beds
+ * tonight tile's own count: nobody in, nothing booked tonight, not blocked or
+ * out of order. Null where no room admits one gender only: the split would be
+ * the whole house under "anyone", which the occupancy figures already say.
+ */
+export function freeByAdmits(
+  rooms: readonly UnitEntry[],
+): Record<AdmitsFilter, number> | null {
+  if (rooms.every((room) => room.admits === null)) return null;
+  const free: Record<AdmitsFilter, number> = { female: 0, male: 0, anyone: 0 };
+  for (const room of rooms) free[admitsOf(room)] += freeTonight(room);
+  return free;
 }

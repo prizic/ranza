@@ -14,6 +14,10 @@ import {
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import {
+  parseAdmitsFilter,
+  parseUnitStateFilter,
+} from "../../../../features/today/views";
 
 /**
  * Rooms & beds (RB-S1-01, blueprint 4.7): every room and bed at this Property,
@@ -30,6 +34,8 @@ export default async function RoomsPage({
     property?: string;
     unit?: string;
     view?: string;
+    show?: string;
+    admits?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -65,15 +71,23 @@ export default async function RoomsPage({
   const hasHousekeeping = housekeeping.some(
     (candidate) => candidate.propertyId === property.propertyId,
   );
+  const initialFilter = {
+    show: parseUnitStateFilter(search.show),
+    admits: parseAdmitsFilter(search.admits),
+  };
 
   return (
     <RoomsView
       data={data}
+      // A new narrowing from a link is a new starting point, not a change to
+      // the filters somebody set by hand.
+      key={`${initialFilter.show}:${initialFilter.admits}`}
       housekeepingHref={
         hasHousekeeping
           ? `${localizeHref(locale, "housekeeping")}?property=${property.propertyId}`
           : null
       }
+      initialFilter={initialFilter}
       initialView={search.view === "list" ? "list" : "map"}
       locale={locale}
       maintenance={maintenance}

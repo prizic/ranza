@@ -2140,6 +2140,11 @@ export interface Messages {
     filterFloor: string;
     filterNoFloor: string;
     filterOpenFolios: string;
+    filterFreeFemale: string;
+    filterFreeMale: string;
+    filterFreeAnyone: string;
+    emptyBedsTitle: string;
+    emptyBedsHint: string;
     filterShowAll: string;
     filterReadyCount: string;
     roomOccupiedNoMark: string;
@@ -4786,6 +4791,15 @@ export const messages: Record<SupportedLocale, Messages> = {
       filterNoFloor: "{count, plural, one {Katsız # oda} other {Katsız # oda}}",
       filterOpenFolios:
         "{count, plural, one {# açık folyo} other {# açık folyo}}",
+      filterFreeFemale:
+        "Yalnızca kadınlara ayrılan odalarda bu gece {count, number} boş yer",
+      filterFreeMale:
+        "Yalnızca erkeklere ayrılan odalarda bu gece {count, number} boş yer",
+      filterFreeAnyone: "Herkese açık odalarda bu gece {count, number} boş yer",
+      emptyBedsTitle:
+        "{unit, select, bed {Bu gece boş yatak} other {Bu gece boş oda}}",
+      emptyBedsHint:
+        "Odanın kimi kabul ettiğine göre. Her sayı o odaları haritada açar.",
       filterShowAll: "Tümünü göster",
       filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
       roomOccupiedNoMark: "İçinde misafir var; ayrılınca temizlenir.",
@@ -8559,6 +8573,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, one {# room with no floor} other {# rooms with no floor}}",
       filterOpenFolios:
         "{count, plural, one {# open Folio} other {# open Folios}}",
+      filterFreeFemale: "{count, number} free tonight in rooms for women only",
+      filterFreeMale: "{count, number} free tonight in rooms for men only",
+      filterFreeAnyone: "{count, number} free tonight in rooms for anyone",
+      emptyBedsTitle:
+        "{unit, select, bed {Empty beds tonight} other {Free rooms tonight}}",
+      emptyBedsHint:
+        "By whom the room admits. Each figure opens those rooms on the map.",
       filterShowAll: "Show all",
       filterReadyCount: "{count, plural, one {# ready} other {# ready}}",
       roomOccupiedNoMark:
@@ -12288,6 +12309,13 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{count, plural, zero {لا غرف بلا طابق} one {غرفة واحدة بلا طابق} two {غرفتان بلا طابق} few {# غرف بلا طابق} many {# غرفة بلا طابق} other {# غرفة بلا طابق}}",
       filterOpenFolios:
         "{count, plural, zero {لا فواتير مفتوحة} one {فاتورة مفتوحة واحدة} two {فاتورتان مفتوحتان} few {# فواتير مفتوحة} many {# فاتورة مفتوحة} other {# فاتورة مفتوحة}}",
+      filterFreeFemale: "شاغر الليلة في غرف النساء فقط: {count, number}",
+      filterFreeMale: "شاغر الليلة في غرف الرجال فقط: {count, number}",
+      filterFreeAnyone: "شاغر الليلة في الغرف المفتوحة للجميع: {count, number}",
+      emptyBedsTitle:
+        "{unit, select, bed {أسرّة فارغة الليلة} other {غرف شاغرة الليلة}}",
+      emptyBedsHint:
+        "حسب من تستقبله الغرفة. كل رقم يفتح تلك الغرف على الخريطة.",
       filterShowAll: "اعرض الكل",
       filterReadyCount:
         "{count, plural, zero {لا جاهزة} one {واحدة جاهزة} two {اثنتان جاهزتان} few {# جاهزة} many {# جاهزة} other {# جاهزة}}",

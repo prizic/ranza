@@ -33,6 +33,7 @@ import { CleanFirstCard } from "./clean-first-card";
 import { MaintenanceCard } from "./maintenance-card";
 import { MoneyLists } from "./money-cards";
 import { MovementsCard } from "./movements-card";
+import { EmptyBedsCard } from "./empty-beds-card";
 import { RoomsCard } from "./rooms-card";
 import { SectionUnavailable } from "./section-unavailable";
 import { OrganizationStrip } from "./organization-strip";
@@ -638,7 +639,10 @@ function MainRow({
       />
     ) : null;
 
-  const side = summary.rooms || summary.maintenance || summary.charges;
+  const emptyBeds =
+    summary.emptyBeds?.status === "ok" ? summary.emptyBeds.data : null;
+  const side =
+    emptyBeds || summary.rooms || summary.maintenance || summary.charges;
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
@@ -664,6 +668,13 @@ function MainRow({
       </div>
       {side ? (
         <div className="flex flex-col gap-4">
+          {emptyBeds ? (
+            <EmptyBedsCard
+              data={emptyBeds}
+              locale={locale}
+              propertyId={propertyId}
+            />
+          ) : null}
           {summary.rooms ? (
             <RoomsCard
               locale={locale}

@@ -20,6 +20,7 @@ import { displayName } from "./display-name";
 import {
   availableUnits,
   expectedTonight,
+  freeByAdmits,
   holdsTonight,
   inRoomFilter,
   isToCome,
@@ -141,6 +142,18 @@ export interface OccupancyCard {
   leavingTonight: number;
   /** The arrivals `expectedTonight` adds: those that put a Guest in a room tonight. */
   arrivingTonight: number;
+}
+
+/**
+ * The places free tonight by whom their room admits (RB-S5-20): how many beds a
+ * dormitory can still give a woman, a man, or anybody.
+ */
+export interface EmptyBedsCard {
+  female: number;
+  male: number;
+  anyone: number;
+  /** Whether any room is let by the bed, so the card says beds, not rooms. */
+  byBed: boolean;
 }
 
 export type CleanPriority =
@@ -340,6 +353,11 @@ export interface TodaySummary {
   arrivals?: Section<ArrivalsCard>;
   departures?: Section<DeparturesCard>;
   occupancy?: Section<OccupancyCard>;
+  /**
+   * Only where a room admits one gender only; see `freeByAdmits`. Unavailable
+   * is drawn as nothing, since it cannot say whether the card belongs here.
+   */
+  emptyBeds?: Section<EmptyBedsCard>;
   rooms?: Section<RoomsCard>;
   money?: Section<MoneyCard>;
   maintenance?: Section<MaintenanceCard>;
@@ -1234,6 +1252,23 @@ export function deriveToday(input: TodayInput): TodaySummary {
       occupancyFrom(map.counts, arrivals, departures),
     );
     if (occupancy) summary.occupancy = occupancy;
+
+    // Not built from the movements, so it stands when they fail. A failed map
+    // is unavailable, which the page carries over a blip and otherwise draws
+    // as nothing: whether there is a gendered room at all is what the map
+    // would have said.
+    const free = units ? freeByAdmits(units.units) : null;
+    if (failed(input.units)) {
+      summary.emptyBeds = { status: "unavailable" };
+    } else if (units && free) {
+      summary.emptyBeds = {
+        status: "ok",
+        data: {
+          ...free,
+          byBed: units.units.some((room) => room.beds.length > 0),
+        },
+      };
+    }
   }
 
   const rooms = section(dependent(input.board), (value) =>

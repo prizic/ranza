@@ -57,19 +57,22 @@ import type {
   UnitMap,
   UnitState,
 } from "../../../server/viewer";
+import {
+  FREE_FILTER_KEY,
+  ListFilterNotice,
+} from "../../today/components/list-filter-notice";
+import {
+  admitsOf,
+  freeTonight,
+  UNIT_STATE_FILTERS,
+  type AdmitsFilter,
+  type UnitStateFilter,
+} from "../../today/views";
 import { AddRoomsDialog } from "./add-rooms-dialog";
 import { BlockUnitDialog } from "./block-unit-dialog";
 import { RoomAdmits } from "./room-admits";
 
-type StateKind = UnitState["kind"];
-
-const KIND_FILTERS: readonly StateKind[] = [
-  "free",
-  "reserved",
-  "in_house",
-  "blocked",
-  "out_of_service",
-];
+type StateKind = UnitStateFilter;
 
 type AddedRooms = Extract<AddRoomsOutcome, { status: "done" }>;
 
@@ -81,6 +84,7 @@ export function RoomsView({
   propertyId,
   data,
   housekeepingHref,
+  initialFilter,
   initialView,
   maintenance,
   mayConfigure,
@@ -93,6 +97,11 @@ export function RoomsView({
   data: UnitMap;
   /** The board that says which rooms are clean, for a viewer who has one. */
   housekeepingHref: string | null;
+  /**
+   * What the address narrowed the map to: Today's Empty beds figures open it at
+   * `?show=free&admits=` (RB-S5-20). The page remounts the view when it changes.
+   */
+  initialFilter: { show: StateKind | null; admits: AdmitsFilter | null };
   initialView: "map" | "list";
   maintenance: RoomsMaintenance;
   /** Whether the viewer holds `accommodation.configure` at this Property. */
@@ -117,7 +126,10 @@ export function RoomsView({
   const [refreshing, startRefresh] = useTransition();
   const [viewMode, setViewMode] = useState<"map" | "list">(initialView);
   const [query, setQuery] = useState("");
-  const [kinds, setKinds] = useState<ReadonlySet<StateKind>>(new Set());
+  const [kinds, setKinds] = useState<ReadonlySet<StateKind>>(
+    () => new Set(initialFilter.show ? [initialFilter.show] : []),
+  );
+  const [admits, setAdmits] = useState(initialFilter.admits);
   const [readyOnly, setReadyOnly] = useState(false);
   const [added, setAdded] = useState<AddedRooms | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
@@ -241,7 +253,8 @@ export function RoomsView({
   }
 
   const needle = query.trim().toLowerCase();
-  const filtered = needle !== "" || kinds.size > 0 || readyOnly;
+  const filtered =
+    needle !== "" || kinds.size > 0 || readyOnly || admits !== null;
   const visibleUnits = data.units.filter((room) => {
     const leaves = room.beds.length > 0 ? room.beds : [room];
     const named =
@@ -256,13 +269,26 @@ export function RoomsView({
       kinds.size === 0 ||
       leaves.some((leaf) => leaf.state && kinds.has(leaf.state.kind));
     const isReady = !readyOnly || readiness?.[room.unitId] === "ready";
-    return named && inState && isReady;
+    const admitted = admits === null || admitsOf(room) === admits;
+    return named && inState && isReady && admitted;
   });
+  // The figure Today showed, from the same count, so the notice gives it back.
+  const freeAdmitted =
+    admits === null
+      ? 0
+      : data.units
+          .filter((room) => admitsOf(room) === admits)
+          .reduce((sum, room) => sum + freeTonight(room), 0);
 
   function clearFilters() {
     setQuery("");
     setKinds(new Set());
     setReadyOnly(false);
+    setAdmits(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("show");
+    url.searchParams.delete("admits");
+    window.history.replaceState(null, "", url);
   }
 
   function toggleKind(kind: StateKind) {
@@ -439,7 +465,7 @@ export function RoomsView({
               className="flex max-w-full items-center gap-1.5 overflow-x-auto scrollbar-none sm:flex-wrap"
               role="group"
             >
-              {KIND_FILTERS.map((kind) => (
+              {UNIT_STATE_FILTERS.map((kind) => (
                 <Button
                   aria-pressed={kinds.has(kind)}
                   className="min-h-11 shrink-0 md:min-h-0"
@@ -464,7 +490,8 @@ export function RoomsView({
                 </Button>
               ) : null}
             </div>
-            {filtered && visibleUnits.length > 0 ? (
+            {/* Narrowed from Today, the notice below is the way back. */}
+            {filtered && visibleUnits.length > 0 && admits === null ? (
               <Button onClick={clearFilters} size="sm" variant="ghost">
                 {rp("showAll")}
                 <X aria-hidden="true" />
@@ -480,6 +507,13 @@ export function RoomsView({
               </Link>
             ) : null}
           </div>
+          {admits === null ? null : (
+            <ListFilterNotice
+              allHref={`/${locale}/rooms?property=${propertyId}`}
+              count={freeAdmitted}
+              filter={FREE_FILTER_KEY[admits]}
+            />
+          )}
         </>
       ) : null}
 

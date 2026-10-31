@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { AdmitsFilter } from "../views";
 
 /** What a list was narrowed to by a figure on Today (TD-S5-01). */
 export type ListFilterKey =
@@ -18,7 +19,17 @@ export type ListFilterKey =
   | "filterCleanFirst"
   | "filterFloor"
   | "filterNoFloor"
-  | "filterOpenFolios";
+  | "filterOpenFolios"
+  | "filterFreeFemale"
+  | "filterFreeMale"
+  | "filterFreeAnyone";
+
+/** The free places in rooms admitting each: Today's figure and Rooms' notice. */
+export const FREE_FILTER_KEY = {
+  female: "filterFreeFemale",
+  male: "filterFreeMale",
+  anyone: "filterFreeAnyone",
+} as const satisfies Record<AdmitsFilter, ListFilterKey>;
 
 /**
  * Says a list is showing part of itself, how many rows that is, and the way

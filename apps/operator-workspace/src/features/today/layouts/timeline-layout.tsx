@@ -10,6 +10,7 @@ import { unitLabel } from "../../front-office/unit-label";
 import { cutoffTime, duration, money, shortDay } from "../format";
 import { todayHref } from "../links";
 import { DoNow } from "./do-now";
+import { EmptyBedsCard } from "../components/empty-beds-card";
 import { RoomsBar, UnclosedDaysCard } from "./side-cards";
 import {
   ArrivalCommand,
@@ -103,6 +104,8 @@ export function TimelineLayout(props: LayoutProps) {
   const flow =
     summary.occupancy?.status === "ok" ? summary.occupancy.data : null;
   const counts = countsByState(desk.rooms);
+  const emptyBeds =
+    summary.emptyBeds?.status === "ok" ? summary.emptyBeds.data : null;
   const unclosed =
     desk.unclosed?.status === "ok" && desk.unclosed.data.waiting > 0
       ? desk.unclosed.data
@@ -139,6 +142,13 @@ export function TimelineLayout(props: LayoutProps) {
           scope={scope}
         />
         <div className="flex flex-col gap-6">
+          {emptyBeds ? (
+            <EmptyBedsCard
+              data={emptyBeds}
+              locale={locale}
+              propertyId={scope.propertyId}
+            />
+          ) : null}
           <RoomsBar
             counts={counts}
             locale={locale}

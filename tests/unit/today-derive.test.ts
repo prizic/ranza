@@ -214,6 +214,7 @@ function unit(overrides: Partial<UnitEntry>): UnitEntry {
     building: null,
     floor: 1,
     status: "available",
+    admits: null,
     state: { kind: "free", nextArrivalOn: null },
     beds: [],
     ...overrides,
@@ -1287,6 +1288,73 @@ describe("reading it", () => {
     );
     expect(summary?.attention.complete).toBe(false);
     expect(report).toHaveBeenCalledWith("daysWaiting", failure);
+  });
+});
+
+describe("empty beds by whom the room admits (RB-S5-20)", () => {
+  const IN = {
+    kind: "in_house",
+    guestName: "Elif Yurt",
+    endsOn: null,
+  } as const;
+  const bed = (unitId: string, state: UnitEntry["state"]) =>
+    unit({ unitId, name: unitId, unitType: "bed", state });
+  const yurt = map([
+    unit({
+      unitId: "w",
+      name: "W-1",
+      admits: "female",
+      state: null,
+      beds: [
+        bed("w-a", IN),
+        bed("w-b", { kind: "free", nextArrivalOn: null }),
+        bed("w-c", { kind: "free", nextArrivalOn: "2026-09-27" }),
+        bed("w-d", { kind: "reserved", arrivesOn: "2026-09-25" }),
+      ],
+    }),
+    unit({
+      unitId: "m",
+      name: "M-1",
+      admits: "male",
+      state: null,
+      beds: [
+        bed("m-a", { kind: "blocked", reason: "Broken frame" }),
+        bed("m-b", { kind: "free", nextArrivalOn: null }),
+      ],
+    }),
+    unit({ unitId: "x", name: "X-1" }),
+  ]);
+
+  it("counts_free_places_tonight_by_whom_their_room_admits_for_the_desk", () => {
+    for (const permissions of [FRONT_DESK, MANAGER]) {
+      expect(
+        deriveToday(input(permissions, { units: ok(yurt) })).emptyBeds,
+      ).toEqual({
+        status: "ok",
+        data: { female: 2, male: 1, anyone: 1, byBed: true },
+      });
+    }
+  });
+
+  it("is_absent_where_no_room_admits_one_gender_or_the_viewer_is_not_at_the_desk", () => {
+    expect(deriveToday(input(FRONT_DESK)).emptyBeds).toBeUndefined();
+    expect(
+      deriveToday(input(HOUSEKEEPING, { units: ok(yurt) })).emptyBeds,
+    ).toBeUndefined();
+  });
+
+  it("is_unavailable_when_the_map_could_not_be_read_so_the_page_can_carry_it", () => {
+    expect(
+      deriveToday(input(FRONT_DESK, { units: { ok: false } })).emptyBeds,
+    ).toEqual({ status: "unavailable" });
+  });
+
+  it("stands_when_the_movements_could_not_be_read", () => {
+    const summary = deriveToday(
+      input(FRONT_DESK, { units: ok(yurt), arrivals: { ok: false } }),
+    );
+    expect(summary.occupancy).toEqual({ status: "unavailable" });
+    expect(summary.emptyBeds?.status).toBe("ok");
   });
 });
 

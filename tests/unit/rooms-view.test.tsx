@@ -98,6 +98,10 @@ function screenOf(
   locale: SupportedLocale,
   options: {
     data?: UnitMap;
+    initialFilter?: {
+      show: "free" | null;
+      admits: "female" | "male" | "anyone" | null;
+    };
     mayConfigure?: boolean;
     offerAdmits?: boolean;
     readiness?: Readonly<Record<string, RoomReadiness>> | null;
@@ -109,6 +113,7 @@ function screenOf(
       <RoomsView
         data={options.data ?? map}
         housekeepingHref="/en/housekeeping?property=dd000003-0000-4000-8000-000000000001"
+        initialFilter={options.initialFilter ?? { show: null, admits: null }}
         initialView="map"
         locale={locale}
         maintenance={{ holds: [], mayReport: options.reportable ?? false }}
@@ -305,6 +310,52 @@ describe("beds taken on a room let by the bed (RB-S5-19)", () => {
     render(screenOf("en"));
     expect(screen.queryByText(/beds? taken/)).not.toBeInTheDocument();
     expect(screen.getAllByText("Sleeps 2").length).toBeGreaterThan(0);
+  });
+});
+
+describe("opened from Today's Empty beds figure (RB-S5-20)", () => {
+  const free = { kind: "free", nextArrivalOn: null } as const;
+  const gendered: UnitMap = {
+    ...map,
+    units: [
+      {
+        ...unit("401", null),
+        admits: "female",
+        beds: [unit("A", free), unit("B", free), unit("C", null)],
+      },
+      { ...unit("402", null), admits: "female", beds: [unit("D", null)] },
+      { ...unit("403", free), admits: "male" },
+      unit("404", free),
+    ],
+  };
+  // A bed with no state is no free place; the read gives every leaf one, and
+  // here it stands for "taken" without naming a Guest.
+
+  it("shows_only_the_rooms_admitting_that_gender_with_a_free_place_and_says_so", () => {
+    render(
+      screenOf("en", {
+        data: gendered,
+        initialFilter: { show: "free", admits: "female" },
+      }),
+    );
+    expect(screen.getByTestId("list-filter-notice")).toHaveTextContent(
+      "2 free tonight in rooms for women only",
+    );
+    expect(screen.getByText("401")).toBeVisible();
+    for (const hidden of ["402", "403", "404"]) {
+      expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+    }
+    expect(
+      screen.getByRole("button", { name: "Free", pressed: true }),
+    ).toBeVisible();
+  });
+
+  it("is_the_whole_map_without_an_address_that_narrows_it", () => {
+    render(screenOf("en", { data: gendered }));
+    expect(screen.queryByTestId("list-filter-notice")).not.toBeInTheDocument();
+    for (const room of ["401", "402", "403", "404"]) {
+      expect(screen.getByText(room)).toBeVisible();
+    }
   });
 });
 

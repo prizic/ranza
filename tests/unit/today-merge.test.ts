@@ -49,6 +49,18 @@ describe("mergeSummary", () => {
     expect(merged.rooms).toEqual({ ...ROOMS, stale: true });
   });
 
+  it("keeps a dormitory's empty beds over a map that could not be read (RB-S5-20)", () => {
+    const EMPTY_BEDS = {
+      status: "ok" as const,
+      data: { female: 2, male: 1, anyone: 0, byBed: true },
+    };
+    const merged = mergeSummary(
+      summary({ emptyBeds: EMPTY_BEDS }),
+      summary({ emptyBeds: { status: "unavailable" } }),
+    );
+    expect(merged.emptyBeds).toEqual({ ...EMPTY_BEDS, stale: true });
+  });
+
   it("never brings back a card the new answer leaves out", () => {
     // A permission withdrawn, or a module switched off, since the last read.
     const merged = mergeSummary(summary({ rooms: ROOMS }), summary({}));
