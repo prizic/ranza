@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 import type { AuditEntry } from "@ranza/core";
 import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import { readAs } from "./actions";
+import { weekdayName } from "../housekeeping/stayover";
 import { minorUnitsOf, shownAmount } from "./amounts";
 import type { AuditWords } from "./words";
 
@@ -128,10 +129,34 @@ export function useRoomAdmitsWord() {
     );
 }
 
+/**
+ * A stayover cleaning schedule as the log records it (`default`, `none`,
+ * `every_3_days`, `weekly_1`), said as the Housekeeping screen says it.
+ */
+export function useStayoverWord(locale: SupportedLocale) {
+  const t = useTranslations();
+  return (value: unknown): string => {
+    if (value === "default") return t("housekeeping.stayoverFollowsDefault");
+    if (value === "none") return t("housekeeping.stayoverKindNone");
+    const days =
+      typeof value === "string" ? /^every_(\d+)_days$/.exec(value) : null;
+    if (days) return t("housekeeping.cadenceEvery", { count: Number(days[1]) });
+    const weekday =
+      typeof value === "string" ? /^weekly_([1-7])$/.exec(value) : null;
+    if (weekday) {
+      return t("housekeeping.cadenceWeekly", {
+        day: weekdayName(Number(weekday[1]), locale),
+      });
+    }
+    return t("auditNotSet");
+  };
+}
+
 export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
   const t = useTranslations();
   const configuredValue = useConfiguredValue();
   const admitsWord = useRoomAdmitsWord();
+  const stayoverWord = useStayoverWord(locale);
 
   const fromTo = (from: string, to: string) => t("auditFromTo", { from, to });
 
@@ -170,6 +195,9 @@ export function useAuditSummary(words: AuditWords, locale: SupportedLocale) {
     switch (action) {
       case "housekeeping.inspection_set":
         return fromTo(inspection(context.from), inspection(context.to));
+
+      case "housekeeping.stayover_set":
+        return fromTo(stayoverWord(context.from), stayoverWord(context.to));
 
       case "unit.admits_changed":
         return fromTo(admitsWord(context.from), admitsWord(context.to));

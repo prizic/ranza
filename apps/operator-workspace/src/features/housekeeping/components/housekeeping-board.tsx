@@ -14,9 +14,19 @@ import type {
   HousekeepingBoard as Board,
   HousekeepingRoom,
   HousekeepingStatus,
+  StayoverBoard,
 } from "@ranza/housekeeping";
 import type { SupportedLocale } from "@ranza/i18n";
-import { Button, cn, DataTable, EmptyState } from "@ranza/ui";
+import {
+  Button,
+  cn,
+  DataTable,
+  EmptyState,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@ranza/ui";
 import { useTableLabels } from "../../../lib/table-labels";
 import {
   ListFilterNotice,
@@ -32,7 +42,9 @@ import {
   NO_FLOOR,
   useHousekeepingColumns,
 } from "./columns";
+import { StayoverList } from "./stayover-list";
 import { STATUS_LOOK } from "./status";
+import { Tally } from "./tally";
 
 /**
  * The Housekeeping board (RANZ-28): every room at a Property, whether it needs
@@ -58,7 +70,9 @@ export function HousekeepingBoard({
   narrowed,
   propertyName,
   reportHref,
+  stayover = null,
   timeZone,
+  view = "turnover",
 }: {
   /** The board unnarrowed, for the way back from a figure on Today. */
   allHref: string;
@@ -85,7 +99,14 @@ export function HousekeepingBoard({
    * report; a string because a function cannot cross to the browser.
    */
   reportHref: string | null;
+  /**
+   * The occupied rooms due a clean (RANZ-83), beside turnover. Null, or a
+   * schedule of never, leaves the board exactly as it was.
+   */
+  stayover?: StayoverBoard | null;
   timeZone: string;
+  /** Which of the two the reader opened on. */
+  view?: "turnover" | "stayover";
 }) {
   const t = useTranslations("housekeeping");
   const labels = useTableLabels();
@@ -133,7 +154,7 @@ export function HousekeepingBoard({
     new Set(board.rooms.map((room) => floorValue(room.floor))),
   ).sort((a, b) => floorOrder(a) - floorOrder(b));
 
-  return (
+  const turnover = (
     <div className="flex flex-col gap-6">
       {/* On a phone the status chips below already carry these three counts,
           and are the controls that filter by them, so they are said once
@@ -283,35 +304,29 @@ export function HousekeepingBoard({
       />
     </div>
   );
+
+  if (!stayover || stayover.cadence.kind === "none") return turnover;
+
+  return (
+    <Tabs defaultValue={view}>
+      <TabsList className="max-w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto">
+        <TabsTrigger value="turnover">{t("turnoverTab")}</TabsTrigger>
+        <TabsTrigger value="stayover">
+          {t("stayoverTab", { count: stayover.counts.due })}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent className="pt-4" value="turnover">
+        {turnover}
+      </TabsContent>
+      <TabsContent className="pt-4" value="stayover">
+        <StayoverList board={stayover} locale={locale} />
+      </TabsContent>
+    </Tabs>
+  );
 }
 
 function floorOrder(floor: string): number {
   return floor === NO_FLOOR ? Number.POSITIVE_INFINITY : Number(floor);
-}
-
-/**
- * One count above the board. Small on a phone, where five of the larger
- * tiles once took the whole first screen before the first room (HK-03).
- */
-function Tally({
-  className,
-  label,
-  value,
-}: {
-  className?: string;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className={cn("rounded-2xl border bg-card p-3 sm:p-4", className)}>
-      <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold tabular-nums sm:mt-2 sm:text-2xl">
-        {value}
-      </p>
-    </div>
-  );
 }
 
 /** How long a "rooms updated" confirmation stays up before it clears itself. */

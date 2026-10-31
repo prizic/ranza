@@ -7,6 +7,12 @@
 %% different lifecycle that coexists with this one — a blocked room is still
 %% dirty, and still dirty after it is unblocked.
 %%
+%% A room somebody is staying in is cleaned on a schedule (slice 4, ADR 0063).
+%% That is a second lifecycle and deliberately not a value of this one: "due" is
+%% read from the schedule, the arrival and the last clean, so an occupied room
+%% due for a clean is never dirty, never unready and never blocks a check-in.
+%% It is drawn second, below.
+%%
 %% "Ready" is not a state. It is read off this one and the inspection setting:
 %% inspected is ready; clean is ready when inspection is off. Changing the
 %% setting therefore moves no room between states, and cannot strand one.
@@ -32,4 +38,20 @@ stateDiagram-v2
     %% (HK-S1-22). The worker writes nothing when a person changed the status
     %% after the departure happened (HK-S1-05): the later word wins.
     %% No terminal state. A room is never deleted, and no status ends it.
+  }
+
+%% Stayover cleaning of a room somebody is in. Not stored: each state is read.
+%% A clean is a row, undone by stamping it and never by deleting it, and only
+%% on the day it was pressed (HK-S4-13, HK-S4-14).
+  state "Room in use — stayover cleaning" as S {
+    [*] --> NotDue : somebody arrives (the cycle begins)
+    NotDue --> Due : the schedule's day comes round (every day, every N days, a weekday)
+    Due --> Due : the day passes uncleaned (overdue, never lost)
+    Due --> CleanedToday : mark cleaned
+    CleanedToday --> Due : undo (same day only)
+    CleanedToday --> NotDue : the day ends (the cycle begins again)
+    NotDue --> NotDue : marked clean or inspected as turnover (the cycle begins again)
+    Due --> NotDue : marked clean or inspected as turnover
+    NotDue --> [*] : everybody leaves (turnover takes over)
+    Due --> [*] : everybody leaves (turnover takes over)
   }

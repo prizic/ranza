@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { isolate, isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { Sparkles, Wrench } from "lucide-react";
+import { Sparkles, SprayCan, Wrench } from "lucide-react";
 import { PageHeader } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { ALL_SCREENS, gateOf } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
+import { StayoverSettings } from "../../../../features/housekeeping/components/stayover-settings";
 import { MaintenanceSettingsCard } from "../../../../features/maintenance/components/maintenance-settings";
 import { OrganizationCard } from "../../../../features/configuration/components/organization-card";
 import {
@@ -22,6 +23,7 @@ import {
   type Section,
 } from "../../../../features/configuration/components/section-nav";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { stayoverViewOf } from "../../../../server/stayover";
 import {
   CONFIGURATION_CAPABILITY,
   entitledPropertiesByCapability,
@@ -101,9 +103,10 @@ export default async function ConfigurationPage({
     );
   }
 
-  const [inspection, maintenance, prices, timezones, capabilities] =
+  const [inspection, stayover, maintenance, prices, timezones, capabilities] =
     await Promise.all([
       housekeepingInspection(property.propertyId),
+      stayoverViewOf(property.propertyId),
       maintenanceSettings(property.propertyId),
       priceList(property.propertyId),
       timezoneNames(),
@@ -156,6 +159,14 @@ export default async function ConfigurationPage({
           {
             id: "housekeeping" as const,
             label: t("configuration.housekeepingTitle"),
+          },
+        ]
+      : []),
+    ...(stayover
+      ? [
+          {
+            id: "stayover" as const,
+            label: t("housekeeping.stayoverSettingsTitle"),
           },
         ]
       : []),
@@ -215,6 +226,23 @@ export default async function ConfigurationPage({
                 locale={locale}
                 propertyId={property.propertyId}
                 settings={inspection}
+              />
+            </SettingsCard>
+          ) : null}
+          {stayover ? (
+            <SettingsCard
+              hint={t("housekeeping.stayoverSettingsHint")}
+              icon={SprayCan}
+              id="stayover"
+              title={t("housekeeping.stayoverSettingsTitle")}
+            >
+              <StayoverSettings
+                embedded
+                fallback={stayover.fallback}
+                limits={stayover.limits}
+                locale={locale}
+                propertyId={property.propertyId}
+                settings={stayover.settings}
               />
             </SettingsCard>
           ) : null}

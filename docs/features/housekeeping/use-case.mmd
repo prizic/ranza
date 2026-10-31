@@ -13,6 +13,11 @@
 %% records it, so the permission is on for Owner, Manager, Front Desk and
 %% Housekeeping by default and an Organization may take it from any role.
 %%
+%% Slice 4: a room somebody is in is cleaned on a schedule any Property can
+%% choose. It is distinct from turnover: a room due for a clean is read, never
+%% marked, and is not dirty, so check-in of the bed beside it is untouched.
+%% Housekeepers press the card themselves; the desk may on their behalf.
+%%
 %% Blocked and out of service stay on accommodation_units.status: a different
 %% lifecycle that coexists with this one, so a blocked room can be dirty
 %% (ADR 0029). The setting is edited on the Housekeeping screen itself,
@@ -45,8 +50,13 @@ flowchart TD
     RESET(["Reset a Property to the default"])
   end
 
+  subgraph S4["slice 4 &mdash; rooms in use (RANZ-83)"]
+    SCHEDULE(["Choose how often rooms in use are cleaned<br/>never, every N days, a weekday each week"])
+    DUE(["Read the rooms in use that are due<br/>beside turnover, by block and floor"])
+    DONE(["Mark a room cleaned on its card<br/>one press, with undo the same day"])
+  end
+
   subgraph OUT["Not this feature"]
-    STAYOVER(["Daily cleaning of a room still in use &mdash; deferred"])
     PERBED(["A bed with a status of its own in a shared room &mdash; deferred"])
     TASKS(["Assigning work to a named housekeeper, evidence, linen, minibar"])
     MAINT(["Out of order for repair (RANZ-33)"])
@@ -61,6 +71,11 @@ flowchart TD
   PROPADMIN --> PROPSET
   PROPADMIN --> RESET
   CHECKIN --> WARN
+  PROPADMIN --> SCHEDULE
+  DESK --> DUE
+  DESK --> DONE
+
+  DONE -. include .-> DUE
 
   BULK -. include .-> MARK
   UNDO -. extend .-> MARK

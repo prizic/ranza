@@ -32,6 +32,7 @@ import {
 } from "vitest";
 import type { PropertySettings } from "../../packages/ranza/core/src";
 import type { InspectionSettings } from "../../packages/ranza/housekeeping/src";
+import type { StayoverView } from "../../apps/operator-workspace/src/server/stayover";
 import type { MaintenanceSettings } from "../../packages/ranza/maintenance/src";
 import type { PriceList } from "../../packages/ranza/rates/src";
 import {
@@ -44,6 +45,7 @@ import { screenFor } from "../../apps/operator-workspace/src/lib/screens";
 
 const settingsFor = vi.fn<() => Promise<PropertySettings | null>>();
 const inspectionFor = vi.fn<() => Promise<InspectionSettings | null>>();
+const stayoverFor = vi.fn<() => Promise<StayoverView | null>>();
 const maintenanceFor = vi.fn<() => Promise<MaintenanceSettings | null>>();
 const pricesFor = vi.fn<() => Promise<PriceList | null>>();
 const savePrices = vi.fn();
@@ -121,6 +123,10 @@ vi.mock("../../apps/operator-workspace/src/server/configuration", () => ({
 }));
 vi.mock("../../apps/operator-workspace/src/server/housekeeping", () => ({
   setInspection: vi.fn(),
+  setStayover: vi.fn(),
+}));
+vi.mock("../../apps/operator-workspace/src/server/stayover", () => ({
+  stayoverViewOf: () => stayoverFor(),
 }));
 vi.mock("../../apps/operator-workspace/src/server/maintenance", () => ({
   saveMaintenanceSettings: vi.fn(),
@@ -159,6 +165,14 @@ const INSPECTION: InspectionSettings = {
   mayConfigureDefault: true,
 };
 
+const STAYOVER: StayoverView = {
+  settings: { own: null, mayConfigure: true },
+  fallback: { kind: "weekly", weekday: 1 },
+  limits: { everyDays: { min: 1, max: 14 }, weekdays: [1, 2, 3, 4, 5, 6, 7] },
+};
+
+let stayoverShown: StayoverView | null = null;
+
 async function pageFor(
   settings: PropertySettings,
   as: SupportedLocale,
@@ -167,6 +181,7 @@ async function pageFor(
   locale = as;
   settingsFor.mockResolvedValue(settings);
   inspectionFor.mockResolvedValue(inspection);
+  stayoverFor.mockResolvedValue(stayoverShown);
   maintenanceFor.mockResolvedValue(maintenanceShown);
   pricesFor.mockResolvedValue(pricesShown);
   const page = await ConfigurationPage({
@@ -231,6 +246,7 @@ beforeEach(() => {
   scrolled.mockReset();
   savePrices.mockReset();
   pricesShown = null;
+  stayoverShown = null;
 });
 afterEach(cleanup);
 
@@ -285,6 +301,28 @@ describe("who may change what", () => {
 });
 
 describe("what the page holds", () => {
+  it("the_stayover_schedule_sits_with_housekeeping_and_says_what_it_follows (HK-S4-02)", async () => {
+    stayoverShown = STAYOVER;
+    await show(MANAGER);
+    expect(
+      within(card("stayover")).getByText("Cleaning rooms in use"),
+    ).toBeVisible();
+    expect(
+      within(card("stayover")).getByText(
+        /Applies at this Property: Every week on Monday/,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Cleaning rooms in use" }),
+    ).toHaveAttribute("href", "#stayover");
+  });
+
+  it("no_stayover_card_without_housekeeping (HK-S4-02)", async () => {
+    stayoverShown = null;
+    await show(MANAGER);
+    expect(document.getElementById("stayover")).toBeNull();
+  });
+
   it("the_inspection_setting_is_the_housekeeping_one", async () => {
     await show(MANAGER, { inspection: INSPECTION });
     expect(

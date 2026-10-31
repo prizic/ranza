@@ -5,6 +5,8 @@ import { isSupportedLocale } from "@ranza/i18n";
 import {
   HousekeepingInputError,
   HousekeepingRefusedError,
+  isStayoverCadence,
+  type StayoverCadence,
 } from "@ranza/housekeeping";
 import { getComposition } from "./composition";
 import { currentViewer } from "./viewer";
@@ -143,5 +145,131 @@ export async function setInspection(
 
   // What ready means moved, so every screen that reads readiness is stale.
   revalidateHousekeeping(locale);
+  return { status: "done" };
+}
+
+export interface StayoverOutcome {
+  status: "idle" | "done" | "invalid" | "refused";
+  /** False when the room had already been cleaned today. */
+  recorded?: boolean;
+}
+
+/**
+ * A room somebody is staying in was cleaned (HK-S4-08). `unitId` is the room.
+ * The policy decides who may and which Unit; the date and who pressed are the
+ * database's.
+ */
+export async function markStayoverCleaned(
+  _previous: StayoverOutcome,
+  form: FormData,
+): Promise<StayoverOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { status: "invalid" };
+  const unitId = String(form.get("unitId") ?? "");
+  if (!UUID.test(unitId)) return { status: "invalid" };
+
+  try {
+    const { recorded } =
+      await getComposition().housekeeping.markStayoverCleaned(
+        viewer.userId,
+        unitId,
+      );
+    revalidateHousekeeping(locale);
+    return { status: "done", recorded };
+  } catch (error: unknown) {
+    if (isRefused(error)) {
+      revalidateHousekeeping(locale);
+      return { status: "refused" };
+    }
+    throw error;
+  }
+}
+
+/** Takes back today's press on a room (HK-S4-13). */
+export async function undoStayoverCleaned(
+  _previous: StayoverOutcome,
+  form: FormData,
+): Promise<StayoverOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { status: "invalid" };
+  const unitId = String(form.get("unitId") ?? "");
+  if (!UUID.test(unitId)) return { status: "invalid" };
+
+  try {
+    await getComposition().housekeeping.undoStayoverCleaned(
+      viewer.userId,
+      unitId,
+    );
+    revalidateHousekeeping(locale);
+    return { status: "done" };
+  } catch (error: unknown) {
+    if (isRefused(error)) {
+      revalidateHousekeeping(locale);
+      return { status: "refused" };
+    }
+    throw error;
+  }
+}
+
+/**
+ * Reads the schedule a form sent: `kind` is `default`, `none`, `every_n_days`
+ * or `weekly`, with the number that kind needs. Null for `default`; undefined
+ * for anything the database would refuse.
+ */
+function cadenceFrom(form: FormData): StayoverCadence | null | undefined {
+  const kind = String(form.get("kind") ?? "");
+  if (kind === "default") return null;
+  const candidate =
+    kind === "none"
+      ? { kind }
+      : kind === "every_n_days"
+        ? { kind, everyDays: Number(form.get("everyDays")) }
+        : kind === "weekly"
+          ? { kind, weekday: Number(form.get("weekday")) }
+          : null;
+  return isStayoverCadence(candidate) ? candidate : undefined;
+}
+
+/**
+ * Changing how often rooms in use are cleaned at one Property (HK-S4-02). The
+ * policies decide who may (HK-S4-04); nothing here checks.
+ */
+export async function setStayover(
+  _previous: StayoverOutcome,
+  form: FormData,
+): Promise<StayoverOutcome> {
+  const viewer = await currentViewer();
+  if (!viewer) return { status: "refused" };
+
+  const locale = String(form.get("locale") ?? "");
+  if (!isSupportedLocale(locale)) return { status: "invalid" };
+  const propertyId = String(form.get("propertyId") ?? "");
+  if (!UUID.test(propertyId)) return { status: "invalid" };
+  const cadence = cadenceFrom(form);
+  if (cadence === undefined) return { status: "invalid" };
+
+  try {
+    await getComposition().housekeeping.setStayoverCadence(
+      viewer.userId,
+      propertyId,
+      cadence,
+    );
+  } catch (error: unknown) {
+    if (isRefused(error)) {
+      revalidateHousekeeping(locale);
+      return { status: "refused" };
+    }
+    if (isInvalid(error)) return { status: "invalid" };
+    throw error;
+  }
+
+  revalidateHousekeeping(locale);
+  revalidatePath(`/${locale}/configuration`);
   return { status: "done" };
 }

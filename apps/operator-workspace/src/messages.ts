@@ -2355,6 +2355,44 @@ export interface Messages {
     noFloor: string;
     neverMarked: string;
     reportProblem: string;
+    turnoverTab: string;
+    stayoverTab: string;
+    stayoverDue: string;
+    stayoverDone: string;
+    stayoverSchedule: string;
+    stayoverAllDone: string;
+    stayoverReadOnly: string;
+    stayoverBlockFilter: string;
+    stayoverAllBlocks: string;
+    stayoverAllFloors: string;
+    noBlock: string;
+    stayoverGroupProgress: string;
+    stayoverPeople: string;
+    stayoverCleanedToday: string;
+    stayoverOverdue: string;
+    stayoverDueToday: string;
+    stayoverLastCleaned: string;
+    stayoverSince: string;
+    stayoverUndoRoom: string;
+    stayoverUndo: string;
+    stayoverMarkRoom: string;
+    stayoverMark: string;
+    stayoverRefused: string;
+    stayoverEmptyTitle: string;
+    stayoverEmptyDescription: string;
+    cadenceNone: string;
+    cadenceEvery: string;
+    cadenceWeekly: string;
+    stayoverSettingsTitle: string;
+    stayoverSettingsHint: string;
+    stayoverKindDefault: string;
+    stayoverFollowsDefault: string;
+    stayoverKindNone: string;
+    stayoverKindInterval: string;
+    stayoverKindWeekly: string;
+    stayoverEvery: string;
+    stayoverOn: string;
+    stayoverApplies: string;
   };
 
   /** The Maintenance screen (RANZ-33). */
@@ -3029,7 +3067,14 @@ export interface Messages {
       | "returned_to_service",
       string
     >;
-    housekeeping: Record<"status_changed" | "inspection_set", string>;
+    housekeeping: Record<
+      | "status_changed"
+      | "inspection_set"
+      | "stayover_cleaned"
+      | "stayover_undone"
+      | "stayover_set",
+      string
+    >;
     business_day: Record<"closed", string>;
     property: Record<"configured", string>;
     organization: Record<"configured", string>;
@@ -6012,6 +6057,50 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "Katsız",
       neverMarked: "Hiç işaretlenmedi",
       reportProblem: "Sorun bildir",
+      turnoverTab: "Çıkış sonrası",
+      stayoverTab: "Dolu oda temizliği · {count}",
+      stayoverDue: "Bekleyen",
+      stayoverDone: "Bugün temizlenen",
+      stayoverSchedule: "Düzen",
+      stayoverAllDone: "Kullanımdaki tüm odalar bugün için temizlendi.",
+      stayoverReadOnly:
+        "Bu odaları görebilirsiniz ama temizlendi olarak işaretleyemezsiniz. Bir yönetici rolünüze oda durumunu güncelleme izni verebilir.",
+      stayoverBlockFilter: "Blok",
+      stayoverAllBlocks: "Tüm bloklar",
+      stayoverAllFloors: "Tüm katlar",
+      noBlock: "Blok yok",
+      stayoverGroupProgress: "{done} / {total} temizlendi",
+      stayoverPeople:
+        "{count, plural, one {Odada # kişi var} other {Odada # kişi var}}",
+      stayoverCleanedToday: "Bugün temizlendi",
+      stayoverOverdue:
+        "{count, plural, one {# gün gecikti} other {# gün gecikti}}",
+      stayoverDueToday: "Bugün temizlenecek",
+      stayoverLastCleaned: "Son temizlik {date}",
+      stayoverSince: "{date} tarihinden beri içeride",
+      stayoverUndoRoom: "{room} temizliğini geri al",
+      stayoverUndo: "Geri al",
+      stayoverMarkRoom: "{room} temizlendi olarak işaretle",
+      stayoverMark: "Temizlendi",
+      stayoverRefused:
+        "Bu kaydedilemedi. Liste şimdi güncel durumu gösteriyor.",
+      stayoverEmptyTitle: "Temizliği gelen dolu oda yok",
+      stayoverEmptyDescription:
+        "İçinde kalan olan bir oda, temizliği geldiği gün burada görünür. Bu tesiste: {schedule}.",
+      cadenceNone: "Düzenli temizlik yok",
+      cadenceEvery: "{count, plural, one {Her gün} other {Her # günde bir}}",
+      cadenceWeekly: "Her hafta {day}",
+      stayoverSettingsTitle: "Dolu odaların temizliği",
+      stayoverSettingsHint:
+        "İçinde kalan olan bir odanın ne sıklıkla temizleneceği. Odalar bu düzene göre sıraya girer ve Kat hizmetleri ekranında Dolu oda temizliği altında görünür. Çıkış sonrası temizlik etkilenmez.",
+      stayoverKindDefault: "Varsayılanı izle ({value})",
+      stayoverFollowsDefault: "Varsayılanı izliyor",
+      stayoverKindNone: "Hiçbir zaman",
+      stayoverKindInterval: "Birkaç günde bir",
+      stayoverKindWeekly: "Haftada bir",
+      stayoverEvery: "Her",
+      stayoverOn: "Gün",
+      stayoverApplies: "Bu tesiste geçerli olan: {schedule}.",
     },
     maintenance: {
       heading:
@@ -6794,6 +6883,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeeping: {
         status_changed: "Oda durumu değiştirildi",
         inspection_set: "Temizlik sonrası kontrol ayarı değiştirildi",
+        stayover_cleaned: "Dolu oda temizlendi",
+        stayover_undone: "Dolu oda temizliği geri alındı",
+        stayover_set: "Dolu oda temizlik düzeni değiştirildi",
       },
       business_day: { closed: "Gün kapatıldı" },
       property: { configured: "Tesis ayarları değiştirildi" },
@@ -9882,6 +9974,50 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "No floor",
       neverMarked: "Never marked",
       reportProblem: "Report a problem",
+      turnoverTab: "Turnover",
+      stayoverTab: "Stayover due · {count}",
+      stayoverDue: "Due",
+      stayoverDone: "Cleaned today",
+      stayoverSchedule: "Schedule",
+      stayoverAllDone: "Every room in use is cleaned for today.",
+      stayoverReadOnly:
+        "You can see these rooms but not mark them cleaned. A manager can give your role permission to update room status.",
+      stayoverBlockFilter: "Block",
+      stayoverAllBlocks: "All blocks",
+      stayoverAllFloors: "All floors",
+      noBlock: "No block",
+      stayoverGroupProgress: "{done} of {total} cleaned",
+      stayoverPeople:
+        "{count, plural, one {# person in the room} other {# people in the room}}",
+      stayoverCleanedToday: "Cleaned today",
+      stayoverOverdue:
+        "{count, plural, one {Overdue by # day} other {Overdue by # days}}",
+      stayoverDueToday: "Due today",
+      stayoverLastCleaned: "Last cleaned {date}",
+      stayoverSince: "In since {date}",
+      stayoverUndoRoom: "Undo cleaning of {room}",
+      stayoverUndo: "Undo",
+      stayoverMarkRoom: "Mark {room} cleaned",
+      stayoverMark: "Mark cleaned",
+      stayoverRefused:
+        "That couldn't be recorded. The list now shows what is true.",
+      stayoverEmptyTitle: "No rooms in use are due",
+      stayoverEmptyDescription:
+        "A room somebody is staying in appears here on the day it is due. At this Property: {schedule}.",
+      cadenceNone: "No schedule",
+      cadenceEvery: "{count, plural, one {Every day} other {Every # days}}",
+      cadenceWeekly: "Every week on {day}",
+      stayoverSettingsTitle: "Cleaning rooms in use",
+      stayoverSettingsHint:
+        "How often a room somebody is staying in is cleaned. Rooms fall due on this schedule and appear under Stayover due on the Housekeeping screen. Cleaning after a departure is not affected.",
+      stayoverKindDefault: "Follow the default ({value})",
+      stayoverFollowsDefault: "Follows the default",
+      stayoverKindNone: "Never",
+      stayoverKindInterval: "Every few days",
+      stayoverKindWeekly: "Once a week",
+      stayoverEvery: "Every",
+      stayoverOn: "On",
+      stayoverApplies: "Applies at this Property: {schedule}.",
     },
     maintenance: {
       heading:
@@ -10659,6 +10795,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeeping: {
         status_changed: "Room status changed",
         inspection_set: "Room check after cleaning changed",
+        stayover_cleaned: "Room in use cleaned",
+        stayover_undone: "Cleaning of a room in use taken back",
+        stayover_set: "Schedule for cleaning rooms in use changed",
       },
       business_day: { closed: "Day closed" },
       property: { configured: "Property settings changed" },
@@ -13669,6 +13808,50 @@ export const messages: Record<SupportedLocale, Messages> = {
       noFloor: "بلا طابق",
       neverMarked: "لم تُعلَّم بعد",
       reportProblem: "الإبلاغ عن مشكلة",
+      turnoverTab: "بعد المغادرة",
+      stayoverTab: "تنظيف الغرف المشغولة · {count}",
+      stayoverDue: "المستحقة",
+      stayoverDone: "نُظّفت اليوم",
+      stayoverSchedule: "الجدول",
+      stayoverAllDone: "نُظّفت جميع الغرف المشغولة لهذا اليوم.",
+      stayoverReadOnly:
+        "يمكنك رؤية هذه الغرف دون تعليمها كمنظَّفة. يمكن للمدير منح دورك إذن تحديث حالة الغرف.",
+      stayoverBlockFilter: "المبنى",
+      stayoverAllBlocks: "كل المباني",
+      stayoverAllFloors: "كل الطوابق",
+      noBlock: "بلا مبنى",
+      stayoverGroupProgress: "نُظّف {done} من {total}",
+      stayoverPeople:
+        "{count, plural, one {شخص واحد في الغرفة} two {شخصان في الغرفة} few {# أشخاص في الغرفة} many {# شخصًا في الغرفة} other {# شخص في الغرفة}}",
+      stayoverCleanedToday: "نُظّفت اليوم",
+      stayoverOverdue:
+        "{count, plural, one {متأخرة يومًا واحدًا} two {متأخرة يومين} few {متأخرة # أيام} many {متأخرة # يومًا} other {متأخرة # يوم}}",
+      stayoverDueToday: "مستحقة اليوم",
+      stayoverLastCleaned: "آخر تنظيف {date}",
+      stayoverSince: "مقيمون منذ {date}",
+      stayoverUndoRoom: "التراجع عن تنظيف {room}",
+      stayoverUndo: "تراجع",
+      stayoverMarkRoom: "تعليم {room} كمنظَّفة",
+      stayoverMark: "تعليم كمنظَّفة",
+      stayoverRefused: "تعذّر تسجيل ذلك. تعرض القائمة الآن الحالة الصحيحة.",
+      stayoverEmptyTitle: "لا غرف مشغولة مستحقة للتنظيف",
+      stayoverEmptyDescription:
+        "تظهر هنا الغرفة التي يقيم فيها شخص في اليوم الذي يحين فيه تنظيفها. في هذه المنشأة: {schedule}.",
+      cadenceNone: "بلا جدول تنظيف",
+      cadenceEvery:
+        "{count, plural, one {كل يوم} two {كل يومين} few {كل # أيام} many {كل # يومًا} other {كل # يوم}}",
+      cadenceWeekly: "كل أسبوع يوم {day}",
+      stayoverSettingsTitle: "تنظيف الغرف المشغولة",
+      stayoverSettingsHint:
+        "كم مرة تُنظَّف غرفة يقيم فيها شخص. تستحق الغرف التنظيف وفق هذا الجدول وتظهر تحت «تنظيف الغرف المشغولة» في شاشة التدبير الفندقي. لا يتأثر التنظيف بعد المغادرة.",
+      stayoverKindDefault: "اتباع الافتراضي ({value})",
+      stayoverFollowsDefault: "يتبع الافتراضي",
+      stayoverKindNone: "أبدًا",
+      stayoverKindInterval: "كل بضعة أيام",
+      stayoverKindWeekly: "مرة في الأسبوع",
+      stayoverEvery: "كل",
+      stayoverOn: "في يوم",
+      stayoverApplies: "المطبَّق في هذه المنشأة: {schedule}.",
     },
     maintenance: {
       heading:
@@ -14438,6 +14621,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       housekeeping: {
         status_changed: "تم تغيير حالة الغرفة",
         inspection_set: "تم تغيير إعداد الفحص بعد التنظيف",
+        stayover_cleaned: "تم تنظيف غرفة مشغولة",
+        stayover_undone: "تم التراجع عن تنظيف غرفة مشغولة",
+        stayover_set: "تم تغيير جدول تنظيف الغرف المشغولة",
       },
       business_day: { closed: "أُغلق اليوم" },
       property: { configured: "تم تغيير إعدادات المنشأة" },

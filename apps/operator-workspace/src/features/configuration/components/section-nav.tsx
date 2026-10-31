@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Landmark,
   Sparkles,
+  SprayCan,
   ToggleRight,
   Wrench,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const ICONS = {
   model: BedDouble,
   rates: Banknote,
   housekeeping: Sparkles,
+  stayover: SprayCan,
   maintenance: Wrench,
   modules: ToggleRight,
   elsewhere: ExternalLink,

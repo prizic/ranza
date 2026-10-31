@@ -3,6 +3,7 @@ import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { HousekeepingBoard } from "../../../../features/housekeeping/components/housekeeping-board";
 import { InspectionSettings } from "../../../../features/housekeeping/components/inspection-settings";
+import { StayoverSettings } from "../../../../features/housekeeping/components/stayover-settings";
 import {
   arrivals,
   departures,
@@ -18,6 +19,7 @@ import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { boardByUrgency } from "../../../../server/housekeeping-day";
+import { stayoverBoardOf, stayoverViewOf } from "../../../../server/stayover";
 import { roomsInFilter } from "../../../../server/today-derive";
 import type { ListFilterKey } from "../../../../features/today/components/list-filter-notice";
 import {
@@ -45,6 +47,7 @@ export default async function HousekeepingPage({
     floor?: string;
     property?: string;
     show?: string;
+    view?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -73,14 +76,23 @@ export default async function HousekeepingPage({
     );
   }
 
-  const [fullBoard, inspection, arrivalRows, departureRows, maintenance] =
-    await Promise.all([
-      housekeepingBoard(property.propertyId),
-      housekeepingInspection(property.propertyId),
-      arrivals(property.propertyId),
-      departures(property.propertyId, "due"),
-      roomsMaintenance(property.propertyId),
-    ]);
+  const [
+    fullBoard,
+    inspection,
+    arrivalRows,
+    departureRows,
+    maintenance,
+    stayover,
+    stayoverSchedule,
+  ] = await Promise.all([
+    housekeepingBoard(property.propertyId),
+    housekeepingInspection(property.propertyId),
+    arrivals(property.propertyId),
+    departures(property.propertyId, "due"),
+    roomsMaintenance(property.propertyId),
+    stayoverBoardOf(property.propertyId),
+    stayoverViewOf(property.propertyId),
+  ]);
   const { rooms: roomsByUrgency, days } = boardByUrgency(
     fullBoard,
     arrivalRows,
@@ -138,13 +150,24 @@ export default async function HousekeepingPage({
             : null
         }
         propertyName={property.propertyName}
+        stayover={stayover}
         timeZone={property.timezone}
+        view={search.view === "stayover" ? "stayover" : "turnover"}
       />
       {inspection ? (
         <InspectionSettings
           locale={locale}
           propertyId={property.propertyId}
           settings={inspection}
+        />
+      ) : null}
+      {stayoverSchedule ? (
+        <StayoverSettings
+          fallback={stayoverSchedule.fallback}
+          limits={stayoverSchedule.limits}
+          locale={locale}
+          propertyId={property.propertyId}
+          settings={stayoverSchedule.settings}
         />
       ) : null}
     </div>

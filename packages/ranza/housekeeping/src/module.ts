@@ -5,7 +5,9 @@ import {
   HOUSEKEEPING_STATUSES,
   HousekeepingInputError,
   HousekeepingRefusedError,
+  isStayoverCadence,
   MARK_BATCH,
+  stayoverValueOf,
   type DefaultReach,
   type HousekeepingBoard,
   type HousekeepingCounts,
@@ -13,6 +15,11 @@ import {
   type HousekeepingStatus,
   type InspectionSettings,
   type InspectionValue,
+  type StayoverBoard,
+  type StayoverCadence,
+  type StayoverMarked,
+  type StayoverRoom,
+  type StayoverSettings,
   type UnitsMarked,
 } from "./contracts";
 import type { HousekeepingDeps } from "./ports";
@@ -60,6 +67,37 @@ interface RoomRow {
   changedAt: Date | null;
   inHouse: boolean;
   outOfService: boolean;
+  mayMark: boolean;
+}
+
+/** A cadence as the table stores it, and back; null is "follows the default". */
+function cadenceFromRow(row: {
+  cadence: string | null;
+  everyDays: number | null;
+  weekday: number | null;
+}): StayoverCadence | null {
+  if (row.cadence === "none") return { kind: "none" };
+  if (row.cadence === "every_n_days" && row.everyDays !== null) {
+    return { kind: "every_n_days", everyDays: row.everyDays };
+  }
+  if (row.cadence === "weekly" && row.weekday !== null) {
+    return { kind: "weekly", weekday: row.weekday };
+  }
+  return null;
+}
+
+interface StayoverRow {
+  unitId: string;
+  name: string;
+  building: string | null;
+  floor: number | null;
+  bedCount: number;
+  occupants: number;
+  arrivedOn: string;
+  lastCleanedOn: string | null;
+  dueOn: string;
+  overdueDays: number;
+  doneToday: boolean;
   mayMark: boolean;
 }
 
@@ -495,12 +533,373 @@ export function createHousekeepingModule(deps: HousekeepingDeps) {
     });
   }
 
+  /**
+   * What a Property says about cleaning rooms somebody is staying in, and
+   * whether the reader may change it. Null for a Property the reader cannot
+   * reach or that has no housekeeping.
+   */
+  async function stayoverSettings(
+    userId: string,
+    propertyId: string,
+  ): Promise<StayoverSettings | null> {
+    const [row] = await withOrganizationContext(
+      deps.db,
+      { userId },
+      (tx) =>
+        tx.$queryRaw<
+          {
+            cadence: string | null;
+            everyDays: number | null;
+            weekday: number | null;
+            mayConfigure: boolean;
+          }[]
+        >`
+        select setting.cadence,
+               setting.every_days as "everyDays",
+               setting.weekday,
+               app.has_organization_permission(
+                 property.organization_id, 'accommodation.configure'
+               ) as "mayConfigure"
+          from public.properties as property
+          left join public.housekeeping_stayover_settings as setting
+            on setting.property_id = property.id
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+                 property.id,
+                 ${HOUSEKEEPING_CAPABILITY.moduleKey},
+                 ${HOUSEKEEPING_CAPABILITY.capabilityKey}
+               )
+      `,
+    );
+    if (!row) return null;
+    return { own: cadenceFromRow(row), mayConfigure: row.mayConfigure };
+  }
+
+  /**
+   * One Property's own cadence, or null to follow the default again
+   * (HK-S4-02, HK-S4-03). Going back clears the value rather than deleting the
+   * row, and the audit record keeps what it was. The policies decide whether
+   * the reader may (HK-S4-04).
+   */
+  async function setStayoverCadence(
+    userId: string,
+    propertyId: string,
+    cadence: StayoverCadence | null,
+  ): Promise<void> {
+    if (cadence !== null && !isStayoverCadence(cadence)) {
+      throw new HousekeepingInputError("that is not a cleaning schedule");
+    }
+    const stored = {
+      cadence: cadence?.kind ?? null,
+      everyDays: cadence?.kind === "every_n_days" ? cadence.everyDays : null,
+      weekday: cadence?.kind === "weekly" ? cadence.weekday : null,
+    };
+
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let changed: {
+        organizationId: string;
+        fromCadence: string | null;
+        fromEveryDays: number | null;
+        fromWeekday: number | null;
+      }[];
+      try {
+        changed = await tx.$queryRaw`
+          with previous as (
+            select setting.cadence, setting.every_days, setting.weekday
+              from public.housekeeping_stayover_settings as setting
+             where setting.property_id = ${propertyId}::uuid
+          )
+          insert into public.housekeeping_stayover_settings
+            (property_id, organization_id, cadence, every_days, weekday)
+          select property.id, property.organization_id,
+                 ${stored.cadence}, ${stored.everyDays}::int,
+                 ${stored.weekday}::int
+            from public.properties as property
+           where property.id = ${propertyId}::uuid
+          on conflict (property_id) do update
+             set cadence = excluded.cadence,
+                 every_days = excluded.every_days,
+                 weekday = excluded.weekday
+          returning organization_id as "organizationId",
+                    (select cadence from previous) as "fromCadence",
+                    (select every_days from previous) as "fromEveryDays",
+                    (select weekday from previous) as "fromWeekday"
+        `;
+      } catch (error: unknown) {
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new HousekeepingRefusedError();
+        }
+        throw error;
+      }
+      const [setting] = changed;
+      if (!setting) throw new HousekeepingRefusedError();
+
+      await recordWithin(tx, {
+        organizationId: setting.organizationId,
+        locationId: propertyId,
+        actorId: userId,
+        action: "housekeeping.stayover_set",
+        subjectType: "property",
+        subjectId: propertyId,
+        context: {
+          from: stayoverValueOf(
+            cadenceFromRow({
+              cadence: setting.fromCadence,
+              everyDays: setting.fromEveryDays,
+              weekday: setting.fromWeekday,
+            }),
+          ),
+          to: stayoverValueOf(cadence),
+        },
+      });
+    });
+  }
+
+  /**
+   * The occupied rooms due a clean today, and those cleaned today (HK-S4-05).
+   *
+   * `fallback` is what applies when the Property has no cadence of its own. The
+   * host chooses it, by operating model or otherwise, and this module is told
+   * the answer: nothing here reads the model (ADR 0057). The schedule is passed
+   * down to `app.housekeeping_stayover_rooms()`, which decides which rooms are
+   * due and reads no model either.
+   *
+   * Read, never stored: a Property that changes its schedule sees the whole list
+   * re-drawn by its next read, and no job exists that could stall (ADR 0063).
+   * A Property without housekeeping, or out of reach, returns an empty board.
+   */
+  async function stayoverBoard(
+    userId: string,
+    propertyId: string,
+    fallback: StayoverCadence,
+  ): Promise<StayoverBoard> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [own] = await tx.$queryRaw<
+        {
+          cadence: string | null;
+          everyDays: number | null;
+          weekday: number | null;
+          today: string;
+        }[]
+      >`
+        select setting.cadence,
+               setting.every_days as "everyDays",
+               setting.weekday,
+               app.property_today(property.id)::text as today
+          from public.properties as property
+          left join public.housekeeping_stayover_settings as setting
+            on setting.property_id = property.id
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(
+                 property.id,
+                 ${HOUSEKEEPING_CAPABILITY.moduleKey},
+                 ${HOUSEKEEPING_CAPABILITY.capabilityKey}
+               )
+      `;
+      if (!own) {
+        return {
+          cadence: fallback,
+          today: "",
+          rooms: [],
+          counts: { due: 0, done: 0 },
+          mayMark: false,
+        };
+      }
+      const cadence = cadenceFromRow(own) ?? fallback;
+      if (cadence.kind === "none") {
+        return {
+          cadence,
+          today: own.today,
+          rooms: [],
+          counts: { due: 0, done: 0 },
+          mayMark: false,
+        };
+      }
+
+      const everyDays =
+        cadence.kind === "every_n_days" ? cadence.everyDays : null;
+      const weekday = cadence.kind === "weekly" ? cadence.weekday : null;
+      const rows = await tx.$queryRaw<StayoverRow[]>`
+        select unit.id as "unitId",
+               unit.name,
+               unit.building,
+               unit.floor,
+               (select count(*)::int
+                  from public.accommodation_units as bed
+                 where bed.parent_id = unit.id) as "bedCount",
+               room.occupants,
+               room.arrived_on::text as "arrivedOn",
+               room.last_cleaned_on::text as "lastCleanedOn",
+               room.due_on::text as "dueOn",
+               greatest(app.property_today(unit.property_id) - room.due_on, 0)
+                 as "overdueDays",
+               (room.cleaning_id is not null) as "doneToday",
+               app.has_organization_permission(
+                 unit.organization_id, 'housekeeping.update_status'
+               ) as "mayMark"
+          from app.housekeeping_stayover_rooms(
+                 ${propertyId}::uuid, ${cadence.kind}, ${everyDays}::int,
+                 ${weekday}::int
+               ) as room
+          join public.accommodation_units as unit on unit.id = room.holder_id
+         order by (room.cleaning_id is not null),
+                  room.due_on,
+                  unit.building nulls last,
+                  unit.floor nulls last,
+                  unit.name
+      `;
+
+      const rooms = rows.map((row): StayoverRoom => ({
+        unitId: row.unitId,
+        name: row.name,
+        building: row.building,
+        floor: row.floor,
+        bedCount: row.bedCount,
+        occupants: row.occupants,
+        arrivedOn: row.arrivedOn,
+        lastCleanedOn: row.lastCleanedOn,
+        dueOn: row.dueOn,
+        overdueDays: row.overdueDays,
+        doneToday: row.doneToday,
+      }));
+      return {
+        cadence,
+        today: own.today,
+        rooms,
+        counts: {
+          due: rooms.filter((room) => !room.doneToday).length,
+          done: rooms.filter((room) => room.doneToday).length,
+        },
+        mayMark: rows[0]?.mayMark ?? false,
+      };
+    });
+  }
+
+  /**
+   * Record that a room somebody is staying in was cleaned today (HK-S4-08).
+   *
+   * One press, and a second is harmless: a room already cleaned today records
+   * nothing and says so (HK-S4-10). The write policy bounds who and which
+   * Unit; the date and the actor are stamped by the database, so this cannot
+   * say when. Visibility is asked first, as a mark does (HK-S2-07), because a
+   * row that is not there looks exactly like a press that changed nothing.
+   */
+  async function markStayoverCleaned(
+    userId: string,
+    unitId: string,
+  ): Promise<StayoverMarked> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [visible] = await tx.$queryRaw<{ count: number }[]>`
+        select count(*)::int as count
+          from public.accommodation_units
+         where id = ${unitId}::uuid
+      `;
+      if ((visible?.count ?? 0) !== 1) throw new HousekeepingRefusedError();
+
+      let recorded: {
+        organizationId: string;
+        propertyId: string;
+        name: string;
+      }[];
+      try {
+        recorded = await tx.$queryRaw`
+          insert into public.housekeeping_stayover_cleanings
+            (accommodation_unit_id, property_id, organization_id)
+          select unit.id, unit.property_id, unit.organization_id
+            from public.accommodation_units as unit
+           where unit.id = ${unitId}::uuid
+          on conflict (accommodation_unit_id, cleaned_on)
+            where undone_at is null do nothing
+          returning organization_id as "organizationId",
+                    property_id as "propertyId",
+                    (select unit.name
+                       from public.accommodation_units as unit
+                      where unit.id = accommodation_unit_id) as name
+        `;
+      } catch (error: unknown) {
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new HousekeepingRefusedError();
+        }
+        throw error;
+      }
+
+      const [cleaning] = recorded;
+      if (!cleaning) return { recorded: false };
+
+      await recordWithin(tx, {
+        organizationId: cleaning.organizationId,
+        locationId: cleaning.propertyId,
+        actorId: userId,
+        action: "housekeeping.stayover_cleaned",
+        subjectType: "accommodation_unit",
+        subjectId: unitId,
+        context: { name: cleaning.name },
+      });
+      return { recorded: true };
+    });
+  }
+
+  /**
+   * Take back today's press (HK-S4-13). The row is stamped and stays; only a
+   * press made today can be taken back (HK-S4-14). A press that is not there to
+   * undo, or one the reader may not undo, is one refusal, as a mark's is.
+   */
+  async function undoStayoverCleaned(
+    userId: string,
+    unitId: string,
+  ): Promise<void> {
+    await withOrganizationContext(deps.db, { userId }, async (tx) => {
+      let undone: {
+        organizationId: string;
+        propertyId: string;
+        name: string;
+      }[];
+      try {
+        undone = await tx.$queryRaw`
+          update public.housekeeping_stayover_cleanings as cleaning
+             set undone_at = now()
+           where cleaning.accommodation_unit_id = ${unitId}::uuid
+             and cleaning.undone_at is null
+             and cleaning.cleaned_on = app.property_today(cleaning.property_id)
+          returning cleaning.organization_id as "organizationId",
+                    cleaning.property_id as "propertyId",
+                    (select unit.name
+                       from public.accommodation_units as unit
+                      where unit.id = cleaning.accommodation_unit_id) as name
+        `;
+      } catch (error: unknown) {
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new HousekeepingRefusedError();
+        }
+        throw error;
+      }
+
+      const [cleaning] = undone;
+      if (!cleaning) throw new HousekeepingRefusedError();
+
+      await recordWithin(tx, {
+        organizationId: cleaning.organizationId,
+        locationId: cleaning.propertyId,
+        actorId: userId,
+        action: "housekeeping.stayover_undone",
+        subjectType: "accommodation_unit",
+        subjectId: unitId,
+        context: { name: cleaning.name },
+      });
+    });
+  }
+
   return {
     board,
     markUnits,
     inspectionSettings,
     setPropertyInspection,
     setOrganizationInspection,
+    stayoverSettings,
+    setStayoverCadence,
+    stayoverBoard,
+    markStayoverCleaned,
+    undoStayoverCleaned,
   };
 }
 

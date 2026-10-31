@@ -126,6 +126,113 @@ export interface UnitsMarked {
 }
 
 /**
+ * How often a room somebody is staying in is cleaned at a Property (RANZ-83,
+ * ADR 0063): never, every N days (one is every day), or one weekday a week.
+ * Cleaning an occupied room is a different job from turning a room over, and
+ * it never changes a room's status: an occupied room due for a clean is not
+ * dirty, and is neither refused nor sold as not ready.
+ */
+export type StayoverCadence =
+  | { kind: "none" }
+  | { kind: "every_n_days"; everyDays: number }
+  | { kind: "weekly"; weekday: number };
+
+/** Mirrors `housekeeping_stayover_settings_shape`; the database stays the authority. */
+export const STAYOVER_EVERY_DAYS = { min: 1, max: 14 } as const;
+
+/** ISO weekdays, Monday first, as `extract(isodow ...)` counts them. */
+export const STAYOVER_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+
+/** Whether a value is a cadence the database would accept. */
+export function isStayoverCadence(value: unknown): value is StayoverCadence {
+  if (typeof value !== "object" || value === null) return false;
+  const candidate = value as Record<string, unknown>;
+  if (candidate.kind === "none") return true;
+  if (candidate.kind === "every_n_days") {
+    const days = candidate.everyDays;
+    return (
+      typeof days === "number" &&
+      Number.isInteger(days) &&
+      days >= STAYOVER_EVERY_DAYS.min &&
+      days <= STAYOVER_EVERY_DAYS.max
+    );
+  }
+  if (candidate.kind === "weekly") {
+    const day = candidate.weekday;
+    return (
+      typeof day === "number" &&
+      Number.isInteger(day) &&
+      day >= STAYOVER_WEEKDAYS[0] &&
+      day <= STAYOVER_WEEKDAYS[6]
+    );
+  }
+  return false;
+}
+
+/** How an audit record words a cadence: its kind and number, or the default. */
+export type StayoverValue =
+  "default" | "none" | `every_${number}_days` | `weekly_${number}`;
+
+export function stayoverValueOf(
+  cadence: StayoverCadence | null,
+): StayoverValue {
+  if (cadence === null) return "default";
+  if (cadence.kind === "none") return "none";
+  if (cadence.kind === "every_n_days") return `every_${cadence.everyDays}_days`;
+  return `weekly_${cadence.weekday}`;
+}
+
+/**
+ * What a Property says about stayover cleaning, and whether the reader may
+ * change it. `own` is null when the Property follows the default for its
+ * operating model, which the host resolves: this module never learns the
+ * model (ADR 0057).
+ */
+export interface StayoverSettings {
+  own: StayoverCadence | null;
+  mayConfigure: boolean;
+}
+
+/** One occupied room on the stayover list. */
+export interface StayoverRoom {
+  unitId: string;
+  name: string;
+  building: string | null;
+  floor: number | null;
+  /** How many beds the room is let by; zero for a room let whole. */
+  bedCount: number;
+  /** How many people are in house in the room, or in any of its beds. */
+  occupants: number;
+  /** The Property's business date the earliest of them arrived, as YYYY-MM-DD. */
+  arrivedOn: string;
+  /** The last time it was cleaned or marked clean, as YYYY-MM-DD; null if never. */
+  lastCleanedOn: string | null;
+  /** The day it fell due, as YYYY-MM-DD; today or earlier while it is due. */
+  dueOn: string;
+  /** Whole days past `dueOn`; zero when it is due today or already done. */
+  overdueDays: number;
+  /** Cleaned today: the press can still be taken back. */
+  doneToday: boolean;
+}
+
+export interface StayoverBoard {
+  /** What applies at this Property: its own cadence, else the host's default. */
+  cadence: StayoverCadence;
+  /** The Property's business date, as YYYY-MM-DD. */
+  today: string;
+  /** Due rooms first, most overdue first, then those done today. */
+  rooms: readonly StayoverRoom[];
+  counts: { due: number; done: number };
+  /** Whether the reader holds `housekeeping.update_status`. */
+  mayMark: boolean;
+}
+
+export interface StayoverMarked {
+  /** False when the room had already been cleaned today: a double press is harmless. */
+  recorded: boolean;
+}
+
+/**
  * The request was malformed: no Units, too many, or a status that does not
  * exist. Raised before any statement runs.
  */

@@ -6,7 +6,11 @@ export {
   HOUSEKEEPING_STATUSES,
   HousekeepingInputError,
   HousekeepingRefusedError,
+  isStayoverCadence,
   MARK_BATCH,
+  STAYOVER_EVERY_DAYS,
+  STAYOVER_WEEKDAYS,
+  stayoverValueOf,
 } from "./contracts";
 export type {
   DefaultReach,
@@ -16,5 +20,11 @@ export type {
   HousekeepingStatus,
   InspectionSettings,
   InspectionValue,
+  StayoverBoard,
+  StayoverCadence,
+  StayoverMarked,
+  StayoverRoom,
+  StayoverSettings,
+  StayoverValue,
   UnitsMarked,
 } from "./contracts";

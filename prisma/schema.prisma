@@ -135,6 +135,7 @@ model Property {
   reservations         Reservation[]
   folios               Folio[]
   housekeepingSettings HousekeepingSetting[]
+  stayoverSettings     HousekeepingStayoverSetting[]
   closes               BusinessDayClose[]
   /// At most one: `attendance_settings.property_id` is its primary key.
   attendanceSettings   AttendanceSetting[]
@@ -201,6 +202,7 @@ model AccommodationUnit {
   stays           Stay[]
   reservations    Reservation[]
   housekeeping    HousekeepingUnitStatus[]
+  stayoverCleanings HousekeepingStayoverCleaning[]
   maintenance     MaintenanceRequest[]
   equipment       MaintenanceEquipment[]
   changesFrom     ReservationChange[]      @relation("ChangeFromUnit")
@@ -268,6 +270,51 @@ model HousekeepingSetting {
   @@unique([organizationId], map: "housekeeping_settings_organization_default_key", where: raw("property_id IS NULL"))
   @@unique([propertyId], map: "housekeeping_settings_property_override_key", where: raw("property_id IS NOT NULL"))
   @@map("housekeeping_settings")
+}
+
+/// How often a room somebody is staying in is cleaned at a Property (RANZ-83,
+/// ADR 0063): never, every N days, or one weekday a week. One row per Property,
+/// and a null cadence means "the default for its operating model", which the
+/// application resolves: no policy, trigger or function reads the model
+/// (ADR 0057).
+model HousekeepingStayoverSetting {
+  propertyId     String   @id @map("property_id") @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  /// `none`, `every_n_days` or `weekly`; null follows the default.
+  cadence        String?
+  /// How many days apart, one to fourteen. Set exactly when `every_n_days`.
+  everyDays      Int?     @map("every_days") @db.SmallInt
+  /// ISO weekday, Monday is 1. Set exactly when `weekly`.
+  weekday        Int?     @db.SmallInt
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  property Property @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@map("housekeeping_stayover_settings")
+}
+
+/// One cleaning of a room somebody was staying in (RANZ-83, ADR 0063). Never
+/// deleted: a press that was a mistake is undone, which stamps the row and
+/// leaves it, so the history says it happened and who took it back. The date,
+/// and who pressed, are the database's to say.
+model HousekeepingStayoverCleaning {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  propertyId          String    @map("property_id") @db.Uuid
+  accommodationUnitId String    @map("accommodation_unit_id") @db.Uuid
+  /// The Property's business date when it was pressed, stamped by the database.
+  cleanedOn           DateTime  @map("cleaned_on") @db.Date
+  cleanedBy           String    @map("cleaned_by") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  undoneAt            DateTime? @map("undone_at") @db.Timestamptz(6)
+  undoneBy            String?   @map("undone_by") @db.Uuid
+
+  unit AccommodationUnit @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([accommodationUnitId, cleanedOn], map: "housekeeping_stayover_cleanings_one_live_per_day", where: raw("undone_at IS NULL"))
+  @@index([propertyId, cleanedOn])
+  @@map("housekeeping_stayover_cleanings")
 }
 
 /// A problem somebody reported at a Property, and the work on it (RANZ-33,

@@ -18,6 +18,13 @@ everything lands under Unreleased.
 - The inspection setting: an Organization default and a Property override,
   in `housekeeping_settings`, audited as `housekeeping.inspection_set`.
 
+- Stayover cleaning (RANZ-83, ADR 0063): `stayoverSettings` and
+  `setStayoverCadence` for how often rooms in use are cleaned at a Property,
+  `stayoverBoard` for the occupied rooms due today, and `markStayoverCleaned`
+  and `undoStayoverCleaned` for a press and taking it back. Read from the
+  schedule, never a status, audited as `housekeeping.stayover_cleaned`,
+  `housekeeping.stayover_undone` and `housekeeping.stayover_set`.
+
 ### Removed
 
 - `HousekeepingCounts.ready`. It counted a room nobody can be put in, a room

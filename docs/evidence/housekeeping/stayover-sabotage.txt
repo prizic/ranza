@@ -1,0 +1,129 @@
+Sabotage run for tests/database/housekeeping_stayover.test.sql (RANZ-83, ADR 0063).
+Each break is applied inside a transaction that is rolled back, the altered object is
+printed back from the catalogue first, and then the suite runs. 'RED' lines are the
+assertions that failed because of the break; the [info] case is expected to stay green.
+
+
+== weekly formula off by one day
+    app.housekeeping_stayover_rooms(uuid,text,integer,integer) diff:
+      -                + ((($4 - extract(isodow from scheduled.cycle_start)::integer + 6) % 7) + 1)
+      +                + ((($4 - extract(isodow from scheduled.cycle_start)::integer + 6) % 7) + 2)
+      -                    + ((($4 - extract(isodow from scheduled.cycle_start)::integer + 6) % 7) + 1)
+      +                    + ((($4 - extract(isodow from scheduled.cycle_start)::integer + 6) % 7) + 2)
+    SHOW: live app.housekeeping_stayover_rooms(uuid,text,integer,integer) now equals the patched text, and differs from the original: true
+    RED  not ok 3 - HK-S4-01 weekly: a room is due on the schedule's weekday after its cycle began, and stays due until it is cleaned
+    RED  not ok 4 - HK-S4-01 weekly: a room ten days in fell due the weekday a week ago, and is overdue
+
+== function lists a dirty room
+    app.housekeeping_stayover_rooms(uuid,text,integer,integer) diff:
+      -         scheduled.status <> 'dirty'
+      -         and not scheduled.unavailable
+      +         not scheduled.unavailable
+    SHOW: live app.housekeeping_stayover_rooms(uuid,text,integer,integer) now equals the patched text, and differs from the original: true
+    RED  not ok 1 - HK-S4-01: every day, a room somebody arrived in before today is due, and one they arrived in today is not
+    RED  not ok 2 - HK-S4-01: every three days, only rooms whose cycle began three or more days ago are due
+    RED  not ok 3 - HK-S4-01 weekly: a room is due on the schedule's weekday after its cycle began, and stays due until it is cleaned
+    RED  not ok 8 - HK-S4-06: a dirty room is turnover's work and is not listed
+
+== function lists a room everyone leaves today
+    app.housekeeping_stayover_rooms(uuid,text,integer,integer) diff:
+      -         and not scheduled.leaves_today
+    SHOW: live app.housekeeping_stayover_rooms(uuid,text,integer,integer) now equals the patched text, and differs from the original: true
+    RED  not ok 1 - HK-S4-01: every day, a room somebody arrived in before today is due, and one they arrived in today is not
+    RED  not ok 2 - HK-S4-01: every three days, only rooms whose cycle began three or more days ago are due
+    RED  not ok 3 - HK-S4-01 weekly: a room is due on the schedule's weekday after its cycle began, and stays due until it is cleaned
+    RED  not ok 10 - HK-S4-07: a room everyone in it leaves today is about to be turnover and is not listed
+
+== function lists a room out of service
+    app.housekeeping_stayover_rooms(uuid,text,integer,integer) diff:
+      -         and not scheduled.unavailable
+    SHOW: live app.housekeeping_stayover_rooms(uuid,text,integer,integer) now equals the patched text, and differs from the original: true
+    RED  not ok 1 - HK-S4-01: every day, a room somebody arrived in before today is due, and one they arrived in today is not
+    RED  not ok 2 - HK-S4-01: every three days, only rooms whose cycle began three or more days ago are due
+    RED  not ok 3 - HK-S4-01 weekly: a room is due on the schedule's weekday after its cycle began, and stays due until it is cleaned
+    RED  not ok 9 - HK-S4-06: a room out of service is not listed
+
+== function ignores the last clean
+    app.housekeeping_stayover_rooms(uuid,text,integer,integer) diff:
+      -           greatest(measured.arrived_on, measured.last_cleaned_on) as cycle_start
+      +           measured.arrived_on as cycle_start
+    SHOW: live app.housekeeping_stayover_rooms(uuid,text,integer,integer) now equals the patched text, and differs from the original: true
+    RED  not ok 1 - HK-S4-01: every day, a room somebody arrived in before today is due, and one they arrived in today is not
+    RED  not ok 2 - HK-S4-01: every three days, only rooms whose cycle began three or more days ago are due
+    RED  not ok 3 - HK-S4-01 weekly: a room is due on the schedule's weekday after its cycle began, and stays due until it is cleaned
+    RED  not ok 11 - HK-S4-05: a room marked clean today starts its cycle again and is not due
+    RED  not ok 41 - HK-S4-05: the room cleaned today is listed as done, no longer due, so the press can be seen and undone
+
+== insert policy without the permission
+
+    SHOW: insert check: (app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text) AND (EXISTS ( SELECT 1
+    applied: alter policy housekeeping_stayover_cleanings_insert_update_status on public.housekeeping_stayover_cleanings with check (app.can_use_capability(property_id, 'housekeeping', 'housekeeping') and exists (
+    RED  not ok 33 - HK-S4-08: a role without housekeeping.update_status cannot record a clean
+    RED  not ok 38 - HK-S4-08: a front desk records a clean, which is how it is told
+    RED  not ok 39 - HK-S4-11: the date is the Property's business date and the actor is the one acting
+
+== insert policy without the capability
+
+    SHOW: insert check: (app.has_organization_permission(organization_id, 'housekeeping.update_status'::text) AND (EXISTS ( SELECT 1
+    applied: alter policy housekeeping_stayover_cleanings_insert_update_status on public.housekeeping_stayover_cleanings with check (app.has_organization_permission(organization_id, 'housekeeping.update_status') a
+    RED  not ok 35 - HK-S4-08: nor can it be recorded at a Property without housekeeping
+
+== insert policy accepts a bed under a room
+
+    SHOW: insert check: (app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text) AND app.has_organization_permission(organization_id, 'housekeeping.update_status'::text))
+    applied: alter policy housekeeping_stayover_cleanings_insert_update_status on public.housekeeping_stayover_cleanings with check (app.can_use_capability(property_id, 'housekeeping', 'housekeeping') and app.has_
+    RED  not ok 36 - HK-S4-09: a bed under a room is cleaned with its room and is refused on its own
+
+== update policy without the same-day limit
+
+    SHOW: update using: (app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text) AND app.has_organization_permission(organization_id, 'housekeeping.update_status'::text) AND (undone_at IS NULL))
+    applied: alter policy housekeeping_stayover_cleanings_update_update_status on public.housekeeping_stayover_cleanings using (app.can_use_capability(property_id, 'housekeeping', 'housekeeping') and app.has_organ
+    RED  not ok 43 - HK-S4-14: only a press made today can be taken back
+
+== update policy without the permission (USING and WITH CHECK)
+
+    SHOW: update using: (app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text) AND (undone_at IS NULL) AND (cleaned_on = app.property_today(property_id))) / check: app.can_use_capability(property_id, 'houseke
+    applied: alter policy housekeeping_stayover_cleanings_update_update_status on public.housekeeping_stayover_cleanings using (app.can_use_capability(property_id, 'housekeeping', 'housekeeping') and undone_at is 
+    RED  not ok 44 - HK-S4-13: a role without housekeeping.update_status cannot take a press back
+    RED  not ok 45 - HK-S4-13: the front desk takes today's press back
+    RED  not ok 46 - HK-S4-13: the row stays, stamped with who took it back
+
+== [info] update policy without the permission in USING only
+
+    SHOW: update using: (app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text) AND (undone_at IS NULL) AND (cleaned_on = app.property_today(property_id))) / check: (app.can_use_capability(property_id, 'housek
+    applied: alter policy housekeeping_stayover_cleanings_update_update_status on public.housekeeping_stayover_cleanings using (app.can_use_capability(property_id, 'housekeeping', 'housekeeping') and undone_at is 
+    (no red expected); none seen
+
+== insert grant widened to cleaned_on
+
+    SHOW: cleaned_on insert grant: true
+    applied: grant insert (cleaned_on) on public.housekeeping_stayover_cleanings to ranza_app
+    RED  not ok 18 - HK-S4-11: a press names the room; the date and who pressed are stamped
+    RED  not ok 37 - HK-S4-11: a press cannot name its own date, which would postpone the next clean
+    RED  not ok 38 - HK-S4-08: a front desk records a clean, which is how it is told
+    RED  not ok 39 - HK-S4-11: the date is the Property's business date and the actor is the one acting
+
+== settings insert policy without accommodation.configure
+
+    SHOW: settings insert check: app.can_use_capability(property_id, 'housekeeping'::text, 'housekeeping'::text)
+    applied: alter policy housekeeping_stayover_settings_insert_configure on public.housekeeping_stayover_settings with check (app.can_use_capability(property_id, 'housekeeping', 'housekeeping'))
+    RED  not ok 23 - HK-S4-04: a front desk, who holds no accommodation.configure, cannot set the schedule
+    RED  not ok 25 - HK-S4-04: nor can a manager of another Organization
+    RED  not ok 27 - HK-S4-02: a manager sets a weekly schedule
+
+== settings shape check dropped
+
+    SHOW: shape check present: false
+    applied: alter table public.housekeeping_stayover_settings drop constraint housekeeping_stayover_settings_shape
+    RED  not ok 28 - HK-S4-03: a weekday that does not exist is refused by the table
+    RED  not ok 29 - HK-S4-03: a weekly schedule that also names an interval is refused
+    RED  not ok 30 - HK-S4-03: an interval beyond a fortnight is refused
+
+== a delete grant added
+
+    SHOW: delete granted: true
+    applied: grant delete on public.housekeeping_stayover_cleanings to ranza_app
+    RED  not ok 20 - HK-S4-12: neither table can be deleted from: a press is undone and a schedule is cleared
+    RED  not ok 49 - HK-S4-12: a press is never deleted
+
+ALL AS EXPECTED

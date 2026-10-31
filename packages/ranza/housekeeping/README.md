@@ -37,6 +37,15 @@ await housekeeping.markUnits(userId, { unitIds, status: "clean" });
   ready: an Organization default, and a Property override that is on, off, or
   "use the default". The setting changes what ready means, never what a room
   holds (`20260916003200_check_rooms_after_cleaning`).
+- `stayoverBoard`, `stayoverSettings`, `setStayoverCadence`,
+  `markStayoverCleaned` and `undoStayoverCleaned` clean the rooms somebody is
+  staying in on a schedule any Property can choose
+  ([ADR 0063](../../../docs/adr/0063-a-room-in-use-is-cleaned-on-a-schedule-it-is-read-and-never-a-status.md)).
+  A room is due when `app.housekeeping_stayover_rooms()` says so, read from the
+  schedule, the arrival and the last clean: it writes no status and a room due
+  for a clean is not dirty. The host passes the schedule that applies when a
+  Property has none of its own, because this module never learns the operating
+  model.
 - `markUnits` is all or nothing: a selection naming a Unit the caller cannot see
   is refused whole. Every room it reaches gets its own audit record,
   `housekeeping.status_changed`, carrying the status it replaced.

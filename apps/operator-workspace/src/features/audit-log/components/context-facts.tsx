@@ -22,6 +22,7 @@ import {
   useConfiguredValue,
   useMaintenanceSettingWords,
   useRoomAdmitsWord,
+  useStayoverWord,
 } from "../summary";
 import type { AuditWords } from "../words";
 
@@ -214,6 +215,7 @@ export function ContextFacts({
 }) {
   const t = useTranslations();
   const admitsWord = useRoomAdmitsWord();
+  const stayoverWord = useStayoverWord(locale);
   const currency =
     typeof context.currency === "string" ? context.currency : undefined;
   const entries = Object.entries(context).filter(
@@ -287,6 +289,9 @@ export function ContextFacts({
       (CHANGE.has(key) && action === "unit.admits_changed")
     ) {
       return admitsWord(value);
+    }
+    if (CHANGE.has(key) && action === "housekeeping.stayover_set") {
+      return stayoverWord(value);
     }
     if (CHANGE.has(key) && action === "housekeeping.inspection_set") {
       if (value === "on") return t("housekeeping.on");
