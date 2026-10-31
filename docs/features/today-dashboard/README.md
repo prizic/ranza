@@ -1,10 +1,13 @@
 # Today at a dormitory
 
 What the manager of a student dormitory reads on Today (RANZ-108, rows
-`TD-S10-01` to `TD-S10-12` in [`edge-cases.csv`](edge-cases.csv)). The hotel's
+`TD-S10-01` to `TD-S10-19` in [`edge-cases.csv`](edge-cases.csv)). The hotel's
 Today is unchanged: every difference below is chosen by the Property's
 operating model as a default, never as a rule (ADR 0057), and nothing in SQL
-reads it.
+reads it. The two cards about the Residents themselves (instalments overdue and
+tonight's roll call) are the exception that proves it: they follow the data,
+so any Property that has a plan overdue or keeps a roll call draws them, hotel
+or dormitory, and one that has neither draws neither (TD-S10-19).
 
 ```mermaid
 flowchart LR
@@ -56,5 +59,23 @@ built on. All rows are `proposed`.
    reservations come first, Close the day moves among the building's work. The
    set of pages and each page's gate are identical to a hotel's (ADR 0056,
    TD-S10-09).
-8. **Overdue instalments?** Not on this lane's Today: the instalments module
-   decides what overdue means (TD-S10-12).
+8. **Overdue instalments?** Built once the instalments module landed, reading
+   its one definition of overdue and recomputing nothing. The big numeral is
+   the Residents, the money beside it is what is overdue and not what is owed
+   in all, and nobody overdue is no card, so a Property without plans carries
+   no standing zero (TD-S10-12).
+9. **Who sees the money overdue?** The viewers who already see the money
+   figures: a manager or finance viewer holding `finance.manage_folio` at a
+   Property with billing. The read is not asked for anybody else. Carried by
+   common sense: a balance is the most sensitive figure Today holds (TD-S10-15).
+10. **Where does the overdue figure open?** Finance, as a list of the Residents
+    it counts, because the instalments belong to a booking and the module names
+    no Folio; a list of Folios could not give the number back. A new view in
+    an existing screen, shown only through this figure (TD-S10-17).
+11. **Is tonight's roll call a dormitory card?** No: it follows the data. Any
+    Property that keeps a roll call, with somebody in house and a viewer who
+    may take it or give leave, draws it, and so does the overdue card wherever
+    a plan is overdue. The operating model chooses only the words (student for
+    resident), as ADR 0057 allows. Each roll call figure opens the roll call
+    screen, which takes no narrowing; narrowing it is deferred (TD-S10-16,
+    TD-S10-18, TD-S10-19).
