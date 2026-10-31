@@ -8,6 +8,14 @@ on:
 permissions:
   contents: read
 
+# Parallel lanes land on main minutes apart, and each push started its own
+# ~100-minute browser job. One run per branch at a time, and only the newest
+# waiting push behind it: the newest commit contains every earlier one. A run
+# already going is never cancelled, so a green result is always a whole one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   application:
     runs-on: ubuntu-latest
