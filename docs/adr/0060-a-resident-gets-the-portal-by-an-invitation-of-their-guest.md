@@ -73,15 +73,31 @@ the currency, the Folio's status and the sum, asks the Resident's own commercial
 gates, and returns no row for a Stay with no Folio, which is not a zero balance
 (ADR 0015). A statement of account is GP-DEF-09.
 
+**The next instalment is a third read of the same kind, and reads the standing
+rather than restating it.** The plan is [ADR 0059](0059-a-resident-pays-by-instalments-the-worker-charges-on-their-due-dates.md)'s
+and `app.payment_plan_standing` is its one definition of overdue; that function
+is security invoker and reads through staff reach, so called as a Resident it
+returns nothing. A policy on the plan tables would hand a student the columns a
+revision writes. So `app.resident_next_instalments` calls the standing from
+inside a definer, for the Stays the signed-in user holds and no others, and
+returns the oldest instalment not paid in full: its number, how many the plan
+has, its due date, what is still owed on it, where it stands, and how much is
+overdue in all. The figure on the card is what is still owed on that instalment,
+which for a part-paid one is less than its face amount: what a student needs to
+know is what to pay next, and payments settle the oldest instalment first. A
+walk-in Stay names no booking and is left out, because the standing of a
+Property with no booking named is the standing of every booking in it
+(GP-S4-11 to GP-S4-17; the card is GP-S4-18 to GP-S4-20).
+
 **Nothing reads `operating_model`.** A hotel's long-stay guest uses the same
 invitation (ADR 0057).
 
 ## Consequences
 
-- Seven security-definer functions are added to the inventory: four for the
+- Eight security-definer functions are added to the inventory: four for the
   invitation (make, withdraw, state, accept), the trigger function that gives a
-  later Stay its Guest's login, and two reads for the Resident (their room and
-  their balance).
+  later Stay its Guest's login, and three reads for the Resident (their room,
+  their balance and their next instalment).
 - Two reach clauses are provably redundant and stay anyway: in
   `app.may_invite_to_portal` and the read policy, `accessible_organization_ids()`
   is implied by `has_organization_permission()`, since both ask for an active
@@ -92,9 +108,13 @@ invitation (ADR 0057).
   `property_capabilities` row that only seeds and tests write. Until a screen
   exists, the invite section says the Portal is off and why instead of hiding.
 - A link claimed by the wrong person cannot be undone from a screen (GP-DEF-06).
-- Next instalment is not on My stay (GP-DEF-10). The instalment tables landed
-  after this slice was complete ([ADR 0059](0059-a-resident-pays-by-instalments-the-worker-charges-on-their-due-dates.md)),
-  but they are read by reach and `app.payment_plan_standing` is security
-  invoker, so a Resident gets no row from it. The slot needs a Resident's own
-  read path, of the same shape as the balance function, over that one
-  definition of overdue.
+- Two clauses of `app.resident_next_instalments` are each enough alone and both
+  stay: the Stay must name a booking, and the rows returned are matched to that
+  booking. Deleting either goes green and deleting both goes red, so a change to
+  one cannot widen the other silently. The gates imply a current Stay in the
+  Property, so the status clause matters only to a student who holds a finished
+  Stay and a current one in the same Property, which the suite asserts.
+- The instalment card counts waived and paid instalments in its position
+  ("instalment 2 of 4"), and an instalment not yet charged is not in the balance
+  figure beside it, so the two numbers answer different questions: what the
+  Folio says now, and what the plan says next.

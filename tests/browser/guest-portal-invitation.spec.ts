@@ -23,7 +23,9 @@ import { PORTAL_URL } from "./portal";
  * proves the journey only two running applications have: the desk presses one
  * button on a registration and gets a link and a QR code, the student opens it
  * on a phone, makes an account, and lands on My stay with the bed, the term and
- * what they owe, in all three languages, the Arabic mirrored.
+ * what they owe, in all three languages, the Arabic mirrored. When the booking
+ * is then put on a payment plan with an instalment unpaid, the page tells them
+ * so in words, and the warning edge sits on the side the language reads from.
  */
 
 const EVIDENCE = path.resolve(
@@ -195,6 +197,44 @@ async function signInAsTheDesk(page: Page): Promise<void> {
   ).toBe(true);
 }
 
+/**
+ * The booking is put on a payment plan of three instalments, the term having
+ * begun two months ago so that one can have fallen due. The 1 500 000 paid at
+ * check-in covers the first (payments settle the oldest first), the second fell
+ * due ten days ago and is unpaid, the third is still to come. Instalments are
+ * never edited once written, so the plan is made with its dates in place.
+ */
+function onAPaymentPlan(student: Student): void {
+  psql(
+    `update public.reservations
+        set starts_on = app.property_today(property_id) - 60
+      where id = '${student.booking}'`,
+  );
+  psql(
+    `update public.stays
+        set starts_on = app.property_today(property_id) - 60
+      where reservation_id = '${student.booking}'`,
+  );
+  psql(
+    `with plan as (
+       insert into public.payment_plans
+         (organization_id, property_id, reservation_id, currency, created_by)
+       select reservation.organization_id, reservation.property_id, reservation.id,
+              'TRY', staff.id
+         from public.reservations as reservation, public.users as staff
+        where reservation.id = '${student.booking}'
+          and staff.email = '${OWNER_EMAIL}'
+       returning id, organization_id, property_id
+     )
+     insert into public.plan_instalments
+       (organization_id, property_id, plan_id, ordinal, amount_minor, due_on, revision)
+     select plan.organization_id, plan.property_id, plan.id, due.ordinal, 1500000,
+            app.property_today(plan.property_id) + due.days, 1
+       from plan
+      cross join (values (1, -40), (2, -10), (3, 30)) as due (ordinal, days)`,
+  );
+}
+
 async function aPhone(browser: Browser, locale: Locale) {
   const context = await browser.newContext({
     ...PHONE,
@@ -335,12 +375,82 @@ for (const locale of LANGUAGES) {
     await expect(phone.page.getByTestId("stay-balance")).toContainText(
       portal.myStay.owed,
     );
+    // No plan, so no instalment: nothing is drawn in its place (GP-S4-20).
+    await expect(phone.page.getByTestId("stay-instalment")).toHaveCount(0);
     if (locale === "ar") {
       await expect(phone.page.locator("html")).toHaveAttribute("dir", "rtl");
     }
     await phone.page.screenshot({
       path: path.join(EVIDENCE, `${locale}-stay-phone.png`),
       fullPage: true,
+      ...WITHOUT_DEV_BADGE,
+    });
+
+    // The booking goes onto a payment plan with the second instalment unpaid
+    // and late: the card says so, in words, and tells them what to do.
+    onAPaymentPlan(student);
+    await phone.page.reload();
+    const instalment = phone.page.getByTestId("stay-instalment");
+    await expect(instalment).toBeVisible();
+    await expect(instalment).toHaveAttribute("data-state", "overdue");
+    await expect(instalment).toContainText(portal.myStay.instalment.heading);
+    await expect(instalment).toContainText(
+      portal.myStay.instalment.position
+        .replace("{number}", "2")
+        .replace("{total}", "3"),
+    );
+    await expect(phone.page.getByTestId("stay-instalment-amount")).toHaveText(
+      formatMoney(1_500_000, "TRY", locale),
+    );
+    await expect(instalment).toContainText(
+      portal.myStay.instalment.overdueNote,
+    );
+    // The edge that marks it late is on the side the language starts from.
+    const edge = await instalment.evaluate((card) => {
+      const style = getComputedStyle(card);
+      return {
+        start: style.getPropertyValue(
+          document.documentElement.dir === "rtl"
+            ? "border-right-width"
+            : "border-left-width",
+        ),
+        end: style.getPropertyValue(
+          document.documentElement.dir === "rtl"
+            ? "border-left-width"
+            : "border-right-width",
+        ),
+      };
+    });
+    expect(edge.start).toBe("4px");
+    expect(edge.end).toBe("1px");
+    // The card is a block of the page and does not push it sideways on a phone.
+    const box = await instalment.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(PHONE.viewport.width);
+    // The dates of Arrival and of Departure start on one line, whichever of
+    // them wrapped.
+    const [arrival, departure] = await Promise.all(
+      [0, 1].map((index) =>
+        phone.page.locator("dl time").nth(index).boundingBox(),
+      ),
+    );
+    expect(Math.round(arrival!.y)).toBe(Math.round(departure!.y));
+    // Scrolled to the end of the page, nothing of the card is left under the
+    // navigation bar that floats over the bottom of a phone's screen.
+    await phone.page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    const bar = phone.page.getByRole("navigation", {
+      name: portal.mainNavigation,
+    });
+    await expect(bar).toBeVisible();
+    const [card, nav] = await Promise.all([
+      instalment.boundingBox(),
+      bar.boundingBox(),
+    ]);
+    expect(card!.y + card!.height).toBeLessThanOrEqual(nav!.y);
+    await phone.page.screenshot({
+      path: path.join(EVIDENCE, `${locale}-stay-instalment-phone.png`),
       ...WITHOUT_DEV_BADGE,
     });
     if (locale === "en") {

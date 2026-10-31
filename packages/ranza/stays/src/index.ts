@@ -8,6 +8,7 @@ export {
 export type {
   IssuedPortalInvitation,
   OwnBalance,
+  OwnInstalment,
   OwnStay,
   PortalAcceptance,
   PortalAcceptanceOutcome,

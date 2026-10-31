@@ -14,9 +14,16 @@ Folio stands at, as one figure in its own currency labelled owed, in credit or
 settled. The balance is left out, never drawn as a zero, when the database
 returned none: no Folio yet, billing not held, or finance off at the Property
 ([ADR 0015](../../docs/adr/0015-money-is-an-integer-a-balance-is-a-sum-and-a-correction-is-a-line.md)).
+Under the balance, when the booking has a payment plan, the next instalment:
+what is still owed on it, its place in the plan and the day it falls due, with
+an overdue one said in words and a warning edge on the side the language starts
+from, never in a colour alone. It is left out when there is no plan or nothing
+left to pay. Whether it is late is the database's word
+([ADR 0059](../../docs/adr/0059-a-resident-pays-by-instalments-the-worker-charges-on-their-due-dates.md)),
+never worked out here.
 Blueprint 4.3 lists more (service requests, announcements, meal choices,
-attendance declarations, a statement of account, the next instalment) and none
-of them are built, so none of them appear.
+attendance declarations, a statement of account) and none of them are built, so
+none of them appear.
 
 Everything comes from two reads in [`src/server/viewer.ts`](src/server/viewer.ts),
 both bounded by the viewer's own Stay: `ownStays`, and `stayBrands`, the colour

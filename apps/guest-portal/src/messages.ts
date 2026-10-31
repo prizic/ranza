@@ -112,6 +112,16 @@ export interface Messages {
     owed: string;
     credit: string;
     settled: string;
+    /** The next instalment of the student's payment plan (GP-S4-11 to GP-S4-17). */
+    instalment: {
+      heading: string;
+      position: string;
+      dueOn: string;
+      dueToday: string;
+      wasDueOn: string;
+      overdueNote: string;
+      overdueAll: string;
+    };
   };
 
   stayType: Record<OwnStay["stayType"], string>;
@@ -240,6 +250,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       owed: "Ödemeniz gereken tutar",
       credit: "Hesabınızdaki alacak",
       settled: "Ödenecek tutar yok",
+      instalment: {
+        heading: "Sonraki taksit",
+        position: "{number} / {total}. taksit",
+        dueOn: "Son ödeme tarihi {date}",
+        dueToday: "Son ödeme günü bugün",
+        wasDueOn: "Son ödeme tarihi {date} idi",
+        overdueNote:
+          "Bu taksitin ödeme tarihi geçti. Lütfen resepsiyonla görüşün.",
+        overdueAll:
+          "{count, plural, other {# taksitin}} ödeme tarihi geçti, toplam {amount}.",
+      },
     },
 
     stayType: { guest: "Misafir", resident: "Sakin" },
@@ -375,6 +396,17 @@ export const messages: Record<SupportedLocale, Messages> = {
       owed: "You owe",
       credit: "In your favour",
       settled: "Nothing owed",
+      instalment: {
+        heading: "Next instalment",
+        position: "Instalment {number} of {total}",
+        dueOn: "Due {date}",
+        dueToday: "Due today",
+        wasDueOn: "Was due {date}",
+        overdueNote:
+          "This instalment is overdue. Please speak to the front desk.",
+        overdueAll:
+          "{count, plural, one {# instalment is} other {# instalments are}} overdue, {amount} in all.",
+      },
     },
 
     stayType: { guest: "Guest", resident: "Resident" },
@@ -511,6 +543,16 @@ export const messages: Record<SupportedLocale, Messages> = {
       owed: "المبلغ المستحق عليك",
       credit: "رصيد لصالحك",
       settled: "لا شيء مستحق",
+      instalment: {
+        heading: "القسط التالي",
+        position: "القسط {number} من {total}",
+        dueOn: "يستحق في {date}",
+        dueToday: "يستحق اليوم",
+        wasDueOn: "كان مستحقًا في {date}",
+        overdueNote: "تأخّر سداد هذا القسط. يُرجى مراجعة مكتب الاستقبال.",
+        overdueAll:
+          "{count, plural, one {قسط واحد متأخر} two {قسطان متأخران} few {# أقساط متأخرة} many {# قسطًا متأخرًا} other {# قسط متأخر}}، بإجمالي {amount}.",
+      },
     },
 
     stayType: { guest: "ضيف", resident: "مقيم" },

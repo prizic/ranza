@@ -30,6 +30,12 @@ import { ownStays, stayBrands } from "../../../../server/viewer";
  * stored and shown plainly; nothing here is derived but the balance, which the
  * database sums (ADR 0015).
  *
+ * The next instalment of their payment plan sits under the balance, drawn only
+ * when the database returned one (GP-S4-11 to GP-S4-17). Whether it is late is
+ * the standing's word and not worked out here; a late one is said plainly and
+ * quietly, in the card's edge and a sentence, because a student reading this at
+ * a door should be told what to do and not alarmed.
+ *
  * The balance is absent when the database returned none — no Folio yet, billing
  * not held, finance off at the Property — and is never drawn as a zero, which
  * would tell a student they owe nothing when the truth is that nothing is
@@ -95,6 +101,59 @@ function BalanceFigure({
         {figure}
       </p>
       <p className="mt-1 text-step-0 font-medium">{direction}</p>
+    </div>
+  );
+}
+
+/**
+ * The next instalment: what is still owed on it and when it falls due, with the
+ * overdue state said in words. The edge is the warning tone and not the danger
+ * one, and the figure is smaller than the balance's, which stays the page's
+ * largest number.
+ */
+function InstalmentCard({
+  amount,
+  heading,
+  notes,
+  position,
+  state,
+  when,
+  whenIso,
+}: {
+  amount: string;
+  heading: string;
+  notes: string[];
+  position: string;
+  state: "overdue" | "due" | "upcoming";
+  when: string;
+  whenIso: string;
+}) {
+  return (
+    <div
+      className={`mt-4 rounded-2xl border border-border bg-card p-6 ${
+        state === "overdue" ? "border-s-4 border-s-warning" : ""
+      }`}
+      data-state={state}
+      data-testid="stay-instalment"
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <p className="text-step--1 text-muted-foreground">{heading}</p>
+        <p className="text-step--1 text-muted-foreground">{position}</p>
+      </div>
+      <p
+        className="mt-1 text-[clamp(1.75rem,8vw,2.5rem)] leading-tight font-light tabular-nums"
+        data-testid="stay-instalment-amount"
+      >
+        {amount}
+      </p>
+      <p className="mt-1 text-step-0 font-medium">
+        <time dateTime={whenIso}>{when}</time>
+      </p>
+      {notes.map((note) => (
+        <p className="mt-3 text-step--1 text-muted-foreground" key={note}>
+          {note}
+        </p>
+      ))}
     </div>
   );
 }
@@ -188,8 +247,10 @@ export default async function StayPage({
             </PageHeader>
 
             {/* Two columns even on a phone, so the dates sit side by side and the
-                balance below them is not pushed off the first screen. */}
-            <FactList className="grid-cols-2 gap-x-4 gap-y-6">
+                balance below them is not pushed off the first screen. Each fact
+                keeps its own height: stretched to its neighbour's, a date that
+                fits on one line sits lower than the one that wrapped. */}
+            <FactList className="grid-cols-2 items-start gap-x-4 gap-y-6">
               <Fact label={t("arrival")}>
                 <time dateTime={stay.startsOn}>
                   {formatStayDate(stay.startsOn, locale)}
@@ -218,6 +279,57 @@ export default async function StayPage({
                   locale,
                 )}
                 heading={t("myStay.balance")}
+              />
+            ) : null}
+
+            {stay.nextInstalment ? (
+              <InstalmentCard
+                amount={formatMoney(
+                  Number(stay.nextInstalment.outstandingMinor),
+                  stay.nextInstalment.currency,
+                  locale,
+                )}
+                heading={t("myStay.instalment.heading")}
+                notes={
+                  stay.nextInstalment.state === "overdue"
+                    ? [
+                        t("myStay.instalment.overdueNote"),
+                        ...(stay.nextInstalment.overdueCount > 1
+                          ? [
+                              t("myStay.instalment.overdueAll", {
+                                count: stay.nextInstalment.overdueCount,
+                                amount: formatMoney(
+                                  Number(stay.nextInstalment.overdueMinor),
+                                  stay.nextInstalment.currency,
+                                  locale,
+                                ),
+                              }),
+                            ]
+                          : []),
+                      ]
+                    : []
+                }
+                position={t("myStay.instalment.position", {
+                  number: stay.nextInstalment.number,
+                  total: stay.nextInstalment.of,
+                })}
+                state={stay.nextInstalment.state}
+                when={
+                  stay.nextInstalment.state === "due"
+                    ? t("myStay.instalment.dueToday")
+                    : t(
+                        stay.nextInstalment.state === "overdue"
+                          ? "myStay.instalment.wasDueOn"
+                          : "myStay.instalment.dueOn",
+                        {
+                          date: formatStayDate(
+                            stay.nextInstalment.dueOn,
+                            locale,
+                          ),
+                        },
+                      )
+                }
+                whenIso={stay.nextInstalment.dueOn}
               />
             ) : null}
           </section>

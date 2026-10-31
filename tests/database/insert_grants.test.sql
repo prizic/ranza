@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  107,
-  'the definer sweep looked at 107 functions; change this number deliberately');
+  108,
+  'the definer sweep looked at 108 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -680,6 +680,12 @@ select is(
 -- definer to read what its caller may not select, it asks reach and
 -- guests.read_particulars, and the module records, in its own transaction,
 -- that somebody looked. The record function was replaced, not added to.
+-- A Resident's next instalment (20260916013920) brought one, and it writes
+-- nothing: resident_next_instalments() reads app.payment_plan_standing(), the
+-- one definition of overdue, as its owner, because a student has no reach and
+-- the standing is security invoker. What keeps it to the student's own Stays
+-- is its body (the user, the booking, current, the Resident's gates), asserted
+-- in resident_next_instalment.test.sql.
 -- A Resident's instalments (20260916013810) brought five, and three write.
 -- create_payment_plan() and revise_payment_plan() are the only ways a plan or
 -- an instalment is written, because nothing is granted on either table: the
@@ -747,10 +753,11 @@ select set_eq(
         'portal_invitation_state', 'accept_portal_invitation',
         'stay_follows_its_guests_login',
         'resident_stay_room_ids', 'resident_folio_balances',
+        'resident_next_instalments',
         'reveal_guest_identity_document',
         'create_payment_plan', 'revise_payment_plan', 'instalments_ready',
         'properties_with_instalments_due', 'post_due_instalments'],
-  'and they are exactly the hundred and seven the design gives a reason for');
+  'and they are exactly the hundred and eight the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

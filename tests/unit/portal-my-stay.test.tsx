@@ -1,13 +1,14 @@
 /**
- * My stay on a phone: the room and bed, the term and what is owed (GP-S4-08 to
- * GP-S4-10).
+ * My stay on a phone: the room and bed, the term, what is owed and the next
+ * instalment (GP-S4-08 to GP-S4-10, GP-S4-18 to GP-S4-20).
  *
  * The page draws what the database returned and derives nothing but the way the
  * balance points, so the cases are the shapes the database can return: a bed in
  * a room, a room let whole, a balance owed, in credit and settled, no balance
- * at all, and no Stay yet. Each runs in the three languages the Portal speaks,
- * because the words for owed and credit are the ones a student would otherwise
- * have to infer from a sign.
+ * at all, an instalment upcoming, due today and overdue, no plan, and no Stay
+ * yet. Each runs in the three languages the Portal speaks, because the words
+ * for owed, credit and overdue are the ones a student would otherwise have to
+ * infer from a sign or a colour.
  */
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { createTranslator } from "next-intl";
@@ -76,7 +77,28 @@ const BED_IN_A_ROOM = {
   building: "Block B",
   floor: 3,
   balance: { currency: "TRY", amountMinor: "3000000", folioStatus: "open" },
+  nextInstalment: null,
 };
+
+const UPCOMING_INSTALMENT = {
+  currency: "TRY",
+  number: 2,
+  of: 4,
+  dueOn: "2026-11-05",
+  outstandingMinor: "1250000",
+  state: "upcoming",
+  overdueCount: 0,
+  overdueMinor: "0",
+};
+
+function phraseWithADate(template: string) {
+  const escaped = template.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped.replace("\\{date\\}", ".+")}$`);
+}
+
+function occurrencesOf(text: string, part: string) {
+  return text.split(part).length - 1;
+}
 
 const { default: StayPage } =
   await import("../../apps/guest-portal/src/app/[locale]/(portal)/stay/page");
@@ -217,11 +239,153 @@ describe("My stay", () => {
   });
 
   for (const locale of supportedLocales) {
+    it(`GP-S4-18: draws the next instalment as what is owed on it, its place in the plan and the day it falls due in ${locale}`, async () => {
+      const say = await show({ nextInstalment: UPCOMING_INSTALMENT }, locale);
+
+      const card = screen.getByTestId("stay-instalment");
+      expect(card).toHaveAttribute("data-state", "upcoming");
+      expect(
+        within(card).getByText(say.myStay.instalment.heading),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId("stay-instalment-amount").textContent).toBe(
+        formatMoney(1_250_000, "TRY", locale),
+      );
+      expect(
+        within(card).getByText(
+          say.myStay.instalment.position
+            .replace("{number}", "2")
+            .replace("{total}", "4"),
+        ),
+      ).toBeInTheDocument();
+      const due = card.querySelector("time")!;
+      expect(due).toHaveAttribute("datetime", "2026-11-05");
+      expect(due.textContent).toMatch(
+        phraseWithADate(say.myStay.instalment.dueOn),
+      );
+      expect(due.textContent).toMatch(/2026/);
+      expect(card.className).not.toContain("border-s-warning");
+      expect(
+        within(card).queryByText(say.myStay.instalment.overdueNote),
+      ).toBeNull();
+    });
+
+    it(`GP-S4-19: says an instalment falling due today is due today, and not late, in ${locale}`, async () => {
+      const say = await show(
+        { nextInstalment: { ...UPCOMING_INSTALMENT, state: "due" } },
+        locale,
+      );
+
+      const card = screen.getByTestId("stay-instalment");
+      expect(card).toHaveAttribute("data-state", "due");
+      expect(
+        within(card).getByText(say.myStay.instalment.dueToday),
+      ).toBeInTheDocument();
+      expect(card.className).not.toContain("border-s-warning");
+      expect(
+        within(card).queryByText(say.myStay.instalment.overdueNote),
+      ).toBeNull();
+    });
+
+    it(`GP-S4-19: says an overdue instalment plainly, once, with what to do about it in ${locale}`, async () => {
+      const say = await show(
+        {
+          nextInstalment: {
+            ...UPCOMING_INSTALMENT,
+            dueOn: "2026-10-20",
+            state: "overdue",
+            overdueCount: 1,
+            overdueMinor: "1250000",
+          },
+        },
+        locale,
+      );
+
+      const card = screen.getByTestId("stay-instalment");
+      expect(card).toHaveAttribute("data-state", "overdue");
+      expect(card.className).toContain("border-s-warning");
+      expect(
+        within(card).getByText(say.myStay.instalment.overdueNote),
+      ).toBeInTheDocument();
+      const due = card.querySelector("time")!;
+      expect(due).toHaveAttribute("datetime", "2026-10-20");
+      expect(due.textContent).toMatch(
+        phraseWithADate(say.myStay.instalment.wasDueOn),
+      );
+      // One late instalment is the card's own figure; it is not told again as
+      // a total beside itself.
+      expect(
+        occurrencesOf(
+          card.textContent ?? "",
+          formatMoney(1_250_000, "TRY", locale),
+        ),
+      ).toBe(1);
+    });
+
+    it(`GP-S4-19: adds how many are late and how much in all when more than one is in ${locale}`, async () => {
+      await show(
+        {
+          nextInstalment: {
+            ...UPCOMING_INSTALMENT,
+            dueOn: "2026-10-05",
+            state: "overdue",
+            overdueCount: 2,
+            overdueMinor: "2500000",
+          },
+        },
+        locale,
+      );
+
+      const card = screen.getByTestId("stay-instalment");
+      expect(card.textContent).toContain(formatMoney(2_500_000, "TRY", locale));
+      expect(card.textContent).toMatch(/[2٢]/);
+    });
+  }
+
+  for (const [count, noun] of [
+    [2, "قسطان متأخران"],
+    [3, "أقساط متأخرة"],
+    [11, "قسطًا متأخرًا"],
+    [100, "قسط متأخر"],
+  ] as const) {
+    it(`GP-S4-19: the Arabic count of ${count} late instalments takes the form its number asks for`, async () => {
+      await show(
+        {
+          nextInstalment: {
+            ...UPCOMING_INSTALMENT,
+            state: "overdue",
+            overdueCount: count,
+            overdueMinor: "9900000",
+          },
+        },
+        "ar",
+      );
+
+      expect(screen.getByTestId("stay-instalment").textContent).toContain(noun);
+    });
+  }
+
+  it("GP-S4-20: draws nothing for a plan that is not there, with no heading and no zero", async () => {
+    const say = await show({ nextInstalment: null });
+
+    expect(screen.queryByTestId("stay-instalment")).toBeNull();
+    expect(screen.queryByText(say.myStay.instalment.heading)).toBeNull();
+    expect(screen.getByTestId("stay-balance")).toBeInTheDocument();
+  });
+
+  it("GP-S4-20: an instalment is drawn without a balance beside it, and neither waits for the other", async () => {
+    await show({ balance: null, nextInstalment: UPCOMING_INSTALMENT });
+
+    expect(screen.queryByTestId("stay-balance")).toBeNull();
+    expect(screen.getByTestId("stay-instalment")).toBeInTheDocument();
+  });
+
+  for (const locale of supportedLocales) {
     it(`GP-S4-10: reads as no stay yet, not as an error, for an account with no Stay in ${locale}`, async () => {
       const say = await show(null, locale);
 
       expect(screen.getByText(say.noStayTitle)).toBeInTheDocument();
       expect(screen.queryByTestId("stay-balance")).toBeNull();
+      expect(screen.queryByTestId("stay-instalment")).toBeNull();
     });
   }
 });

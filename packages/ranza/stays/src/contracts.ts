@@ -68,6 +68,12 @@ export interface OwnStay {
    * balance (ADR 0015, GP-S4-06).
    */
   balance: OwnBalance | null;
+  /**
+   * The next instalment of their payment plan (ADR 0059), or null when there
+   * is nothing to say: no plan, nothing left to pay, billing not held, or
+   * finance off at the Property (GP-S4-11 to GP-S4-17).
+   */
+  nextInstalment: OwnInstalment | null;
 }
 
 export interface OwnBalance {
@@ -76,6 +82,28 @@ export interface OwnBalance {
   /** Signed minor units as a decimal string, positive meaning owed (ADR 0015). */
   amountMinor: string;
   folioStatus: "open" | "closed";
+}
+
+/**
+ * The oldest instalment of a Stay's plan that is not paid in full, with where
+ * it stands as `app.payment_plan_standing()` says: the one definition of
+ * overdue, never worked out again here.
+ */
+export interface OwnInstalment {
+  /** ISO 4217, the plan's own currency. */
+  currency: string;
+  /** Its place in the plan by due date, from 1, out of `of`. */
+  number: number;
+  of: number;
+  /** Calendar date as `YYYY-MM-DD`, the Property's own. */
+  dueOn: string;
+  /** What is still owed on it, in minor units as a decimal string. */
+  outstandingMinor: string;
+  state: "overdue" | "due" | "upcoming";
+  /** How many instalments are overdue in all, this one included. */
+  overdueCount: number;
+  /** What is overdue in all, in minor units as a decimal string. */
+  overdueMinor: string;
 }
 
 /**

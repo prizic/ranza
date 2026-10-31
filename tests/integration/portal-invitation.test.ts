@@ -27,6 +27,7 @@ const HOUSEKEEPER = "d8700001-0000-4000-8000-000000000002";
 // Organization, so a fixed one would be refused on the second run.
 const STUDENT = randomUUID();
 const OTHER_STUDENT = randomUUID();
+const INSTALMENT_STUDENT = randomUUID();
 const NO_PORTAL_MANAGER = "d8700001-0000-4000-8000-000000000005";
 const PROPERTY = randomUUID();
 const NO_PORTAL_PROPERTY = randomUUID();
@@ -140,9 +141,11 @@ beforeAll(async () => {
   await owner.$executeRawUnsafe(
     `insert into public.users (id, email) values
        ($1::uuid, 'portal-invite-student-' || $1 || '@example.test'),
-       ($2::uuid, 'portal-invite-other-student-' || $2 || '@example.test')`,
+       ($2::uuid, 'portal-invite-other-student-' || $2 || '@example.test'),
+       ($3::uuid, 'portal-invite-instalment-student-' || $3 || '@example.test')`,
     STUDENT,
     OTHER_STUDENT,
+    INSTALMENT_STUDENT,
   );
   await owner.$executeRawUnsafe(
     `insert into public.organizations (id, name, status) values
@@ -330,6 +333,7 @@ describe("the student opens the link", () => {
       building: "Block B",
       floor: 3,
       balance: { currency: "TRY", amountMinor: "3000000", folioStatus: "open" },
+      nextInstalment: null,
     });
     expect(own[0]!.endsOn).not.toBeNull();
 
@@ -337,6 +341,84 @@ describe("the student opens the link", () => {
     await expect(stays.invite(DESK, booking)).rejects.toMatchObject({
       reason: "already_connected",
     });
+  });
+
+  it("is told the next instalment of their own plan, late as the standing says, and the neighbour's is not theirs", async () => {
+    const mine = await registerStudent(PROPERTY, ORG, "Room 207", true);
+    const neighbours = await registerStudent(PROPERTY, ORG, "Room 208", true);
+    // A term that began two months ago, so an instalment can have fallen due.
+    for (const student of [mine, neighbours]) {
+      await owner.$executeRawUnsafe(
+        `update public.reservations set starts_on = app.property_today(property_id) - 60
+          where id = $1::uuid`,
+        student.booking,
+      );
+      await owner.$executeRawUnsafe(
+        `update public.stays set starts_on = app.property_today(property_id) - 60
+          where id = $1::uuid`,
+        student.stay,
+      );
+      await owner.$executeRawUnsafe(
+        `insert into public.payment_plans
+           (organization_id, property_id, reservation_id, currency, created_by)
+         values ($1::uuid, $2::uuid, $3::uuid, 'TRY', $4::uuid)`,
+        ORG,
+        PROPERTY,
+        student.booking,
+        DESK,
+      );
+    }
+    // The first fell due forty days ago and the 1 500 000 paid covers it, the
+    // second ten days ago and is not paid, the third is still to come. The
+    // neighbour's single instalment is later and larger.
+    for (const [booking, ordinal, amount, days] of [
+      [mine.booking, 1, 1500000, -40],
+      [mine.booking, 2, 1500000, -10],
+      [mine.booking, 3, 1500000, 30],
+      [neighbours.booking, 1, 9900000, 40],
+    ] as const) {
+      await owner.$executeRawUnsafe(
+        `insert into public.plan_instalments
+           (organization_id, property_id, plan_id, ordinal, amount_minor, due_on, revision)
+         select $1::uuid, $2::uuid, plan.id, $4::int, $5::bigint,
+                app.property_today($2::uuid) + $6::int, 1
+           from public.payment_plans as plan
+          where plan.reservation_id = $3::uuid`,
+        ORG,
+        PROPERTY,
+        booking,
+        ordinal,
+        amount,
+        days,
+      );
+    }
+    const dueOn = (
+      await owner.$queryRawUnsafe<{ day: string }[]>(
+        `select to_char(app.property_today($1::uuid) - 10, 'YYYY-MM-DD') as day`,
+        PROPERTY,
+      )
+    )[0]!.day;
+
+    const issued = await stays.invite(DESK, mine.booking);
+    expect((await stays.accept(INSTALMENT_STUDENT, issued.token)).outcome).toBe(
+      "accepted",
+    );
+    const own = await stays.listOwnStays(INSTALMENT_STUDENT);
+
+    expect(own).toHaveLength(1);
+    expect(own[0]!.nextInstalment).toEqual({
+      currency: "TRY",
+      number: 2,
+      of: 3,
+      dueOn,
+      outstandingMinor: "1500000",
+      state: "overdue",
+      overdueCount: 1,
+      overdueMinor: "1500000",
+    });
+    // The balance and the instalment are two reads of one Folio: the term fee
+    // less the payment, and the plan's own standing.
+    expect(own[0]!.balance?.amountMinor).toBe("3000000");
   });
 
   it("tells a used, withdrawn, unknown or malformed link apart", async () => {
@@ -366,13 +448,13 @@ describe("the student opens the link", () => {
     const { booking: first } = await registerStudent(
       PROPERTY,
       ORG,
-      "Room 207",
+      "Room 217",
       false,
     );
     const { booking: second } = await registerStudent(
       PROPERTY,
       ORG,
-      "Room 208",
+      "Room 218",
       false,
     );
     const earlier = await stays.invite(DESK, first);

@@ -3,11 +3,19 @@ import { PORTAL_STAY_CAPABILITY, type OwnStay } from "./contracts";
 import { createPortalInvitations } from "./portal-invitation";
 import type { StaysDeps } from "./ports";
 
-/** A row as the read returns it, before the balance columns become one value. */
-type OwnStayRow = Omit<OwnStay, "balance"> & {
+/** A row as the read returns it, before the balance and instalment columns become one value each. */
+type OwnStayRow = Omit<OwnStay, "balance" | "nextInstalment"> & {
   balanceCurrency: string | null;
   balanceMinor: string | null;
   folioStatus: "open" | "closed" | null;
+  instalmentCurrency: string | null;
+  instalmentNumber: number | null;
+  instalmentsTotal: number | null;
+  instalmentDueOn: string | null;
+  instalmentOutstandingMinor: string | null;
+  instalmentState: "overdue" | "due" | "upcoming" | null;
+  instalmentsOverdue: number | null;
+  instalmentsOverdueMinor: string | null;
 };
 
 /**
@@ -35,11 +43,12 @@ export function createStaysModule(deps: StaysDeps) {
    * A Staff Member calling this gets an empty array: a membership is not a
    * Stay, and the Portal grants no staff capability (blueprint 4.3).
    *
-   * The room around a bed is read through `accommodation_units_read_own_stay_room`
-   * and the balance through `app.resident_folio_balances()`, each the Resident's
-   * own path and neither a widening of a Staff one (ADR 0009, GP-S4-*). Either
-   * can be absent without the Stay being absent: a Stay with no Folio has no
-   * balance, which is not a zero one.
+   * The room around a bed is read through `accommodation_units_read_own_stay_room`,
+   * the balance through `app.resident_folio_balances()` and the next instalment
+   * through `app.resident_next_instalments()`, each the Resident's own path and
+   * none a widening of a Staff one (ADR 0009, GP-S4-*). Any can be absent
+   * without the Stay being absent: a Stay with no Folio has no balance, which
+   * is not a zero one, and a Stay with no plan has no instalment.
    *
    * Empty is the correct answer to "you have nothing current here" — for a
    * departed Resident, for an Organization that lost the Entitlement, and for a
@@ -70,7 +79,15 @@ export function createStaysModule(deps: StaysDeps) {
           coalesce(room.floor, unit.floor)       as "floor",
           balance.currency                       as "balanceCurrency",
           balance.balance_minor                  as "balanceMinor",
-          balance.folio_status                   as "folioStatus"
+          balance.folio_status                   as "folioStatus",
+          instalment.currency                    as "instalmentCurrency",
+          instalment.instalment_number           as "instalmentNumber",
+          instalment.instalments_total           as "instalmentsTotal",
+          instalment.due_on                      as "instalmentDueOn",
+          instalment.outstanding_minor           as "instalmentOutstandingMinor",
+          instalment.state                       as "instalmentState",
+          instalment.overdue_count               as "instalmentsOverdue",
+          instalment.overdue_minor               as "instalmentsOverdueMinor"
         from public.stays as stay
         join public.properties as property
           on property.id = stay.property_id
@@ -80,6 +97,8 @@ export function createStaysModule(deps: StaysDeps) {
           on room.id = unit.parent_id
         left join app.resident_folio_balances() as balance
           on balance.stay_id = stay.id
+        left join app.resident_next_instalments() as instalment
+          on instalment.stay_id = stay.id
         where stay.status in ('reserved', 'in_house')
           and app.resident_can_use_capability(
             stay.property_id,
@@ -90,7 +109,20 @@ export function createStaysModule(deps: StaysDeps) {
       `,
     );
     return rows.map(
-      ({ balanceCurrency, balanceMinor, folioStatus, ...stay }) => ({
+      ({
+        balanceCurrency,
+        balanceMinor,
+        folioStatus,
+        instalmentCurrency,
+        instalmentNumber,
+        instalmentsTotal,
+        instalmentDueOn,
+        instalmentOutstandingMinor,
+        instalmentState,
+        instalmentsOverdue,
+        instalmentsOverdueMinor,
+        ...stay
+      }) => ({
         ...stay,
         balance:
           balanceCurrency === null ||
@@ -101,6 +133,26 @@ export function createStaysModule(deps: StaysDeps) {
                 currency: balanceCurrency,
                 amountMinor: balanceMinor,
                 folioStatus,
+              },
+        nextInstalment:
+          instalmentCurrency === null ||
+          instalmentNumber === null ||
+          instalmentsTotal === null ||
+          instalmentDueOn === null ||
+          instalmentOutstandingMinor === null ||
+          instalmentState === null ||
+          instalmentsOverdue === null ||
+          instalmentsOverdueMinor === null
+            ? null
+            : {
+                currency: instalmentCurrency,
+                number: instalmentNumber,
+                of: instalmentsTotal,
+                dueOn: instalmentDueOn,
+                outstandingMinor: instalmentOutstandingMinor,
+                state: instalmentState,
+                overdueCount: instalmentsOverdue,
+                overdueMinor: instalmentsOverdueMinor,
               },
       }),
     );
