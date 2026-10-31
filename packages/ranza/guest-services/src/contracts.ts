@@ -98,6 +98,12 @@ export interface ServiceRequestAccess {
   mayManage: boolean;
 }
 
+/** Requests still waiting on somebody (new or in progress), and the urgent ones among them. */
+export interface OpenServiceRequests {
+  open: number;
+  urgent: number;
+}
+
 /** Somebody who can take a request: a Staff Member who manages requests and reaches the Property. */
 export interface ServiceRequestStaff {
   userId: string;

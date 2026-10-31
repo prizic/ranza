@@ -39,6 +39,7 @@ const ALL = {
   housekeeping: true,
   billing: true,
   maintenance: true,
+  guestExperience: true,
 };
 
 const day = (permissions: string[]): WorkingDay => ({
@@ -47,6 +48,7 @@ const day = (permissions: string[]): WorkingDay => ({
   organizationId: "o",
   timezone: "Europe/Istanbul",
   currency: "TRY",
+  operatingModel: "hotel",
   businessDate: "2026-10-19",
   calendarDate: "2026-10-19",
   cutoff: "04:00",

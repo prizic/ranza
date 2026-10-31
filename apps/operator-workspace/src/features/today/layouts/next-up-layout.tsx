@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DormitoryCards } from "./dormitory-cards";
 import { useId, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -163,6 +164,12 @@ export function NextUpLayout(props: LayoutProps) {
         </Panel>
       </div>
       <Lanes {...props} />
+      <DormitoryCards
+        locale={locale}
+        onChanged={onChanged}
+        scope={scope}
+        summary={summary}
+      />
     </div>
   );
 }

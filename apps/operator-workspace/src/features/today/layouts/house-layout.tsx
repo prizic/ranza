@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DormitoryCards } from "./dormitory-cards";
 import { useState } from "react";
 import { LogIn, LogOut } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -234,6 +235,12 @@ export function HouseLayout(props: LayoutProps) {
           />
         </div>
       </div>
+      <DormitoryCards
+        locale={locale}
+        onChanged={onChanged}
+        scope={scope}
+        summary={summary}
+      />
     </div>
   );
 }

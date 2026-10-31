@@ -64,8 +64,10 @@ import {
 import {
   admitsOf,
   freeTonight,
+  inBlock,
   UNIT_STATE_FILTERS,
   type AdmitsFilter,
+  type BlockFilter,
   type UnitStateFilter,
 } from "../../today/views";
 import { AddRoomsDialog } from "./add-rooms-dialog";
@@ -101,7 +103,12 @@ export function RoomsView({
    * What the address narrowed the map to: Today's Empty beds figures open it at
    * `?show=free&admits=` (RB-S5-20). The page remounts the view when it changes.
    */
-  initialFilter: { show: StateKind | null; admits: AdmitsFilter | null };
+  initialFilter: {
+    show: StateKind | null;
+    admits: AdmitsFilter | null;
+    /** A building's name, or `block: null` for rooms in none. */
+    block: BlockFilter | null;
+  };
   initialView: "map" | "list";
   maintenance: RoomsMaintenance;
   /** Whether the viewer holds `accommodation.configure` at this Property. */
@@ -130,6 +137,7 @@ export function RoomsView({
     () => new Set(initialFilter.show ? [initialFilter.show] : []),
   );
   const [admits, setAdmits] = useState(initialFilter.admits);
+  const [block, setBlock] = useState(initialFilter.block);
   const [readyOnly, setReadyOnly] = useState(false);
   const [added, setAdded] = useState<AddedRooms | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<UnitEntry | null>(null);
@@ -254,7 +262,11 @@ export function RoomsView({
 
   const needle = query.trim().toLowerCase();
   const filtered =
-    needle !== "" || kinds.size > 0 || readyOnly || admits !== null;
+    needle !== "" ||
+    kinds.size > 0 ||
+    readyOnly ||
+    admits !== null ||
+    block !== null;
   const visibleUnits = data.units.filter((room) => {
     const leaves = room.beds.length > 0 ? room.beds : [room];
     const named =
@@ -270,24 +282,26 @@ export function RoomsView({
       leaves.some((leaf) => leaf.state && kinds.has(leaf.state.kind));
     const isReady = !readyOnly || readiness?.[room.unitId] === "ready";
     const admitted = admits === null || admitsOf(room) === admits;
-    return named && inState && isReady && admitted;
+    return named && inState && isReady && admitted && inBlock(room, block);
   });
   // The figure Today showed, from the same count, so the notice gives it back.
-  const freeAdmitted =
-    admits === null
-      ? 0
-      : data.units
-          .filter((room) => admitsOf(room) === admits)
-          .reduce((sum, room) => sum + freeTonight(room), 0);
+  const freeAdmitted = data.units
+    .filter(
+      (room) =>
+        (admits === null || admitsOf(room) === admits) && inBlock(room, block),
+    )
+    .reduce((sum, room) => sum + freeTonight(room), 0);
 
   function clearFilters() {
     setQuery("");
     setKinds(new Set());
     setReadyOnly(false);
     setAdmits(null);
+    setBlock(null);
     const url = new URL(window.location.href);
     url.searchParams.delete("show");
     url.searchParams.delete("admits");
+    url.searchParams.delete("block");
     window.history.replaceState(null, "", url);
   }
 
@@ -491,7 +505,10 @@ export function RoomsView({
               ) : null}
             </div>
             {/* Narrowed from Today, the notice below is the way back. */}
-            {filtered && visibleUnits.length > 0 && admits === null ? (
+            {filtered &&
+            visibleUnits.length > 0 &&
+            admits === null &&
+            block === null ? (
               <Button onClick={clearFilters} size="sm" variant="ghost">
                 {rp("showAll")}
                 <X aria-hidden="true" />
@@ -507,11 +524,21 @@ export function RoomsView({
               </Link>
             ) : null}
           </div>
-          {admits === null ? null : (
+          {admits === null && block === null ? null : (
             <ListFilterNotice
+              admits={admits ?? undefined}
               allHref={`/${locale}/rooms?property=${propertyId}`}
-              count={freeAdmitted}
-              filter={FREE_FILTER_KEY[admits]}
+              block={
+                block === null ? undefined : (block.block ?? rp("otherRooms"))
+              }
+              count={admits === null ? visibleUnits.length : freeAdmitted}
+              filter={
+                admits === null
+                  ? "filterBlock"
+                  : block === null
+                    ? FREE_FILTER_KEY[admits]
+                    : "filterFreeInBlock"
+              }
             />
           )}
         </>

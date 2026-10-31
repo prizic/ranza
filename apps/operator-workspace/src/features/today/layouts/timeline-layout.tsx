@@ -5,12 +5,17 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
-import type { ArrivalRow, DepartureRow } from "../../../server/today-derive";
+import type {
+  ArrivalRow,
+  DepartureRow,
+  OccupancyCard,
+} from "../../../server/today-derive";
 import { unitLabel } from "../../front-office/unit-label";
 import { cutoffTime, duration, money, shortDay } from "../format";
 import { todayHref } from "../links";
 import { DoNow } from "./do-now";
 import { EmptyBedsCard } from "../components/empty-beds-card";
+import { OpenWorkCard } from "../components/open-work-card";
 import { RoomsBar, UnclosedDaysCard } from "./side-cards";
 import {
   ArrivalCommand,
@@ -106,50 +111,94 @@ export function TimelineLayout(props: LayoutProps) {
   const counts = countsByState(desk.rooms);
   const emptyBeds =
     summary.emptyBeds?.status === "ok" ? summary.emptyBeds.data : null;
+  // A dormitory's day often has nobody coming or going: its arrivals and
+  // departures are drawn when there are any, not as empty cards (RANZ-108).
+  const dormitory = summary.day.operatingModel === "dormitory";
+  const quiet = dormitory
+    ? {
+        arrivals: desk.arrivals.length === 0,
+        departures: desk.departures.length + desk.departed === 0,
+      }
+    : { arrivals: false, departures: false };
   const unclosed =
     desk.unclosed?.status === "ok" && desk.unclosed.data.waiting > 0
       ? desk.unclosed.data
       : null;
+  const doNow = (
+    <DoNow
+      actions={actions}
+      changed={changed}
+      currency={summary.day.currency}
+      desk={desk}
+      locale={locale}
+      overdueAbove={departureCounts(desk).overdue}
+      reviews={reviews}
+      scope={scope}
+    />
+  );
+  // A hotel keeps these beside the rooms; a dormitory's manager opens Today for
+  // exactly them, so they lead under the day's work and the rooms go aside.
+  const headlineCards = (
+    <>
+      {emptyBeds ? (
+        <EmptyBedsCard
+          data={emptyBeds}
+          locale={locale}
+          propertyId={scope.propertyId}
+        />
+      ) : null}
+      {summary.openWork ? (
+        <OpenWorkCard
+          locale={locale}
+          onRetry={onChanged}
+          propertyId={scope.propertyId}
+          work={summary.openWork}
+        />
+      ) : null}
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-6">
       <Figures
+        beds={flow?.beds ?? null}
         desk={desk}
         flowTonight={flow ? houseFlow(desk, flow) : null}
         inHouseNow={flow?.inHouse ?? null}
         locale={locale}
+        quiet={quiet}
         scope={scope}
+        sellable={flow?.available ?? null}
       />
-      <FlowPanel
-        arrivals={desk.arrivals}
-        changed={changed}
-        departures={desk.departures}
-        desk={desk}
-        locale={locale}
-        nowMinutes={nowMinutes}
-        reviews={reviews}
-        scope={scope}
-        currency={summary.day.currency}
-      />
-      <div className="grid gap-6 max-md:order-3 lg:grid-cols-[3fr_2fr]">
-        <DoNow
-          actions={actions}
+      {quiet.arrivals && quiet.departures ? null : (
+        <FlowPanel
+          arrivals={desk.arrivals}
           changed={changed}
-          currency={summary.day.currency}
+          departures={desk.departures}
           desk={desk}
           locale={locale}
-          overdueAbove={departureCounts(desk).overdue}
+          nowMinutes={nowMinutes}
           reviews={reviews}
           scope={scope}
+          currency={summary.day.currency}
         />
+      )}
+      <div
+        className={cn(
+          "grid gap-6 max-md:order-3 lg:grid-cols-[3fr_2fr]",
+          dormitory && "items-start",
+        )}
+      >
+        {dormitory ? (
+          <div className="flex flex-col gap-6">
+            {doNow}
+            {headlineCards}
+          </div>
+        ) : (
+          doNow
+        )}
         <div className="flex flex-col gap-6">
-          {emptyBeds ? (
-            <EmptyBedsCard
-              data={emptyBeds}
-              locale={locale}
-              propertyId={scope.propertyId}
-            />
-          ) : null}
+          {dormitory ? null : headlineCards}
           <RoomsBar
             counts={counts}
             locale={locale}
@@ -169,13 +218,32 @@ export function TimelineLayout(props: LayoutProps) {
   );
 }
 
+/** Which of the day's two movements has nothing to show. */
+type Quiet = { arrivals: boolean; departures: boolean };
+
+/** Columns at a desk's width for a row of this many figures. */
+const COLUMNS: Record<number, string> = {
+  1: "lg:grid-cols-1",
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+  4: "lg:grid-cols-4",
+};
+
 function Figures({
+  beds,
   desk,
   flowTonight,
   inHouseNow,
   locale,
+  quiet,
   scope,
+  sellable,
 }: Pick<LayoutProps, "desk" | "locale" | "scope"> & {
+  /** The Rooms screen's own tiles, where rooms are let by the bed. */
+  beds: NonNullable<OccupancyCard["beds"]> | null;
+  quiet: Quiet;
+  /** The beds or rooms that can be let at all: what "empty" is counted of. */
+  sellable: number | null;
   flowTonight: HouseFlow | null;
   /**
    * The occupancy card's own count, so the figure and the "expected tonight"
@@ -194,6 +262,7 @@ function Figures({
   const n = (value: number) => formatNumber(value, locale);
   const items = [
     {
+      shown: !quiet.arrivals,
       label: t("figure.checkedIn"),
       value: n(arrivedCount),
       of: n(desk.arrivals.length),
@@ -204,6 +273,7 @@ function Figures({
       href: todayHref(locale, "arrivals", scope.propertyId),
     },
     {
+      shown: !quiet.departures,
       label: t("figure.checkedOut"),
       value: n(desk.departed),
       of: n(departures.dueToday),
@@ -215,6 +285,7 @@ function Figures({
       href: todayHref(locale, "departures", scope.propertyId),
     },
     {
+      shown: true,
       label: t("figure.inHouse"),
       value: n(inHouseNow ?? counts.in_house),
       of: null,
@@ -236,21 +307,43 @@ function Figures({
       alert: false,
       href: todayHref(locale, "rooms", scope.propertyId),
     },
-    {
-      label: t("figure.readyToSell"),
-      value: n(counts.ready),
-      of: n(desk.rooms.length - counts.out_of_service),
-      sub: t("figure.roomsRest", {
-        awaiting: counts.awaiting_inspection,
-        dirty: counts.dirty,
-        outOfService: counts.out_of_service,
-      }),
-      alert: false,
-      href: todayHref(locale, "housekeeping", scope.propertyId),
-    },
-  ];
+    beds && sellable !== null
+      ? {
+          // Where rooms are let by the bed, the figure is the Rooms screen's
+          // own Empty tile, not the housekeeping board's rooms (RANZ-108).
+          shown: true,
+          label: t("figure.readyToSell"),
+          value: n(beds.empty),
+          of: n(sellable),
+          sub: t("figure.bedsRest", {
+            reserved: n(beds.reserved),
+            blocked: n(beds.blocked),
+            outOfService: n(beds.outOfService),
+          }),
+          alert: false,
+          href: todayHref(locale, "rooms", scope.propertyId, { show: "free" }),
+        }
+      : {
+          shown: true,
+          label: t("figure.readyToSell"),
+          value: n(counts.ready),
+          of: n(desk.rooms.length - counts.out_of_service),
+          sub: t("figure.roomsRest", {
+            awaiting: counts.awaiting_inspection,
+            dirty: counts.dirty,
+            outOfService: counts.out_of_service,
+          }),
+          alert: false,
+          href: todayHref(locale, "housekeeping", scope.propertyId),
+        },
+  ].filter((item) => item.shown);
   return (
-    <ul className="grid grid-cols-2 border-y border-line max-md:order-2 lg:grid-cols-4">
+    <ul
+      className={cn(
+        "grid grid-cols-2 border-y border-line max-md:order-2",
+        COLUMNS[items.length],
+      )}
+    >
       {items.map((item) => (
         <li
           className="border-s border-line first:border-s-0 max-lg:odd:border-s-0 [&:first-child>a]:ps-0 max-lg:[&:nth-child(odd)>a]:ps-0"

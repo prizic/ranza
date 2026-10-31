@@ -20,6 +20,8 @@ import {
   requestQueryClient,
 } from "../../apps/operator-workspace/src/app/providers/hydrate";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import { dormitoryWords } from "../../apps/operator-workspace/src/words/dormitory";
+import { withOverlay } from "../../apps/operator-workspace/src/words/overlay";
 import type { SupportedLocale } from "../../packages/i18n/src";
 import type {
   ArrivalRow,
@@ -121,6 +123,7 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
       propertyName: "Demo Otel İstanbul",
       timezone: "Europe/Istanbul",
       currency: "TRY",
+      operatingModel: "hotel",
       businessDate: "2026-10-19",
       calendarDate: "2026-10-19",
       cutoff: "04:00",
@@ -186,7 +189,15 @@ function view(
   return render(
     <QueryProvider scope={SCOPE.userId}>
       <Hydrated client={prefetched}>
-        <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+        <NextIntlClientProvider
+          locale={locale}
+          messages={
+            // The words of the Property it is drawn at, as the app chooses them.
+            value.day.operatingModel === "dormitory"
+              ? withOverlay(messages[locale], dormitoryWords[locale])
+              : messages[locale]
+          }
+        >
           <TodayDashboard
             clock="14:32"
             greeting="afternoon"
@@ -1159,4 +1170,199 @@ describe("every locale draws every layout", () => {
       });
     }
   }
+});
+
+describe("a dormitory's Today (RANZ-108)", () => {
+  const EMPTY_BEDS = {
+    status: "ok",
+    data: {
+      female: 3,
+      male: 1,
+      anyone: 0,
+      byBed: true,
+      blocks: [
+        { block: "Blok A", female: 3, male: 0, anyone: 0 },
+        { block: "Blok B", female: 0, male: 1, anyone: 0 },
+      ],
+    },
+  } as const;
+
+  /** A day nobody arrives or leaves, at a Property of the given model. */
+  function quietDay(model: "hotel" | "dormitory"): TodaySummary {
+    const base = summary();
+    if (base.desk?.status !== "ok") throw new Error("fixture has a desk");
+    const occupancy = base.occupancy;
+    if (occupancy?.status !== "ok") throw new Error("fixture has occupancy");
+    return summary({
+      day: { ...base.day, operatingModel: model },
+      occupancy: {
+        status: "ok",
+        data: {
+          ...occupancy.data,
+          ...(model === "dormitory"
+            ? {
+                beds: { empty: 40, reserved: 2, blocked: 1, outOfService: 0 },
+                available: 120,
+              }
+            : {}),
+        },
+      },
+      emptyBeds: EMPTY_BEDS,
+      arrivals: {
+        status: "ok",
+        data: { expected: 0, checkedIn: 0, ready: 0, notReady: 0, rows: [] },
+      },
+      departures: {
+        status: "ok",
+        data: {
+          due: 0,
+          departed: 0,
+          overdue: 0,
+          longestOverdueDays: 0,
+          rows: [],
+        },
+      },
+      desk: {
+        status: "ok",
+        data: {
+          ...base.desk.data,
+          arrivals: [],
+          departures: [],
+          departed: 0,
+        },
+      },
+    });
+  }
+
+  it("draws_no_arrivals_or_departures_figure_or_flow_on_a_day_with_none", () => {
+    view(quietDay("dormitory"));
+    expect(screen.queryByRole("link", { name: /Checked in/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Checked out/ })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Today's flow" })).toBeNull();
+    expect(screen.getByRole("link", { name: /In house now/ })).toBeVisible();
+  });
+
+  it("a_hotel_with_the_same_empty_day_draws_every_one_of_them_as_it_always_did", () => {
+    view(quietDay("hotel"));
+    expect(screen.getByRole("link", { name: /Checked in/ })).toBeVisible();
+    expect(screen.getByRole("link", { name: /Checked out/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Today's flow" })).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: /Rooms ready to sell/ }),
+    ).toBeVisible();
+  });
+
+  it("brings_them_back_the_moment_there_is_somebody_to_arrive_or_leave", () => {
+    const quiet = quietDay("dormitory");
+    if (quiet.desk?.status !== "ok") throw new Error("fixture has a desk");
+    const arriving = arrival("Costa", "205", "14:00");
+    view({
+      ...quiet,
+      desk: {
+        status: "ok",
+        data: { ...quiet.desk.data, arrivals: [arriving] },
+      },
+    });
+    expect(screen.getByRole("link", { name: /Checked in/ })).toBeVisible();
+    expect(screen.queryByRole("link", { name: /Checked out/ })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Today's flow" })).toBeVisible();
+  });
+
+  it("counts_empty_beds_where_a_hotel_counts_rooms_ready_to_sell_in_the_dormitorys_words", () => {
+    view(quietDay("dormitory"));
+    expect(
+      screen.queryByRole("link", { name: /Rooms ready to sell/ }),
+    ).toBeNull();
+    const figure = screen.getByRole("link", { name: /Empty beds/ });
+    expect(figure).toHaveTextContent("40/120");
+    expect(figure).toHaveAttribute(
+      "href",
+      expect.stringContaining("/en/rooms?property=" + PROPERTY),
+    );
+    expect(figure).toHaveAttribute(
+      "href",
+      expect.stringContaining("show=free"),
+    );
+  });
+
+  it("the_overview_leaves_out_the_same_empty_cards_and_a_hotel_keeps_them", () => {
+    const { unmount } = view(quietDay("dormitory"), { layout: "overview" });
+    expect(screen.queryByText("Checked in")).toBeNull();
+    expect(screen.queryByText("Checked out")).toBeNull();
+    unmount();
+    view(quietDay("hotel"), { layout: "overview" });
+    expect(screen.getByText("Checked in")).toBeVisible();
+    expect(screen.getByText("Checked out")).toBeVisible();
+  });
+
+  it("every_desk_layout_draws_the_empty_beds_and_the_open_work_under_it", () => {
+    for (const layout of ["house", "next-up", "night"] as const) {
+      view(
+        {
+          ...quietDay("dormitory"),
+          openWork: {
+            status: "ok",
+            data: {
+              requests: { open: 3, urgent: 1 },
+              maintenance: { open: 2, urgent: 0, outOfOrder: 1 },
+            },
+          },
+        },
+        { layout },
+      );
+      expect(
+        screen.getByRole("region", { name: "Empty beds tonight" }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("link", { name: "3 open requests" }),
+      ).toHaveAttribute("href", `/en/guest-experience?property=${PROPERTY}`);
+      cleanup();
+    }
+  });
+
+  it("a_hotel_draws_neither_card_under_the_other_layouts", () => {
+    for (const layout of ["house", "next-up", "night"] as const) {
+      view({ ...quietDay("hotel"), emptyBeds: undefined }, { layout });
+      expect(
+        screen.queryByRole("region", { name: "Empty beds tonight" }),
+      ).toBeNull();
+      expect(
+        screen.queryByRole("region", { name: "Requests and maintenance" }),
+      ).toBeNull();
+      cleanup();
+    }
+  });
+
+  it("each_open_work_figure_opens_its_own_list_and_says_how_urgent_it_is", () => {
+    view(
+      {
+        ...quietDay("dormitory"),
+        openWork: {
+          status: "ok",
+          data: {
+            requests: { open: 3, urgent: 1 },
+            maintenance: { open: 2, urgent: 0, outOfOrder: 1 },
+          },
+        },
+      },
+      { layout: "timeline" },
+    );
+    const card = within(
+      screen.getByRole("region", { name: "Requests and maintenance" }),
+    );
+    expect(card.getByRole("link", { name: "3 open requests" })).toHaveAttribute(
+      "href",
+      `/en/guest-experience?property=${PROPERTY}`,
+    );
+    expect(
+      card.getByRole("link", { name: "2 open maintenance requests" }),
+    ).toHaveAttribute("href", `/en/maintenance?property=${PROPERTY}`);
+    expect(
+      card.getByRole("link", { name: "1 room or bed out of order" }),
+    ).toHaveAttribute(
+      "href",
+      `/en/maintenance?property=${PROPERTY}&outOfOrder=1`,
+    );
+    expect(card.getByText("1 urgent")).toBeVisible();
+  });
 });

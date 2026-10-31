@@ -31,6 +31,7 @@ import { BookedAheadCard } from "./booked-ahead-card";
 import { ChargesCard } from "./charges-card";
 import { CleanFirstCard } from "./clean-first-card";
 import { MaintenanceCard } from "./maintenance-card";
+import { OpenWorkCard } from "./open-work-card";
 import { MoneyLists } from "./money-cards";
 import { MovementsCard } from "./movements-card";
 import { EmptyBedsCard } from "./empty-beds-card";
@@ -291,8 +292,9 @@ function Tiles({
     extra?: Record<string, string>,
   ) => todayHref(locale, segment, summary.day.propertyId, extra);
   const currency = summary.day.currency;
+  const quiet = quietMovements(summary);
 
-  const arrivals = (
+  const arrivals = quiet.arrivals ? null : (
     <Tile key="arrivals" onRetry={onRetry} section={summary.arrivals}>
       {(data, stale) => (
         <StatTile
@@ -311,7 +313,7 @@ function Tiles({
     </Tile>
   );
 
-  const departures = (
+  const departures = quiet.departures ? null : (
     <Tile key="departures" onRetry={onRetry} section={summary.departures}>
       {(data, stale) => (
         <StatTile
@@ -424,7 +426,31 @@ function Tiles({
       </Tile>
     ) : null;
 
-  const readyRooms = (
+  // Where rooms are let by the bed the figure is the Rooms screen's Empty
+  // tile, counted of the beds that can be let, not the board's rooms.
+  const occupied =
+    summary.occupancy?.status === "ok" ? summary.occupancy.data : null;
+  const readyRooms = occupied?.beds ? (
+    <Tile key="ready-rooms" onRetry={onRetry} section={summary.occupancy}>
+      {(data, stale) => (
+        <StatTile
+          href={href("rooms", { show: "free" })}
+          icon={CheckCheck}
+          label={t("readyRooms")}
+          opens={t("rooms")}
+          progress={{
+            done:
+              data.available && data.beds
+                ? data.beds.empty / data.available
+                : 0,
+          }}
+          stale={stale}
+        >
+          <OfTotal of={n(data.available)} value={n(data.beds?.empty ?? 0)} />
+        </StatTile>
+      )}
+    </Tile>
+  ) : (
     <Tile key="ready-rooms" onRetry={onRetry} section={summary.rooms}>
       {(rooms, stale) => (
         <StatTile
@@ -566,12 +592,31 @@ function Tiles({
   }
 
   return (
-    <Grid>
+    <Grid fit={quiet.arrivals || quiet.departures}>
       {summary.focus === "manager"
         ? [occupancy, arrivals, departures, readyRooms]
         : [arrivals, departures, occupancy, readyForArrivals]}
     </Grid>
   );
+}
+
+/**
+ * The movements a dormitory draws no card for because there are none that day
+ * (RANZ-108): move-in week and summer Guests bring them back. A hotel always
+ * draws both, and a section that could not be read is a retry, never quiet.
+ */
+function quietMovements(summary: TodaySummary) {
+  if (summary.day.operatingModel !== "dormitory") {
+    return { arrivals: false, departures: false };
+  }
+  return {
+    arrivals:
+      summary.arrivals?.status === "ok" && summary.arrivals.data.expected === 0,
+    departures:
+      summary.departures?.status === "ok" &&
+      summary.departures.data.due === 0 &&
+      summary.departures.data.overdue === 0,
+  };
 }
 
 function MainRow({
@@ -627,7 +672,10 @@ function MainRow({
           rooms={summary.rooms}
         />
       ) : null
-    ) : summary.arrivals || summary.departures ? (
+    ) : (summary.arrivals || summary.departures) &&
+      !(
+        quietMovements(summary).arrivals && quietMovements(summary).departures
+      ) ? (
       <MovementsCard
         arrivals={summary.arrivals}
         currency={currency}
@@ -642,37 +690,66 @@ function MainRow({
   const emptyBeds =
     summary.emptyBeds?.status === "ok" ? summary.emptyBeds.data : null;
   const side =
-    emptyBeds || summary.rooms || summary.maintenance || summary.charges;
+    emptyBeds ||
+    summary.openWork ||
+    summary.rooms ||
+    summary.maintenance ||
+    summary.charges;
+
+  // A quiet dormitory has no movements, no booked-ahead line and no log to
+  // lead with: the side cards then take the width instead of a third of it.
+  const lead = primary || summary.booked || summary.activity;
 
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]">
-      <div className="flex flex-col gap-4">
-        {primary}
-        {summary.booked ? (
-          <BookedAheadCard
-            booked={summary.booked}
-            locale={locale}
-            onRetry={onRetry}
-            propertyId={propertyId}
-          />
-        ) : null}
-        {summary.activity ? (
-          <ActivityCard
-            activity={summary.activity}
-            locale={locale}
-            onRetry={onRetry}
-            propertyId={propertyId}
-            userId={scope.userId}
-          />
-        ) : null}
-      </div>
-      {side ? (
+    <div
+      className={cn(
+        "grid items-start gap-4",
+        lead && "lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]",
+      )}
+    >
+      {lead ? (
         <div className="flex flex-col gap-4">
+          {primary}
+          {summary.booked ? (
+            <BookedAheadCard
+              booked={summary.booked}
+              locale={locale}
+              onRetry={onRetry}
+              propertyId={propertyId}
+            />
+          ) : null}
+          {summary.activity ? (
+            <ActivityCard
+              activity={summary.activity}
+              locale={locale}
+              onRetry={onRetry}
+              propertyId={propertyId}
+              userId={scope.userId}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      {side ? (
+        <div
+          className={cn(
+            lead
+              ? "flex flex-col gap-4"
+              : "grid gap-4 md:grid-cols-2 xl:grid-cols-3",
+          )}
+        >
           {emptyBeds ? (
             <EmptyBedsCard
               data={emptyBeds}
               locale={locale}
               propertyId={propertyId}
+            />
+          ) : null}
+          {summary.openWork ? (
+            <OpenWorkCard
+              locale={locale}
+              onRetry={onRetry}
+              propertyId={propertyId}
+              work={summary.openWork}
             />
           ) : null}
           {summary.rooms ? (

@@ -19,6 +19,7 @@ export function WorkspaceRail({
   actions,
   brand,
   defaultProperty,
+  dormitoryIds,
   labels,
   locale,
   organization: fallback,
@@ -31,6 +32,8 @@ export function WorkspaceRail({
   brand: ReactNode;
   /** The Property the switcher names when the URL names none. */
   defaultProperty: string | undefined;
+  /** The Properties run as dormitories, whose rail lists its work in their order. */
+  dormitoryIds: readonly string[];
   labels: SidebarLabels;
   locale: SupportedLocale;
   /** The working Property's Organization, named when the URL names none. */
@@ -48,6 +51,7 @@ export function WorkspaceRail({
     reachable,
     defaultProperty,
     segmentsByProperty,
+    dormitoryIds,
   );
   const withProperty = useWithProperty(
     defaultProperty,
@@ -75,6 +79,7 @@ export function WorkspaceRail({
 
 export function WorkspaceBottomNav({
   defaultProperty,
+  dormitoryIds,
   label,
   locale,
   reachable,
@@ -83,6 +88,7 @@ export function WorkspaceBottomNav({
 }: {
   /** The Property the switcher names when the URL names none. */
   defaultProperty: string | undefined;
+  dormitoryIds: readonly string[];
   label: string;
   locale: SupportedLocale;
   reachable: readonly string[];
@@ -94,6 +100,7 @@ export function WorkspaceBottomNav({
     reachable,
     defaultProperty,
     segmentsByProperty,
+    dormitoryIds,
   );
   const withProperty = useWithProperty(
     defaultProperty,

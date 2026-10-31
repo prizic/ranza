@@ -1,5 +1,6 @@
 import type { DaysWaiting } from "@ranza/business-day";
-import type { AuditPage, WorkingDay } from "@ranza/core";
+import type { AuditPage, OperatingModel, WorkingDay } from "@ranza/core";
+import type { OpenServiceRequests } from "@ranza/guest-services";
 import type { ChargesPosted, FolioSummary } from "@ranza/folios";
 import { isOwing, owedAcrossFolios, owedOnFolio } from "../lib/owed";
 import type {
@@ -21,6 +22,7 @@ import {
   availableUnits,
   expectedTonight,
   freeByAdmits,
+  freeByBlock,
   holdsTonight,
   inRoomFilter,
   isToCome,
@@ -142,6 +144,16 @@ export interface OccupancyCard {
   leavingTonight: number;
   /** The arrivals `expectedTonight` adds: those that put a Guest in a room tonight. */
   arrivingTonight: number;
+  /**
+   * Only where rooms are let by the bed: the Rooms screen's own tiles, so the
+   * desk's "empty beds" is the number Rooms opens with (RANZ-108).
+   */
+  beds?: {
+    empty: number;
+    reserved: number;
+    blocked: number;
+    outOfService: number;
+  };
 }
 
 /**
@@ -154,6 +166,34 @@ export interface EmptyBedsCard {
   anyone: number;
   /** Whether any room is let by the bed, so the card says beds, not rooms. */
   byBed: boolean;
+  /**
+   * The same split building by building, when the rooms name their buildings;
+   * the figures above are the sum of these, rooms in no building included.
+   */
+  blocks: readonly {
+    block: string | null;
+    female: number;
+    male: number;
+    anyone: number;
+  }[];
+}
+
+/**
+ * What is open at a Property that is run as a dormitory (RANZ-108): requests
+ * students and guests have made, and the maintenance requests somebody has
+ * reported or scheduled. Each is null where the viewer may not see it, so a
+ * viewer with one of the two gets a card of one figure, never a zero for the
+ * other.
+ */
+export interface OpenWorkCard {
+  requests: OpenServiceRequests | null;
+  maintenance: {
+    /** New, in progress and waiting for parts together. */
+    open: number;
+    urgent: number;
+    /** Rooms and beds held out of order, each counted once. */
+    outOfOrder: number;
+  } | null;
 }
 
 export type CleanPriority =
@@ -340,6 +380,8 @@ export interface TodaySummary {
     propertyId: string;
     propertyName: string;
     timezone: string;
+    /** What the Property's Today defaults to: a default, never a rule (ADR 0057). */
+    operatingModel: OperatingModel;
     /** The Property's currency, for a total of nothing. */
     currency: string;
     businessDate: string;
@@ -358,6 +400,8 @@ export interface TodaySummary {
    * is drawn as nothing, since it cannot say whether the card belongs here.
    */
   emptyBeds?: Section<EmptyBedsCard>;
+  /** Only at a dormitory: requests and maintenance still open. */
+  openWork?: Section<OpenWorkCard>;
   rooms?: Section<RoomsCard>;
   money?: Section<MoneyCard>;
   maintenance?: Section<MaintenanceCard>;
@@ -388,6 +432,8 @@ export interface Grants {
   maintenance: boolean;
   /** audit.read: the log, and so the newest of it on Today (TD-S3-01). */
   audit: boolean;
+  /** Either guest_services permission: the requests of the Property. */
+  guestServices: boolean;
 }
 
 export function grantsFor(permissions: readonly string[]): Grants {
@@ -403,6 +449,9 @@ export function grantsFor(permissions: readonly string[]): Grants {
     money: has("finance.manage_folio"),
     maintenance: has("maintenance.report") || has("maintenance.manage"),
     audit: has("audit.read"),
+    guestServices:
+      has("guest_services.create_request") ||
+      has("guest_services.manage_requests"),
   };
 }
 
@@ -445,6 +494,8 @@ export interface Needs {
   inHouse: boolean;
   /** How many days wait to be closed: the desk's to close (TD-S7-11). */
   closeDay: boolean;
+  /** Open service requests, for a dormitory's open work card. */
+  guestRequests: boolean;
 }
 
 export interface Capabilities {
@@ -452,9 +503,14 @@ export interface Capabilities {
   housekeeping: boolean;
   billing: boolean;
   maintenance: boolean;
+  guestExperience: boolean;
 }
 
-export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
+export function needsFor(
+  grants: Grants,
+  capabilities: Capabilities,
+  operatingModel: OperatingModel = "hotel",
+): Needs {
   const focus = focusFor(grants);
   const desk = focus === "manager" || focus === "front_desk";
   const money = grants.money && capabilities.billing;
@@ -479,6 +535,11 @@ export function needsFor(grants: Grants, capabilities: Capabilities): Needs {
     calendar: capabilities.frontDesk && focus === "manager",
     inHouse: capabilities.frontDesk && desk,
     closeDay: capabilities.frontDesk && desk,
+    guestRequests:
+      operatingModel === "dormitory" &&
+      capabilities.guestExperience &&
+      grants.guestServices &&
+      focus !== "none",
   };
 }
 
@@ -500,6 +561,7 @@ export interface TodayInput {
   calendar?: Read<RoomCalendar>;
   daysWaiting?: Read<DaysWaiting | null>;
   inHouse?: Read<readonly Departure[]>;
+  guestRequests?: Read<OpenServiceRequests>;
 }
 
 /** Rows the clean-first queue and the movements list show, at most. */
@@ -558,10 +620,40 @@ function section<T, R>(
     : { status: "unavailable" };
 }
 
+/**
+ * Requests and maintenance still open, as one card. Unavailable when either read
+ * the viewer is entitled to failed: a card of one figure that quietly lost the
+ * other would read as a Property with no maintenance (TD-S1-24).
+ */
+function openWorkFrom(
+  requests: Read<OpenServiceRequests>,
+  maintenance: Read<TodayMaintenance>,
+): Section<OpenWorkCard> | undefined {
+  if (requests === undefined && maintenance === undefined) return undefined;
+  if (failed(requests) || failed(maintenance)) return { status: "unavailable" };
+  return {
+    status: "ok",
+    data: {
+      requests: requests?.ok ? requests.value : null,
+      maintenance: maintenance?.ok
+        ? {
+            open:
+              maintenance.value.open.new +
+              maintenance.value.open.in_progress +
+              maintenance.value.open.waiting_for_parts,
+            urgent: maintenance.value.urgent.length,
+            outOfOrder: maintenance.value.outOfOrder,
+          }
+        : null,
+    },
+  };
+}
+
 export function occupancyFrom(
   counts: UnitCounts,
   arrivals: readonly Arrival[],
   departures: readonly Departure[],
+  byBed = false,
 ): OccupancyCard {
   const arriving = arrivals.filter(holdsTonight).length;
   const leaving = departures.filter(leavesTonight).length;
@@ -572,6 +664,16 @@ export function occupancyFrom(
     expectedTonight: expectedTonight(counts, arriving, leaving),
     leavingTonight: leaving,
     arrivingTonight: arriving,
+    ...(byBed
+      ? {
+          beds: {
+            empty: counts.free,
+            reserved: counts.reserved,
+            blocked: counts.blocked,
+            outOfService: counts.outOfService,
+          },
+        }
+      : {}),
   };
 }
 
@@ -1157,6 +1259,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
       propertyId: input.day.propertyId,
       propertyName: input.day.propertyName,
       timezone: input.day.timezone,
+      operatingModel: input.day.operatingModel,
       currency: input.day.currency,
       businessDate: input.day.businessDate,
       calendarDate: input.day.calendarDate,
@@ -1249,7 +1352,12 @@ export function deriveToday(input: TodayInput): TodaySummary {
   // housekeeping, for what is out of service, and gives no card there.
   if (focus === "manager" || focus === "front_desk") {
     const occupancy = section(dependent(input.units), (map) =>
-      occupancyFrom(map.counts, arrivals, departures),
+      occupancyFrom(
+        map.counts,
+        arrivals,
+        departures,
+        map.units.some((room) => room.beds.length > 0),
+      ),
     );
     if (occupancy) summary.occupancy = occupancy;
 
@@ -1266,6 +1374,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
         data: {
           ...free,
           byBed: units.units.some((room) => room.beds.length > 0),
+          blocks: freeByBlock(units.units),
         },
       };
     }
@@ -1290,7 +1399,11 @@ export function deriveToday(input: TodayInput): TodaySummary {
           };
   }
 
-  if (focus === "manager") {
+  // A dormitory's manager reads open requests and maintenance as one card, whose
+  // maintenance figures are the hotel card's own, so that card would
+  // say the same number twice (RANZ-108).
+  const dormitory = input.day.operatingModel === "dormitory";
+  if (focus === "manager" && !dormitory) {
     const maintenance = section(input.maintenance, (value) => ({
       open:
         value.open.new + value.open.in_progress + value.open.waiting_for_parts,
@@ -1300,6 +1413,18 @@ export function deriveToday(input: TodayInput): TodaySummary {
       outOfOrder: value.outOfOrder,
     }));
     if (maintenance) summary.maintenance = maintenance;
+  }
+
+  if (dormitory && focus !== "finance" && focus !== "none") {
+    const openWork = openWorkFrom(
+      grants.guestServices && input.capabilities.guestExperience
+        ? input.guestRequests
+        : undefined,
+      grants.maintenance && input.capabilities.maintenance
+        ? input.maintenance
+        : undefined,
+    );
+    if (openWork) summary.openWork = openWork;
   }
 
   // Checked again here, as the maintenance items are: a read handed in by

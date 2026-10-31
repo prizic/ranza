@@ -101,6 +101,7 @@ function screenOf(
     initialFilter?: {
       show: "free" | null;
       admits: "female" | "male" | "anyone" | null;
+      block: { block: string | null } | null;
     };
     mayConfigure?: boolean;
     offerAdmits?: boolean;
@@ -113,7 +114,9 @@ function screenOf(
       <RoomsView
         data={options.data ?? map}
         housekeepingHref="/en/housekeeping?property=dd000003-0000-4000-8000-000000000001"
-        initialFilter={options.initialFilter ?? { show: null, admits: null }}
+        initialFilter={
+          options.initialFilter ?? { show: null, admits: null, block: null }
+        }
         initialView="map"
         locale={locale}
         maintenance={{ holds: [], mayReport: options.reportable ?? false }}
@@ -335,7 +338,7 @@ describe("opened from Today's Empty beds figure (RB-S5-20)", () => {
     render(
       screenOf("en", {
         data: gendered,
-        initialFilter: { show: "free", admits: "female" },
+        initialFilter: { show: "free", admits: "female", block: null },
       }),
     );
     expect(screen.getByTestId("list-filter-notice")).toHaveTextContent(
@@ -348,6 +351,80 @@ describe("opened from Today's Empty beds figure (RB-S5-20)", () => {
     expect(
       screen.getByRole("button", { name: "Free", pressed: true }),
     ).toBeVisible();
+  });
+
+  describe("and by block (RANZ-108)", () => {
+    const inBlock = (
+      name: string,
+      building: string | null,
+      admits: "female" | "male" | null,
+    ) => ({
+      ...unit(name, free),
+      building,
+      admits,
+    });
+    const blocks: UnitMap = {
+      ...map,
+      units: [
+        inBlock("A-101", "Blok A", "female"),
+        inBlock("A-102", "Blok A", "female"),
+        inBlock("B-101", "Blok B", "female"),
+        inBlock("B-201", "Blok B", "male"),
+        inBlock("S-1", null, null),
+      ],
+    };
+
+    it("shows_only_that_blocks_rooms_for_that_gender_and_names_the_block", () => {
+      render(
+        screenOf("en", {
+          data: blocks,
+          initialFilter: {
+            show: "free",
+            admits: "female",
+            block: { block: "Blok A" },
+          },
+        }),
+      );
+      expect(screen.getByTestId("list-filter-notice")).toHaveTextContent(
+        "2 free tonight in Blok A, in rooms for women only",
+      );
+      expect(screen.getByText("A-101")).toBeVisible();
+      expect(screen.getByText("A-102")).toBeVisible();
+      for (const hidden of ["B-101", "B-201", "S-1"]) {
+        expect(screen.queryByText(hidden)).not.toBeInTheDocument();
+      }
+    });
+
+    it("counts_the_rooms_of_a_block_alone_and_reads_rooms_in_no_building_as_other_rooms", () => {
+      render(
+        screenOf("en", {
+          data: blocks,
+          initialFilter: { show: null, admits: null, block: { block: null } },
+        }),
+      );
+      expect(screen.getByTestId("list-filter-notice")).toHaveTextContent(
+        "1 room in Other rooms",
+      );
+      expect(screen.getByText("S-1")).toBeVisible();
+      expect(screen.queryByText("A-101")).not.toBeInTheDocument();
+    });
+
+    it("gives_the_whole_map_back_through_the_notice_link", () => {
+      render(
+        screenOf("en", {
+          data: blocks,
+          initialFilter: {
+            show: null,
+            admits: null,
+            block: { block: "Blok B" },
+          },
+        }),
+      );
+      expect(screen.getByRole("link", { name: "Show all" })).toHaveAttribute(
+        "href",
+        "/en/rooms?property=dd000003-0000-4000-8000-000000000001",
+      );
+    });
   });
 
   it("is_the_whole_map_without_an_address_that_narrows_it", () => {

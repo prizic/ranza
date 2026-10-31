@@ -22,7 +22,9 @@ export type ListFilterKey =
   | "filterOpenFolios"
   | "filterFreeFemale"
   | "filterFreeMale"
-  | "filterFreeAnyone";
+  | "filterFreeAnyone"
+  | "filterFreeInBlock"
+  | "filterBlock";
 
 /** The free places in rooms admitting each: Today's figure and Rooms' notice. */
 export const FREE_FILTER_KEY = {
@@ -40,14 +42,20 @@ export const FREE_FILTER_KEY = {
  * reader came to check.
  */
 export function ListFilterNotice({
+  admits,
   allHref,
+  block,
   count,
   detail,
   filter,
   floor,
 }: {
+  /** Whom the narrowed rooms admit, for the notices that say it. */
+  admits?: AdmitsFilter | undefined;
   /** The same list, unnarrowed. */
   allHref: string;
+  /** The building the list was narrowed to, already in the reader's words. */
+  block?: string | undefined;
   count: number;
   /** A total the filtered rows add up to, already formatted. */
   detail?: string | undefined;
@@ -67,7 +75,12 @@ export function ListFilterNotice({
         className="size-4 shrink-0 text-muted-foreground"
       />
       <span className="font-medium">
-        {t(filter, { count, floor: floor ?? "" })}
+        {t(filter, {
+          count,
+          floor: floor ?? "",
+          admits: admits ?? "anyone",
+          block: block ?? "",
+        })}
       </span>
       {detail ? (
         <span className="text-muted-foreground tabular-nums">{detail}</span>

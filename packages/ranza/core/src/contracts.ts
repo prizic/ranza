@@ -178,6 +178,8 @@ export interface WorkingDay {
   timezone: string;
   /** ISO 4217, the currency every Folio at the Property is kept in. */
   currency: string;
+  /** What the Property's screens default to and call things (ADR 0057). */
+  operatingModel: OperatingModel;
   /** The business date (ADR 0021), `YYYY-MM-DD`. */
   businessDate: string;
   /** The Property's own calendar date, which runs ahead of the business date

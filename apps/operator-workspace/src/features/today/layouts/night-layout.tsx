@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { DormitoryCards } from "./dormitory-cards";
 import { useTranslations } from "next-intl";
 import { formatNumber } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
@@ -128,6 +129,7 @@ export function NightLayout({
   desk,
   locale,
   nowMs,
+  onChanged,
   scope,
   summary,
 }: LayoutProps) {
@@ -484,6 +486,12 @@ export function NightLayout({
           </ol>
         )}
       </Panel>
+      <DormitoryCards
+        locale={locale}
+        onChanged={onChanged}
+        scope={scope}
+        summary={summary}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   ServiceRequestRefusedError,
   ServiceRequestStateError,
   ServiceRequestUnavailableError,
+  type OpenServiceRequests,
   type ServiceRequestAccess,
   type ServiceRequestStaff,
 } from "./contracts";
@@ -164,6 +165,29 @@ export function createGuestServicesModule({ db }: GuestServicesDeps) {
           createdAt: record.createdAt.toISOString(),
           updatedAt: record.updatedAt.toISOString(),
         }));
+      });
+    },
+
+    /**
+     * How many requests at a Property still need somebody, and how many of
+     * those are urgent: the figures on Today, read without the requests
+     * themselves. Filtered by RLS like the list, so a Property out of reach
+     * counts none.
+     */
+    async openCounts(
+      userId: string,
+      propertyId: string,
+    ): Promise<OpenServiceRequests> {
+      return withOrganizationContext(db, { userId }, async (tx) => {
+        const client = tx as unknown as PrismaClient;
+        const open = { propertyId, status: { in: ["new", "in_progress"] } };
+        const [all, urgent] = await Promise.all([
+          client.serviceRequest.count({ where: open }),
+          client.serviceRequest.count({
+            where: { ...open, priority: "urgent" },
+          }),
+        ]);
+        return { open: all, urgent };
       });
     },
 
@@ -351,3 +375,5 @@ export function createGuestServicesModule({ db }: GuestServicesDeps) {
     },
   };
 }
+
+export type GuestServicesModule = ReturnType<typeof createGuestServicesModule>;

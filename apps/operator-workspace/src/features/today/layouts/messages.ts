@@ -55,6 +55,8 @@ const en = {
       "Counts {count, plural, one {# overdue guest} other {# overdue guests}} as staying until checked out.",
     roomsRest:
       "{awaiting} awaiting inspection · {dirty} dirty · {outOfService} out of service",
+    bedsRest:
+      "{reserved} booked · {blocked} blocked · {outOfService} out of order",
   },
   flow: {
     title: "Today's flow",
@@ -328,6 +330,8 @@ const tr: TodayLayoutsMessages = {
       "{count, plural, other {# gecikmiş misafir}} çıkış yapana kadar konaklıyor sayılır.",
     roomsRest:
       "{awaiting} kontrol bekliyor · {dirty} kirli · {outOfService} hizmet dışı",
+    bedsRest:
+      "{reserved} ayrılmış · {blocked} kapalı · {outOfService} hizmet dışı",
   },
   flow: {
     title: "Günün akışı",
@@ -592,6 +596,7 @@ const ar: TodayLayoutsMessages = {
       "يُحتسب {count, plural, zero {لا ضيف متأخر} one {ضيف متأخر واحد} two {ضيفان متأخران} few {# ضيوف متأخرين} many {# ضيفًا متأخرًا} other {# ضيف متأخر}} مقيمًا حتى تسجيل خروجه.",
     roomsRest:
       "{awaiting} بانتظار الفحص · {dirty} متسخة · {outOfService} خارج الخدمة",
+    bedsRest: "{reserved} محجوز · {blocked} محجوب · {outOfService} خارج الخدمة",
   },
   flow: {
     title: "مسار اليوم",

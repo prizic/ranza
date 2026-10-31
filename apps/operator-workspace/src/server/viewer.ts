@@ -1171,6 +1171,7 @@ export async function todaySummary(
       housekeeping: HOUSEKEEPING_CAPABILITY,
       billing: FOLIO_CAPABILITY,
       maintenance: MAINTENANCE_CAPABILITY,
+      guestExperience: GUEST_SERVICES_CAPABILITY,
     },
     (section, error) =>
       console.error("today.section_failed", {

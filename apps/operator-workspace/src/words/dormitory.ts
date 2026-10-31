@@ -64,10 +64,17 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     dashboard: {
       newBooking: "Yeni kayıt",
       expectedTonight: "Bu gece beklenen {count} / {of} uygun yatak ({value})",
+      readyRooms: "Boş yatak",
+      openWorkRequests: "Öğrenci talepleri",
     },
     todayLayouts: {
+      rooms: {
+        vacant:
+          "Bu gece {free, plural, other {# odada}} kimse yok, {count} tanesi temiz ve hazır.",
+      },
       figure: {
         tonight: "{available} yataktan {count} tanesi bu gece dolu bekleniyor",
+        readyToSell: "Boş yatak",
       },
     },
     configuration: {
@@ -140,9 +147,18 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       newBooking: "New registration",
       expectedTonight:
         "Expected tonight {count} / {of} available beds ({value})",
+      readyRooms: "Empty beds",
+      openWorkRequests: "Student requests",
     },
     todayLayouts: {
-      figure: { tonight: "{count} expected tonight, of {available} beds" },
+      rooms: {
+        vacant:
+          "{free, plural, one {# room has} other {# rooms have}} nobody in them tonight, {count} cleaned and ready.",
+      },
+      figure: {
+        tonight: "{count} expected tonight, of {available} beds",
+        readyToSell: "Empty beds",
+      },
     },
     configuration: {
       operatingModelHints: {
@@ -208,9 +224,18 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     dashboard: {
       newBooking: "تسجيل جديد",
       expectedTonight: "المتوقع الليلة {count} من {of} سريرًا متاحًا ({value})",
+      readyRooms: "أسرّة فارغة",
+      openWorkRequests: "طلبات الطلاب",
     },
     todayLayouts: {
-      figure: { tonight: "{count} متوقعون الليلة من {available} سريرًا" },
+      rooms: {
+        vacant:
+          "{free, plural, zero {لا غرف خالية} one {غرفة خالية واحدة} two {غرفتان خاليتان} few {# غرف خالية} many {# غرفة خالية} other {# غرفة خالية}} من النزلاء الليلة، {count} نظيفة وجاهزة.",
+      },
+      figure: {
+        tonight: "{count} متوقعون الليلة من {available} سريرًا",
+        readyToSell: "أسرّة فارغة",
+      },
     },
     configuration: {
       operatingModelHints: {

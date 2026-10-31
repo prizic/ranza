@@ -11,6 +11,7 @@ export function todayHref(
     | "arrivals"
     | "close-day"
     | "departures"
+    | "guest-experience"
     | "housekeeping"
     | "maintenance"
     | "finance"

@@ -91,6 +91,7 @@ const ALL = {
   housekeeping: true,
   billing: true,
   maintenance: true,
+  guestExperience: true,
 };
 
 function day(
@@ -103,6 +104,7 @@ function day(
     organizationId: "d0000002-0000-4000-8000-000000000001",
     timezone: "Europe/Istanbul",
     currency: "TRY",
+    operatingModel: "hotel",
     businessDate: "2026-09-25",
     calendarDate: "2026-09-25",
     cutoff: "04:00",
@@ -342,6 +344,7 @@ describe("what a viewer is sent", () => {
       housekeeping: false,
       billing: true,
       maintenance: false,
+      guestExperience: false,
     });
     expect(withoutHousekeeping.rooms).toBe(false);
     const summary = deriveToday(
@@ -351,6 +354,7 @@ describe("what a viewer is sent", () => {
           housekeeping: false,
           billing: true,
           maintenance: false,
+          guestExperience: false,
         },
         board: undefined,
       }),
@@ -366,6 +370,7 @@ describe("what a viewer is sent", () => {
           housekeeping: true,
           billing: false,
           maintenance: false,
+          guestExperience: false,
         },
       }),
     );
@@ -380,6 +385,7 @@ describe("what a viewer is sent", () => {
           housekeeping: false,
           billing: true,
           maintenance: false,
+          guestExperience: false,
         },
         arrivals: undefined,
         departures: undefined,
@@ -1081,6 +1087,7 @@ describe("reading it", () => {
       charges: vi.fn(async () => [] as ChargesPosted[]),
       calendar: vi.fn(async () => calendarOf([])),
       daysWaiting: vi.fn(async () => null),
+      guestRequests: vi.fn(async () => ({ open: 0, urgent: 0 })),
       ...overrides,
     };
   }
@@ -1089,6 +1096,10 @@ describe("reading it", () => {
     housekeeping: { moduleKey: "housekeeping", capabilityKey: "housekeeping" },
     billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
     maintenance: { moduleKey: "maintenance", capabilityKey: "maintenance" },
+    guestExperience: {
+      moduleKey: "guest_services",
+      capabilityKey: "guest_experience",
+    },
   };
 
   it("one_section_failing_leaves_the_others_standing", async () => {
@@ -1331,7 +1342,7 @@ describe("empty beds by whom the room admits (RB-S5-20)", () => {
         deriveToday(input(permissions, { units: ok(yurt) })).emptyBeds,
       ).toEqual({
         status: "ok",
-        data: { female: 2, male: 1, anyone: 1, byBed: true },
+        data: { female: 2, male: 1, anyone: 1, byBed: true, blocks: [] },
       });
     }
   });
@@ -1886,6 +1897,10 @@ describe("the day, as the UX audit found it", () => {
         },
         billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
         maintenance: { moduleKey: "maintenance", capabilityKey: "maintenance" },
+        guestExperience: {
+          moduleKey: "guest_services",
+          capabilityKey: "guest_experience",
+        },
       },
       vi.fn(),
     );
@@ -1894,6 +1909,184 @@ describe("the day, as the UX audit found it", () => {
     // A colleague, not an address; and the Guest and room it concerned.
     expect(summary?.activity).toMatchObject({
       data: { rows: [{ actor: "albaraa", subject: "Ahmed · 102" }] },
+    });
+  });
+});
+
+describe("a dormitory's Today (RANZ-108)", () => {
+  const DORMITORY = { operatingModel: "dormitory" as const };
+  const REQUESTS = ["guest_services.manage_requests"];
+  const bed = (unitId: string, free: boolean) =>
+    unit({
+      unitId,
+      name: unitId,
+      unitType: "bed",
+      state: free ? { kind: "free", nextArrivalOn: null } : null,
+    });
+  const room = (name: string, building: string | null, beds: UnitEntry[]) =>
+    unit({
+      unitId: name,
+      name,
+      building,
+      admits: "female",
+      state: null,
+      beds,
+    });
+  const yurt = map([
+    room("A-1", "Blok A", [bed("a1", true), bed("a2", false)]),
+    room("B-1", "Blok B", [bed("b1", true), bed("b2", true)]),
+  ]);
+  const BED_COUNTS: UnitCounts = {
+    rooms: 2,
+    sellable: 4,
+    inHouse: 0,
+    reserved: 1,
+    free: 3,
+    blocked: 0,
+    outOfService: 0,
+  };
+
+  describe("open requests and maintenance", () => {
+    const open = (overrides: Partial<TodayInput> = {}) =>
+      deriveToday({
+        ...input([...MANAGER, ...REQUESTS, ...MANAGES], {
+          maintenance: ok(
+            maintenance({
+              open: { new: 2, in_progress: 1, waiting_for_parts: 1 },
+              outOfOrder: 3,
+              urgent: [urgent({})],
+            }),
+          ),
+          guestRequests: ok({ open: 5, urgent: 2 }),
+          ...overrides,
+        }),
+        day: day([...MANAGER, ...REQUESTS, ...MANAGES], DORMITORY),
+      });
+
+    it("counts_what_is_open_in_each_list_and_how_much_of_it_is_urgent", () => {
+      expect(open().openWork).toEqual({
+        status: "ok",
+        data: {
+          requests: { open: 5, urgent: 2 },
+          maintenance: { open: 4, urgent: 1, outOfOrder: 3 },
+        },
+      });
+    });
+
+    it("replaces_the_hotels_maintenance_card_so_no_number_is_said_twice", () => {
+      expect(open().maintenance).toBeUndefined();
+    });
+
+    it("leaves_out_a_figure_the_viewer_may_not_see_rather_than_showing_zero", () => {
+      const noRequests = deriveToday({
+        ...input([...MANAGER, ...MANAGES], {
+          maintenance: ok(maintenance()),
+          guestRequests: ok({ open: 5, urgent: 2 }),
+        }),
+        day: day([...MANAGER, ...MANAGES], DORMITORY),
+      });
+      expect(noRequests.openWork).toMatchObject({
+        status: "ok",
+        data: { requests: null, maintenance: { open: 0 } },
+      });
+      const noCapability = deriveToday({
+        ...input([...MANAGER, ...REQUESTS], {
+          guestRequests: ok({ open: 5, urgent: 2 }),
+          capabilities: { ...ALL, guestExperience: false },
+        }),
+        day: day([...MANAGER, ...REQUESTS], DORMITORY),
+      });
+      expect(noCapability.openWork).toBeUndefined();
+    });
+
+    it("is_unavailable_when_either_read_failed_never_a_confident_zero", () => {
+      expect(open({ guestRequests: { ok: false } }).openWork).toEqual({
+        status: "unavailable",
+      });
+      expect(open({ maintenance: { ok: false } }).openWork).toEqual({
+        status: "unavailable",
+      });
+    });
+
+    it("is_not_for_the_finance_focus_or_a_role_that_leads_nowhere", () => {
+      for (const permissions of [[...FINANCE, ...REQUESTS], REQUESTS]) {
+        expect(
+          deriveToday({
+            ...input(permissions, {
+              guestRequests: ok({ open: 1, urgent: 0 }),
+            }),
+            day: day(permissions, DORMITORY),
+          }).openWork,
+        ).toBeUndefined();
+      }
+    });
+
+    it("is_read_only_where_a_dormitory_has_the_capability_and_the_permission", () => {
+      const grants = grantsFor([...MANAGER, ...REQUESTS]);
+      expect(needsFor(grants, ALL, "dormitory").guestRequests).toBe(true);
+      expect(needsFor(grants, ALL, "hotel").guestRequests).toBe(false);
+      expect(needsFor(grants, ALL).guestRequests).toBe(false);
+      expect(
+        needsFor(grants, { ...ALL, guestExperience: false }, "dormitory")
+          .guestRequests,
+      ).toBe(false);
+      expect(needsFor(grantsFor(MANAGER), ALL, "dormitory").guestRequests).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("beds", () => {
+    it("says_the_rooms_screens_own_empty_count_where_rooms_are_let_by_the_bed", () => {
+      const summary = deriveToday({
+        ...input(MANAGER, { units: ok({ ...yurt, counts: BED_COUNTS }) }),
+        day: day(MANAGER, DORMITORY),
+      });
+      expect(summary.occupancy).toMatchObject({
+        status: "ok",
+        data: { beds: { empty: 3, reserved: 1, blocked: 0, outOfService: 0 } },
+      });
+    });
+
+    it("splits_the_empty_beds_building_by_building_and_they_add_up_to_the_house", () => {
+      const summary = deriveToday({
+        ...input(FRONT_DESK, { units: ok(yurt) }),
+        day: day(FRONT_DESK, DORMITORY),
+      });
+      const card = summary.emptyBeds?.status === "ok" && summary.emptyBeds.data;
+      expect(card && card.blocks).toEqual([
+        { block: "Blok A", female: 1, male: 0, anyone: 0 },
+        { block: "Blok B", female: 2, male: 0, anyone: 0 },
+      ]);
+      expect(card && card.female).toBe(3);
+    });
+  });
+
+  describe("a hotel's Today is the Today it was", () => {
+    // The same rooms, the same people, the same permissions and capabilities,
+    // read at a hotel: nothing a dormitory adds is in the answer.
+    const hotel = (permissions: string[]) =>
+      deriveToday({
+        ...input([...permissions, ...REQUESTS], {
+          maintenance: ok(maintenance()),
+          guestRequests: ok({ open: 4, urgent: 1 }),
+        }),
+        day: day([...permissions, ...REQUESTS], { operatingModel: "hotel" }),
+      });
+
+    it("draws_no_open_work_card_and_no_bed_figures_and_keeps_its_maintenance_card", () => {
+      const summary = hotel(MANAGER);
+      expect(summary.openWork).toBeUndefined();
+      expect(summary.maintenance?.status).toBe("ok");
+      expect(
+        summary.occupancy?.status === "ok" && summary.occupancy.data.beds,
+      ).toBeUndefined();
+    });
+
+    it("never_asks_the_service_request_read_at_all", () => {
+      expect(
+        needsFor(grantsFor([...MANAGER, ...REQUESTS]), ALL).guestRequests,
+      ).toBe(false);
     });
   });
 });

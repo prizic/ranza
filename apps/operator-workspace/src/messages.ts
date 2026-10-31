@@ -2206,6 +2206,17 @@ export interface Messages {
     filterFreeAnyone: string;
     emptyBedsTitle: string;
     emptyBedsHint: string;
+    emptyBedsAllBlocks: string;
+    filterFreeInBlock: string;
+    filterBlock: string;
+    openWorkTitle: string;
+    openWorkHint: string;
+    openWorkRequests: string;
+    openWorkMaintenance: string;
+    openWorkRequestsLink: string;
+    openWorkMaintenanceLink: string;
+    openWorkOutOfOrderLink: string;
+    openWorkUrgent: string;
     filterShowAll: string;
     filterReadyCount: string;
     roomOccupiedNoMark: string;
@@ -2233,6 +2244,7 @@ export interface Messages {
   /** The Housekeeping screen (RANZ-28). */
   /** The Rooms & beds screen's own words, beyond the shared room labels. */
   roomsPage: {
+    otherRooms: string;
     addDescription: string;
     /** Whom a room admits (RB-S5-14, RB-S5-15). `{room}` is its number. */
     admitsTitle: string;
@@ -4968,6 +4980,20 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{unit, select, bed {Bu gece boş yatak} other {Bu gece boş oda}}",
       emptyBedsHint:
         "Odanın kimi kabul ettiğine göre. Her sayı o odaları haritada açar.",
+      emptyBedsAllBlocks: "Tüm bloklar",
+      filterFreeInBlock:
+        "{block} içinde {admits, select, female {yalnızca kadınlara ayrılan} male {yalnızca erkeklere ayrılan} other {herkese açık}} odalarda bu gece {count, number} boş yer",
+      filterBlock: "{block}: {count, plural, other {# oda}}",
+      openWorkTitle: "Talepler ve bakım",
+      openWorkHint:
+        "Hâlâ biri tarafından beklenenler. Her sayı kendi listesini açar.",
+      openWorkRequests: "Talep",
+      openWorkMaintenance: "Bakım",
+      openWorkRequestsLink: "{count, plural, other {# açık talep}}",
+      openWorkMaintenanceLink: "{count, plural, other {# açık bakım talebi}}",
+      openWorkOutOfOrderLink:
+        "{count, plural, other {# oda ya da yatak bakımda}}",
+      openWorkUrgent: "{count, plural, other {# acil}}",
       filterShowAll: "Tümünü göster",
       filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
       roomOccupiedNoMark: "İçinde misafir var; ayrılınca temizlenir.",
@@ -5907,6 +5933,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
     roomsPage: {
+      otherRooms: "Diğer odalar",
       addDescription:
         "Odaları tek seferde oluşturun. Sırayla numaralandırılırlar.",
       admitsTitle: "Kimleri kabul eder",
@@ -8883,6 +8910,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{unit, select, bed {Empty beds tonight} other {Free rooms tonight}}",
       emptyBedsHint:
         "By whom the room admits. Each figure opens those rooms on the map.",
+      emptyBedsAllBlocks: "All blocks",
+      filterFreeInBlock:
+        "{count, number} free tonight in {block}, in rooms for {admits, select, female {women only} male {men only} other {anyone}}",
+      filterBlock:
+        "{count, plural, one {# room in {block}} other {# rooms in {block}}}",
+      openWorkTitle: "Requests and maintenance",
+      openWorkHint: "Still waiting on somebody. Each figure opens its list.",
+      openWorkRequests: "Requests",
+      openWorkMaintenance: "Maintenance",
+      openWorkRequestsLink:
+        "{count, plural, one {# open request} other {# open requests}}",
+      openWorkMaintenanceLink:
+        "{count, plural, one {# open maintenance request} other {# open maintenance requests}}",
+      openWorkOutOfOrderLink:
+        "{count, plural, one {# room or bed out of order} other {# rooms or beds out of order}}",
+      openWorkUrgent: "{count} urgent",
       filterShowAll: "Show all",
       filterReadyCount: "{count, plural, one {# ready} other {# ready}}",
       roomOccupiedNoMark:
@@ -9825,6 +9868,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
     roomsPage: {
+      otherRooms: "Other rooms",
       addDescription: "Create rooms in one go. They are numbered in sequence.",
       admitsTitle: "Who it admits",
       admitsHint:
@@ -12746,6 +12790,22 @@ export const messages: Record<SupportedLocale, Messages> = {
         "{unit, select, bed {أسرّة فارغة الليلة} other {غرف شاغرة الليلة}}",
       emptyBedsHint:
         "حسب من تستقبله الغرفة. كل رقم يفتح تلك الغرف على الخريطة.",
+      emptyBedsAllBlocks: "كل المباني",
+      filterFreeInBlock:
+        "شاغر الليلة في {block}، في غرف {admits, select, female {النساء فقط} male {الرجال فقط} other {الجميع}}: {count, number}",
+      filterBlock:
+        "{count, plural, zero {لا غرف في {block}} one {غرفة واحدة في {block}} two {غرفتان في {block}} few {# غرف في {block}} many {# غرفة في {block}} other {# غرفة في {block}}}",
+      openWorkTitle: "الطلبات والصيانة",
+      openWorkHint: "ما زال ينتظر من يتولاه. كل رقم يفتح قائمته.",
+      openWorkRequests: "الطلبات",
+      openWorkMaintenance: "الصيانة",
+      openWorkRequestsLink:
+        "{count, plural, zero {لا طلبات مفتوحة} one {طلب مفتوح واحد} two {طلبان مفتوحان} few {# طلبات مفتوحة} many {# طلبًا مفتوحًا} other {# طلب مفتوح}}",
+      openWorkMaintenanceLink:
+        "{count, plural, zero {لا طلبات صيانة مفتوحة} one {طلب صيانة مفتوح واحد} two {طلبا صيانة مفتوحان} few {# طلبات صيانة مفتوحة} many {# طلب صيانة مفتوحًا} other {# طلب صيانة مفتوح}}",
+      openWorkOutOfOrderLink:
+        "{count, plural, zero {لا غرف أو أسرّة خارج الخدمة} one {غرفة أو سرير واحد خارج الخدمة} two {غرفتان أو سريران خارج الخدمة} few {# غرف أو أسرّة خارج الخدمة} many {# غرفة أو سريرًا خارج الخدمة} other {# غرفة أو سرير خارج الخدمة}}",
+      openWorkUrgent: "منها {count, number} عاجل",
       filterShowAll: "اعرض الكل",
       filterReadyCount:
         "{count, plural, zero {لا جاهزة} one {واحدة جاهزة} two {اثنتان جاهزتان} few {# جاهزة} many {# جاهزة} other {# جاهزة}}",
@@ -13664,6 +13724,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       },
     },
     roomsPage: {
+      otherRooms: "غرف أخرى",
       addDescription: "أنشئ الغرف دفعة واحدة. تُرقَّم بالتسلسل.",
       admitsTitle: "من تقبل",
       admitsHint:

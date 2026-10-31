@@ -50,6 +50,22 @@ export type UnitStateFilter = (typeof UNIT_STATE_FILTERS)[number];
 export const ADMITS_FILTERS = ["female", "male", "anyone"] as const;
 export type AdmitsFilter = (typeof ADMITS_FILTERS)[number];
 
+/**
+ * `?block=` on Rooms: a building's name, or `none` for rooms recorded in no
+ * building. A name no room carries is checked against the map by the page.
+ */
+export const NO_BLOCK = "none";
+export type BlockFilter = { block: string | null };
+
+export function parseBlockFilter(raw: string | undefined): BlockFilter | null {
+  if (raw === undefined || raw.trim() === "") return null;
+  return { block: raw === NO_BLOCK ? null : raw };
+}
+
+/** The address form of a building: its name, or `none` for no building. */
+export const blockParam = (building: string | null): string =>
+  building ?? NO_BLOCK;
+
 function parse<T extends string>(
   allowed: readonly T[],
   raw: string | undefined,
@@ -246,6 +262,14 @@ export function inRoomFilter(
   }
 }
 
+/** Whether a room is in the building `?block=` names; every room when it names none. */
+export function inBlock(
+  room: Pick<UnitEntry, "building">,
+  filter: BlockFilter | null,
+): boolean {
+  return filter === null || room.building === filter.block;
+}
+
 export function admitsOf(room: Pick<UnitEntry, "admits">): AdmitsFilter {
   return room.admits ?? "anyone";
 }
@@ -270,4 +294,32 @@ export function freeByAdmits(
   const free: Record<AdmitsFilter, number> = { female: 0, male: 0, anyone: 0 };
   for (const room of rooms) free[admitsOf(room)] += freeTonight(room);
   return free;
+}
+
+/** One building's free places, split as `freeByAdmits` splits the house. */
+export type BlockFree = { block: string | null } & Record<AdmitsFilter, number>;
+
+/**
+ * The same count building by building, in the order the map lists them, rooms
+ * in no building last. Empty unless some room names a building: a house of one
+ * undivided building is already said by `freeByAdmits`. Every figure of it is
+ * the list `?block=` and `?admits=` open together, so each is the length of its
+ * rows, as the house-wide ones are.
+ */
+export function freeByBlock(rooms: readonly UnitEntry[]): BlockFree[] {
+  if (rooms.every((room) => room.building === null)) return [];
+  const blocks = new Map<string | null, BlockFree>();
+  for (const room of rooms) {
+    const row = blocks.get(room.building) ?? {
+      block: room.building,
+      female: 0,
+      male: 0,
+      anyone: 0,
+    };
+    row[admitsOf(room)] += freeTonight(room);
+    blocks.set(room.building, row);
+  }
+  return [...blocks.values()].sort(
+    (a, b) => Number(a.block === null) - Number(b.block === null),
+  );
 }

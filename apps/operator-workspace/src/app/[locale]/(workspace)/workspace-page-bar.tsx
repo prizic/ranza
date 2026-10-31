@@ -33,6 +33,7 @@ export function WorkspacePageBar({
   action,
   brand,
   defaultProperty,
+  dormitoryIds,
   locale,
   mode,
   reachable,
@@ -43,6 +44,8 @@ export function WorkspacePageBar({
   brand?: ReactNode;
   /** The Property the switcher names when the URL names none. */
   defaultProperty: string | undefined;
+  /** The Properties run as dormitories, whose pages are listed in their order. */
+  dormitoryIds: readonly string[];
   locale: SupportedLocale;
   /** Whether the pages are a sidebar's, or chips in this bar (`navModeFor`). */
   mode: NavMode;
@@ -57,6 +60,7 @@ export function WorkspacePageBar({
     reachable,
     defaultProperty,
     segmentsByProperty,
+    dormitoryIds,
   );
   const t = useTranslations();
   const withProperty = useWithProperty(

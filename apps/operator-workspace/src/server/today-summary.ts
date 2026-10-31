@@ -10,6 +10,10 @@ import type {
   HousekeepingBoard,
   HousekeepingModule,
 } from "@ranza/housekeeping";
+import type {
+  GuestServicesModule,
+  OpenServiceRequests,
+} from "@ranza/guest-services";
 import type { MaintenanceModule, TodayMaintenance } from "@ranza/maintenance";
 import type {
   Arrival,
@@ -59,6 +63,8 @@ export interface TodayReads {
   /** From the business date, the nights ahead. */
   calendar: (propertyId: string, from: string) => Promise<RoomCalendar>;
   daysWaiting: (propertyId: string) => Promise<DaysWaiting | null>;
+  /** Requests still waiting on somebody: a dormitory's open work card. */
+  guestRequests: (propertyId: string) => Promise<OpenServiceRequests>;
 }
 
 export interface TodayModules {
@@ -69,6 +75,7 @@ export interface TodayModules {
   folios: FoliosModule;
   maintenance: MaintenanceModule;
   businessDay: BusinessDayModule;
+  guestServices: GuestServicesModule;
 }
 
 export function todayReads(modules: TodayModules, userId: string): TodayReads {
@@ -100,6 +107,8 @@ export function todayReads(modules: TodayModules, userId: string): TodayReads {
       }),
     daysWaiting: (propertyId) =>
       modules.businessDay.daysWaiting(userId, propertyId),
+    guestRequests: (propertyId) =>
+      modules.guestServices.openCounts(userId, propertyId),
   };
 }
 
@@ -143,6 +152,7 @@ export async function readTodaySummary(
     housekeeping: CapabilityRef;
     billing: CapabilityRef;
     maintenance: CapabilityRef;
+    guestExperience: CapabilityRef;
   },
   report: Report,
 ): Promise<TodaySummary | null> {
@@ -151,6 +161,7 @@ export async function readTodaySummary(
     capabilities.housekeeping,
     capabilities.billing,
     capabilities.maintenance,
+    capabilities.guestExperience,
   ]);
   if (!day) return null;
 
@@ -159,8 +170,9 @@ export async function readTodaySummary(
     housekeeping: day.capabilities[1] === true,
     billing: day.capabilities[2] === true,
     maintenance: day.capabilities[3] === true,
+    guestExperience: day.capabilities[4] === true,
   };
-  const needs = needsFor(grantsFor(day.permissions), has);
+  const needs = needsFor(grantsFor(day.permissions), has, day.operatingModel);
   const input: TodayInput = { day, capabilities: has };
 
   if (needs.arrivals) {
@@ -229,6 +241,13 @@ export async function readTodaySummary(
     input.calendar = await attempt(
       "calendar",
       () => reads.calendar(propertyId, day.businessDate),
+      report,
+    );
+  }
+  if (needs.guestRequests) {
+    input.guestRequests = await attempt(
+      "guestRequests",
+      () => reads.guestRequests(propertyId),
       report,
     );
   }

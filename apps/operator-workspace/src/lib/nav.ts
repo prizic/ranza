@@ -2,7 +2,7 @@ import { useSearchParams } from "next/navigation";
 import type { NavEntry } from "@ranza/ui";
 import { useTranslations } from "next-intl";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
-import { SCREENS } from "./screens";
+import { screensFor } from "./screens";
 
 /**
  * The rail's tree, built from the blueprint 4.6 destination list.
@@ -77,6 +77,7 @@ export function useWorkspaceNav(
   reachable: readonly string[],
   defaultProperty: string | undefined,
   segmentsByProperty: Readonly<Record<string, readonly string[]>> = {},
+  dormitoryIds: readonly string[] = [],
 ): NavEntry[] {
   const t = useTranslations("navigation");
   const soon = useTranslations()("plannedBadge");
@@ -94,32 +95,39 @@ export function useWorkspaceNav(
       ? openHere.includes(segment)
       : reachable.includes(segment);
 
-  return SCREENS.filter((screen) =>
-    screen.children
-      ? screen.children.some((child) => open(child.segment))
-      : open(screen.segment),
-  ).map((screen) =>
-    screen.children
-      ? {
-          icon: screen.icon,
-          label: label(screen.segment),
-          section: screen.section,
-          children: screen.children
-            .filter((child) => open(child.segment))
-            .map((child) => ({
-              href: withProperty(localizeHref(locale, child.segment)),
-              icon: child.icon,
-              label: label(child.segment),
-            })),
-        }
-      : {
-          href: withProperty(localizeHref(locale, screen.segment)),
-          icon: screen.icon,
-          label: label(screen.segment),
-          section: screen.section,
-          // Offered on purpose (ADR 0056) and marked, so nobody opens it
-          // expecting a workflow (PORTAL-01).
-          badge: screen.built ? undefined : soon,
-        },
-  );
+  const model =
+    property !== undefined && dormitoryIds.includes(property)
+      ? "dormitory"
+      : null;
+
+  return screensFor(model)
+    .filter((screen) =>
+      screen.children
+        ? screen.children.some((child) => open(child.segment))
+        : open(screen.segment),
+    )
+    .map((screen) =>
+      screen.children
+        ? {
+            icon: screen.icon,
+            label: label(screen.segment),
+            section: screen.section,
+            children: screen.children
+              .filter((child) => open(child.segment))
+              .map((child) => ({
+                href: withProperty(localizeHref(locale, child.segment)),
+                icon: child.icon,
+                label: label(child.segment),
+              })),
+          }
+        : {
+            href: withProperty(localizeHref(locale, screen.segment)),
+            icon: screen.icon,
+            label: label(screen.segment),
+            section: screen.section,
+            // Offered on purpose (ADR 0056) and marked, so nobody opens it
+            // expecting a workflow (PORTAL-01).
+            badge: screen.built ? undefined : soon,
+          },
+    );
 }

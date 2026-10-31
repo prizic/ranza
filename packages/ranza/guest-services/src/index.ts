@@ -8,6 +8,7 @@ export {
   ServiceRequestStateError,
   ServiceRequestUnavailableError,
   type CreateServiceRequestInput,
+  type OpenServiceRequests,
   type ServiceRequestAccess,
   type ServiceRequestStaff,
   type ServiceRequestCategory,
@@ -18,4 +19,5 @@ export {
   type UpdateServiceRequestInput,
 } from "./contracts";
 export { createGuestServicesModule } from "./module";
+export type { GuestServicesModule } from "./module";
 export type { GuestServicesDeps } from "./ports";

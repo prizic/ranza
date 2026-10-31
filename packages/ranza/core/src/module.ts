@@ -478,6 +478,7 @@ export function createCoreModule(deps: CoreDeps) {
           property.organization_id                        as "organizationId",
           property.timezone                               as "timezone",
           trim(property.currency)                         as "currency",
+          property.operating_model                        as "operatingModel",
           to_char(app.property_today(property.id), 'YYYY-MM-DD')
                                                           as "businessDate",
           to_char((now() at time zone property.timezone)::date, 'YYYY-MM-DD')

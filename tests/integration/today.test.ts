@@ -24,6 +24,10 @@ import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
 import { createFoliosModule } from "../../packages/ranza/folios/src";
 import { owedAcrossFolios } from "../../apps/operator-workspace/src/lib/owed";
 import type { MoneyCard } from "../../apps/operator-workspace/src/server/today-derive";
+import {
+  createGuestServicesModule,
+  GUEST_SERVICES_CAPABILITY,
+} from "../../packages/ranza/guest-services/src";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
 import {
   createMaintenanceModule,
@@ -70,6 +74,7 @@ const modules = {
   folios: createFoliosModule({ db: prisma }),
   maintenance: createMaintenanceModule({ db: prisma }),
   businessDay: createBusinessDayModule({ db: prisma }),
+  guestServices: createGuestServicesModule({ db: prisma }),
 };
 
 const CAPABILITIES = {
@@ -77,6 +82,7 @@ const CAPABILITIES = {
   housekeeping: { moduleKey: "housekeeping", capabilityKey: "housekeeping" },
   billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
   maintenance: MAINTENANCE_CAPABILITY,
+  guestExperience: GUEST_SERVICES_CAPABILITY,
 };
 
 const failures: unknown[] = [];

@@ -26,6 +26,10 @@ import { createCoreModule } from "../../packages/ranza/core/src";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
 import { createBusinessDayModule } from "../../packages/ranza/business-day/src";
 import { createFoliosModule } from "../../packages/ranza/folios/src";
+import {
+  createGuestServicesModule,
+  GUEST_SERVICES_CAPABILITY,
+} from "../../packages/ranza/guest-services/src";
 import { createHousekeepingModule } from "../../packages/ranza/housekeeping/src";
 import {
   createMaintenanceModule,
@@ -54,12 +58,14 @@ const modules = {
   folios: createFoliosModule({ db: prisma }),
   maintenance: createMaintenanceModule({ db: prisma }),
   businessDay: createBusinessDayModule({ db: prisma }),
+  guestServices: createGuestServicesModule({ db: prisma }),
 };
 const CAPABILITIES = {
   frontDesk: { moduleKey: "front_office", capabilityKey: "front_desk" },
   housekeeping: { moduleKey: "housekeeping", capabilityKey: "housekeeping" },
   billing: { moduleKey: "billing_folios", capabilityKey: "finance" },
   maintenance: MAINTENANCE_CAPABILITY,
+  guestExperience: GUEST_SERVICES_CAPABILITY,
 };
 
 const UNITS = ["UX-1", "UX-2", "UX-3", "UX-4", "UX-5", "UX-6"] as const;

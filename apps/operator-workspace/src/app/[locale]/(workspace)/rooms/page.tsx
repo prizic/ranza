@@ -16,6 +16,8 @@ import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import {
   parseAdmitsFilter,
+  parseBlockFilter,
+  inBlock,
   parseUnitStateFilter,
 } from "../../../../features/today/views";
 
@@ -36,6 +38,7 @@ export default async function RoomsPage({
     view?: string;
     show?: string;
     admits?: string;
+    block?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -71,9 +74,13 @@ export default async function RoomsPage({
   const hasHousekeeping = housekeeping.some(
     (candidate) => candidate.propertyId === property.propertyId,
   );
+  // A building no room is in is no narrowing, like an unknown ?show= (TD-S5-04).
+  const block = parseBlockFilter(search.block);
   const initialFilter = {
     show: parseUnitStateFilter(search.show),
     admits: parseAdmitsFilter(search.admits),
+    block:
+      block && data.units.some((room) => inBlock(room, block)) ? block : null,
   };
 
   return (
@@ -81,7 +88,7 @@ export default async function RoomsPage({
       data={data}
       // A new narrowing from a link is a new starting point, not a change to
       // the filters somebody set by hand.
-      key={`${initialFilter.show}:${initialFilter.admits}`}
+      key={`${initialFilter.show}:${initialFilter.admits}:${initialFilter.block?.block ?? ""}`}
       housekeepingHref={
         hasHousekeeping
           ? `${localizeHref(locale, "housekeeping")}?property=${property.propertyId}`

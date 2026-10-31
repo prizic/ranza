@@ -229,6 +229,7 @@ export default async function WorkspaceLayout({
           mode === "sidebar" ? (
             <WorkspaceBottomNav
               defaultProperty={first?.propertyId}
+              dormitoryIds={dormitoryIds}
               reachable={reachable}
               segmentsByProperty={segmentsByProperty}
               label={t("mainNavigation")}
@@ -296,6 +297,7 @@ export default async function WorkspaceLayout({
               </>
             }
             defaultProperty={first?.propertyId}
+            dormitoryIds={dormitoryIds}
             reachable={reachable}
             segmentsByProperty={segmentsByProperty}
             locale={locale}
@@ -317,6 +319,7 @@ export default async function WorkspaceLayout({
               }
               brand={<BrandMark className="size-5" />}
               defaultProperty={first?.propertyId}
+              dormitoryIds={dormitoryIds}
               reachable={reachable}
               segmentsByProperty={segmentsByProperty}
               labels={{

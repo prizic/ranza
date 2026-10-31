@@ -1,3 +1,4 @@
+import type { OperatingModel } from "@ranza/core";
 import {
   BarChart3,
   Bed,
@@ -440,6 +441,81 @@ export const SCREENS: Screen[] = [
     built: true,
   },
 ];
+
+/**
+ * What a dormitory works from first, in order (RANZ-108): the beds, the
+ * calendar of who is in them, the registrations, what students and staff have
+ * asked for, then the building. The rest follow in the hotel's own order.
+ */
+const DORMITORY_FIRST = [
+  "today",
+  "front-office",
+  "guest-experience",
+  "maintenance",
+  "housekeeping",
+  "close-day",
+] as const;
+
+/** Front Office at a dormitory: the beds first, the movements a hotel opens with last. */
+const DORMITORY_FRONT_OFFICE = [
+  "rooms",
+  "room-calendar",
+  "reservations",
+  "arrivals",
+  "departures",
+] as const;
+
+const FRONT_OFFICE = SCREENS.find(
+  (screen) => screen.segment === "front-office",
+);
+
+function inOrder<T extends { segment: string }>(
+  screens: readonly T[],
+  first: readonly string[],
+): T[] {
+  const rank = (screen: T) => {
+    const place = first.indexOf(screen.segment);
+    return place === -1 ? first.length : place;
+  };
+  // Array#sort is stable, so everything not named keeps its own order.
+  return [...screens].sort((a, b) => rank(a) - rank(b));
+}
+
+/**
+ * The rail's destinations for a Property run as `model`.
+ *
+ * Order and grouping only: the same destinations with the same gates, so
+ * which pages a role reaches stays ADR 0056's, and a Property of either model
+ * offers exactly the pages the other would. Close the day sits among the
+ * building's work rather than in Front Office, where a dormitory with few
+ * movements has little use for it above the beds (ADR 0057: a default, not a
+ * rule).
+ */
+export function screensFor(model: OperatingModel | null): Screen[] {
+  if (model !== "dormitory" || !FRONT_OFFICE?.children) return SCREENS;
+  const closeDay = FRONT_OFFICE.children.find(
+    (child) => child.segment === "close-day",
+  );
+  const frontOffice: Screen = {
+    ...FRONT_OFFICE,
+    children: inOrder(
+      FRONT_OFFICE.children.filter((child) => child.segment !== "close-day"),
+      DORMITORY_FRONT_OFFICE,
+    ),
+  };
+  const lifted: Screen[] = closeDay
+    ? [{ ...closeDay, section: "operations" }]
+    : [];
+  return inOrder(
+    [
+      ...SCREENS.map((screen) =>
+        screen.segment === "front-office" ? frontOffice : screen,
+      ),
+      ...lifted,
+    ],
+    DORMITORY_FIRST,
+  );
+}
 
 /**
  * What a destination asks of a Property and of the person — the one gate the
