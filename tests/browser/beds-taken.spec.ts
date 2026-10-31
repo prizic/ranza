@@ -159,4 +159,15 @@ test("a dormitory room says how many of its beds are taken, and the map counts t
     // Y-101 D and Y-102 B: never the blocked bed, never a bed somebody is in.
     await expect(figure(page, words.empty)).toHaveText("2");
   }
+
+  // A single beside a quad starts its bed where the quad starts its first row,
+  // rather than hanging it at the foot of a card the quad made tall.
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`/en/rooms?property=${yurt.propertyId}`);
+  const firstBedTop = async (room: string): Promise<number> =>
+    (await card(page, room).locator('[id^="unit-"]').first().boundingBox())
+      ?.y ?? Number.NaN;
+  expect(
+    Math.abs((await firstBedTop("Y-103")) - (await firstBedTop("Y-101"))),
+  ).toBeLessThan(2);
 });

@@ -576,7 +576,12 @@ export function RoomsView({
                             key={room.unitId}
                             id={`room-${room.unitId}`}
                             className={cn(
-                              "relative justify-between gap-4 rounded-4xl transition-all duration-300",
+                              "relative gap-4 rounded-4xl transition-all duration-300",
+                              // Beds start under their header, so a single beside
+                              // a quad does not hang its one bed at the bottom.
+                              isLetByTheBed
+                                ? "justify-start"
+                                : "justify-between",
                               room.unitId === targetRoomId &&
                                 "ring-2 ring-primary ring-offset-2",
                             )}
