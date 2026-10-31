@@ -563,11 +563,13 @@ export function RoomsView({
                                     />
                                   ) : null}
                                 </CardTitle>
-                                <span className="text-xs text-muted-foreground">
-                                  {isLetByTheBed
-                                    ? t("bedCount", { count: room.beds.length })
-                                    : t("sleeps", { count: room.capacity })}
-                                </span>
+                                {isLetByTheBed ? (
+                                  <BedsTaken beds={room.beds} />
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    {t("sleeps", { count: room.capacity })}
+                                  </span>
+                                )}
                               </div>
                               {isLetByTheBed ? null : (
                                 <p className="text-xs text-muted-foreground">
@@ -952,6 +954,30 @@ function StatTile({
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * How many of a room's beds somebody is in tonight, over all of them (RB-S5-19):
+ * what a dormitory reads off a room before its beds. Taken is in house, as the
+ * Occupied tile counts it; a bed reserved, blocked or out of order is in the
+ * total and not taken, and its own tile says which. A full room takes the
+ * occupied tile's colour.
+ */
+function BedsTaken({ beds }: { beds: readonly UnitEntry[] }) {
+  const t = useTranslations();
+  const taken = beds.filter((bed) => bed.state?.kind === "in_house").length;
+  return (
+    <span
+      className={cn(
+        "text-xs tabular-nums",
+        taken === beds.length
+          ? "font-medium text-info"
+          : "text-muted-foreground",
+      )}
+    >
+      {t("bedsTaken", { taken, beds: beds.length })}
+    </span>
   );
 }
 

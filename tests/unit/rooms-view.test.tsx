@@ -271,6 +271,43 @@ describe("the words for a Property with and without beds (ROOMS-06, ROOMS-13)", 
   });
 });
 
+describe("beds taken on a room let by the bed (RB-S5-19)", () => {
+  const inHouse = (name: string): UnitEntry =>
+    unit(name, { kind: "in_house", guestName: `Guest ${name}`, endsOn: null });
+  const roomOf = (name: string, beds: UnitEntry[]): UnitEntry => ({
+    ...unit(name, null),
+    beds,
+  });
+
+  it("counts_the_beds_somebody_is_in_over_every_bed_and_colours_a_full_room", () => {
+    render(
+      screenOf("en", {
+        data: {
+          ...map,
+          units: [
+            roomOf("301", [
+              inHouse("A"),
+              inHouse("B"),
+              unit("C", { kind: "reserved", arrivesOn: "2026-10-01" }),
+              unit("D", { kind: "blocked", reason: "Broken frame" }),
+            ]),
+            roomOf("302", [inHouse("E")]),
+          ],
+        },
+      }),
+    );
+    const partly = screen.getByText("2/4 beds taken");
+    expect(partly).not.toHaveClass("text-info");
+    expect(screen.getByText("1/1 bed taken")).toHaveClass("text-info");
+  });
+
+  it("leaves_a_room_let_whole_saying_how_many_it_sleeps", () => {
+    render(screenOf("en"));
+    expect(screen.queryByText(/beds? taken/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("Sleeps 2").length).toBeGreaterThan(0);
+  });
+});
+
 describe("adding rooms", () => {
   async function openAdd() {
     render(screenOf("en"));

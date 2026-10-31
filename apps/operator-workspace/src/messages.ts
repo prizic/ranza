@@ -947,7 +947,7 @@ export interface Messages {
   floorColumn: string;
   floorNumber: string;
   noFloor: string;
-  bedCount: string;
+  bedsTaken: string;
   sleeps: string;
   tonightColumn: string;
   unitActions: string;
@@ -4395,7 +4395,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     floorColumn: "Kat",
     floorNumber: "{floor}. kat",
     noFloor: "Katı belirtilmemiş",
-    bedCount: "{count} yatak",
+    bedsTaken: "{taken}/{beds} yatak dolu",
     sleeps: "{count} kişilik",
     tonightColumn: "Bu gece",
     unitActions: "İşlemler",
@@ -8161,7 +8161,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     floorColumn: "Floor",
     floorNumber: "Floor {floor}",
     noFloor: "No floor set",
-    bedCount: "{count, plural, one {# bed} other {# beds}}",
+    bedsTaken: "{taken}/{beds, plural, one {# bed} other {# beds}} taken",
     sleeps: "Sleeps {count}",
     tonightColumn: "Tonight",
     unitActions: "Actions",
@@ -11894,8 +11894,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     floorColumn: "الطابق",
     floorNumber: "الطابق {floor}",
     noFloor: "بلا طابق محدد",
-    bedCount:
-      "{count, plural, one {سرير واحد} two {سريران} few {# أسرّة} many {# سريرًا} other {# سرير}}",
+    bedsTaken: "الأسرّة المشغولة {taken}/{beds}",
     sleeps: "يتّسع لـ {count}",
     tonightColumn: "الليلة",
     unitActions: "الإجراءات",

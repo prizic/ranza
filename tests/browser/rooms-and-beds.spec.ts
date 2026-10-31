@@ -157,7 +157,7 @@ test("a shared room is sold by the bed, and a blocked bed cannot be let", async 
   const card = (room: string) =>
     page.locator('[data-slot="card"]').filter({ hasText: room });
   for (const room of [roomOne, roomTwo]) {
-    await expect(card(room)).toContainText("3 beds");
+    await expect(card(room)).toContainText("0/3 beds taken");
     for (const bed of ["A", "B", "C"]) {
       await expect(
         card(room).getByRole("button", { name: new RegExp(`^${bed} Free`) }),
