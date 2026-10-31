@@ -120,8 +120,29 @@ describe("a dormitory's words", () => {
         catalogueFor(locale, "dormitory"),
       );
       // What the overlay does not reach is the canonical object itself.
-      expect(catalogueFor(locale, "dormitory").housekeeping).toBe(
-        messages[locale].housekeeping,
+      expect(catalogueFor(locale, "dormitory").maintenance).toBe(
+        messages[locale].maintenance,
+      );
+    }
+  });
+
+  it("call_housekeeping_cleaning_at_a_dormitory: the rail, the page bar and the links say Cleaning, and a hotel still says Housekeeping (HK-S4-22)", () => {
+    const cleaning = { tr: "Temizlik", en: "Cleaning", ar: "التنظيف" } as const;
+    // Turkish inflects it where it is linked ("Temizliğe bakın").
+    const stem = { tr: "Temizli", en: "Cleaning", ar: "التنظيف" } as const;
+    for (const locale of supportedLocales) {
+      const yurt = catalogueFor(locale, "dormitory");
+      const hotel = catalogueFor(locale, "hotel");
+      expect(yurt.navigation.housekeeping).toBe(cleaning[locale]);
+      expect(yurt.configuration.housekeepingTitle).toBe(cleaning[locale]);
+      expect(yurt.roomsPage.housekeepingLink).toContain(stem[locale]);
+      expect(yurt.openInHousekeeping).toContain(stem[locale]);
+      expect(yurt.housekeeping.stayoverSettingsHint).toContain(
+        cleaning[locale],
+      );
+      expect(hotel.navigation.housekeeping).not.toBe(cleaning[locale]);
+      expect(hotel.navigation.housekeeping).toBe(
+        messages[locale].navigation.housekeeping,
       );
     }
   });

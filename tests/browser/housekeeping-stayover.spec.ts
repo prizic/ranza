@@ -116,6 +116,12 @@ test("a dormitory cleans rooms in use weekly: the due rooms show, filter by bloc
   await signIn(page, OWNER_EMAIL);
   await page.goto(stayoverUrl(propertyId));
 
+  // HK-S4-22: the dormitory's staff read Cleaning in the rail and the page bar.
+  await expect(
+    page.getByRole("link", { name: "Cleaning", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Cleaning");
+
   // HK-S4-01/05: the dormitory's default is once a week; three rooms are due,
   // and the one that arrived today is not.
   await expect(
@@ -181,6 +187,14 @@ test("the hotel's turnover flow is unchanged by the stayover schedule", async ({
   await signIn(page, OWNER_EMAIL);
   await page.goto(`/en/housekeeping?property=${propertyId}`);
 
+  // HK-S4-22: and a hotel still says Housekeeping.
+  await expect(
+    page.getByRole("link", { name: "Housekeeping", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Housekeeping",
+  );
+
   // A hotel follows the daily default, so the tab is there beside Turnover.
   await expect(
     page.getByRole("tab", { name: /Stayover due · 1/ }),
@@ -217,7 +231,7 @@ test("the hotel's turnover flow is unchanged by the stayover schedule", async ({
   const card = page.locator("#stayover");
   await card.getByRole("combobox").click();
   await page.getByRole("option", { name: "Never" }).click();
-  await card.getByRole("button", { name: "Save for this Property" }).click();
+  await card.getByRole("button", { name: "Save schedule" }).click();
   await expect(card.getByTestId("applies")).toContainText("No schedule");
   await page.goto(`/en/housekeeping?property=${propertyId}`);
   await expect(page.getByRole("tab")).toHaveCount(0);
@@ -249,4 +263,37 @@ test("the stayover list reads in Turkish, English and Arabic, and mirrors in Ara
       fullPage: true,
     });
   }
+});
+
+test("phone_reaches_stayover_from_a_tile_in_the_counts_row: on a phone the way to the stayover list is a tile in the counts row, and costs the turnover list no height", async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const propertyId = aPropertyWithOccupiedRooms(
+    "stayover phone",
+    "dormitory",
+    YURT,
+  );
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, OWNER_EMAIL);
+  await page.goto(`/en/housekeeping?property=${propertyId}`);
+
+  // HK-S4-23: no tab bar above the turnover list; a third tile in the counts
+  // row says how many rooms in use are due and opens them.
+  await expect(page.getByRole("tab", { name: /Turnover/ })).toBeHidden();
+  const tile = page.getByRole("button", { name: /Stayover due\s*3/ });
+  await expect(tile).toBeVisible();
+  const rooms = page.locator("p", { hasText: /^Rooms$/ }).first();
+  expect((await tile.boundingBox())!.y).toBeCloseTo(
+    (await rooms.locator("xpath=..").boundingBox())!.y,
+    0,
+  );
+  await tile.click();
+
+  // The way back is the tab bar, which the stayover list does have room for.
+  await expect(cards(page)).toHaveCount(3);
+  await page.getByRole("tab", { name: "Turnover" }).click();
+  await expect(
+    page.getByRole("button", { name: /Stayover due\s*3/ }),
+  ).toBeVisible();
 });

@@ -29,6 +29,14 @@ export type WordsOverlay<T> = {
  */
 export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   tr: {
+    openInHousekeeping: "Temizlikte aç",
+    roomsPage: {
+      housekeepingLink: "Hangileri temiz, hangileri kirli? Temizliğe bakın",
+    },
+    housekeeping: {
+      stayoverSettingsHint:
+        "İçinde kalan olan bir odanın ne sıklıkla temizleneceği. Odalar bu düzene göre sıraya girer ve Temizlik ekranında Dolu oda temizliği altında görünür. Çıkış sonrası temizlik etkilenmez.",
+    },
     reservations: "Kayıtlar",
     newBooking: "Yeni kayıt",
     newReservation: "Yeni kayıt",
@@ -78,6 +86,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     configuration: {
+      housekeepingTitle: "Temizlik",
       operatingModelHints: {
         dormitory:
           "Dönemlik öğrenciler. Ekranlar Öğrenci ve Kayıt der; yeni kayıtlar öğrenci konaklaması olarak başlar.",
@@ -103,6 +112,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
         "Geceler, öğrenciler dahil konaklayan herkesi sayar. Oda geceleri yalnızca misafirlerindir; öğrenciler gecelik ücretlendirilmez.",
     },
     navigation: {
+      housekeeping: "Temizlik",
       reservations: "Kayıtlar",
       rooms: "Odalar ve yataklar",
       "guest-experience": "Öğrenci talepleri",
@@ -113,6 +123,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     },
   },
   en: {
+    openInHousekeeping: "Open in Cleaning",
+    roomsPage: { housekeepingLink: "Which are clean or dirty? See Cleaning" },
+    housekeeping: {
+      stayoverSettingsHint:
+        "How often a room somebody is staying in is cleaned. Rooms fall due on this schedule and appear under Stayover due on the Cleaning screen. Cleaning after a departure is not affected.",
+    },
     reservations: "Registrations",
     newBooking: "New registration",
     newReservation: "New registration",
@@ -161,6 +177,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     configuration: {
+      housekeepingTitle: "Cleaning",
       operatingModelHints: {
         dormitory:
           "Students for a term. The screens say Student and Registration, and new registrations start as a Student stay.",
@@ -184,6 +201,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
         "Nights counts every Stay in house, Students included. Room nights are Guests' only: a Student is not charged by the night.",
     },
     navigation: {
+      housekeeping: "Cleaning",
       reservations: "Registrations",
       rooms: "Rooms and beds",
       "guest-experience": "Student requests",
@@ -194,6 +212,12 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     },
   },
   ar: {
+    openInHousekeeping: "فتح في التنظيف",
+    roomsPage: { housekeepingLink: "أيها نظيفة وأيها متسخة؟ افتح التنظيف" },
+    housekeeping: {
+      stayoverSettingsHint:
+        "كم مرة تُنظَّف غرفة يقيم فيها شخص. تستحق الغرف التنظيف وفق هذا الجدول وتظهر تحت «تنظيف الغرف المشغولة» في شاشة التنظيف. لا يتأثر التنظيف بعد المغادرة.",
+    },
     reservations: "التسجيلات",
     newBooking: "تسجيل جديد",
     newReservation: "تسجيل جديد",
@@ -238,6 +262,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       },
     },
     configuration: {
+      housekeepingTitle: "التنظيف",
       operatingModelHints: {
         dormitory:
           "طلاب لفصل دراسي. تقول الشاشات طالب وتسجيل، ويبدأ التسجيل الجديد إقامةَ طالب.",
@@ -261,6 +286,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
         "تحسب الليالي كل إقامة في المنشأة، بما فيها الطلاب. أما ليالي الغرف فللضيوف وحدهم: لا يُحاسَب الطالب بسعر الليلة.",
     },
     navigation: {
+      housekeeping: "التنظيف",
       reservations: "التسجيلات",
       rooms: "الغرف والأسرّة",
       "guest-experience": "طلبات الطلاب",

@@ -377,6 +377,20 @@ describe("the board around it (HK-S4-03, HK-S4-04)", () => {
   });
 });
 
+describe("the phone's way in (HK-S4-23)", () => {
+  it("is a tile in the counts row that opens the stayover list, and not there without a schedule", () => {
+    showBoard(stayoverOf([stayoverRoom({})]));
+    const tile = screen.getByRole("button", { name: /Stayover due\s*1/ });
+    fireEvent.click(tile);
+    expect(screen.getByTestId("stayover-card")).toBeInTheDocument();
+
+    showBoard(stayoverOf([], { cadence: { kind: "none" } }));
+    expect(
+      screen.queryByRole("button", { name: /Stayover due/ }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("the catalogue", () => {
   it("has every stayover word in all three languages", () => {
     const keys = Object.keys(messages.en.housekeeping).filter((key) =>

@@ -115,6 +115,8 @@ export function HousekeepingBoard({
     { status: "idle" },
   );
   const clearSelection = useRef<(() => void) | null>(null);
+  const [tab, setTab] = useState<"turnover" | "stayover">(view);
+  const offersStayover = stayover !== null && stayover.cadence.kind !== "none";
 
   useEffect(() => {
     if (outcome.status === "done") {
@@ -160,7 +162,12 @@ export function HousekeepingBoard({
           and are the controls that filter by them, so they are said once
           (HOUSEKEEPING-05): two tiles in one row, the first room on the
           first screen. */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-4">
+      <div
+        className={cn(
+          "grid gap-2 sm:grid-cols-5 sm:gap-4",
+          offersStayover ? "grid-cols-3" : "grid-cols-2",
+        )}
+      >
         <Tally label={t("statRooms")} value={board.counts.rooms} />
         <Tally
           className="max-sm:hidden"
@@ -178,6 +185,22 @@ export function HousekeepingBoard({
           value={board.counts.inspected}
         />
         <Tally label={t("statReady")} value={readyToLet} />
+        {/* On a phone the tab bar would push the first room down a screen
+            the counts row does not cost, so the way to the other list is a
+            third tile in that row; from `sm` the tabs carry it. */}
+        {offersStayover ? (
+          <button
+            className="rounded-2xl text-start sm:hidden"
+            onClick={() => setTab("stayover")}
+            type="button"
+          >
+            <Tally
+              className="h-full"
+              label={t("stayoverTile")}
+              value={stayover.counts.due}
+            />
+          </button>
+        ) : null}
       </div>
 
       {narrowed ? (
@@ -305,20 +328,30 @@ export function HousekeepingBoard({
     </div>
   );
 
-  if (!stayover || stayover.cadence.kind === "none") return turnover;
+  if (!stayover || !offersStayover) return turnover;
 
   return (
-    <Tabs defaultValue={view}>
-      <TabsList className="max-w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto">
+    <Tabs
+      onValueChange={(next) =>
+        setTab(next === "stayover" ? "stayover" : "turnover")
+      }
+      value={tab}
+    >
+      <TabsList
+        className={cn(
+          "max-w-full flex-wrap justify-start group-data-[orientation=horizontal]/tabs:h-auto",
+          tab === "turnover" && "max-sm:hidden",
+        )}
+      >
         <TabsTrigger value="turnover">{t("turnoverTab")}</TabsTrigger>
         <TabsTrigger value="stayover">
           {t("stayoverTab", { count: stayover.counts.due })}
         </TabsTrigger>
       </TabsList>
-      <TabsContent className="pt-4" value="turnover">
+      <TabsContent className="pt-3 max-sm:pt-0" value="turnover">
         {turnover}
       </TabsContent>
-      <TabsContent className="pt-4" value="stayover">
+      <TabsContent className="pt-3" value="stayover">
         <StayoverList board={stayover} locale={locale} />
       </TabsContent>
     </Tabs>

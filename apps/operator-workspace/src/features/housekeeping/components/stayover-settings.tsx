@@ -244,7 +244,7 @@ export function StayoverSettings({
       {settings.mayConfigure ? (
         <div className="flex flex-wrap items-center gap-2 border-t pt-4">
           <Button disabled={!changed || pending} onClick={save} type="button">
-            {configuration("saveForProperty")}
+            {t("stayoverSave")}
           </Button>
           {changed ? (
             <Button

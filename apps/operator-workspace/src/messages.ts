@@ -2369,6 +2369,8 @@ export interface Messages {
     reportProblem: string;
     turnoverTab: string;
     stayoverTab: string;
+    /** The short name of the stayover list as a tile in the phone's counts row. */
+    stayoverTile: string;
     stayoverDue: string;
     stayoverDone: string;
     stayoverSchedule: string;
@@ -2405,6 +2407,7 @@ export interface Messages {
     stayoverEvery: string;
     stayoverOn: string;
     stayoverApplies: string;
+    stayoverSave: string;
   };
 
   /** The Maintenance screen (RANZ-33). */
@@ -6170,6 +6173,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reportProblem: "Sorun bildir",
       turnoverTab: "Çıkış sonrası",
       stayoverTab: "Dolu oda temizliği · {count}",
+      stayoverTile: "Dolu oda",
       stayoverDue: "Bekleyen",
       stayoverDone: "Bugün temizlenen",
       stayoverSchedule: "Düzen",
@@ -6212,6 +6216,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stayoverEvery: "Her",
       stayoverOn: "Gün",
       stayoverApplies: "Bu tesiste geçerli olan: {schedule}.",
+      stayoverSave: "Düzeni kaydet",
     },
     maintenance: {
       heading:
@@ -10196,6 +10201,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reportProblem: "Report a problem",
       turnoverTab: "Turnover",
       stayoverTab: "Stayover due · {count}",
+      stayoverTile: "Stayover due",
       stayoverDue: "Due",
       stayoverDone: "Cleaned today",
       stayoverSchedule: "Schedule",
@@ -10238,6 +10244,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stayoverEvery: "Every",
       stayoverOn: "On",
       stayoverApplies: "Applies at this Property: {schedule}.",
+      stayoverSave: "Save schedule",
     },
     maintenance: {
       heading:
@@ -14140,6 +14147,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       reportProblem: "الإبلاغ عن مشكلة",
       turnoverTab: "بعد المغادرة",
       stayoverTab: "تنظيف الغرف المشغولة · {count}",
+      stayoverTile: "الغرف المشغولة",
       stayoverDue: "المستحقة",
       stayoverDone: "نُظّفت اليوم",
       stayoverSchedule: "الجدول",
@@ -14182,6 +14190,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       stayoverEvery: "كل",
       stayoverOn: "في يوم",
       stayoverApplies: "المطبَّق في هذه المنشأة: {schedule}.",
+      stayoverSave: "حفظ الجدول",
     },
     maintenance: {
       heading:
