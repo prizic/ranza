@@ -46,6 +46,7 @@ import type { StayType } from "../../../lib/booking-defaults";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
+import { GuestParticularsFields } from "./guest-particulars-fields";
 
 /**
  * Taking a booking.
@@ -222,6 +223,7 @@ export function NewReservationDialog({
   const [matches, setMatches] = useState<readonly GuestMatch[]>([]);
   const [picked, setPicked] = useState<GuestMatch | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
+  const [particularsOpened, setParticularsOpened] = useState(false);
   const phoneField = useRef<HTMLInputElement>(null);
   const guestField = useRef<HTMLInputElement>(null);
   // Set by the browser refusing the address and by the server doing so, and
@@ -267,6 +269,7 @@ export function NewReservationDialog({
     setMatches([]);
     setPicked(null);
     setGender(null);
+    setParticularsOpened(false);
   }, [defaultStayType, onClose]);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
@@ -445,11 +448,13 @@ export function NewReservationDialog({
                 ? t("bookingPriceChanged")
                 : outcome === "notAdmitted"
                   ? t("bookingNotAdmitted")
-                  : outcome === "refused"
-                    ? t("bookingRefused")
-                    : refusal
-                      ? t(refusal)
-                      : null;
+                  : outcome === "invalidParticulars"
+                    ? t("particulars.invalid")
+                    : outcome === "refused"
+                      ? t("bookingRefused")
+                      : refusal
+                        ? t(refusal)
+                        : null;
 
   const unitItems: OptionListItem[] = units.map((unit) => {
     const blocker = taken.get(unit.unitId);
@@ -794,6 +799,12 @@ export function NewReservationDialog({
                     </div>
                   </DialogSection>
                 ) : null}
+                <GuestParticularsFields
+                  onShow={() => setParticularsOpened(true)}
+                  shown={stayType === "resident" || particularsOpened}
+                  tagOptional={t("dialogTagOptional")}
+                  today={today}
+                />
               </div>
 
               <div className="grid content-start divide-y">

@@ -62,6 +62,7 @@ export const PERMISSION_CATALOGUE = [
   "integrations.view",
   "integrations.manage",
   "branding.manage",
+  "guests.read_particulars",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -130,6 +131,7 @@ const MESSAGE_KEYS = {
   "integrations.view": "viewIntegrations",
   "integrations.manage": "manageIntegrations",
   "branding.manage": "manageBranding",
+  "guests.read_particulars": "readGuestParticulars",
 } as const satisfies Record<PermissionKey, string>;
 
 export type PermissionMessageKey =
@@ -147,7 +149,7 @@ export function permissionMessageKey(key: PermissionKey): PermissionMessageKey {
 /**
  * The catalogue in the order a person asks about it, under a heading each.
  *
- * Thirty-two flat rows answer "who can see money?" only to somebody who reads
+ * Thirty-three flat rows answer "who can see money?" only to somebody who reads
  * all thirty-two. A section is also the unit of the grid's filter, so the money
  * rows are one choice away (PEOPLE-06). Every permission sits in exactly one
  * section, which `tests/unit/permission-sections.test.ts` holds to.
@@ -189,6 +191,7 @@ export const PERMISSION_SECTIONS = [
   {
     key: "guests",
     permissions: [
+      "guests.read_particulars",
       "guest_services.create_request",
       "guest_services.manage_requests",
     ],

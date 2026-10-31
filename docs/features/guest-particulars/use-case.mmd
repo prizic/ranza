@@ -1,0 +1,25 @@
+%% A Guest's particulars: date of birth, studies, guardian, emergency contact
+%% (RANZ-110, RANZ-99, ADR 0057). One slice: recorded with a booking, read on it.
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Where it lives: in the booking dialog and on the booking, under Front Office. A
+%% table of its own and a permission of its own (guests.read_particulars), because
+%% every Staff Member reads a Guest and fewer may read these (KVKK).
+flowchart TD
+
+  BOOKER["Staff Member holding front_desk.book<br/>takes the registration"]
+  READER["Staff Member holding guests.read_particulars<br/>opens the registration"]
+
+  subgraph S1["slice 1 &mdash; recorded with a booking, read on it"]
+    BOOK(["Take a booking<br/>the booking dialog"])
+    RECORD(["Record the student's particulars<br/>open for a Resident's stay, one press away for a Guest's"])
+    KEEP(["Keep what is on file<br/>a blank never clears a recorded value"])
+    READ(["Read them on the booking<br/>fetched when it is opened, never with the list"])
+  end
+
+  BOOKER --- BOOK
+  READER --- READ
+  RECORD -. "extend: when anything is typed" .-> BOOK
+  RECORD --> KEEP

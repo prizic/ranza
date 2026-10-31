@@ -568,7 +568,8 @@ export interface Messages {
       | "manageHr"
       | "viewIntegrations"
       | "manageIntegrations"
-      | "manageBranding",
+      | "manageBranding"
+      | "readGuestParticulars",
       string
     >;
     emptyRosterTitle: string;
@@ -669,6 +670,26 @@ export interface Messages {
   genderRefused: string;
   /** Whom a room admits, as a chip, a marker and a choice (RB-S5-14). */
   roomAdmits: { female: string; male: string; anyone: string };
+  /**
+   * A Guest's date of birth, studies, guardian and emergency contact, in the
+   * booking dialog and on the booking (GP-S1-*). `invalid` is the booking's
+   * refusal when one of them is out of bounds.
+   */
+  particulars: {
+    title: string;
+    hint: string;
+    show: string;
+    dateOfBirth: string;
+    institution: string;
+    studyYear: string;
+    guardianName: string;
+    guardianPhone: string;
+    emergencyName: string;
+    emergencyPhone: string;
+    invalid: string;
+    /** On the booking, when they could not be read: said, never shown as none. */
+    unavailable: string;
+  };
   bookingPeriodInvalid: string;
   bookingGuestInvalid: string;
   bookingArrivalInvalid: string;
@@ -3935,6 +3956,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         viewIntegrations: "Entegrasyonları görme",
         manageIntegrations: "Entegrasyonları yönetme",
         manageBranding: "Organizasyonun markasını (renk ve logo) yönetme",
+        readGuestParticulars:
+          "Misafirlerin kişisel bilgilerini görme (doğum tarihi, öğrenim, veli, acil durum kişisi)",
       },
       emptyRosterTitle: "Henüz kimse yok",
       emptyRosterDescription:
@@ -4051,6 +4074,22 @@ export const messages: Record<SupportedLocale, Messages> = {
       female: "Yalnızca kadın",
       male: "Yalnızca erkek",
       anyone: "Herkes",
+    },
+    particulars: {
+      title: "Kişisel bilgiler",
+      hint: "İsteğe bağlı. Bunları yalnızca rolü misafirlerin kişisel bilgilerini görmeye izin veren çalışanlar yeniden görür.",
+      show: "Kişisel bilgi ekle",
+      dateOfBirth: "Doğum tarihi",
+      institution: "Üniversite veya okul",
+      studyYear: "Sınıf",
+      guardianName: "Veli",
+      guardianPhone: "Velinin telefonu",
+      emergencyName: "Acil durumda aranacak kişi",
+      emergencyPhone: "Acil durum telefonu",
+      invalid:
+        "Kişisel bilgilerden biri yazıldığı gibi kaydedilemiyor: doğum tarihi 1900'den sonra ve gelecekte olmayan bir gün, sınıf 1 ile 8 arası, adlar en az iki karakter olmalı.",
+      unavailable:
+        "Kişisel bilgiler şu anda okunamadı. Rezervasyonu yeniden açın.",
     },
     bookingPeriodInvalid:
       "Bu tarihler geçerli bir dönem değil. Rezervasyon en az bir gece sürer ve bugünden önce başlayamaz.",
@@ -7680,6 +7719,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         viewIntegrations: "See integrations",
         manageIntegrations: "Manage integrations",
         manageBranding: "Manage the Organization's brand (colour and logo)",
+        readGuestParticulars:
+          "Read Guests' personal details (date of birth, studies, guardian, emergency contact)",
       },
       emptyRosterTitle: "Nobody here yet",
       emptyRosterDescription: "This Organization has no Staff Member to show.",
@@ -7793,6 +7834,22 @@ export const messages: Record<SupportedLocale, Messages> = {
     genderRefused:
       "{admits, select, female {This room admits women only} other {This room admits men only}}. Choose another room for this Guest.",
     roomAdmits: { female: "Women only", male: "Men only", anyone: "Anyone" },
+    particulars: {
+      title: "Personal details",
+      hint: "Optional. Only staff whose role may read Guests' personal details see them again.",
+      show: "Add personal details",
+      dateOfBirth: "Date of birth",
+      institution: "University or school",
+      studyYear: "Year of study",
+      guardianName: "Guardian",
+      guardianPhone: "Guardian's telephone",
+      emergencyName: "Emergency contact",
+      emergencyPhone: "Emergency telephone",
+      invalid:
+        "A personal detail cannot be recorded as typed: a date of birth from 1900 and not in the future, a year of study from 1 to 8, and names of at least two characters.",
+      unavailable:
+        "The personal details could not be read just now. Open the booking again.",
+    },
     bookingPeriodInvalid:
       "Those dates are not a period a Reservation can have. It covers at least one night and cannot start before today.",
     guestRequired: "Enter the Guest's name.",
@@ -11411,6 +11468,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         viewIntegrations: "عرض عمليات التكامل",
         manageIntegrations: "إدارة عمليات التكامل",
         manageBranding: "إدارة هوية المؤسسة البصرية (اللون والشعار)",
+        readGuestParticulars:
+          "قراءة البيانات الشخصية للضيوف (تاريخ الميلاد، الدراسة، وليّ الأمر، جهة الطوارئ)",
       },
       emptyRosterTitle: "لا أحد هنا بعد",
       emptyRosterDescription: "لا يوجد في هذه المؤسسة موظف لعرضه.",
@@ -11522,6 +11581,21 @@ export const messages: Record<SupportedLocale, Messages> = {
       female: "للنساء فقط",
       male: "للرجال فقط",
       anyone: "للجميع",
+    },
+    particulars: {
+      title: "البيانات الشخصية",
+      hint: "اختياري. لا يراها لاحقًا إلا الموظفون الذين يسمح لهم دورهم بقراءة البيانات الشخصية للضيوف.",
+      show: "إضافة بيانات شخصية",
+      dateOfBirth: "تاريخ الميلاد",
+      institution: "الجامعة أو المدرسة",
+      studyYear: "السنة الدراسية",
+      guardianName: "وليّ الأمر",
+      guardianPhone: "هاتف وليّ الأمر",
+      emergencyName: "جهة الاتصال في الطوارئ",
+      emergencyPhone: "هاتف الطوارئ",
+      invalid:
+        "لا يمكن تسجيل إحدى البيانات الشخصية كما كُتبت: تاريخ ميلاد من عام 1900 وليس في المستقبل، وسنة دراسية من 1 إلى 8، وأسماء من حرفين على الأقل.",
+      unavailable: "تعذّرت قراءة البيانات الشخصية الآن. افتح الحجز مرة أخرى.",
     },
     bookingPeriodInvalid:
       "هذه التواريخ ليست مدة صالحة. يغطي الحجز ليلة واحدة على الأقل ولا يبدأ قبل اليوم.",

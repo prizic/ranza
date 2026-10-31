@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  93,
-  'the definer sweep looked at 93 functions; change this number deliberately');
+  94,
+  'the definer sweep looked at 94 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  30,
-  'thirty of them write, which is what makes the assertion above a test');
+  31,
+  'thirty-one of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a ninety-fourth definer is a red test
+-- Part B: the inventory itself, so a ninety-fifth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -656,6 +656,11 @@ select is(
 -- the maintenance policy on the same table; it asks reach, the front desk
 -- capability and accommodation.configure before it writes, the thirtieth
 -- writer.
+-- A Guest's particulars (20260916013700) brought one, and it writes:
+-- record_guest_particulars() is the only way a row of guest_particulars is
+-- written, because a plain upsert would need the writer to pass the read policy
+-- too, and a role may book without reading particulars. It asks reach, the
+-- front desk capability and front_desk.book before it writes, the thirty-first.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -706,8 +711,8 @@ select set_eq(
         'room_admits',
         'booking_is_admitted', 'stay_is_admitted',
         'room_keeps_whom_it_admits', 'guest_keeps_their_rooms',
-        'set_room_admits'],
-  'and they are exactly the ninety-three the design gives a reason for');
+        'set_room_admits', 'record_guest_particulars'],
+  'and they are exactly the ninety-four the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

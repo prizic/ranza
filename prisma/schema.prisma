@@ -614,9 +614,14 @@ model Guest {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   reservations    Reservation[]
   serviceRequests ServiceRequest[]
+  /// At most one: `guest_particulars.guest_id` is its primary key. A list here
+  /// only because Prisma wants a unique over both columns of the composite key
+  /// for a one-to-one, and an index to say what the primary key already does
+  /// is not worth its writes.
+  particulars     GuestParticulars[]
 
   /// What a Reservation's composite foreign key resolves against, so a
   /// Reservation naming another Organization's Guest is unrepresentable rather
@@ -629,6 +634,31 @@ model Guest {
   @@unique([organizationId, email], map: "guests_organization_email_key", where: raw("email IS NOT NULL"))
   @@index([organizationId], map: "guests_organization_idx")
   @@map("guests")
+}
+
+/// A Guest's date of birth, studies, guardian and emergency contact (GP-S1-*).
+///
+/// Apart from `guests` because the two are read by different people: every
+/// Staff Member reads a Guest, and only `guests.read_particulars` reads these
+/// (KVKK). Written only through `app.record_guest_particulars`. The checks,
+/// the policy and the function are hand-written in the migration.
+model GuestParticulars {
+  guestId        String    @id @map("guest_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
+  institution    String?
+  studyYear      Int?      @map("study_year") @db.SmallInt
+  guardianName   String?   @map("guardian_name")
+  guardianPhone  String?   @map("guardian_phone")
+  emergencyName  String?   @map("emergency_name")
+  emergencyPhone String?   @map("emergency_phone")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  guest Guest @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "guest_particulars_guest_fkey")
+
+  @@index([organizationId], map: "guest_particulars_organization_idx")
+  @@map("guest_particulars")
 }
 
 /// A planned allocation of an Accommodation Unit for a period, which may become

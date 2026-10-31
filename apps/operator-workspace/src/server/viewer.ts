@@ -23,6 +23,7 @@ import type {
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
+import type { GuestParticulars } from "@ranza/guests";
 import { LOCATION_HEADER, signInHref } from "../lib/return-path";
 import { gateOf, type ScreenGate } from "../lib/screens";
 import type { PriceList } from "@ranza/rates";
@@ -842,6 +843,22 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().reservations.bookingDay(viewer.userId, propertyId);
+}
+
+/**
+ * The particulars of the Guest a booking is for, read when the desk opens the
+ * booking (GP-S1-05). Null for anybody not signed in, and when none are
+ * recorded or the viewer may not read them, which the database decides.
+ */
+export async function guestParticulars(
+  reservationId: string,
+): Promise<GuestParticulars | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.guestParticulars(
+    viewer.userId,
+    reservationId,
+  );
 }
 
 /**

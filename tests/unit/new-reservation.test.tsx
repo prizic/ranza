@@ -32,7 +32,10 @@ import {
 } from "vitest";
 import { DirectionProvider } from "../../packages/ui/src";
 import { directionFor } from "../../packages/i18n/src";
-import { GUEST_DETAILS } from "../../packages/ranza/guests/src";
+import {
+  GUEST_DETAILS,
+  GUEST_PARTICULARS,
+} from "../../packages/ranza/guests/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
 // The server action, which this component only calls. Reaching it would drag in
@@ -929,5 +932,92 @@ describe("a room that admits women or men only (RB-S5-16, RB-S5-17)", () => {
     expect(
       await screen.findByText(messages.en.bookingNotAdmitted),
     ).toBeVisible();
+  });
+});
+
+describe("a student's particulars (GP-S1-09)", () => {
+  const P = messages.en.particulars;
+  const formData = () =>
+    new FormData(
+      screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+    );
+
+  it("a_residents_booking_opens_the_particulars_and_a_guests_offers_them_one_press_away", () => {
+    openForm();
+    expect(screen.queryByLabelText(P.dateOfBirth)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: P.show }));
+    expect(screen.getByLabelText(P.dateOfBirth)).toBeVisible();
+    cleanup();
+
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    expect(screen.getByText(P.title)).toBeVisible();
+    expect(screen.getByLabelText(P.guardianName)).toBeVisible();
+    expect(screen.queryByRole("button", { name: P.show })).toBeNull();
+  });
+
+  it("what is typed travels with the booking and survives switching the stay type", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    fireEvent.change(screen.getByLabelText(P.institution), {
+      target: { value: "ODTÜ" },
+    });
+    fireEvent.change(screen.getByLabelText(P.guardianPhone), {
+      target: { value: "+90 532 111 11 11" },
+    });
+    chooseStayType(messages.en.stayType.guest);
+
+    expect(screen.getByLabelText(P.institution)).toHaveValue("ODTÜ");
+    expect(formData().get("institution")).toBe("ODTÜ");
+    expect(formData().get("guardianPhone")).toBe("+90 532 111 11 11");
+  });
+
+  it("stops at the bounds the particulars table will accept", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    const born = screen.getByLabelText(P.dateOfBirth);
+    expect(born).toHaveAttribute("min", GUEST_PARTICULARS.earliestDateOfBirth);
+    expect(born).toHaveAttribute("max", "2026-09-25");
+    const year = screen.getByLabelText(P.studyYear);
+    expect(year).toHaveAttribute(
+      "min",
+      String(GUEST_PARTICULARS.studyYear.min),
+    );
+    expect(year).toHaveAttribute(
+      "max",
+      String(GUEST_PARTICULARS.studyYear.max),
+    );
+    for (const label of [P.institution, P.guardianName, P.emergencyName]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "maxlength",
+        String(GUEST_PARTICULARS.text.max),
+      );
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "minlength",
+        String(GUEST_PARTICULARS.text.min),
+      );
+    }
+    for (const label of [P.guardianPhone, P.emergencyPhone]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "maxlength",
+        String(GUEST_PARTICULARS.phone.max),
+      );
+    }
+  });
+
+  it("a_refused_particular_is_said_in_our_words", async () => {
+    createReservation.mockResolvedValue("invalidParticulars");
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Zeynep Öğrenci" },
+    });
+    chooseDates("2026-10-01");
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await chooseUnit(/101/);
+    takeBooking().closest("form")!.requestSubmit();
+    expect(await screen.findByText(P.invalid)).toBeVisible();
   });
 });

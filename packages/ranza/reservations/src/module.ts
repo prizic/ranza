@@ -6,8 +6,11 @@ import {
 } from "@ranza/folios";
 import {
   identifyGuestWithin,
+  readParticularsWithin,
   recallGuestWithin,
   recordGenderWithin,
+  recordParticularsWithin,
+  type GuestParticulars,
 } from "@ranza/guests";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
@@ -1959,6 +1962,11 @@ export function createReservationsModule(deps: ReservationsDeps) {
       if (picked && gender) {
         await recordGenderWithin(tx, picked.guestId, gender);
       }
+      // In the booking's transaction, so a refused booking records nothing
+      // about the student either (GP-S1-06).
+      if (booking.particulars) {
+        await recordParticularsWithin(tx, guest.guestId, booking.particulars);
+      }
 
       let reservationId: string;
       let price: {
@@ -3581,11 +3589,33 @@ export function createReservationsModule(deps: ReservationsDeps) {
     );
   }
 
+  /**
+   * The particulars of the Guest a booking is for, read when the desk opens it
+   * rather than with the list, so the list's page never carries every
+   * student's date of birth and guardian (GP-S1-05). Null when none are
+   * recorded, when the caller may not read them, and when the booking is out
+   * of reach — the policies decide, and the three are one answer.
+   */
+  async function guestParticulars(
+    userId: string,
+    reservationId: string,
+  ): Promise<GuestParticulars | null> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [booking] = await tx.$queryRaw<{ guestId: string }[]>`
+        select guest_id as "guestId"
+          from public.reservations
+         where id = ${reservationId}::uuid
+      `;
+      return booking ? readParticularsWithin(tx, booking.guestId) : null;
+    });
+  }
+
   return {
     amendBooking,
     changeDeparture,
     createReservation,
     findGuests,
+    guestParticulars,
     listArrivals,
     bookingDay,
     listBookableUnits,

@@ -32,6 +32,7 @@ import { expectedArrivalLabel } from "../expected-arrival";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
+import { GuestParticularsFacts } from "./guest-particulars-facts";
 import { CheckInAction } from "./check-in-action";
 import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import {
@@ -253,6 +254,11 @@ export function ReservationDetailSheet({
               ]}
             />
           </DialogSection>
+
+          <GuestParticularsFacts
+            locale={locale}
+            reservationId={reservation.reservationId}
+          />
 
           <DialogSection title={t("financialDetails")}>
             <DialogFacts

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { GENDERS, type Gender } from "@ranza/core";
 import { isSupportedLocale } from "@ranza/i18n";
-import type { GuestDetailsError } from "@ranza/guests";
+import type { GuestDetailsError, GuestParticulars } from "@ranza/guests";
 import {
   BALANCE_REASON,
   CANCELLATION_REASON,
@@ -342,6 +342,7 @@ export type CreateReservationOutcome =
   | "invalidArrival"
   | "priceChanged"
   | "notAdmitted"
+  | "invalidParticulars"
   | RefusalOutcome;
 
 /** Only the two the database will accept; anything else is not a stay type. */
@@ -361,6 +362,24 @@ function optional(form: FormData, field: string): string | null {
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * A student's particulars as typed (GP-S1-*), every blank absent. A year that
+ * is not a number is passed on as one the module refuses, so the desk is told
+ * under the same message as any other value out of bounds.
+ */
+function particularsField(form: FormData): GuestParticulars {
+  const year = optional(form, "studyYear");
+  return {
+    dateOfBirth: optional(form, "dateOfBirth"),
+    institution: optional(form, "institution"),
+    studyYear: year === null ? null : Number(year),
+    guardianName: optional(form, "guardianName"),
+    guardianPhone: optional(form, "guardianPhone"),
+    emergencyName: optional(form, "emergencyName"),
+    emergencyPhone: optional(form, "emergencyPhone"),
+  };
+}
 
 /**
  * The expected-arrival field: `undefined` for a form that never carried it, so
@@ -439,6 +458,7 @@ export async function createReservation(
       guestPhone: optional(form, "guestPhone"),
       existingGuestId: pickedGuest,
       guestGender: genderField,
+      particulars: particularsField(form),
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),
@@ -459,6 +479,7 @@ export async function createReservation(
     }
     if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
     if (isA(error, "GuestNotAdmittedError")) return "notAdmitted";
+    if (isA(error, "GuestParticularsError")) return "invalidParticulars";
     // The dialog is read again with the price that stands now.
     if (isA(error, "PriceChangedError")) {
       revalidateFrontDesk(locale);

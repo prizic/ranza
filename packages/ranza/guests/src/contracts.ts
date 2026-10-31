@@ -15,10 +15,11 @@ import type { Gender } from "@ranza/core";
  * Organization-wide question, and a Property-scoped Guest could not answer any
  * of it without a merge later.
  *
- * Preferences, documents, consent state, guardians and emergency contacts are
- * all blueprint 18.7 and are deliberately absent. This module holds the facts
- * the one workflow that creates a Guest collects, and nothing it has not been
- * asked for (blueprint section 13).
+ * A student's particulars — date of birth, studies, guardian and emergency
+ * contact — are held apart, in `guest_particulars`, because fewer people may
+ * read them (GP-S1-*). Preferences, documents and consent state are blueprint
+ * 18.7 and deliberately absent: this module holds the facts a booking collects,
+ * and nothing it has not been asked for (blueprint section 13).
  */
 
 /**
@@ -73,5 +74,50 @@ export class GuestDetailsError extends Error {
   ) {
     super(message);
     this.name = "GuestDetailsError";
+  }
+}
+
+/**
+ * The check constraints' bounds on a Guest's particulars, published for the
+ * same reason as `GUEST_DETAILS`: a form stops somebody typing past them.
+ */
+export const GUEST_PARTICULARS = {
+  text: { min: 2, max: 120 },
+  phone: { max: 40 },
+  studyYear: { min: 1, max: 8 },
+  earliestDateOfBirth: "1900-01-01",
+} as const;
+
+/**
+ * What a dormitory knows about a student beyond their name: when they were
+ * born, where and in which year they study, their guardian (veli) and who to
+ * call in an emergency (GP-S1-*). Every field may be absent — a hotel Guest has
+ * none of them, and ADR 0057 forbids the operating model making one required.
+ *
+ * Read only by holders of `guests.read_particulars`, which the database
+ * decides; a caller without it reads none, which is not the same as none
+ * recorded and is not told apart.
+ */
+export interface GuestParticulars {
+  /** `YYYY-MM-DD`. */
+  dateOfBirth: string | null;
+  institution: string | null;
+  studyYear: number | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+}
+
+export type GuestParticularsField = keyof GuestParticulars;
+
+/** Particulars the database would refuse, refused here first, by field. */
+export class GuestParticularsError extends Error {
+  constructor(
+    message: string,
+    readonly field: GuestParticularsField,
+  ) {
+    super(message);
+    this.name = "GuestParticularsError";
   }
 }

@@ -33,6 +33,11 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     newBooking: "Yeni kayıt",
     newReservation: "Yeni kayıt",
     takeBooking: "Kayıt oluştur",
+    reservationDetails: "Kayıt ayrıntıları",
+    particulars: {
+      title: "Öğrenci bilgileri",
+      show: "Öğrenci bilgisi ekle",
+    },
     stayType: { resident: "Öğrenci konaklaması" },
     departureRequiredHint:
       "Misafir rezervasyonunun bir ayrılış tarihi olmalı. Yalnızca bir öğrencinin kaydı açık uçlu bırakılabilir.",
@@ -84,6 +89,8 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     newBooking: "New registration",
     newReservation: "New registration",
     takeBooking: "Create registration",
+    reservationDetails: "Registration details",
+    particulars: { title: "Student details", show: "Add student details" },
     stayType: { resident: "Student stay" },
     departureRequiredHint:
       "A Guest booking needs a departure date. Only a Student's registration may be left open-ended.",
@@ -133,6 +140,8 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     newBooking: "تسجيل جديد",
     newReservation: "تسجيل جديد",
     takeBooking: "إنشاء التسجيل",
+    reservationDetails: "تفاصيل التسجيل",
+    particulars: { title: "بيانات الطالب", show: "إضافة بيانات الطالب" },
     stayType: { resident: "إقامة طالب" },
     departureRequiredHint:
       "يحتاج حجز الضيف إلى تاريخ مغادرة. يمكن ترك تسجيل الطالب وحده مفتوح المدة.",

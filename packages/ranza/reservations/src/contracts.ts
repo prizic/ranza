@@ -3,6 +3,7 @@ import type {
   AccommodationUnitType,
 } from "@ranza/accommodation";
 import type { CapabilityRef, Gender } from "@ranza/core";
+import type { GuestParticulars } from "@ranza/guests";
 
 /**
  * The public vocabulary of Reservations and Front Office.
@@ -759,6 +760,12 @@ export interface NewReservation {
    * recorded one is never overwritten by a booking.
    */
   guestGender?: Gender | null;
+  /**
+   * A student's date of birth, studies, guardian and emergency contact, as the
+   * desk typed them (GP-S1-*). Each blank keeps what is on file; absent or all
+   * blank records nothing.
+   */
+  particulars?: GuestParticulars | null;
   stayType: ReservationStayType;
   /** Calendar date as `YYYY-MM-DD`. */
   startsOn: string;
