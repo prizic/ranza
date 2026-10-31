@@ -1,0 +1,3 @@
+id,situation,given,when,then,enforced_by,test_name,status
+X-S1-09,A prefix another table owns,a row,it is read,it is refused,module,a_test,proposed
+PRE-01,What another feature owes,a row,it is read,blocks: S1.,module,,prerequisite_missing

@@ -89,6 +89,30 @@ export function problemsIn(file) {
   return problems;
 }
 
+// A row's id is its name everywhere a commit, a test or a ticket cites it, so a
+// feature prefix belongs to one table. Two tables numbering GP-S1-01 from one
+// is how "GP-DEF-02" came to mean two different gaps. PRE is exempt: it names
+// what another feature owes, and every table numbers its own.
+export function prefixesShared(files) {
+  const owners = new Map();
+  for (const file of files) {
+    const [, ...rows] = parseCsv(readFileSync(file, "utf8"));
+    for (const [id] of rows) {
+      const prefix = id?.split("-")[0];
+      if (!prefix || prefix === "PRE") continue;
+      const tablesUsing = owners.get(prefix) ?? new Set();
+      tablesUsing.add(path.relative(root, file));
+      owners.set(prefix, tablesUsing);
+    }
+  }
+  return [...owners]
+    .filter(([, tablesUsing]) => tablesUsing.size > 1)
+    .map(
+      ([prefix, tablesUsing]) =>
+        `prefix ${prefix} is used by ${[...tablesUsing].join(" and ")}`,
+    );
+}
+
 function tables(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true })
@@ -98,7 +122,7 @@ function tables(dir) {
 }
 
 const real = tables(path.join(root, "docs/features"));
-const failures = real.flatMap(problemsIn);
+const failures = [...real.flatMap(problemsIn), ...prefixesShared(real)];
 assert.deepEqual(
   failures,
   [],
@@ -132,6 +156,16 @@ assert.deepEqual(
     'tests/edge-cases/fixtures/bad-header.csv: header must be exactly "id,situation,given,when,then,enforced_by,test_name,status"',
   ],
   "the header fixture must trip the header rule",
+);
+assert.deepEqual(
+  prefixesShared([
+    fixture,
+    path.join(root, "tests/edge-cases/fixtures/shared-prefix/edge-cases.csv"),
+  ]),
+  [
+    "prefix X is used by tests/edge-cases/fixtures/edge-cases.csv and tests/edge-cases/fixtures/shared-prefix/edge-cases.csv",
+  ],
+  "two fixture tables sharing X must trip the prefix rule, and PRE must not",
 );
 
 console.log(
