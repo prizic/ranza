@@ -116,6 +116,7 @@ export function TimelineLayout(props: LayoutProps) {
       <Figures
         desk={desk}
         flowTonight={flow ? houseFlow(desk, flow) : null}
+        inHouseNow={flow?.inHouse ?? null}
         locale={locale}
         scope={scope}
       />
@@ -171,10 +172,17 @@ export function TimelineLayout(props: LayoutProps) {
 function Figures({
   desk,
   flowTonight,
+  inHouseNow,
   locale,
   scope,
 }: Pick<LayoutProps, "desk" | "locale" | "scope"> & {
   flowTonight: HouseFlow | null;
+  /**
+   * The occupancy card's own count, so the figure and the "expected tonight"
+   * under it count the same things: at a dormitory those are beds, and the
+   * board's rooms with somebody in them are fewer (TODAY-01).
+   */
+  inHouseNow: number | null;
 }) {
   const t = useTranslations("todayLayouts");
   const counts = countsByState(desk.rooms);
@@ -208,7 +216,7 @@ function Figures({
     },
     {
       label: t("figure.inHouse"),
-      value: n(counts.in_house),
+      value: n(inHouseNow ?? counts.in_house),
       of: null,
       sub: flowTonight
         ? [

@@ -883,6 +883,7 @@ function renderUnitStateBadge(
     case "in_house":
       return (
         <StatusBadge
+          className={WRAPPING_BADGE}
           icon={Users}
           tone="info"
           label={state.guestName || t("inHouseTonight")}

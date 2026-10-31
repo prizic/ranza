@@ -760,6 +760,21 @@ describe("the timeline", () => {
     );
   });
 
+  it("in_house_now_counts_what_tonight_under_it_counts_where_rooms_are_let_by_the_bed", () => {
+    // A dormitory: two rooms on the board have somebody in them, seven beds do.
+    const occupancy = summary().occupancy;
+    view(
+      summary({
+        occupancy:
+          occupancy?.status === "ok"
+            ? { ...occupancy, data: { ...occupancy.data, inHouse: 7 } }
+            : occupancy,
+      }),
+    );
+    const figure = screen.getByRole("link", { name: /In house now/ });
+    expect(figure).toHaveTextContent(/^In house now7/);
+  });
+
   it("the_rooms_headline_counts_vacant_rooms_the_way_its_list_does", () => {
     view(summary());
     const rooms = within(screen.getByRole("region", { name: "Rooms" }));

@@ -48,7 +48,15 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "Misafirin konaklamasının bir çıkış tarihi olmalı; yalnızca öğrencinin konaklaması açık uçlu olabilir.",
     roomCalendar: { resident: "Öğrenci" },
-    dashboard: { newBooking: "Yeni kayıt" },
+    dashboard: {
+      newBooking: "Yeni kayıt",
+      expectedTonight: "Bu gece beklenen {count} / {of} uygun yatak ({value})",
+    },
+    todayLayouts: {
+      figure: {
+        tonight: "{available} yataktan {count} tanesi bu gece dolu bekleniyor",
+      },
+    },
     configuration: {
       operatingModelHints: {
         dormitory:
@@ -101,7 +109,14 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "A Guest's stay needs a departure; only a Student's may be open-ended.",
     roomCalendar: { resident: "Student" },
-    dashboard: { newBooking: "New registration" },
+    dashboard: {
+      newBooking: "New registration",
+      expectedTonight:
+        "Expected tonight {count} / {of} available beds ({value})",
+    },
+    todayLayouts: {
+      figure: { tonight: "{count} expected tonight, of {available} beds" },
+    },
     configuration: {
       operatingModelHints: {
         dormitory:
@@ -152,7 +167,13 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     changeDepartureNeedsEnd:
       "تحتاج إقامة الضيف إلى موعد مغادرة؛ الإقامة المفتوحة للطالب وحده.",
     roomCalendar: { resident: "طالب" },
-    dashboard: { newBooking: "تسجيل جديد" },
+    dashboard: {
+      newBooking: "تسجيل جديد",
+      expectedTonight: "المتوقع الليلة {count} من {of} سريرًا متاحًا ({value})",
+    },
+    todayLayouts: {
+      figure: { tonight: "{count} متوقعون الليلة من {available} سريرًا" },
+    },
     configuration: {
       operatingModelHints: {
         dormitory:
