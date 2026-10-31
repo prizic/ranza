@@ -12,7 +12,7 @@ import { withOverlay } from "../../apps/operator-workspace/src/words/overlay";
 import { aFreshProperty } from "./fresh-property";
 import { OWNER_EMAIL, PASSWORD } from "./front-desk";
 import { psql } from "./local-database";
-import { PORTAL_URL } from "./portal";
+import { PORTAL_URL, signInToThePortal } from "./portal";
 
 /**
  * A desk gives a student the Portal, and the student takes it (RANZ-87,
@@ -198,13 +198,18 @@ async function signInAsTheDesk(page: Page): Promise<void> {
 }
 
 /**
- * The booking is put on a payment plan of three instalments, the term having
- * begun two months ago so that one can have fallen due. The 1 500 000 paid at
- * check-in covers the first (payments settle the oldest first), the second fell
- * due ten days ago and is unpaid, the third is still to come. Instalments are
- * never edited once written, so the plan is made with its dates in place.
+ * The booking is put on a payment plan of three instalments of 1 500 000, the
+ * term having begun two months ago so that one can have fallen due. The
+ * 1 500 000 paid at check-in covers the first (payments settle the oldest
+ * first), so the next is the second. Instalments are never edited once
+ * written, so the plan is made with its dates in place: `dueDays` is each one's
+ * distance from today, and by default the second fell due ten days ago and is
+ * unpaid.
  */
-function onAPaymentPlan(student: Student): void {
+function onAPaymentPlan(
+  student: Student,
+  dueDays: readonly [number, number, number] = [-40, -10, 30],
+): void {
   psql(
     `update public.reservations
         set starts_on = app.property_today(property_id) - 60
@@ -231,8 +236,55 @@ function onAPaymentPlan(student: Student): void {
      select plan.organization_id, plan.property_id, plan.id, due.ordinal, 1500000,
             app.property_today(plan.property_id) + due.days, 1
        from plan
-      cross join (values (1, -40), (2, -10), (3, 30)) as due (ordinal, days)`,
+      cross join (values (1, ${dueDays[0]}), (2, ${dueDays[1]}), (3, ${dueDays[2]})) as due (ordinal, days)`,
   );
+}
+
+/**
+ * A student who already has a login of their own, made through the Portal's
+ * sign-up route as the invitation would, and whose Stay is theirs. The
+ * invitation journey is proved above; this is the shortest road to a student
+ * the Portal knows, for the screens that only need one.
+ */
+async function aStudentWhoHasTheirLogin(
+  browser: Browser,
+  propertyId: string,
+  name: string,
+): Promise<Student> {
+  const student = aRegisteredStudent(propertyId, name);
+  // A context of its own, so the session the sign-up makes is nobody's cookie.
+  const maker = await browser.newContext();
+  const signedUp = await maker.request.post(
+    `${PORTAL_URL}/api/auth/sign-up/email`,
+    {
+      headers: { origin: PORTAL_URL },
+      data: { email: student.email, password: PASSWORD, name: student.name },
+    },
+  );
+  expect(
+    signedUp.ok(),
+    `could not sign up ${student.email}: ${signedUp.status()}`,
+  ).toBe(true);
+  // The first authenticated request is what maps the login onto a Ranza user.
+  await expect
+    .poll(
+      async () => {
+        await maker.request.get(`${PORTAL_URL}/en/stay`);
+        return psql(
+          `select count(*) from public.users where lower(email) = lower('${student.email}')`,
+        );
+      },
+      { timeout: 60_000 },
+    )
+    .toBe("1");
+  await maker.close();
+  checkedIn(propertyId, student);
+  psql(
+    `update public.stays
+        set user_id = (select id from public.users where lower(email) = lower('${student.email}'))
+      where reservation_id = '${student.booking}'`,
+  );
+  return student;
 }
 
 async function aPhone(browser: Browser, locale: Locale) {
@@ -478,6 +530,87 @@ for (const locale of LANGUAGES) {
       ).toHaveCount(0);
     }
     await phone.context.close();
+  });
+}
+
+/** The day an instalment falls due, as the page writes it in `datetime`. */
+function dayFromToday(propertyId: string, days: number): string {
+  return psql(
+    `select to_char(app.property_today('${propertyId}') + ${days}, 'YYYY-MM-DD')`,
+  );
+}
+
+for (const locale of LANGUAGES) {
+  test(`a student on a payment plan reads the next instalment as upcoming, and as due today, on a phone, in ${locale}`, async ({
+    browser,
+  }) => {
+    const portal = portalMessages[locale];
+    const yurt = aYurt(`portal instalment ${locale}`);
+
+    for (const [state, dueDays, dueIn] of [
+      ["upcoming", [-40, 20, 50], 20],
+      ["due", [-40, 0, 30], 0],
+    ] as const) {
+      const student = await aStudentWhoHasTheirLogin(
+        browser,
+        yurt.propertyId,
+        state,
+      );
+      onAPaymentPlan(student, dueDays);
+
+      const phone = await aPhone(browser, locale);
+      await signInToThePortal(phone.page, student.email, "en");
+      await phone.page.goto(`${PORTAL_URL}/${locale}/stay`);
+
+      const instalment = phone.page.getByTestId("stay-instalment");
+      await expect(instalment).toBeVisible();
+      await expect(instalment).toHaveAttribute("data-state", state);
+      await expect(instalment).toContainText(portal.myStay.instalment.heading);
+      await expect(instalment).toContainText(
+        portal.myStay.instalment.position
+          .replace("{number}", "2")
+          .replace("{total}", "3"),
+      );
+      await expect(phone.page.getByTestId("stay-instalment-amount")).toHaveText(
+        formatMoney(1_500_000, "TRY", locale),
+      );
+      await expect(instalment.locator("time")).toHaveAttribute(
+        "datetime",
+        dayFromToday(yurt.propertyId, dueIn),
+      );
+      if (state === "due") {
+        await expect(instalment).toContainText(
+          portal.myStay.instalment.dueToday,
+        );
+      }
+      // Neither is late: no warning, in words or in the edge.
+      await expect(instalment).not.toContainText(
+        portal.myStay.instalment.overdueNote,
+      );
+      const edges = await instalment.evaluate((card) => {
+        const style = getComputedStyle(card);
+        return [
+          style.borderLeftWidth,
+          style.borderRightWidth,
+          style.borderLeftColor,
+        ];
+      });
+      expect(edges.slice(0, 2)).toEqual(["1px", "1px"]);
+      if (locale === "ar") {
+        await expect(phone.page.locator("html")).toHaveAttribute("dir", "rtl");
+      }
+      await phone.page.evaluate(() =>
+        window.scrollTo(0, document.documentElement.scrollHeight),
+      );
+      await phone.page.screenshot({
+        path: path.join(
+          EVIDENCE,
+          `${locale}-stay-instalment-${state}-phone.png`,
+        ),
+        ...WITHOUT_DEV_BADGE,
+      });
+      await phone.context.close();
+    }
   });
 }
 
