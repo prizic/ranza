@@ -1975,6 +1975,7 @@ export interface Messages {
     noFloor: string;
     noBuilding: string;
     search: string;
+    searchPlaceholder: string;
     filters: string;
     filtersCount: string;
     filtersHint: string;
@@ -4858,7 +4859,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorOption: "Kat {floor}",
       noFloor: "Katsız",
       noBuilding: "Binasız",
-      search: "Oda veya misafir ara",
+      search: "Ad veya oda ara",
+      searchPlaceholder: "Ad veya oda",
       filters: "Filtreler",
       filtersCount: "Filtreler ({count})",
       filtersHint: "Kat, tür, durum ve işaretlerin anlamı",
@@ -8945,7 +8947,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorOption: "Floor {floor}",
       noFloor: "No floor",
       noBuilding: "No building",
-      search: "Search a room or Guest",
+      search: "Search by name or room",
+      searchPlaceholder: "Name or room",
       filters: "Filters",
       filtersCount: "Filters ({count})",
       filtersHint: "Floor, type, state and what the marks mean",
@@ -12990,7 +12993,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       floorOption: "الطابق {floor}",
       noFloor: "بلا طابق",
       noBuilding: "بلا مبنى",
-      search: "ابحث عن غرفة أو ضيف",
+      search: "ابحث بالاسم أو الغرفة",
+      searchPlaceholder: "الاسم أو الغرفة",
       filters: "التصفية",
       filtersCount: "التصفية ({count})",
       filtersHint: "الطابق والنوع والحالة ومعنى العلامات",

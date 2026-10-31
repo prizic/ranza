@@ -260,7 +260,9 @@ export function CalendarToolbar({
           className="h-8 w-full sm:w-auto sm:max-w-48 sm:min-w-32 sm:flex-1 sm:basis-32"
           id="room-calendar-search"
           onChange={(event) => onChange({ search: event.target.value })}
-          placeholder={t("search")}
+          // Short, because the field gives way first and a cut-off hint reads
+          // as a broken one; the full sentence is its label.
+          placeholder={t("searchPlaceholder")}
           type="search"
           value={view.search}
         />

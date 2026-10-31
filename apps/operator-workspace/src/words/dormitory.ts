@@ -126,7 +126,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     navigation: {
       housekeeping: "Temizlik",
       reservations: "Kayıtlar",
-      rooms: "Odalar ve yataklar",
+      rooms: "Oda ve yatak",
       "guest-experience": "Öğrenci talepleri",
     },
     screenSummary: {
