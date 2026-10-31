@@ -28,6 +28,7 @@ import {
   PaymentPlanRefusedError,
   PlanExistsError,
 } from "../../packages/ranza/payment-plans/src";
+import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import { latestRecord } from "./audit-record";
 
 const app = createPrismaClient(process.env.DATABASE_URL!);
@@ -35,6 +36,7 @@ const worker = createPrismaClient(process.env.WORKER_DATABASE_URL!);
 const owner = createPrismaClient(process.env.DIRECT_URL!);
 
 const plans = createPaymentPlansModule({ db: app });
+const reservations = createReservationsModule({ db: app });
 const poster = createInstalmentPoster({ db: worker });
 
 const ORG = randomUUID();
@@ -363,6 +365,187 @@ describe("making a plan", () => {
       reservationId,
     );
     expect(row?.count).toBe(0);
+  });
+});
+
+/**
+ * Registering a Resident for a term with the plan they pay it by (PP-S2-05).
+ *
+ * The dialog's act is one transaction: `createReservation` runs the plan in the
+ * booking's own transaction through its `alongside` step, so a plan the
+ * database refuses leaves no booking behind and nobody is told a registration
+ * came with a plan it did not.
+ */
+describe("a booking and its plan are one act", () => {
+  async function bookableUnit(propertyId: string): Promise<string> {
+    const unitId = randomUUID();
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, name, unit_type, capacity)
+       values ($1::uuid, $2::uuid, $3::uuid, 'PP-' || left($1::text, 8), 'room', 1)`,
+      unitId,
+      propertyId,
+      ORG,
+    );
+    return unitId;
+  }
+
+  async function register(
+    propertyId: string,
+    unitId: string,
+    schedule: { amountMinor: number; dueOn: string }[],
+  ) {
+    return reservations.createReservation(
+      DESK,
+      {
+        propertyId,
+        accommodationUnitId: unitId,
+        guestName: "Registered With A Plan",
+        guestEmail: null,
+        guestPhone: null,
+        stayType: "resident",
+        startsOn: await day(propertyId, 5),
+        endsOn: await day(propertyId, 95),
+        quotedRateMinor: null,
+        quotedCurrency: null,
+      },
+      (tx, { reservationId }) =>
+        plans
+          .createPaymentPlanWithin(tx, DESK, reservationId, schedule)
+          .then(() => undefined),
+    );
+  }
+
+  const bookingsOf = async (unitId: string) =>
+    (
+      await owner.$queryRawUnsafe<{ count: number }[]>(
+        `select count(*)::int as count from public.reservations
+          where accommodation_unit_id = $1::uuid`,
+        unitId,
+      )
+    )[0]?.count;
+
+  it("registering a Resident makes the booking and its plan together, and records both", async () => {
+    const property = await aProperty();
+    const unit = await bookableUnit(property);
+    const schedule = [
+      { amountMinor: 250_001, dueOn: await day(property, 5) },
+      { amountMinor: 250_000, dueOn: await day(property, 35) },
+    ];
+
+    const { reservationId } = await register(property, unit, schedule);
+
+    const plan = await plans.readPaymentPlan(DESK, reservationId);
+    expect(
+      plan?.instalments.map((i) => [i.number, i.amountMinor, i.dueOn]),
+    ).toEqual(
+      schedule.map((item, index) => [index + 1, item.amountMinor, item.dueOn]),
+    );
+    const made = await latestRecord(
+      owner,
+      "payment_plan.created",
+      plan!.planId,
+    );
+    expect(made).toMatchObject({
+      locationId: property,
+      context: { reservationId, instalments: 2, totalMinor: 500_001 },
+    });
+    expect(
+      await latestRecord(owner, "reservation.created", reservationId),
+    ).toMatchObject({ locationId: property });
+  });
+
+  it("a plan the database refuses leaves no booking behind", async () => {
+    const property = await aProperty();
+    const unit = await bookableUnit(property);
+
+    await expect(
+      register(property, unit, [
+        { amountMinor: 1_000, dueOn: await day(property, 96) },
+      ]),
+    ).rejects.toBeInstanceOf(InstalmentAfterTermError);
+
+    expect(await bookingsOf(unit)).toBe(0);
+  });
+
+  it("a Property that keeps no Folios refuses the plan, and so the booking", async () => {
+    const property = await aProperty();
+    await owner.$executeRawUnsafe(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'finance'`,
+      property,
+    );
+    const unit = await bookableUnit(property);
+
+    await expect(
+      register(property, unit, [
+        { amountMinor: 1_000, dueOn: await day(property, 10) },
+      ]),
+    ).rejects.toBeInstanceOf(PaymentPlanNotAllowedError);
+
+    expect(await bookingsOf(unit)).toBe(0);
+  });
+
+  it("a Guest's booking takes no plan and is not made", async () => {
+    const property = await aProperty();
+    const unit = await bookableUnit(property);
+    const due = await day(property, 10);
+
+    await expect(
+      reservations.createReservation(
+        DESK,
+        {
+          propertyId: property,
+          accommodationUnitId: unit,
+          guestName: "A Summer Guest",
+          guestEmail: null,
+          guestPhone: null,
+          stayType: "guest",
+          startsOn: await day(property, 5),
+          endsOn: await day(property, 15),
+          quotedRateMinor: null,
+          quotedCurrency: null,
+        },
+        (tx, { reservationId }) =>
+          plans
+            .createPaymentPlanWithin(tx, DESK, reservationId, [
+              { amountMinor: 1_000, dueOn: due },
+            ])
+            .then(() => undefined),
+      ),
+    ).rejects.toBeInstanceOf(PaymentPlanNotAllowedError);
+
+    expect(await bookingsOf(unit)).toBe(0);
+  });
+});
+
+describe("whether a plan is offered", () => {
+  it("the desk is offered one in the Property's currency; finance, which may not book, is not", async () => {
+    const property = await aProperty();
+    expect(await plans.planOffer(DESK, property)).toEqual({ currency: "TRY" });
+    expect(await plans.planOffer(FINANCE, property)).toBeNull();
+  });
+
+  it("a Property that keeps no Folios, one with no front desk, and one nobody can reach, offer none", async () => {
+    const noFolios = await aProperty();
+    await owner.$executeRawUnsafe(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'finance'`,
+      noFolios,
+    );
+    expect(await plans.planOffer(DESK, noFolios)).toBeNull();
+
+    // Reachable and billing, but nothing to book into: the desk is not offered
+    // what its own booking could not be made with.
+    const noDesk = await aProperty();
+    await owner.$executeRawUnsafe(
+      `update public.property_capabilities set enabled = false
+        where property_id = $1::uuid and capability_key = 'front_desk'`,
+      noDesk,
+    );
+    expect(await plans.planOffer(DESK, noDesk)).toBeNull();
+
+    expect(await plans.planOffer(randomUUID(), await aProperty())).toBeNull();
   });
 });
 

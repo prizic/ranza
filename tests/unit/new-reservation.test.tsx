@@ -1102,3 +1102,189 @@ describe("a student's identity document (PA-S2-*)", () => {
     expect(screen.queryByText(P.documentProblems.type)).toBeNull();
   });
 });
+
+/**
+ * The payment plan on a booking (PP-S2-*). The schedule's arithmetic is
+ * `payment-plan-split.test.ts`'s; this is what the dialog does with it.
+ */
+describe("a payment plan (PP-S2-*)", () => {
+  const PLAN = messages.en.paymentPlan;
+  const OFFER = { currency: "TRY" };
+
+  function openWithPlan(
+    props: Partial<ComponentProps<typeof NewReservationDialog>> = {},
+  ) {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <NewReservationDialog
+          locale="en"
+          paymentPlan={OFFER}
+          propertyId="d9000003-0000-4000-8000-000000000001"
+          today="2026-09-25"
+          units={UNITS}
+          {...props}
+        />
+      </NextIntlClientProvider>,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: messages.en.newReservation }),
+    );
+  }
+
+  const formData = () =>
+    new FormData(
+      screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+    );
+
+  const section = () => screen.queryByRole("group", { name: PLAN.title });
+  const dueOn = (number: number) =>
+    screen.getByLabelText(`Instalment ${number} · ${PLAN.dueOn}`);
+  const amount = (number: number) =>
+    screen.getByLabelText(`Instalment ${number} · ${PLAN.amount}`);
+
+  /** Two monthly instalments: 35 nights at 1,500.00 is 52,500.00. */
+  async function planATerm() {
+    chooseDates("2026-09-26", "2026-10-31");
+    await chooseUnit(/101/);
+  }
+
+  it("opens by itself at a dormitory and with one press at a hotel (PP-S2-02)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    expect(section()).toBeVisible();
+    cleanup();
+
+    openWithPlan();
+    chooseStayType(messages.en.stayType.resident);
+    expect(section()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: PLAN.show }));
+    expect(section()).toBeVisible();
+  });
+
+  it("splits the term monthly from the price list, every row editable (PP-S2-01)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    await planATerm();
+
+    expect(screen.getByLabelText(PLAN.total)).toHaveValue("52500");
+    expect(dueOn(1)).toHaveValue("2026-09-26");
+    expect(dueOn(2)).toHaveValue("2026-10-26");
+    expect(amount(1)).toHaveValue("26250");
+    expect(
+      screen.getByText(/Instalments add up to .*52,500\.00/),
+    ).toBeVisible();
+    // Beside the button, where the booking is taken: the schedule is below the
+    // fold of a short dialog, and a plan the desk never saw must not be a
+    // surprise on the Folio.
+    expect(
+      screen.getByText(/Paid in 2 instalments, .*52,500\.00 in all/),
+    ).toBeVisible();
+
+    const sent = formData();
+    expect(sent.getAll("planDueOn")).toEqual(["2026-09-26", "2026-10-26"]);
+    expect(sent.getAll("planAmountMinor")).toEqual(["2625000", "2625000"]);
+  });
+
+  it("a different total is shown and does not block the booking (PP-S2-03)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    await planATerm();
+
+    fireEvent.change(amount(1), { target: { value: "30000" } });
+    expect(screen.getByText(/3,750.00 more than the total fees/)).toBeVisible();
+    expect(takeBooking()).toBeEnabled();
+    expect(formData().getAll("planAmountMinor")[0]).toBe("3000000");
+
+    // A row goes, the last one cannot, a row is added a month after the last
+    // and waits for its amount, and the desk can hand the schedule back.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Remove instalment 2" }),
+    );
+    expect(formData().getAll("planDueOn")).toEqual(["2026-09-26"]);
+    expect(
+      screen.getByRole("button", { name: "Remove instalment 1" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: PLAN.add }));
+    expect(dueOn(2)).toHaveValue("2026-10-26");
+    expect(amount(2)).toHaveValue("");
+    expect(takeBooking()).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: PLAN.resplit }));
+    expect(amount(1)).toHaveValue("26250");
+    expect(takeBooking()).toBeEnabled();
+  });
+
+  it("a plan asks for a departure date (PP-S2-04)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    chooseDates("2026-10-01");
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await chooseUnit(/101/);
+
+    expect(screen.getByText(PLAN.needsDeparture)).toBeVisible();
+    expect(takeBooking()).toBeDisabled();
+    expect(formData().getAll("planDueOn")).toEqual([]);
+
+    // The desk who does not want a plan is not held by it.
+    fireEvent.click(screen.getByRole("button", { name: PLAN.remove }));
+    expect(takeBooking()).toBeEnabled();
+  });
+
+  it("a Guest's booking has no plan, however it was begun (PP-S2-06)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    await planATerm();
+    expect(formData().getAll("planDueOn")).toHaveLength(2);
+
+    chooseStayType(messages.en.stayType.guest);
+    expect(section()).toBeNull();
+    expect(screen.queryByRole("button", { name: PLAN.show })).toBeNull();
+    expect(formData().getAll("planDueOn")).toEqual([]);
+    expect(formData().getAll("planAmountMinor")).toEqual([]);
+  });
+
+  it("an unpriced bed starts with an empty total and no invented schedule (PP-S2-07)", async () => {
+    openWithPlan({ defaultStayType: "resident" });
+    chooseDates("2026-09-26", "2026-10-31");
+    await chooseUnit(/102/);
+
+    expect(screen.getByLabelText(PLAN.total)).toHaveValue("");
+    expect(screen.getByText(PLAN.totalNoPrice)).toBeVisible();
+    expect(screen.getByText(PLAN.needsTotal)).toBeVisible();
+    expect(formData().getAll("planDueOn")).toEqual([]);
+
+    // Typing the total is what makes the schedule.
+    fireEvent.change(screen.getByLabelText(PLAN.total), {
+      target: { value: "52500.01" },
+    });
+    // The odd minor unit goes on the first instalment, which falls due first.
+    expect(amount(1)).toHaveValue("26250.01");
+    expect(formData().getAll("planAmountMinor")).toEqual([
+      "2625001",
+      "2625000",
+    ]);
+  });
+
+  it("a Property that keeps no Folios offers none (PP-S2-08)", async () => {
+    openWithPlan({ defaultStayType: "resident", paymentPlan: null });
+    await planATerm();
+    expect(section()).toBeNull();
+    expect(screen.queryByRole("button", { name: PLAN.show })).toBeNull();
+    expect(formData().getAll("planDueOn")).toEqual([]);
+  });
+
+  it("says what to change when the plan is refused (PP-S2-05)", async () => {
+    createReservation.mockResolvedValue("planAfterTerm");
+    openWithPlan({ defaultStayType: "resident" });
+    fireEvent.change(screen.getByLabelText(messages.en.guestNameTitle), {
+      target: { value: "Nezihe Muhiddin" },
+    });
+    await planATerm();
+    takeBooking().closest("form")!.requestSubmit();
+    expect(await screen.findByText(PLAN.afterTerm)).toBeVisible();
+    // Kept what was typed, so nothing is entered twice.
+    expect(dueOn(1)).toHaveValue("2026-09-26");
+  });
+});

@@ -13,6 +13,7 @@ import { Hydrated, requestQueryClient } from "../../../providers/hydrate";
 import {
   bookableUnits,
   bookingDay,
+  paymentPlanOffer,
   permittedProperties,
   requireViewer,
   ROOM_CALENDAR_DEFAULT_LENGTH,
@@ -120,6 +121,7 @@ export default async function RoomCalendarPage({
                 units,
                 today,
                 defaultStayType: defaultStayTypeFor(property.operatingModel),
+                paymentPlan: await paymentPlanOffer(property.propertyId),
               }
             : null
         }

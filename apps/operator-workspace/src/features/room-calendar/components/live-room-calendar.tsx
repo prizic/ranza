@@ -110,6 +110,8 @@ export function LiveRoomCalendar({
     units: readonly BookableUnit[];
     today: string;
     defaultStayType: StayType;
+    /** The currency a payment plan is in, or null where none is offered. */
+    paymentPlan: { currency: string } | null;
   } | null;
   defaultLength: number;
   initialView: RoomCalendarView;
@@ -351,6 +353,7 @@ export function LiveRoomCalendar({
               defaultStayType={booking.defaultStayType}
               locale={locale}
               onClose={() => void query.refetch()}
+              paymentPlan={booking.paymentPlan}
               propertyId={scope.propertyId}
               today={booking.today}
               units={booking.units}
@@ -506,6 +509,7 @@ export function LiveRoomCalendar({
             setNewBooking(null);
             void query.refetch();
           }}
+          paymentPlan={booking.paymentPlan}
           propertyId={scope.propertyId}
           start={newBooking}
           today={booking.today}

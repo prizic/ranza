@@ -28,6 +28,7 @@ await plans.createPaymentPlan(userId, reservationId, [
 ]); // or createPaymentPlanWithin(tx, ...) to make it in the booking's own transaction
 await plans.revisePaymentPlan(userId, reservationId, instalments, reason);
 await plans.readPaymentPlan(userId, reservationId); // the schedule with where each stands, or null
+await plans.planOffer(userId, propertyId); // { currency } when the viewer may be offered a plan here, else null
 await plans.overdueFigure(userId, propertyId); // { students, instalments, overdueMinor, currency }
 await plans.overdueResidents(userId, propertyId); // the rows that figure counts
 
@@ -40,6 +41,12 @@ in `app.payment_plan_standing()`: overdue is past its due date, in the
 Property's own time, and not paid in full. It does not wait for the worker.
 `overdueFigure` and `overdueResidents` read the same definition, so Today's
 number and the rows it opens cannot disagree.
+
+A plan made with a booking is made in the booking's own transaction:
+`reservations.createReservation(userId, booking, alongside)` runs `alongside`
+before it commits, and a host that passes `createPaymentPlanWithin` there gets
+one act, so a plan the database refuses leaves no booking behind (PP-S2-05).
+Neither module imports the other.
 
 A revision withdraws what was not charged and writes a new schedule beside it;
 nothing is deleted, and a charged instalment is history for every writer.

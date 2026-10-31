@@ -25,6 +25,7 @@ import {
 import {
   BALANCE_REASON,
   BalanceReasonError,
+  type AlongsideBooking,
   BookingChangedError,
   BookingChangeError,
   CANCELLATION_REASON,
@@ -1867,6 +1868,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
   async function createReservation(
     userId: string,
     booking: NewReservation,
+    alongside?: AlongsideBooking,
   ): Promise<CreatedReservation> {
     const startsOn = calendarDay(booking.startsOn);
     const endsOn = booking.endsOn === null ? null : calendarDay(booking.endsOn);
@@ -2117,6 +2119,8 @@ export function createReservationsModule(deps: ReservationsDeps) {
           currency: price.rateCurrency,
         },
       });
+
+      await alongside?.(tx, { reservationId, propertyId: unit.propertyId });
 
       return {
         reservationId,

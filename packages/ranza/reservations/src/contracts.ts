@@ -4,6 +4,7 @@ import type {
 } from "@ranza/accommodation";
 import type { CapabilityRef, Gender } from "@ranza/core";
 import type { GuestParticulars } from "@ranza/guests";
+import type { AuditClient } from "@ranza/platform-audit";
 
 /**
  * The public vocabulary of Reservations and Front Office.
@@ -786,6 +787,19 @@ export interface NewReservation {
    */
   expectedArrival?: string | null;
 }
+
+/**
+ * What the host does in the booking's own transaction, once the booking exists
+ * and before it commits (PP-S2-05). A host that sells something with the
+ * booking — a payment plan for a term — composes it here, so the two are one
+ * act: what the host's step refuses rolls the booking back with it, and nobody
+ * is left with a booking they were told came with a plan. The module imports
+ * nothing of what the host composes; it hands over the transaction and the id.
+ */
+export type AlongsideBooking = (
+  tx: AuditClient,
+  booking: { reservationId: string; propertyId: string },
+) => Promise<void>;
 
 /** What a completed booking produced. */
 export interface CreatedReservation {

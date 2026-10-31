@@ -8,6 +8,7 @@ import { ReservationsTable } from "../../../../features/front-office/components/
 import {
   bookableUnits,
   bookingDay,
+  paymentPlanOffer,
   permittedProperties,
   requireViewer,
   reservations,
@@ -130,6 +131,7 @@ export default async function ReservationsPage({
           <NewReservationDialog
             defaultStayType={defaultStayTypeFor(property.operatingModel)}
             locale={locale}
+            paymentPlan={await paymentPlanOffer(property.propertyId)}
             propertyId={property.propertyId}
             startOpen={search.new === "1"}
             today={today}

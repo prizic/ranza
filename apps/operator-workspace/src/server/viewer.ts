@@ -901,6 +901,20 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
 }
 
 /**
+ * Whether this viewer is offered a payment plan on a booking at the Property,
+ * and the currency its instalments are in (PP-S2-08). Null when they are not:
+ * the Property keeps no Folios, or they may not take bookings. The plan's own
+ * function refuses again, so this only decides what the dialog shows.
+ */
+export async function paymentPlanOffer(
+  propertyId: string,
+): Promise<{ currency: string } | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().paymentPlans.planOffer(viewer.userId, propertyId);
+}
+
+/**
  * The particulars of the Guest a booking is for, read when the desk opens the
  * booking (PA-S1-05). Null for anybody not signed in, and when none are
  * recorded or the viewer may not read them, which the database decides.

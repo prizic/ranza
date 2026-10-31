@@ -14,6 +14,7 @@ import { messages } from "../../apps/operator-workspace/src/messages";
 
 const bookableUnits = vi.fn();
 const bookingDay = vi.fn();
+const paymentPlanOffer = vi.fn();
 const permittedProperties = vi.fn();
 const reservations = vi.fn();
 const screenProperties = vi.fn();
@@ -53,6 +54,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   },
   bookableUnits,
   bookingDay,
+  paymentPlanOffer,
   permittedProperties,
   requireViewer: async () => ({
     userId: "d9000001-0000-4000-8000-000000000001",
@@ -66,8 +68,17 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
 vi.mock(
   "../../apps/operator-workspace/src/features/front-office/components/new-reservation-dialog",
   () => ({
-    NewReservationDialog: ({ today }: { today: string }) => (
-      <p data-testid="booking-today">{today}</p>
+    NewReservationDialog: ({
+      paymentPlan,
+      today,
+    }: {
+      paymentPlan?: { currency: string } | null;
+      today: string;
+    }) => (
+      <>
+        <p data-testid="booking-today">{today}</p>
+        <p data-testid="booking-plan">{paymentPlan?.currency ?? "none"}</p>
+      </>
     ),
   }),
 );
@@ -115,6 +126,7 @@ beforeEach(() => {
   // A date nobody's clock would produce, so a page that worked the day out
   // for itself could not match it by accident.
   bookingDay.mockReset().mockResolvedValue("2020-01-02");
+  paymentPlanOffer.mockReset().mockResolvedValue({ currency: "TRY" });
   permittedProperties
     .mockReset()
     .mockImplementation(async (permission: string) => held[permission] ?? []);
@@ -149,6 +161,17 @@ describe("the Reservations page", () => {
     await show();
     expect(bookingDay).toHaveBeenCalledWith(PROPERTY.propertyId);
     expect(screen.getByTestId("booking-today")).toHaveTextContent("2020-01-02");
+  });
+
+  it("PP-S2-08: hands the booking form the plan the Property offers, or none", async () => {
+    await show();
+    expect(paymentPlanOffer).toHaveBeenCalledWith(PROPERTY.propertyId);
+    expect(screen.getByTestId("booking-plan")).toHaveTextContent("TRY");
+    cleanup();
+
+    paymentPlanOffer.mockResolvedValue(null);
+    await show();
+    expect(screen.getByTestId("booking-plan")).toHaveTextContent("none");
   });
 
   it("RG-S3-04: with no Unit to sell, New reservation is disabled and says why", async () => {

@@ -685,6 +685,36 @@ export interface Messages {
     allAdmits: string;
   };
   /**
+   * The payment plan on a booking (PP-S2-*): a Resident's fees laid out as
+   * instalments, each charged to the Folio on its due date.
+   */
+  paymentPlan: {
+    title: string;
+    hint: string;
+    show: string;
+    remove: string;
+    total: string;
+    totalFromPrice: string;
+    totalNoPrice: string;
+    instalment: string;
+    amount: string;
+    dueOn: string;
+    add: string;
+    removeRow: string;
+    resplit: string;
+    sum: string;
+    /** Beside the button that takes the booking, so a plan is never a surprise. */
+    summary: string;
+    differs: string;
+    needsDeparture: string;
+    needsTotal: string;
+    invalidAmount: string;
+    /** After a refused booking: what to change in the schedule. */
+    invalid: string;
+    afterTerm: string;
+    notAllowed: string;
+  };
+  /**
    * A Guest's date of birth, studies, guardian and emergency contact, in the
    * booking dialog and on the booking (GP-S1-*). `invalid` is the booking's
    * refusal when one of them is out of bounds.
@@ -4335,6 +4365,37 @@ export const messages: Record<SupportedLocale, Messages> = {
       allBlocks: "Tüm binalar",
       admitsLabel: "Odalar",
       allAdmits: "Tümü",
+    },
+    paymentPlan: {
+      title: "Ödeme planı",
+      hint: "Ücreti taksitlere bölün. Her taksit, vade gününde folyoya işlenir.",
+      show: "Taksitle öde",
+      remove: "Ödeme planı olmasın",
+      total: "Toplam ücret",
+      totalFromPrice:
+        "Fiyat listesinden: gecelik {price} × {count, plural, other {# gece}}",
+      totalNoPrice: "Fiyat listesinde fiyatı yok. Toplamı kendiniz yazın.",
+      instalment: "Taksit {number}",
+      amount: "Tutar",
+      dueOn: "Vade",
+      add: "Taksit ekle",
+      removeRow: "{number}. taksiti sil",
+      resplit: "Aylara yeniden böl",
+      sum: "Taksitler toplamı: {sum}",
+      summary: "{count, plural, other {# taksitte}} ödenir, toplam {sum}",
+      differs:
+        "Toplam ücretten {difference} {direction, select, more {fazla} other {az}}.",
+      needsDeparture:
+        "Ödeme planı için bir ayrılış tarihi gerekir. Yukarıdan seçin.",
+      needsTotal: "Taksitleri görmek için toplam ücreti yazın.",
+      invalidAmount:
+        "Her taksit için sıfırdan büyük bir tutar yazın, örneğin 4500,00.",
+      invalid:
+        "Ödeme planı geçerli değil. Taksit tutarlarını ve vade günlerini kontrol edin.",
+      afterTerm:
+        "Bir taksit ayrılış tarihinden sonraya düşemez. Vade günlerini kontrol edin.",
+      notAllowed:
+        "Bu kayda ödeme planı eklenemez. Planı kaldırıp yeniden deneyin.",
     },
     particulars: {
       title: "Kişisel bilgiler",
@@ -8383,6 +8444,38 @@ export const messages: Record<SupportedLocale, Messages> = {
       admitsLabel: "Rooms for",
       allAdmits: "All",
     },
+    paymentPlan: {
+      title: "Payment plan",
+      hint: "Split the fees into instalments. Each one is charged to the Folio on the day it falls due.",
+      show: "Pay by instalments",
+      remove: "No payment plan",
+      total: "Total fees",
+      totalFromPrice:
+        "From the price list: {price} a night for {count, plural, one {# night} other {# nights}}",
+      totalNoPrice: "No price on the price list. Type the total yourself.",
+      instalment: "Instalment {number}",
+      amount: "Amount",
+      dueOn: "Due on",
+      add: "Add an instalment",
+      removeRow: "Remove instalment {number}",
+      resplit: "Split by month again",
+      sum: "Instalments add up to {sum}",
+      summary:
+        "Paid in {count, plural, one {# instalment} other {# instalments}}, {sum} in all",
+      differs:
+        "That is {difference} {direction, select, more {more} other {less}} than the total fees.",
+      needsDeparture:
+        "A payment plan needs a departure date. Choose one above.",
+      needsTotal: "Type the total fees to see the instalments.",
+      invalidAmount:
+        "Type an amount above zero for every instalment, such as 4500.00.",
+      invalid:
+        "The payment plan is not valid. Check each instalment's amount and due day.",
+      afterTerm:
+        "An instalment cannot fall due after the departure. Check the due days.",
+      notAllowed:
+        "This booking cannot take a payment plan. Remove the plan and try again.",
+    },
     particulars: {
       title: "Personal details",
       hint: "Optional. Only staff whose role may read Guests' personal details see them again.",
@@ -12421,6 +12514,35 @@ export const messages: Record<SupportedLocale, Messages> = {
       allBlocks: "كل المباني",
       admitsLabel: "الغرف",
       allAdmits: "الكل",
+    },
+    paymentPlan: {
+      title: "خطة الدفع",
+      hint: "قسّم الرسوم إلى أقساط. يُسجَّل كل قسط على الفوليو في يوم استحقاقه.",
+      show: "الدفع بالأقساط",
+      remove: "بلا خطة دفع",
+      total: "إجمالي الرسوم",
+      totalFromPrice:
+        "من قائمة الأسعار: {price} لليلة الواحدة لمدة {count, plural, one {ليلة واحدة} two {ليلتين} few {# ليالٍ} many {# ليلة} other {# ليلة}}",
+      totalNoPrice: "لا سعر لها في قائمة الأسعار. اكتب الإجمالي بنفسك.",
+      instalment: "القسط {number}",
+      amount: "المبلغ",
+      dueOn: "الاستحقاق",
+      add: "إضافة قسط",
+      removeRow: "حذف القسط {number}",
+      resplit: "التقسيم شهريًا من جديد",
+      sum: "مجموع الأقساط: {sum}",
+      summary:
+        "تُدفع على {count, plural, one {قسط واحد} two {قسطين} few {# أقساط} many {# قسطًا} other {# قسط}}، الإجمالي {sum}",
+      differs:
+        "هذا {direction, select, more {أكثر} other {أقل}} من إجمالي الرسوم بمقدار {difference}.",
+      needsDeparture: "تحتاج خطة الدفع إلى تاريخ مغادرة. اختر واحدًا أعلاه.",
+      needsTotal: "اكتب إجمالي الرسوم لتظهر الأقساط.",
+      invalidAmount: "اكتب مبلغًا أكبر من صفر لكل قسط، مثل 4500.00.",
+      invalid: "خطة الدفع غير صالحة. راجع مبلغ كل قسط ويوم استحقاقه.",
+      afterTerm:
+        "لا يمكن أن يستحق قسط بعد تاريخ المغادرة. راجع أيام الاستحقاق.",
+      notAllowed:
+        "لا يمكن إضافة خطة دفع إلى هذا الحجز. أزل الخطة وحاول مجددًا.",
     },
     particulars: {
       title: "البيانات الشخصية",

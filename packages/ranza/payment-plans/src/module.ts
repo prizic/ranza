@@ -2,6 +2,7 @@ import { withOrganizationContext } from "@ranza/db";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import {
   INSTALMENTS,
+  MAKE_PLAN_PERMISSION,
   REVISION_REASON,
   InstalmentAfterTermError,
   PaymentPlanInputError,
@@ -307,6 +308,31 @@ export function createPaymentPlansModule(deps: PaymentPlansDeps) {
     });
   }
 
+  /**
+   * Whether the viewer can be offered a plan at this Property, and the currency
+   * its instalments are in. Null when they could not make one: the front desk
+   * is out of reach, the viewer may not take bookings, or the Property keeps no
+   * Folios. It only decides whether a screen shows the section; the plan's own
+   * function refuses again for every writer (PP-S2-08).
+   */
+  async function planOffer(
+    userId: string,
+    propertyId: string,
+  ): Promise<{ currency: string } | null> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [row] = await tx.$queryRaw<{ currency: string }[]>`
+        select trim(property.currency) as "currency"
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+           and app.can_use_capability(property.id, 'front_office', 'front_desk')
+           and app.can_use_capability(property.id, 'billing_folios', 'finance')
+           and app.has_organization_permission(
+                 property.organization_id, ${MAKE_PLAN_PERMISSION})
+      `;
+      return row ?? null;
+    });
+  }
+
   /** A booking's plan with where each instalment stands, or null: none, or out of reach. */
   async function readPaymentPlan(
     userId: string,
@@ -442,6 +468,7 @@ export function createPaymentPlansModule(deps: PaymentPlansDeps) {
     createPaymentPlan,
     createPaymentPlanWithin,
     revisePaymentPlan,
+    planOffer,
     readPaymentPlan,
     overdueFigure,
     overdueResidents,

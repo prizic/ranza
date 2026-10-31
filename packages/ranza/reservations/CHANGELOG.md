@@ -11,6 +11,10 @@ everything lands under Unreleased.
 
 ### Added
 
+- `createReservation(userId, booking, alongside?)`: an optional step the host
+  runs in the booking's own transaction, once the booking exists and before it
+  commits, so something sold with a booking (a payment plan, PP-S2-05) is made
+  in one act with it. Handed the transaction and the new ids; imports nothing.
 - `RoomCalendarReservationBar.reference` and `.expectedArrival`, so a move
   dragged on the room calendar can open Change booking without reading the
   booking again (RC-S3-01).

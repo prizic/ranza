@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { GENDERS, type Gender } from "@ranza/core";
 import { isSupportedLocale } from "@ranza/i18n";
 import type { GuestDetailsError, GuestParticulars } from "@ranza/guests";
+import type { NewInstalment } from "@ranza/payment-plans";
 import {
   BALANCE_REASON,
   CANCELLATION_REASON,
@@ -345,6 +346,9 @@ export type CreateReservationOutcome =
   | "priceChanged"
   | "notAdmitted"
   | "invalidParticulars"
+  | "invalidPlan"
+  | "planAfterTerm"
+  | "planNotAllowed"
   | RefusalOutcome;
 
 /** Only the two the database will accept; anything else is not a stay type. */
@@ -392,6 +396,28 @@ function particularsField(form: FormData): GuestParticulars | null {
     documentType,
     documentNumber: optional(form, "documentNumber"),
   };
+}
+
+/**
+ * The payment plan a booking was taken with (PP-S2-*): one amount and one due
+ * day per instalment, in the order they were laid out. Null when the form
+ * carried none, which is every Guest and every Resident the desk did not plan.
+ * Undefined for a form this screen did not send: amounts that are not whole
+ * minor units, or one without the other, are refused like one.
+ *
+ * Whether the plan is a good one (a positive amount, a real day, within the
+ * term) is the module's and the database's to say; this only reads the form.
+ */
+function planField(form: FormData): NewInstalment[] | null | undefined {
+  const amounts = form.getAll("planAmountMinor").map(String);
+  const days = form.getAll("planDueOn").map(String);
+  if (amounts.length !== days.length) return undefined;
+  if (amounts.length === 0) return null;
+  if (!amounts.every((amount) => /^\d{1,15}$/.test(amount))) return undefined;
+  return amounts.map((amount, index) => ({
+    amountMinor: Number(amount),
+    dueOn: days[index] ?? "",
+  }));
 }
 
 /**
@@ -465,23 +491,42 @@ export async function createReservation(
   const particulars = particularsField(form);
   if (particulars === null) return "refused";
 
+  const plan = planField(form);
+  if (plan === undefined) return "refused";
+
+  const { paymentPlans, reservations } = getComposition();
   try {
-    await getComposition().reservations.createReservation(viewer.userId, {
-      propertyId,
-      accommodationUnitId,
-      guestName,
-      guestEmail: optional(form, "guestEmail"),
-      guestPhone: optional(form, "guestPhone"),
-      existingGuestId: pickedGuest,
-      guestGender: genderField,
-      particulars,
-      stayType: type,
-      startsOn,
-      endsOn: optional(form, "endsOn"),
-      quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
-      quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
-      expectedArrival: optional(form, "expectedArrival"),
-    });
+    await reservations.createReservation(
+      viewer.userId,
+      {
+        propertyId,
+        accommodationUnitId,
+        guestName,
+        guestEmail: optional(form, "guestEmail"),
+        guestPhone: optional(form, "guestPhone"),
+        existingGuestId: pickedGuest,
+        guestGender: genderField,
+        particulars,
+        stayType: type,
+        startsOn,
+        endsOn: optional(form, "endsOn"),
+        quotedRateMinor: quotedRate === "" ? null : Number(quotedRate),
+        quotedCurrency: quotedCurrency === "" ? null : quotedCurrency,
+        expectedArrival: optional(form, "expectedArrival"),
+      },
+      // The plan is made in the booking's own transaction, so one the database
+      // refuses leaves no booking behind (PP-S2-05).
+      plan === null
+        ? undefined
+        : async (tx, { reservationId }) => {
+            await paymentPlans.createPaymentPlanWithin(
+              tx,
+              viewer.userId,
+              reservationId,
+              plan,
+            );
+          },
+    );
   } catch (error) {
     if (isA(error, "UnitUnavailableError")) return "unavailable";
     if (isA(error, "UnitHasOccupantError")) return "occupied";
@@ -496,6 +541,12 @@ export async function createReservation(
     if (isA(error, "ExpectedArrivalError")) return "invalidArrival";
     if (isA(error, "GuestNotAdmittedError")) return "notAdmitted";
     if (isA(error, "GuestParticularsError")) return "invalidParticulars";
+    // The plan the desk laid out, by name like the rest: what to change is in
+    // the schedule, and a refusal for anything else is the module's own answer.
+    if (isA(error, "PaymentPlanInputError")) return "invalidPlan";
+    if (isA(error, "InstalmentAfterTermError")) return "planAfterTerm";
+    if (isA(error, "PaymentPlanNotAllowedError")) return "planNotAllowed";
+    if (isA(error, "PaymentPlanRefusedError")) return "refused";
     // The dialog is read again with the price that stands now.
     if (isA(error, "PriceChangedError")) {
       revalidateFrontDesk(locale);

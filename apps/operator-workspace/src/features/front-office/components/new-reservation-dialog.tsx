@@ -46,7 +46,10 @@ import type { StayType } from "../../../lib/booking-defaults";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { unitLabel } from "../unit-label";
 import { refusalMessage } from "../refusal";
+import { nightsBetween } from "../payment-plan-split";
+import { usePaymentPlan } from "../use-payment-plan";
 import { GuestParticularsFields } from "./guest-particulars-fields";
+import { PaymentPlanFields } from "./payment-plan-fields";
 
 /**
  * Taking a booking.
@@ -97,14 +100,6 @@ import { GuestParticularsFields } from "./guest-particulars-fields";
  * have bought.
  */
 const GUEST = { name: 120, emailMin: 3, email: 254, phone: 40 };
-
-/** Nights between two `YYYY-MM-DD` dates, counted in UTC so no clock shifts them. */
-function nightsBetween(from: string, to: string): number {
-  return Math.round(
-    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
-      86_400_000,
-  );
-}
 
 type Availability = {
   kind: "ready";
@@ -166,6 +161,7 @@ export function NewReservationDialog({
   defaultStayType = "guest",
   locale,
   onClose,
+  paymentPlan = null,
   propertyId,
   start,
   startOpen = false,
@@ -177,6 +173,12 @@ export function NewReservationDialog({
   locale: SupportedLocale;
   /** Told when it closes, taken or not, for a screen that keeps its own data. */
   onClose?: () => void;
+  /**
+   * The currency a Resident's payment plan is in, or null where none is
+   * offered: the Property keeps no Folios, or the viewer may not make one
+   * (PP-S2-08).
+   */
+  paymentPlan?: { currency: string } | null;
   propertyId: string;
   /**
    * Opened by a gesture that already chose the nights, and the Unit when it
@@ -230,6 +232,23 @@ export function NewReservationDialog({
   // cleared by typing: the same message from either, under the field.
   const [emailRejected, setEmailRejected] = useState(false);
   const emailField = useRef<HTMLInputElement>(null);
+  const chosen = units.find((unit) => unit.unitId === unitId);
+  // The price list's night, in the Property's currency or not at all: a rate in
+  // another currency would put the wrong figure under the plan's currency.
+  const plan = usePaymentPlan({
+    currency: paymentPlan?.currency ?? "",
+    from: dates.from,
+    nightlyRateMinor:
+      chosen?.rateCurrency === paymentPlan?.currency
+        ? (chosen?.nightlyRateMinor ?? null)
+        : null,
+    offered: paymentPlan !== null,
+    openByDefault: defaultStayType === "resident",
+    resident: stayType === "resident",
+    to: dates.to,
+  });
+  const resetPlan = plan.reset;
+
   // Bumped when saving is refused for a clash, so the marks are read again
   // with what stands now rather than what stood when the dates were chosen.
   const [generation, setGeneration] = useState(0);
@@ -270,7 +289,8 @@ export function NewReservationDialog({
     setPicked(null);
     setGender(null);
     setParticularsOpened(false);
-  }, [defaultStayType, onClose]);
+    resetPlan();
+  }, [defaultStayType, onClose, resetPlan]);
   useEffect(() => {
     if (outcome === "done") closeAndReset();
   }, [outcome, closeAndReset]);
@@ -387,7 +407,6 @@ export function NewReservationDialog({
     setPicked(null);
   }
 
-  const chosen = units.find((unit) => unit.unitId === unitId);
   const roomAdmits = chosen?.admits ?? null;
   const recordedGender = picked?.gender ?? null;
   const guestGender = recordedGender ?? gender;
@@ -450,11 +469,17 @@ export function NewReservationDialog({
                   ? t("bookingNotAdmitted")
                   : outcome === "invalidParticulars"
                     ? t("particulars.invalid")
-                    : outcome === "refused"
-                      ? t("bookingRefused")
-                      : refusal
-                        ? t(refusal)
-                        : null;
+                    : outcome === "invalidPlan"
+                      ? t("paymentPlan.invalid")
+                      : outcome === "planAfterTerm"
+                        ? t("paymentPlan.afterTerm")
+                        : outcome === "planNotAllowed"
+                          ? t("paymentPlan.notAllowed")
+                          : outcome === "refused"
+                            ? t("bookingRefused")
+                            : refusal
+                              ? t(refusal)
+                              : null;
 
   const unitItems: OptionListItem[] = units.map((unit) => {
     const blocker = taken.get(unit.unitId);
@@ -500,7 +525,8 @@ export function NewReservationDialog({
     asking &&
     unitId !== "" &&
     !taken.has(unitId) &&
-    genderAnswered;
+    genderAnswered &&
+    plan.problem === null;
   const freeUnits = units.length - taken.size;
 
   return (
@@ -980,6 +1006,17 @@ export function NewReservationDialog({
                     )}
                   </div>
                 ) : null}
+
+                {/* After the unit and the dates it is made of, and in the
+                  column the money consequences already are (PP-S2-01). */}
+                <PaymentPlanFields
+                  currency={paymentPlan?.currency ?? ""}
+                  from={dates.from}
+                  locale={locale}
+                  plan={plan}
+                  tagOptional={t("dialogTagOptional")}
+                  to={dates.to}
+                />
               </div>
             </div>
 
@@ -1001,6 +1038,23 @@ export function NewReservationDialog({
                     className="m-0 text-sm font-medium text-foreground"
                   >
                     <bdi>{quote}</bdi>
+                  </p>
+                ) : null}
+                {plan.on && plan.problem === null && plan.rows.length > 0 ? (
+                  <p
+                    aria-live="polite"
+                    className="m-0 text-sm font-medium text-foreground"
+                  >
+                    <bdi>
+                      {t("paymentPlan.summary", {
+                        count: plan.rows.length,
+                        sum: formatMoney(
+                          plan.sumMinor,
+                          paymentPlan?.currency ?? "",
+                          locale,
+                        ),
+                      })}
+                    </bdi>
                   </p>
                 ) : null}
                 {complete ? null : (

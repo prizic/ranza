@@ -40,6 +40,7 @@ export {
   UnitUnavailableError,
 } from "./contracts";
 export type {
+  AlongsideBooking,
   AmendedBooking,
   Arrival,
   BookableUnit,
