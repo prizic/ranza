@@ -24,6 +24,7 @@ export const KNOWN_ACTIONS = [
   "reservation.no_show",
   "reservation.amended",
   "reservation.arrival_time_changed",
+  "guest.identity_document_revealed",
   "stay.checked_out",
   "stay.departure_changed",
   "stay.moved",
@@ -116,6 +117,7 @@ export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 const AREA_OF_NOUN: Record<string, AuditArea> = {
   reservation: "bookings",
+  guest: "bookings",
   stay: "bookings",
   business_day: "bookings",
   folio: "money",

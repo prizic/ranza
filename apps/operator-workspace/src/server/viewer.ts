@@ -23,7 +23,7 @@ import type {
   PropertySettings,
 } from "@ranza/core";
 import type { CloseTheDay } from "@ranza/business-day";
-import type { GuestParticulars } from "@ranza/guests";
+import type { GuestDocumentType, StoredGuestParticulars } from "@ranza/guests";
 import { LOCATION_HEADER, signInHref } from "../lib/return-path";
 import { gateOf, type ScreenGate } from "../lib/screens";
 import type { PriceList } from "@ranza/rates";
@@ -852,10 +852,26 @@ export async function bookingDay(propertyId: string): Promise<string | null> {
  */
 export async function guestParticulars(
   reservationId: string,
-): Promise<GuestParticulars | null> {
+): Promise<StoredGuestParticulars | null> {
   const viewer = await currentViewer();
   if (!viewer) return null;
   return getComposition().reservations.guestParticulars(
+    viewer.userId,
+    reservationId,
+  );
+}
+
+/**
+ * The document number of the Guest a booking is for, in full, because the desk
+ * asked to see it (PA-S2-*). The module records that it was shown. Null for
+ * anybody not signed in, and when there is none or the viewer may not read it.
+ */
+export async function revealIdentityDocument(
+  reservationId: string,
+): Promise<{ documentType: GuestDocumentType; documentNumber: string } | null> {
+  const viewer = await currentViewer();
+  if (!viewer) return null;
+  return getComposition().reservations.revealIdentityDocument(
     viewer.userId,
     reservationId,
   );

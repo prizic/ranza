@@ -162,7 +162,7 @@ select is_empty(
 
 select ok(
   (select proacl::text from pg_catalog.pg_proc
-    where oid = 'app.record_guest_particulars(uuid, date, text, smallint, text, text, text, text)'::regprocedure)
+    where oid = 'app.record_guest_particulars(uuid, date, text, smallint, text, text, text, text, text, text, text)'::regprocedure)
     !~ '(^|,)=X',
   'PA-S1-08: the function is nobody''s to call but the runtime role''s');
 
@@ -176,7 +176,7 @@ select app.set_request_context('f7222222-2222-4222-8222-222222222222');
 select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', '2008-03-14', 'ODTÜ', 1::smallint,
-       'Ayten Öğrenci', '+90 532 111 11 11', 'Murat Öğrenci', '+90 532 222 22 22') $$,
+       'Ayten Öğrenci', '+90 532 111 11 11', 'Murat Öğrenci', '+90 532 222 22 22', null, null, null) $$,
   'PA-S1-06: a front desk records a student''s particulars');
 
 select results_eq(
@@ -191,7 +191,7 @@ select results_eq(
 select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', null, null, 2::smallint,
-       null, null, null, null) $$,
+       null, null, null, null, null, null, null) $$,
   'PA-S1-07: a booking with blanks records over them');
 
 select results_eq(
@@ -204,7 +204,7 @@ select results_eq(
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', current_date + 1, null, null,
-       null, null, null, null) $$,
+       null, null, null, null, null, null, null) $$,
   '23514', null, 'PA-S1-01: a date of birth is not in the future');
 
 select app.set_request_context('f7111111-1111-4111-8111-111111111111');
@@ -224,14 +224,14 @@ select is(
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', null, 'Hacettepe', null,
-       null, null, null, null) $$,
+       null, null, null, null, null, null, null) $$,
   '42501', null, 'PA-S1-06: nor records any, without front_desk.book');
 
 select app.set_request_context('f7555555-5555-4555-8555-555555555555');
 select lives_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000002', null, 'Hacettepe', 3::smallint,
-       null, null, null, null) $$,
+       null, null, null, null, null, null, null) $$,
   'PA-S1-06: a role that may book records particulars, and a returning student''s again');
 select is(
   (select count(*)::int from public.guest_particulars),
@@ -241,7 +241,7 @@ select app.set_request_context('f7444444-4444-4444-8444-444444444444');
 select throws_ok(
   $$ select app.record_guest_particulars(
        'f7d00000-0000-4000-8000-000000000001', null, 'Bilkent', null,
-       null, null, null, null) $$,
+       null, null, null, null, null, null, null) $$,
   '42501', null, 'PA-S1-06: a manager of another Organization records nothing');
 
 -- Last, because a missing grant raises.

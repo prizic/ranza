@@ -86,7 +86,23 @@ export const GUEST_PARTICULARS = {
   phone: { max: 40 },
   studyYear: { min: 1, max: 8 },
   earliestDateOfBirth: "1900-01-01",
+  /** A passport, permit or other number; a T.C. kimlik is eleven digits. */
+  documentNumber: { min: 6, max: 20 },
 } as const;
+
+/**
+ * Which kind of document a Guest registered with. `tc_kimlik` is the Turkish
+ * identity number, whose last two digits follow from the first nine; every
+ * other kind is a bounded run of letters and digits.
+ */
+export const GUEST_DOCUMENT_TYPES = [
+  "tc_kimlik",
+  "passport",
+  "residence_permit",
+  "other",
+] as const;
+
+export type GuestDocumentType = (typeof GUEST_DOCUMENT_TYPES)[number];
 
 /**
  * What a dormitory knows about a student beyond their name: when they were
@@ -107,7 +123,28 @@ export interface GuestParticulars {
   guardianPhone: string | null;
   emergencyName: string | null;
   emergencyPhone: string | null;
+  /** ISO 3166-1 alpha-2, upper case. */
+  nationality: string | null;
+  /**
+   * The identity document, as typed. A kind and a number are a pair: a number
+   * with no kind is refused, and a kind with no number is nothing typed.
+   */
+  documentType: GuestDocumentType | null;
+  documentNumber: string | null;
 }
+
+/**
+ * A Guest's particulars as they are read back. The document number is not in
+ * them: the runtime role is not granted the column, and the screen shows the
+ * last four characters until somebody asks for the rest, which is recorded
+ * (`revealIdentityDocumentWithin`).
+ */
+export type StoredGuestParticulars = Omit<
+  GuestParticulars,
+  "documentNumber"
+> & {
+  documentLastFour: string | null;
+};
 
 export type GuestParticularsField = keyof GuestParticulars;
 

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { DialogFacts, DialogSection } from "@ranza/ui";
 import { formatDate, type SupportedLocale } from "@ranza/i18n";
+import { countryName } from "../../../lib/countries";
+import { IdentityDocumentValue } from "./identity-document-value";
 
 /** What `/api/front-office/guest-particulars` answers; null for none to show. */
 interface Particulars {
@@ -14,6 +16,10 @@ interface Particulars {
   guardianPhone: string | null;
   emergencyName: string | null;
   emergencyPhone: string | null;
+  nationality: string | null;
+  documentType: string | null;
+  /** The number is never in this answer; see `IdentityDocumentValue`. */
+  documentLastFour: string | null;
 }
 
 type Read =
@@ -104,6 +110,22 @@ export function GuestParticularsFacts({
   const rows = (
     [
       [t("dateOfBirth"), born],
+      [
+        t("nationality"),
+        particulars.nationality
+          ? countryName(particulars.nationality, locale)
+          : null,
+      ],
+      [
+        t("documentType"),
+        particulars.documentType && particulars.documentLastFour ? (
+          <IdentityDocumentValue
+            documentType={particulars.documentType}
+            lastFour={particulars.documentLastFour}
+            reservationId={reservationId}
+          />
+        ) : null,
+      ],
       [t("institution"), particulars.institution],
       [
         t("studyYear"),

@@ -19,7 +19,16 @@ flowchart TD
     READ(["Read them on the booking<br/>fetched when it is opened, never with the list"])
   end
 
+  subgraph S2["slice 2 &mdash; the identity document (RANZ-81)"]
+    DOCUMENT(["Record the nationality and the identity document<br/>suggested from the nationality, checked as it is typed"])
+    MASKED(["Read the document masked<br/>the kind and the last four characters"])
+    REVEAL(["Show the whole number<br/>one press, recorded in the audit log"])
+  end
+
   BOOKER --- BOOK
   READER --- READ
   RECORD -. "extend: when anything is typed" .-> BOOK
   RECORD --> KEEP
+  DOCUMENT --> RECORD
+  MASKED -. "extend: when the booking has a document" .-> READ
+  REVEAL -. "extend: when asked for" .-> MASKED

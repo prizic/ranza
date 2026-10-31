@@ -1021,3 +1021,84 @@ describe("a student's particulars (PA-S1-09)", () => {
     expect(await screen.findByText(P.invalid)).toBeVisible();
   });
 });
+
+describe("a student's identity document (PA-S2-*)", () => {
+  const P = messages.en.particulars;
+  const formData = () =>
+    new FormData(
+      screen.getByRole("button", { name: /^Arrival/ }).closest("form")!,
+    );
+
+  function chooseNationality(search: string, name: string) {
+    fireEvent.click(screen.getByRole("combobox", { name: P.nationality }));
+    fireEvent.change(screen.getByPlaceholderText("Search…"), {
+      target: { value: search },
+    });
+    fireEvent.click(screen.getByRole("option", { name }));
+  }
+
+  it("asks for the nationality, the kind and the number beside the other particulars", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    expect(screen.getByRole("combobox", { name: P.nationality })).toBeVisible();
+    for (const label of Object.values(P.documentTypes)) {
+      expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText(P.documentNumber)).toBeVisible();
+  });
+
+  it("suggests the kind of document from the nationality, until one is chosen by hand", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    chooseNationality("TR", /Türkiye|Turkey/);
+    expect(
+      screen.getByRole("radio", { name: P.documentTypes.tc_kimlik }),
+    ).toBeChecked();
+    expect(formData().get("nationality")).toBe("TR");
+
+    chooseNationality("germany", "Germany");
+    expect(
+      screen.getByRole("radio", { name: P.documentTypes.passport }),
+    ).toBeChecked();
+
+    fireEvent.click(
+      screen.getByRole("radio", { name: P.documentTypes.residence_permit }),
+    );
+    chooseNationality("TR", /Türkiye|Turkey/);
+    expect(
+      screen.getByRole("radio", { name: P.documentTypes.residence_permit }),
+    ).toBeChecked();
+  });
+
+  it("sends the kind and the number with the booking, and says a wrong number once it is left", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    chooseNationality("TR", /Türkiye|Turkey/);
+    const number = screen.getByLabelText(P.documentNumber);
+
+    fireEvent.change(number, { target: { value: "10000000147" } });
+    expect(screen.queryByText(P.documentProblems.tcKimlik)).toBeNull();
+    fireEvent.blur(number);
+    expect(screen.getByText(P.documentProblems.tcKimlik)).toBeVisible();
+    expect(number).toBeInvalid();
+
+    fireEvent.change(number, { target: { value: "100 000 001 46" } });
+    expect(screen.queryByText(P.documentProblems.tcKimlik)).toBeNull();
+    expect(number).toBeValid();
+    expect(formData().get("documentType")).toBe("tc_kimlik");
+    expect(formData().get("documentNumber")).toBe("100 000 001 46");
+  });
+
+  it("asks for the kind when a number is typed without one", () => {
+    openForm();
+    chooseStayType(messages.en.stayType.resident);
+    const number = screen.getByLabelText(P.documentNumber);
+    fireEvent.change(number, { target: { value: "U1234567" } });
+    fireEvent.blur(number);
+    expect(screen.getByText(P.documentProblems.type)).toBeVisible();
+    fireEvent.click(
+      screen.getByRole("radio", { name: P.documentTypes.passport }),
+    );
+    expect(screen.queryByText(P.documentProblems.type)).toBeNull();
+  });
+});

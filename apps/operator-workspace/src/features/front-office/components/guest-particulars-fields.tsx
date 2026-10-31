@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { Button, DialogSection, Input, fieldClassName } from "@ranza/ui";
+import { GuestIdentityDocumentFields } from "./guest-identity-document-fields";
 
 /**
  * `GUEST_PARTICULARS` in `@ranza/guests`, restated for the reason the booking
@@ -24,8 +25,8 @@ const NAMES = [
 ] as const;
 
 /**
- * A student's date of birth, studies, guardian and emergency contact, in the
- * booking dialog (PA-S1-09).
+ * A student's date of birth, nationality and identity document, studies,
+ * guardian and emergency contact, in the booking dialog (PA-S1-09, PA-S2-*).
  *
  * Open for a Resident's stay, which is a dormitory's default (ADR 0057: the
  * model sets what is shown first, never the rule), and one press away for a
@@ -78,6 +79,17 @@ export function GuestParticularsFields({
             type="date"
           />
         </label>
+        <GuestIdentityDocumentFields onShow={onShow} />
+        <label className="grid gap-1.5 text-sm font-medium">
+          {t("institution")}
+          <Input
+            autoComplete="off"
+            className={fieldClassName}
+            maxLength={PARTICULARS.textMax}
+            minLength={PARTICULARS.textMin}
+            name="institution"
+          />
+        </label>
         <label className="grid gap-1.5 text-sm font-medium">
           {t("studyYear")}
           <Input
@@ -87,16 +99,6 @@ export function GuestParticularsFields({
             min={PARTICULARS.yearMin}
             name="studyYear"
             type="number"
-          />
-        </label>
-        <label className="grid gap-1.5 text-sm font-medium sm:col-span-2">
-          {t("institution")}
-          <Input
-            autoComplete="off"
-            className={fieldClassName}
-            maxLength={PARTICULARS.textMax}
-            minLength={PARTICULARS.textMin}
-            name="institution"
           />
         </label>
         {NAMES.map(([name, phone]) => (

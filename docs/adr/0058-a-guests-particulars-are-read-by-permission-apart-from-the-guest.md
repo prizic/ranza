@@ -5,6 +5,14 @@ Date: 2026-10-31
 Status: Accepted — approved by Albaraa Zain on 2026-10-31 (local approver override); applied in
 `20260916013700_a_student_has_particulars`
 
+Proposed amendment: a Guest's identity document number is the one particular the table does not
+hand to the runtime role. It is read in full only through `app.reveal_guest_identity_document`,
+which asks the same permission and whose caller records that it was shown; the table shows its
+last four characters. The reasoning is the decision's own, taken one step further: a policy bounds
+rows and a grant bounds columns, and a number whose leak is the worst of them is worth the
+second boundary. Proposed in `20260916014200_a_guest_has_an_identity_document`
+([`PA-S2-06`, `PA-S2-07`](../features/guest-particulars/edge-cases.csv)); awaiting the owner.
+
 Builds on [ADR 0012](0012-a-write-is-bounded-by-a-policy-not-a-check.md),
 [ADR 0024](0024-a-guest-belongs-to-an-organization-and-a-reservation-holds-its-nights.md)
 and [ADR 0057](0057-a-propertys-operating-model-sets-its-defaults-and-its-words-never-its-rules.md).

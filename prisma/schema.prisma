@@ -653,17 +653,27 @@ model Guest {
 /// (KVKK). Written only through `app.record_guest_particulars`. The checks,
 /// the policy and the function are hand-written in the migration.
 model GuestParticulars {
-  guestId        String    @id @map("guest_id") @db.Uuid
-  organizationId String    @map("organization_id") @db.Uuid
-  dateOfBirth    DateTime? @map("date_of_birth") @db.Date
-  institution    String?
-  studyYear      Int?      @map("study_year") @db.SmallInt
-  guardianName   String?   @map("guardian_name")
-  guardianPhone  String?   @map("guardian_phone")
-  emergencyName  String?   @map("emergency_name")
-  emergencyPhone String?   @map("emergency_phone")
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  guestId          String    @id @map("guest_id") @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  dateOfBirth      DateTime? @map("date_of_birth") @db.Date
+  institution      String?
+  studyYear        Int?      @map("study_year") @db.SmallInt
+  guardianName     String?   @map("guardian_name")
+  guardianPhone    String?   @map("guardian_phone")
+  emergencyName    String?   @map("emergency_name")
+  emergencyPhone   String?   @map("emergency_phone")
+  /// ISO 3166-1 alpha-2 (PA-S2-*).
+  nationality      String?
+  /// `tc_kimlik`, `passport`, `residence_permit` or `other`; paired with the
+  /// number by `guest_particulars_document_pair_check`.
+  documentType     String?   @map("document_type")
+  /// Not granted to the runtime role: read in full only through
+  /// `app.reveal_guest_identity_document`.
+  documentNumber   String?   @map("document_number")
+  /// Generated (`right(document_number, 4)`): what a screen shows by default.
+  documentLastFour String?   @default(dbgenerated("\"right\"(document_number, 4)")) @map("document_last_four")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   guest Guest @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "guest_particulars_guest_fkey")
 

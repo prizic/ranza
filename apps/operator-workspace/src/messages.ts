@@ -688,6 +688,23 @@ export interface Messages {
     guardianPhone: string;
     emergencyName: string;
     emergencyPhone: string;
+    nationality: string;
+    nationalityPlaceholder: string;
+    /** The identity document: its kind, its number, and why a number is refused. */
+    documentType: string;
+    documentTypes: {
+      tc_kimlik: string;
+      passport: string;
+      residence_permit: string;
+      other: string;
+    };
+    documentNumber: string;
+    documentProblems: { tcKimlik: string; other: string; type: string };
+    /** On the booking: the number is masked until asked for, and asking is recorded. */
+    documentShow: string;
+    documentHide: string;
+    documentRecorded: string;
+    documentRevealFailed: string;
     invalid: string;
     /** On the booking, when they could not be read: said, never shown as none. */
     unavailable: string;
@@ -2939,6 +2956,7 @@ export interface Messages {
       | "arrival_time_changed",
       string
     >;
+    guest: Record<"identity_document_revealed", string>;
     stay: Record<"checked_out" | "departure_changed" | "moved", string>;
     folio: Record<
       "charge_posted" | "payment_posted" | "line_reversed" | "closed",
@@ -4100,8 +4118,28 @@ export const messages: Record<SupportedLocale, Messages> = {
       guardianPhone: "Velinin telefonu",
       emergencyName: "Acil durumda aranacak kişi",
       emergencyPhone: "Acil durum telefonu",
+      nationality: "Uyruk",
+      nationalityPlaceholder: "Ülke seçin",
+      documentType: "Kimlik belgesi",
+      documentTypes: {
+        tc_kimlik: "T.C. kimlik",
+        passport: "Pasaport",
+        residence_permit: "İkamet izni",
+        other: "Diğer",
+      },
+      documentNumber: "Belge numarası",
+      documentProblems: {
+        tcKimlik:
+          "T.C. kimlik numarası 11 haneli olmalı ve son iki hanesi doğrulanmalı.",
+        other: "Belge numarası {min} ile {max} harf ve rakamdan oluşmalı.",
+        type: "Numaranın hangi belgeye ait olduğunu seçin.",
+      },
+      documentShow: "Göster",
+      documentHide: "Gizle",
+      documentRecorded: "Gösterilmesi denetim kaydına yazıldı.",
+      documentRevealFailed: "Numara şu anda gösterilemedi. Yeniden deneyin.",
       invalid:
-        "Kişisel bilgilerden biri yazıldığı gibi kaydedilemiyor: doğum tarihi 1900'den sonra ve gelecekte olmayan bir gün, sınıf 1 ile 8 arası, adlar en az iki karakter olmalı.",
+        "Kişisel bilgilerden biri yazıldığı gibi kaydedilemiyor: doğum tarihi 1900'den sonra ve gelecekte olmayan bir gün, sınıf 1 ile 8 arası, adlar en az iki karakter olmalı, kimlik numarası belge türüne uygun olmalı.",
       unavailable:
         "Kişisel bilgiler şu anda okunamadı. Rezervasyonu yeniden açın.",
     },
@@ -6633,6 +6671,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         amended: "Rezervasyon değiştirildi",
         arrival_time_changed: "Beklenen varış saati değiştirildi",
       },
+      guest: {
+        identity_document_revealed: "Kimlik belgesi numarası gösterildi",
+      },
       stay: {
         checked_out: "Çıkış yapıldı",
         departure_changed: "Çıkış tarihi değiştirildi",
@@ -7889,8 +7930,29 @@ export const messages: Record<SupportedLocale, Messages> = {
       guardianPhone: "Guardian's telephone",
       emergencyName: "Emergency contact",
       emergencyPhone: "Emergency telephone",
+      nationality: "Nationality",
+      nationalityPlaceholder: "Choose a country",
+      documentType: "Identity document",
+      documentTypes: {
+        tc_kimlik: "Turkish ID (T.C. kimlik)",
+        passport: "Passport",
+        residence_permit: "Residence permit",
+        other: "Other",
+      },
+      documentNumber: "Document number",
+      documentProblems: {
+        tcKimlik:
+          "A T.C. kimlik number is 11 digits and its last two digits must check out.",
+        other: "A document number is {min} to {max} letters and digits.",
+        type: "Choose which kind of document the number is.",
+      },
+      documentShow: "Show",
+      documentHide: "Hide",
+      documentRecorded: "Showing it was recorded in the audit log.",
+      documentRevealFailed:
+        "The number could not be shown just now. Try again.",
       invalid:
-        "A personal detail cannot be recorded as typed: a date of birth from 1900 and not in the future, a year of study from 1 to 8, and names of at least two characters.",
+        "A personal detail cannot be recorded as typed: a date of birth from 1900 and not in the future, a year of study from 1 to 8, names of at least two characters, and a document number that fits its kind.",
       unavailable:
         "The personal details could not be read just now. Open the booking again.",
     },
@@ -10431,6 +10493,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         amended: "Reservation changed",
         arrival_time_changed: "Expected arrival time changed",
       },
+      guest: {
+        identity_document_revealed: "Identity document number shown",
+      },
       stay: {
         checked_out: "Checked out",
         departure_changed: "Departure changed",
@@ -11663,8 +11728,28 @@ export const messages: Record<SupportedLocale, Messages> = {
       guardianPhone: "هاتف وليّ الأمر",
       emergencyName: "جهة الاتصال في الطوارئ",
       emergencyPhone: "هاتف الطوارئ",
+      nationality: "الجنسية",
+      nationalityPlaceholder: "اختر دولة",
+      documentType: "وثيقة الهوية",
+      documentTypes: {
+        tc_kimlik: "الهوية التركية (T.C. kimlik)",
+        passport: "جواز سفر",
+        residence_permit: "إقامة",
+        other: "أخرى",
+      },
+      documentNumber: "رقم الوثيقة",
+      documentProblems: {
+        tcKimlik:
+          "رقم الهوية التركية مكوّن من 11 رقمًا ويجب أن يتطابق رقماه الأخيران مع الفحص.",
+        other: "رقم الوثيقة من {min} إلى {max} حرفًا ورقمًا.",
+        type: "اختر نوع الوثيقة التي يخصها الرقم.",
+      },
+      documentShow: "إظهار",
+      documentHide: "إخفاء",
+      documentRecorded: "سُجّل إظهار الرقم في سجل التدقيق.",
+      documentRevealFailed: "تعذّر إظهار الرقم الآن. حاول مرة أخرى.",
       invalid:
-        "لا يمكن تسجيل إحدى البيانات الشخصية كما كُتبت: تاريخ ميلاد من عام 1900 وليس في المستقبل، وسنة دراسية من 1 إلى 8، وأسماء من حرفين على الأقل.",
+        "لا يمكن تسجيل إحدى البيانات الشخصية كما كُتبت: تاريخ ميلاد من عام 1900 وليس في المستقبل، وسنة دراسية من 1 إلى 8، وأسماء من حرفين على الأقل، ورقم وثيقة يوافق نوعها.",
       unavailable: "تعذّرت قراءة البيانات الشخصية الآن. افتح الحجز مرة أخرى.",
     },
     bookingPeriodInvalid:
@@ -14150,6 +14235,9 @@ export const messages: Record<SupportedLocale, Messages> = {
         no_show: "سُجِّل عدم الحضور",
         amended: "عُدِّل الحجز",
         arrival_time_changed: "عُدِّل وقت الوصول المتوقع",
+      },
+      guest: {
+        identity_document_revealed: "أُظهر رقم وثيقة الهوية",
       },
       stay: {
         checked_out: "تم تسجيل المغادرة",

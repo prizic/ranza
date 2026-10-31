@@ -89,7 +89,7 @@ beforeAll(async () => {
     `insert into public.accommodation_units
        (property_id, organization_id, name, unit_type, capacity)
      select $1::uuid, $2::uuid, 'P-10' || n, 'room', 2
-       from generate_series(1, 4) as n
+       from generate_series(1, 12) as n
      returning id`,
     PROPERTY,
     ORG,
@@ -115,7 +115,14 @@ const PARTICULARS = {
   guardianPhone: "+90 532 111 11 11",
   emergencyName: null,
   emergencyPhone: null,
+  nationality: "TR",
+  documentType: "tc_kimlik" as const,
+  documentNumber: "10000000146",
 };
+
+/** What is read back: the last four, never the number. */
+const { documentNumber: _number, ...WITHOUT_NUMBER } = PARTICULARS;
+const STORED = { ...WITHOUT_NUMBER, documentLastFour: "0146" };
 
 const studentIn = (guestName: string, room: number) => ({
   propertyId: PROPERTY,
@@ -138,7 +145,7 @@ describe("a student's particulars, with their registration", () => {
     });
     expect(
       await reservations.guestParticulars(OWNER, created.reservationId),
-    ).toEqual(PARTICULARS);
+    ).toEqual(STORED);
   });
 
   it("are read by nobody without guests.read_particulars, though the booking is", async () => {
@@ -179,5 +186,126 @@ describe("a student's particulars, with their registration", () => {
       ORG,
     );
     expect(Number(left?.count)).toBe(0);
+  });
+
+  it("refuse a document number that fails its checksum, naming the field", async () => {
+    const refusal = await reservations
+      .createReservation(OWNER, {
+        ...studentIn("Ada Öğrenci", 4),
+        particulars: { ...PARTICULARS, documentNumber: "10000000147" },
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(refusal).toBeInstanceOf(GuestParticularsError);
+    expect((refusal as GuestParticularsError).field).toBe("documentNumber");
+  });
+
+  it("refuse a number with no kind, naming the kind, and drop a kind with no number", async () => {
+    const refusal = await reservations
+      .createReservation(OWNER, {
+        ...studentIn("Ada Öğrenci", 5),
+        particulars: { ...PARTICULARS, documentType: null },
+      })
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect((refusal as GuestParticularsError).field).toBe("documentType");
+
+    const created = await reservations.createReservation(OWNER, {
+      ...studentIn("Ada Öğrenci", 5),
+      particulars: { ...PARTICULARS, documentNumber: null },
+    });
+    expect(
+      await reservations.guestParticulars(OWNER, created.reservationId),
+    ).toMatchObject({
+      nationality: "TR",
+      documentType: null,
+      documentLastFour: null,
+    });
+  });
+
+  it("store a passport number as the database keeps it, upper case without spaces", async () => {
+    const created = await reservations.createReservation(OWNER, {
+      ...studentIn("Mehmet Yabancı", 6),
+      particulars: {
+        ...PARTICULARS,
+        nationality: "de",
+        documentType: "passport",
+        documentNumber: " c01x-00t 47 ",
+      },
+    });
+    expect(
+      await reservations.guestParticulars(OWNER, created.reservationId),
+    ).toMatchObject({
+      nationality: "DE",
+      documentType: "passport",
+      documentLastFour: "0T47",
+    });
+    const revealed = await reservations.revealIdentityDocument(
+      OWNER,
+      created.reservationId,
+    );
+    expect(revealed).toEqual({
+      documentType: "passport",
+      documentNumber: "C01X00T47",
+    });
+  });
+});
+
+describe("the document number in full", () => {
+  async function aStudentWithADocument(room: number) {
+    const created = await reservations.createReservation(OWNER, {
+      ...studentIn(`Revealed ${room}`, room),
+      particulars: PARTICULARS,
+    });
+    return created.reservationId;
+  }
+
+  const revealRecords = (reservationId: string) =>
+    owner.$queryRawUnsafe<{ actor_id: string; context: unknown }[]>(
+      `select actor_id, context from audit.records
+        where action = 'guest.identity_document_revealed'
+          and subject_id = $1::uuid`,
+      reservationId,
+    );
+
+  it("is shown to whoever may read particulars, and that is recorded without the number", async () => {
+    const reservationId = await aStudentWithADocument(7);
+    expect(
+      await reservations.revealIdentityDocument(OWNER, reservationId),
+    ).toEqual({ documentType: "tc_kimlik", documentNumber: "10000000146" });
+
+    const records = await revealRecords(reservationId);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.actor_id).toBe(OWNER);
+    expect(JSON.stringify(records[0]?.context)).not.toContain("10000000146");
+  });
+
+  it("is shown to nobody without guests.read_particulars, and nothing is recorded", async () => {
+    const reservationId = await aStudentWithADocument(8);
+    expect(
+      await reservations.revealIdentityDocument(HOUSEKEEPER, reservationId),
+    ).toBeNull();
+    expect(await revealRecords(reservationId)).toHaveLength(0);
+  });
+
+  it("is not recorded as shown when there is none to show", async () => {
+    const created = await reservations.createReservation(OWNER, {
+      ...studentIn("Belgesiz Öğrenci", 9),
+      particulars: { ...PARTICULARS, documentType: null, documentNumber: null },
+    });
+    expect(
+      await reservations.revealIdentityDocument(OWNER, created.reservationId),
+    ).toBeNull();
+    expect(await revealRecords(created.reservationId)).toHaveLength(0);
+  });
+
+  it("is not asked of a booking that is not there", async () => {
+    expect(
+      await reservations.revealIdentityDocument(OWNER, randomUUID()),
+    ).toBeNull();
   });
 });

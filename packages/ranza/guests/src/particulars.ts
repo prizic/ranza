@@ -1,8 +1,13 @@
 import {
+  GUEST_DOCUMENT_TYPES,
   GUEST_PARTICULARS,
   GuestParticularsError,
+  type GuestDocumentType,
   type GuestParticulars,
+  type GuestParticularsField,
+  type StoredGuestParticulars,
 } from "./contracts";
+import { isTcKimlik, normalizeDocumentNumber } from "./identity-document";
 import { GuestWriteError, type GuestWriteClient } from "./write";
 
 /**
@@ -37,6 +42,46 @@ function trimmed(value: string | null): string | null {
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const COUNTRY_CODE = /^[A-Z]{2}$/;
+const OTHER_DOCUMENT_NUMBER = /^[A-Z0-9]+$/;
+
+/**
+ * The document, normalized and measured, or nothing. A kind with no number is
+ * nothing typed — a form's kind selector is not a decision to record a
+ * document — and a number with no kind cannot be checked, so it is refused.
+ */
+function documentOf(input: GuestParticulars): {
+  documentType: GuestDocumentType | null;
+  documentNumber: string | null;
+} {
+  const number = trimmed(input.documentNumber);
+  if (number === null) return { documentType: null, documentNumber: null };
+
+  const type = input.documentType;
+  if (type === null || !GUEST_DOCUMENT_TYPES.includes(type)) {
+    throw new GuestParticularsError(
+      "choose which kind of document the number is",
+      "documentType",
+    );
+  }
+  const normalized = normalizeDocumentNumber(number);
+  const { min, max } = GUEST_PARTICULARS.documentNumber;
+  const valid =
+    type === "tc_kimlik"
+      ? isTcKimlik(normalized)
+      : OTHER_DOCUMENT_NUMBER.test(normalized) &&
+        normalized.length >= min &&
+        normalized.length <= max;
+  if (!valid) {
+    throw new GuestParticularsError(
+      type === "tc_kimlik"
+        ? "a T.C. kimlik number is eleven digits with its two check digits"
+        : `a document number is ${min} to ${max} letters and digits`,
+      "documentNumber",
+    );
+  }
+  return { documentType: type, documentNumber: normalized };
+}
 
 /** Trimmed and measured against the check constraints, empty as absent. */
 function normalize(input: GuestParticulars): GuestParticulars {
@@ -48,6 +93,8 @@ function normalize(input: GuestParticulars): GuestParticulars {
     guardianPhone: trimmed(input.guardianPhone),
     emergencyName: trimmed(input.emergencyName),
     emergencyPhone: trimmed(input.emergencyPhone),
+    nationality: trimmed(input.nationality)?.toUpperCase() ?? null,
+    ...documentOf(input),
   };
   const { text, phone, studyYear, earliestDateOfBirth } = GUEST_PARTICULARS;
 
@@ -61,6 +108,15 @@ function normalize(input: GuestParticulars): GuestParticulars {
     throw new GuestParticularsError(
       `a date of birth is a day from ${earliestDateOfBirth}`,
       "dateOfBirth",
+    );
+  }
+  if (
+    particulars.nationality !== null &&
+    !COUNTRY_CODE.test(particulars.nationality)
+  ) {
+    throw new GuestParticularsError(
+      "a nationality is a two-letter country code",
+      "nationality",
     );
   }
   const year = particulars.studyYear;
@@ -132,7 +188,10 @@ export async function recordParticularsWithin(
         ${particulars.guardianName},
         ${particulars.guardianPhone},
         ${particulars.emergencyName},
-        ${particulars.emergencyPhone}
+        ${particulars.emergencyPhone},
+        ${particulars.nationality},
+        ${particulars.documentType},
+        ${particulars.documentNumber}
       )
     `;
   } catch (error: unknown) {
@@ -141,12 +200,28 @@ export async function recordParticularsWithin(
     }
     if (raised(error, CHECK_VIOLATION)) {
       throw new GuestParticularsError(
-        "a date of birth is not in the future",
-        "dateOfBirth",
+        "that particular is not one the database accepts",
+        violatedField(error),
       );
     }
     throw error;
   }
+}
+
+/**
+ * Which field a check the checks above did not foresee refused. The one the
+ * function raises itself is a date of birth in the future, and it is the
+ * default: every other bound is measured before the statement is sent.
+ */
+function violatedField(error: unknown): GuestParticularsField {
+  const text = String((error as { message?: unknown }).message ?? "");
+  if (text.includes("guest_particulars_nationality_check"))
+    return "nationality";
+  if (text.includes("guest_particulars_document_number_check")) {
+    return "documentNumber";
+  }
+  if (text.includes("guest_particulars_document_")) return "documentType";
+  return "dateOfBirth";
 }
 
 /**
@@ -156,17 +231,49 @@ export async function recordParticularsWithin(
 export async function readParticularsWithin(
   tx: GuestWriteClient,
   guestId: string,
-): Promise<GuestParticulars | null> {
-  const rows = await tx.$queryRaw<GuestParticulars[]>`
+): Promise<StoredGuestParticulars | null> {
+  const rows = await tx.$queryRaw<StoredGuestParticulars[]>`
     select to_char(date_of_birth, 'YYYY-MM-DD') as "dateOfBirth",
            institution                          as "institution",
            study_year::int                      as "studyYear",
            guardian_name                        as "guardianName",
            guardian_phone                       as "guardianPhone",
            emergency_name                       as "emergencyName",
-           emergency_phone                      as "emergencyPhone"
+           emergency_phone                      as "emergencyPhone",
+           nationality                          as "nationality",
+           document_type                        as "documentType",
+           document_last_four                   as "documentLastFour"
       from public.guest_particulars
      where guest_id = ${guestId}::uuid
+  `;
+  return rows[0] ?? null;
+}
+
+/** A document number in full, with whose it is and which kind. */
+export interface RevealedIdentityDocument {
+  organizationId: string;
+  documentType: GuestDocumentType;
+  documentNumber: string;
+}
+
+/**
+ * A Guest's document number in full, or null when there is none to show, the
+ * Guest is out of reach, or the caller may not read particulars — one answer,
+ * as for the particulars themselves.
+ *
+ * The only way the number leaves the database. The caller owns the
+ * transaction and records, in it, that somebody looked: a number that could
+ * not be recorded as seen is not shown.
+ */
+export async function revealIdentityDocumentWithin(
+  tx: GuestWriteClient,
+  guestId: string,
+): Promise<RevealedIdentityDocument | null> {
+  const rows = await tx.$queryRaw<RevealedIdentityDocument[]>`
+    select holder_organization_id as "organizationId",
+           held_document_type     as "documentType",
+           held_document_number   as "documentNumber"
+      from app.reveal_guest_identity_document(${guestId}::uuid)
   `;
   return rows[0] ?? null;
 }

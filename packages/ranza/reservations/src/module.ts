@@ -10,7 +10,9 @@ import {
   recallGuestWithin,
   recordGenderWithin,
   recordParticularsWithin,
-  type GuestParticulars,
+  revealIdentityDocumentWithin,
+  type GuestDocumentType,
+  type StoredGuestParticulars,
 } from "@ranza/guests";
 import { recordWithin, type AuditClient } from "@ranza/platform-audit";
 import { publishWithin } from "@ranza/platform-outbox";
@@ -3599,7 +3601,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
   async function guestParticulars(
     userId: string,
     reservationId: string,
-  ): Promise<GuestParticulars | null> {
+  ): Promise<StoredGuestParticulars | null> {
     return withOrganizationContext(deps.db, { userId }, async (tx) => {
       const [booking] = await tx.$queryRaw<{ guestId: string }[]>`
         select guest_id as "guestId"
@@ -3610,12 +3612,58 @@ export function createReservationsModule(deps: ReservationsDeps) {
     });
   }
 
+  /**
+   * The document number of the Guest a booking is for, in full, when the desk
+   * asks to see it (PA-S2-*). Particulars are read with a last four; this is
+   * the one read that shows the rest, so it is recorded: who looked, at which
+   * booking. Never the number.
+   *
+   * The record is written in the transaction that reads, so a number that
+   * could not be recorded as seen is not shown. Null when there is no document,
+   * when the caller may not read particulars and when the booking is out of
+   * reach: one answer, which the database gives.
+   */
+  async function revealIdentityDocument(
+    userId: string,
+    reservationId: string,
+  ): Promise<{
+    documentType: GuestDocumentType;
+    documentNumber: string;
+  } | null> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [booking] = await tx.$queryRaw<
+        { guestId: string; propertyId: string }[]
+      >`
+        select guest_id as "guestId", property_id as "propertyId"
+          from public.reservations
+         where id = ${reservationId}::uuid
+      `;
+      if (!booking) return null;
+      const document = await revealIdentityDocumentWithin(tx, booking.guestId);
+      if (!document) return null;
+      await recordWithin(tx, {
+        organizationId: document.organizationId,
+        locationId: booking.propertyId,
+        actorId: userId,
+        action: "guest.identity_document_revealed",
+        subjectType: "reservation",
+        subjectId: reservationId,
+        context: { guestId: booking.guestId },
+      });
+      return {
+        documentType: document.documentType,
+        documentNumber: document.documentNumber,
+      };
+    });
+  }
+
   return {
     amendBooking,
     changeDeparture,
     createReservation,
     findGuests,
     guestParticulars,
+    revealIdentityDocument,
     listArrivals,
     bookingDay,
     listBookableUnits,

@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  101,
-  'the definer sweep looked at 101 functions; change this number deliberately');
+  102,
+  'the definer sweep looked at 102 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -674,6 +674,12 @@ select is(
 -- parent, for a policy that may not ask the table it guards, and
 -- resident_folio_balances() sums the acting user's own current Folios because a
 -- policy on folio_lines would hand them every line the desk typed.
+-- A Guest's identity document (20260916014200) brought one more, and it writes
+-- nothing: reveal_guest_identity_document() is the only way a document number
+-- leaves the database, because the runtime role is not granted the column. A
+-- definer to read what its caller may not select, it asks reach and
+-- guests.read_particulars, and the module records, in its own transaction,
+-- that somebody looked. The record function was replaced, not added to.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -728,8 +734,9 @@ select set_eq(
         'invite_guest_to_portal', 'withdraw_portal_invitation',
         'portal_invitation_state', 'accept_portal_invitation',
         'stay_follows_its_guests_login',
-        'resident_stay_room_ids', 'resident_folio_balances'],
-  'and they are exactly the hundred and one the design gives a reason for');
+        'resident_stay_room_ids', 'resident_folio_balances',
+        'reveal_guest_identity_document'],
+  'and they are exactly the hundred and two the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

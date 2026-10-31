@@ -15,6 +15,8 @@ import {
 } from "@ranza/reservations";
 import type { RefusalReason } from "@ranza/reservations";
 import type { RefusalOutcome } from "../features/front-office/refusal";
+import { isCountryCode } from "../lib/countries";
+import { isDocumentType } from "../lib/identity-document";
 import { getComposition } from "./composition";
 import { undoOutcomeFor, type ReverseCheckInOutcome } from "./undo-outcome";
 import { currentViewer } from "./viewer";
@@ -364,12 +366,20 @@ const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
- * A student's particulars as typed (GP-S1-*), every blank absent. A year that
- * is not a number is passed on as one the module refuses, so the desk is told
- * under the same message as any other value out of bounds.
+ * A student's particulars as typed (GP-S1-*, PA-S2-*), every blank absent. A
+ * year that is not a number is passed on as one the module refuses, so the
+ * desk is told under the same message as any other value out of bounds.
+ *
+ * Null for a nationality that is not a listed country and a kind of document
+ * that is not one: the picker sends neither, so they are a form this screen
+ * did not send and are refused like one.
  */
-function particularsField(form: FormData): GuestParticulars {
+function particularsField(form: FormData): GuestParticulars | null {
   const year = optional(form, "studyYear");
+  const nationality = optional(form, "nationality")?.toUpperCase() ?? null;
+  const documentType = optional(form, "documentType");
+  if (nationality !== null && !isCountryCode(nationality)) return null;
+  if (documentType !== null && !isDocumentType(documentType)) return null;
   return {
     dateOfBirth: optional(form, "dateOfBirth"),
     institution: optional(form, "institution"),
@@ -378,6 +388,9 @@ function particularsField(form: FormData): GuestParticulars {
     guardianPhone: optional(form, "guardianPhone"),
     emergencyName: optional(form, "emergencyName"),
     emergencyPhone: optional(form, "emergencyPhone"),
+    nationality,
+    documentType,
+    documentNumber: optional(form, "documentNumber"),
   };
 }
 
@@ -449,6 +462,9 @@ export async function createReservation(
   const genderField = optional(form, "guestGender");
   if (genderField !== null && !isGender(genderField)) return "refused";
 
+  const particulars = particularsField(form);
+  if (particulars === null) return "refused";
+
   try {
     await getComposition().reservations.createReservation(viewer.userId, {
       propertyId,
@@ -458,7 +474,7 @@ export async function createReservation(
       guestPhone: optional(form, "guestPhone"),
       existingGuestId: pickedGuest,
       guestGender: genderField,
-      particulars: particularsField(form),
+      particulars,
       stayType: type,
       startsOn,
       endsOn: optional(form, "endsOn"),
