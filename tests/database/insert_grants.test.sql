@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  102,
-  'the definer sweep looked at 102 functions; change this number deliberately');
+  107,
+  'the definer sweep looked at 107 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,10 +539,10 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  34,
-  'thirty-four of them write, which is what makes the assertion above a test');
+  37,
+  'thirty-seven of them write, which is what makes the assertion above a test');
 
--- Part B: the inventory itself, so a hundred-and-second definer is a red test
+-- Part B: the inventory itself, so a hundred-and-eighth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
 -- reason for; the ten after are staff and permissions; two are rooms and beds;
 -- four are housekeeping; two are maintenance; five are the audit log's reach;
@@ -680,6 +680,18 @@ select is(
 -- definer to read what its caller may not select, it asks reach and
 -- guests.read_particulars, and the module records, in its own transaction,
 -- that somebody looked. The record function was replaced, not added to.
+-- A Resident's instalments (20260916013810) brought five, and three write.
+-- create_payment_plan() and revise_payment_plan() are the only ways a plan or
+-- an instalment is written, because nothing is granted on either table: the
+-- first asks reach, the front desk, billing and front_desk.book, the second
+-- reach, billing and finance.post_charge. post_due_instalments() is the
+-- worker's, names worker_organization_id() first, and charges what has fallen
+-- due: the thirty-fifth to thirty-seventh writers. The other two write
+-- nothing and are the worker's: instalments_ready() is the one definition of
+-- what may be charged, granted to nobody and asked by the other two, and
+-- properties_with_instalments_due() lists which Properties have something to
+-- charge, as properties_due_for_close() does, because every Property's clock
+-- must be read before any Organization's context can be set.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -735,8 +747,10 @@ select set_eq(
         'portal_invitation_state', 'accept_portal_invitation',
         'stay_follows_its_guests_login',
         'resident_stay_room_ids', 'resident_folio_balances',
-        'reveal_guest_identity_document'],
-  'and they are exactly the hundred and two the design gives a reason for');
+        'reveal_guest_identity_document',
+        'create_payment_plan', 'revise_payment_plan', 'instalments_ready',
+        'properties_with_instalments_due', 'post_due_instalments'],
+  'and they are exactly the hundred and seven the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)
@@ -768,6 +782,7 @@ select set_eq(
         'app.mark_unit_returned_to_service', 'app.mark_unit_dirty_after_move',
         'app.properties_due_for_close', 'app.close_business_day_automatically',
         'app.room_nights_due',
+        'app.instalments_ready', 'app.post_due_instalments',
         'app.export_guests', 'app.export_reservations', 'app.export_units',
         'app.export_folio_lines'],
   'app.capability_is_available() is called by exactly the functions that mean gates 1-3');

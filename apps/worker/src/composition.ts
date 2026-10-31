@@ -10,6 +10,10 @@ import {
 } from "@ranza/platform-outbox";
 import { createExportRunner, type ExportRunner } from "@ranza/data-export";
 import {
+  createInstalmentPoster,
+  type InstalmentPoster,
+} from "@ranza/payment-plans";
+import {
   createWebhookDelivery,
   type WebhookDelivery,
 } from "@ranza/integrations";
@@ -56,6 +60,7 @@ export interface Composition {
   db: PrismaClient;
   outbox: OutboxDispatcher;
   closer: DayCloser;
+  instalments: InstalmentPoster;
   dataExport: ExportRunner;
   webhooks: WebhookDelivery;
   disconnect(): Promise<void>;
@@ -96,6 +101,7 @@ export async function createComposition(): Promise<Composition> {
     db,
     outbox: createOutboxDispatcher({ db }),
     closer: createDayCloser({ db }),
+    instalments: createInstalmentPoster({ db }),
     dataExport: createExportRunner({ db }),
     webhooks: createWebhookDelivery({ db, allowLoopbackHttp }),
     disconnect: () => db.$disconnect(),

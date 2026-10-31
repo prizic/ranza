@@ -1,0 +1,52 @@
+%% Six parties take part in a payment plan: the Operator Workspace,
+%% @ranza/reservations, @ranza/payment-plans, @ranza/folios (the Folio the
+%% instalment is charged to), PostgreSQL, and apps/worker. The plan is made in
+%% the booking's own transaction, and every instalment is charged by one
+%% database function, so a plan cannot be charged two different ways.
+sequenceDiagram
+  autonumber
+  actor SM as Staff Member
+  participant WS as Operator Workspace
+  participant RS as @ranza/reservations
+  participant PP as @ranza/payment-plans
+  participant PG as PostgreSQL
+  participant WK as apps/worker
+
+  rect rgb(240, 248, 246)
+  note over SM,PG: s2, registering a Resident with a plan (ranza_app, one transaction)
+  SM->>WS: New reservation, Resident, term dates, the plan section
+  WS->>RS: createReservation(user, booking, paymentPlan)
+  RS->>PG: insert reservations (stamped, trigger-checked)
+  RS->>PP: createPaymentPlanWithin(tx, user, reservation, instalments)
+  PP->>PG: app.create_payment_plan(reservation, instalments)
+  PG->>PG: checks front_desk.book and the Property's billing<br/>triggers: a Resident, a departure date, due within the term
+  PG-->>PP: plan, instalment count and total, or refused with its SQLSTATE
+  PP->>PG: audit payment_plan.created
+  PP-->>RS: made, or the refusal rolls the booking back with it
+  end
+
+  rect rgb(246, 244, 240)
+  note over WK,PG: s1, the worker charges what has fallen due (ranza_worker)
+  WK->>PG: app.properties_with_instalments_due()
+  PG-->>WK: organization and Property ids only
+  loop each Property, its own transaction
+    WK->>PG: app.set_worker_context(organization, payment_plans.post)
+    WK->>PG: app.post_due_instalments(property)
+    PG->>PG: per Stay lock, re-read the instalment, insert the Folio line<br/>unique on instalment_id: a second charge is nothing
+    PG->>PG: outbox instalment.posted (ids); folio.line_posted posts the ledger
+    PG-->>WK: posted and waiting counts
+  end
+  end
+
+  rect rgb(240, 244, 250)
+  note over SM,PG: s3, reading and revising
+  SM->>WS: open the booking
+  WS->>PP: readPaymentPlan(user, reservation)
+  PP->>PG: app.payment_plan_standing(property, reservation)
+  PG-->>PP: each instalment with what it was paid and where it stands
+  SM->>WS: revise the schedule, with a reason
+  WS->>PP: revisePaymentPlan(user, reservation, instalments, reason)
+  PP->>PG: app.revise_payment_plan(reservation, instalments)
+  PG-->>PP: revision, what was withdrawn, what was written
+  PP->>PG: audit payment_plan.revised with the reason
+  end

@@ -1,0 +1,56 @@
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals and contention are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% A Resident pays a term's fee in parts: N amounts, each due on a date. Monthly
+%% payments and four senets are both cases of it (yurt-first decision 2). The
+%% operating model is not drawn: it chooses whether the booking dialog opens the
+%% plan section by default, and nothing else (ADR 0057).
+%% Not drawn, deferred: payment allocated to a chosen instalment, late fees,
+%% reminders, an invoice per instalment, senet documents (PP-DEF-*).
+flowchart TD
+
+  DESK["Staff Member holding front_desk.book<br/>with reach to the Property"]
+  FINANCE["Staff Member holding finance.post_charge<br/>with reach to the Property"]
+  VIEWER["Staff Member reaching the Property"]
+  WORKER["apps/worker<br/>payment_plans.post"]
+  TODAY["Today screen<br/>(another lane reads the overdue figure)"]
+
+  subgraph S1["slice 1 &mdash; the plan and the worker"]
+    MAKE(["Make the payment plan of a Resident's booking"])
+    REVISE(["Revise a plan: withdraw what was not charged,<br/>write the schedule that replaces it"])
+    CHARGE(["Charge each instalment to the Resident's Folio<br/>on its due date, once"])
+    WAIT(["An instalment waits for a Folio:<br/>the Resident has not arrived, or the Folio is closed"])
+    ENDBOOKING(["End a booking: cancel, no-show or check out<br/>(Front Office)"])
+    WITHDRAW(["The booking's uncharged instalments are withdrawn"])
+    STANDING(["Read where each instalment stands:<br/>upcoming, due, overdue, paid, waived"])
+    OVERDUE(["Read how many Residents are overdue,<br/>and for how much"])
+  end
+
+  subgraph S2["slice 2 &mdash; registering with a plan"]
+    REGISTER(["Register a Resident for a term in the booking dialog"])
+    PREFILL(["See the plan prefilled from the price list,<br/>split monthly, every row editable"])
+  end
+
+  subgraph S3["slice 3 &mdash; the schedule on the booking"]
+    SEE(["See the schedule on the booking and the Folio"])
+    ADDLATER(["Add a plan to a Resident booking that has none"])
+    EDIT(["Revise the schedule from the booking"])
+  end
+
+  REGISTER -. include .-> PREFILL
+  REGISTER -. extend .-> MAKE
+  ADDLATER -. include .-> MAKE
+  EDIT -. include .-> REVISE
+  CHARGE -. extend .-> WAIT
+  ENDBOOKING -. include .-> WITHDRAW
+  SEE -. include .-> STANDING
+  OVERDUE -. include .-> STANDING
+
+  DESK --> REGISTER
+  DESK --> ADDLATER
+  FINANCE --> EDIT
+  VIEWER --> SEE
+  WORKER --> CHARGE
+  TODAY --> OVERDUE
+  DESK --> ENDBOOKING

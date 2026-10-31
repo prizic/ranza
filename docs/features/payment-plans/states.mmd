@@ -1,0 +1,41 @@
+%% Anything not drawn here is forbidden.
+%% Every transition carries its command and its slice.
+%% Two lifecycles: a plan, and one instalment of it. A plan has no state of its
+%% own: it exists, and it has a revision. An instalment is stored as written
+%% and withdrawn at most once; that it was charged is the Folio line that names
+%% it, and where it stands (upcoming, due, overdue, paid, waived) is derived by
+%% app.payment_plan_standing() and never stored (PP-S1-23 .. PP-S1-26).
+stateDiagram-v2
+  direction LR
+
+  state "A plan" as plan {
+    state "revision n" as p_n
+    [*] --> p_n : createPaymentPlan / s1, s2, s3 (revision 1)
+    p_n --> p_n : revisePaymentPlan / s1, s3 (revision n+1)
+  }
+
+  state "One instalment" as instalment {
+    state "live, not charged" as i_live
+    state "charged" as i_charged
+    state "withdrawn (revised)" as i_revised
+    state "withdrawn (booking ended)" as i_ended
+    state "waived (its charge was reversed)" as i_waived
+    [*] --> i_live : createPaymentPlan or revisePaymentPlan / s1
+    i_live --> i_charged : postDueInstalments (worker), on or after its due date, Folio open / s1
+    i_live --> i_revised : revisePaymentPlan / s1
+    i_live --> i_ended : the booking is cancelled, no-show or checked out / s1
+    i_charged --> i_waived : the Folio line is reversed (Finance) / folios, derived here
+  }
+
+  state "Where a live instalment stands (derived)" as standing {
+    state "upcoming" as s_upcoming
+    state "due" as s_due
+    state "overdue" as s_overdue
+    state "paid" as s_paid
+    [*] --> s_upcoming : its due date is after today
+    s_upcoming --> s_due : its due date is today / derived, no command
+    s_due --> s_overdue : the Property's day after its due date, not paid in full / derived
+    s_upcoming --> s_paid : payments on the Folio cover it, oldest instalment first / derived
+    s_due --> s_paid : payments on the Folio cover it / derived
+    s_overdue --> s_paid : payments on the Folio cover it / derived
+  }

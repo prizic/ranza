@@ -247,6 +247,9 @@ importers:
       '@ranza/integrations':
         specifier: workspace:*
         version: link:../../packages/ranza/integrations
+      '@ranza/payment-plans':
+        specifier: workspace:*
+        version: link:../../packages/ranza/payment-plans
       '@ranza/platform-outbox':
         specifier: workspace:*
         version: link:../../packages/platform/outbox
@@ -463,6 +466,15 @@ importers:
       '@ranza/platform-outbox':
         specifier: workspace:*
         version: link:../../platform/outbox
+
+  packages/ranza/payment-plans:
+    dependencies:
+      '@ranza/db':
+        specifier: workspace:*
+        version: link:../../db
+      '@ranza/platform-audit':
+        specifier: workspace:*
+        version: link:../../platform/audit
 
   packages/ranza/rates:
     dependencies:

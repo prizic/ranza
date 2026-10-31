@@ -97,6 +97,8 @@ export const KNOWN_ACTIONS = [
   "roll_call.recorded",
   "roll_call.corrected",
   "attendance_setting.changed",
+  "payment_plan.created",
+  "payment_plan.revised",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -124,6 +126,7 @@ const AREA_OF_NOUN: Record<string, AuditArea> = {
   stay: "bookings",
   business_day: "bookings",
   folio: "money",
+  payment_plan: "money",
   price_list: "money",
   unit: "rooms",
   housekeeping: "rooms",
@@ -170,6 +173,7 @@ export const KNOWN_SUBJECTS = [
   "webhook_endpoint",
   "failed_operation",
   "attendance_leave",
+  "payment_plan",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

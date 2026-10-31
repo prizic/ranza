@@ -3120,6 +3120,7 @@ export interface Messages {
     resident_leave: Record<"granted" | "ended" | "cancelled", string>;
     roll_call: Record<"recorded" | "corrected", string>;
     attendance_setting: Record<"changed", string>;
+    payment_plan: Record<"created" | "revised", string>;
   };
   auditSubject: Record<
     | "reservation"
@@ -3140,7 +3141,8 @@ export interface Messages {
     | "organization_brand"
     | "webhook_endpoint"
     | "failed_operation"
-    | "attendance_leave",
+    | "attendance_leave"
+    | "payment_plan",
     string
   >;
 
@@ -6846,6 +6848,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       resourceTypes: "Veri setleri",
       returnAs: "Odanın dönüş durumu",
       nightsCharged: "Çıkışta ücretlendirilen geceler",
+      instalments: "Taksitler",
+      instalmentsAdded: "Yazılan taksitler",
+      instalmentsWithdrawn: "Geri çekilen taksitler",
+      revision: "Revizyon",
+      totalMinor: "Toplam",
       roomNightsCharged: "Ücretlendirilen oda geceleri",
       roomNightsNotCharged: "Ücretlendirilmeyen oda geceleri",
       roomWasNotReady: "Giriş yapılırken oda hazır değildi",
@@ -6979,6 +6986,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         corrected: "Yoklama cevabı düzeltildi",
       },
       attendance_setting: { changed: "Yurda giriş saati değişti" },
+      payment_plan: {
+        created: "Ödeme planı oluşturuldu",
+        revised: "Ödeme planı revize edildi",
+      },
     },
     auditArea: {
       bookings: "Rezervasyonlar ve konaklamalar",
@@ -7009,6 +7020,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       webhook_endpoint: "Webhook uç noktası",
       failed_operation: "Başarısız gönderim",
       attendance_leave: "İzin",
+      payment_plan: "Ödeme planı",
     },
     closeDay: {
       at: "Günün kapatıldığı tesis:",
@@ -10775,6 +10787,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       resourceTypes: "Datasets",
       returnAs: "Room returns as",
       nightsCharged: "Nights charged at check-out",
+      instalments: "Instalments",
+      instalmentsAdded: "Instalments written",
+      instalmentsWithdrawn: "Instalments withdrawn",
+      revision: "Revision",
+      totalMinor: "Total",
       roomNightsCharged: "Room nights charged",
       roomNightsNotCharged: "Room nights not charged",
       roomWasNotReady: "Room was not ready at check-in",
@@ -10908,6 +10925,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         corrected: "Roll call answer corrected",
       },
       attendance_setting: { changed: "Curfew changed" },
+      payment_plan: {
+        created: "Payment plan made",
+        revised: "Payment plan revised",
+      },
     },
     auditArea: {
       bookings: "Bookings and stays",
@@ -10938,6 +10959,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       webhook_endpoint: "Webhook endpoint",
       failed_operation: "Failed delivery",
       attendance_leave: "Leave",
+      payment_plan: "Payment plan",
     },
     closeDay: {
       at: "Closing the day at",
@@ -14618,6 +14640,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       resourceTypes: "مجموعات البيانات",
       returnAs: "حالة الغرفة عند إعادتها",
       nightsCharged: "الليالي المحتسبة عند المغادرة",
+      instalments: "الأقساط",
+      instalmentsAdded: "الأقساط المضافة",
+      instalmentsWithdrawn: "الأقساط المسحوبة",
+      revision: "المراجعة",
+      totalMinor: "الإجمالي",
       roomNightsCharged: "ليالي الغرف المحتسبة",
       roomNightsNotCharged: "ليالي الغرف غير المحاسَب عليها",
       roomWasNotReady: "لم تكن الغرفة جاهزة عند تسجيل الوصول",
@@ -14751,6 +14778,10 @@ export const messages: Record<SupportedLocale, Messages> = {
         corrected: "صُحّح جواب التحضير",
       },
       attendance_setting: { changed: "تغيّر موعد العودة إلى السكن" },
+      payment_plan: {
+        created: "أُنشئت خطة دفع",
+        revised: "عُدّلت خطة الدفع",
+      },
     },
     auditArea: {
       bookings: "الحجوزات والإقامات",
@@ -14781,6 +14812,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       webhook_endpoint: "نقطة استقبال ويب هوك",
       failed_operation: "إرسال فاشل",
       attendance_leave: "إجازة",
+      payment_plan: "خطة دفع",
     },
     closeDay: {
       at: "إغلاق اليوم في",

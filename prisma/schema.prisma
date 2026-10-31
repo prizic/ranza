@@ -40,6 +40,8 @@ model User {
   attendanceMarked        AttendanceMark[]
   ratesSet                PropertyRate[]
   bookingChanges          ReservationChange[]
+  paymentPlansMade        PaymentPlan[]            @relation("PaymentPlanAuthor")
+  paymentPlansRevised     PaymentPlan[]            @relation("PaymentPlanReviser")
   serviceRequestsAssigned ServiceRequest[]         @relation("ServiceRequestAssignee")
   serviceRequestsReported ServiceRequest[]         @relation("ServiceRequestReporter")
   dataExports             DataExport[]
@@ -144,6 +146,7 @@ model Property {
   maintenanceEquipment MaintenanceEquipment[]
   rates                PropertyRate[]
   bookingChanges       ReservationChange[]
+  paymentPlans         PaymentPlan[]
   serviceRequests      ServiceRequest[]
   webhookDeliveries    WebhookDelivery[]
   failedOperations     FailedOperation[]
@@ -826,6 +829,9 @@ model Reservation {
   /// partial unique on `stays` is what stops a second live one.
   stays    Stay[]
   changes  ReservationChange[]
+  /// At most one, by `payment_plans_reservation_key`: a change of plan is a
+  /// revision of it.
+  paymentPlans PaymentPlan[]
 
   @@unique([id, propertyId, organizationId])
   @@unique([reference], map: "reservations_reference_key")
@@ -1009,11 +1015,15 @@ model FolioLine {
   businessDate   DateTime? @map("business_date") @db.Date
   /// Payment method when line_type is `payment`: `cash`, `card`, `bank_transfer`, `other`.
   paymentMethod  String?   @map("payment_method")
+  /// The instalment this line charges, when `source` is `instalment`; null on
+  /// everything else. Unique, so an instalment is charged once.
+  instalmentId   String?   @unique(map: "folio_lines_instalment_key") @map("instalment_id") @db.Uuid
 
   folio             Folio                     @relation(fields: [folioId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
   reverses          FolioLine?                @relation("FolioLineReversal", fields: [reversesLineId, folioId], references: [id, folioId], onDelete: Restrict, onUpdate: NoAction)
   maintenanceCharge MaintenanceRequestCharge?
   reversal          FolioLine?                @relation("FolioLineReversal")
+  instalment        PlanInstalment?           @relation(fields: [instalmentId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "folio_lines_instalment_fkey")
 
   /// What the reversal's composite foreign key resolves against, so a reversal
   /// cannot reference a line on a different Folio.
@@ -1027,6 +1037,65 @@ model FolioLine {
   @@unique([folioId, businessDate], map: "folio_lines_room_night_key", where: raw("source = 'room_night'::text"))
   @@index([folioId, postedAt], map: "folio_lines_folio_idx")
   @@map("folio_lines")
+}
+
+/// The term contract of a Resident's booking: the header of a payment plan
+/// whose instalments the worker charges to the Folio on their due dates
+/// (RANZ-96, ADR 0059). One per booking, for a Resident, on a booking that has a
+/// departure date. Written only by `app.create_payment_plan()` and
+/// `app.revise_payment_plan()`, which check their caller; `ranza_app` can read.
+model PaymentPlan {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  reservationId  String    @unique(map: "payment_plans_reservation_key") @map("reservation_id") @db.Uuid
+  /// The Property's currency when the plan was made.
+  currency       String    @db.Char(3)
+  /// 1 when made, one more each time it is revised.
+  revision       Int       @default(1)
+  createdBy      String    @map("created_by") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revisedBy      String?   @map("revised_by") @db.Uuid
+  revisedAt      DateTime? @map("revised_at") @db.Timestamptz(6)
+
+  property    Property         @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "payment_plans_property_fkey")
+  reservation Reservation      @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "payment_plans_reservation_fkey")
+  author      User             @relation("PaymentPlanAuthor", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  reviser     User?            @relation("PaymentPlanReviser", fields: [revisedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  instalments PlanInstalment[]
+
+  @@unique([id, propertyId, organizationId], map: "payment_plans_scope_key")
+  @@map("payment_plans")
+}
+
+/// One amount and one due date of a payment plan. Never changed and never
+/// deleted: withdrawn when a revision replaces it or its booking ends, and never
+/// once charged. That it was charged is the Folio line that names it, not a
+/// column here.
+model PlanInstalment {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  propertyId      String    @map("property_id") @db.Uuid
+  planId          String    @map("plan_id") @db.Uuid
+  /// The order it was written in, for the plan's whole life.
+  ordinal         Int
+  amountMinor     BigInt    @map("amount_minor")
+  dueOn           DateTime  @map("due_on") @db.Date
+  /// The plan's revision that wrote it.
+  revision        Int
+  withdrawnAt     DateTime? @map("withdrawn_at") @db.Timestamptz(6)
+  /// `revised` or `reservation_ended`.
+  withdrawnReason String?   @map("withdrawn_reason")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  plan  PaymentPlan @relation(fields: [planId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "plan_instalments_plan_fkey")
+  /// At most one, by `folio_lines_instalment_key`: the line that charged it.
+  lines FolioLine[]
+
+  @@unique([id, propertyId, organizationId], map: "plan_instalments_scope_key")
+  @@unique([planId, ordinal], map: "plan_instalments_ordinal_key")
+  @@index([propertyId, dueOn], map: "plan_instalments_property_due_idx")
+  @@map("plan_instalments")
 }
 
 // --- Better Auth -----------------------------------------------------------

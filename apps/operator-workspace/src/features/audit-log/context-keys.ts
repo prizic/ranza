@@ -108,6 +108,11 @@ export const CONTEXT_KEYS = [
   "fromNight",
   "toNight",
   "setting",
+  "instalments",
+  "instalmentsAdded",
+  "instalmentsWithdrawn",
+  "revision",
+  "totalMinor",
 ] as const;
 
 export type ContextKey = (typeof CONTEXT_KEYS)[number];

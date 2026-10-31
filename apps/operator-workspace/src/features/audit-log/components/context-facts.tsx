@@ -44,6 +44,7 @@ const MONEY = new Set([
   "totalNetMinor",
   "grossPayMinor",
   "fromAmountMinor",
+  "totalMinor",
 ]);
 const CHANGE = new Set(["from", "to"]);
 const HOUSEKEEPING_STATUS = new Set(["status", "previousStatus"]);
