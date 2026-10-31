@@ -164,7 +164,10 @@ test("a ten-month booking is drawn whole on a dormitory's term, which it opens o
     scrollBox!.x + scrollBox!.width + 1,
   );
   expect(barBox!.width).toBeGreaterThan(scrollBox!.width * 0.4);
-  await page.screenshot({ path: `${SHOTS}/term-en.png` });
+  await page.screenshot({
+    animations: "disabled",
+    path: `${SHOTS}/term-en.png`,
+  });
 
   // Opening a bar is the quick action at this scale.
   await bar.click();
@@ -190,14 +193,20 @@ test("a hotel keeps the days it had, and a dormitory is told how to read a term 
     page.getByRole("button", { name: "Dönem", pressed: true }),
   ).toBeVisible();
   await expect(page.getByText("Blok A").first()).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/term-tr.png` });
+  await page.screenshot({
+    animations: "disabled",
+    path: `${SHOTS}/term-tr.png`,
+  });
 
   await page.goto(`/ar/room-calendar?property=${yurt}&block=Blok%20A`);
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
     page.getByRole("button", { name: "الفصل", pressed: true }),
   ).toBeVisible();
-  await page.screenshot({ path: `${SHOTS}/term-ar.png` });
+  await page.screenshot({
+    animations: "disabled",
+    path: `${SHOTS}/term-ar.png`,
+  });
 
   const hotel = aFreshProperty("hotel keeps days", {
     capabilities: ["today", "front_desk", "housekeeping"],
@@ -260,7 +269,10 @@ test("the empty beds are the same number on Today, Rooms and the calendar, and t
   );
   await expect(page.getByText("A-1", { exact: true })).toBeVisible();
   await expect(page.getByText("B-1", { exact: true })).toHaveCount(0);
-  await page.screenshot({ path: `${SHOTS}/rooms-en.png` });
+  await page.screenshot({
+    animations: "disabled",
+    path: `${SHOTS}/rooms-en.png`,
+  });
   // A block the Property has not got narrows nothing.
   await page.goto(`/en/rooms?property=${yurt}&block=Blok%20Z`);
   await expect(page.getByTestId("list-filter-notice")).toHaveCount(0);
@@ -293,7 +305,10 @@ test("the empty beds are the same number on Today, Rooms and the calendar, and t
   expect(
     await countOn(calendarAdmits.getByRole("button", { name: /^Women only/ })),
   ).toBe(0);
-  await page.screenshot({ path: `${SHOTS}/term-narrowed-en.png` });
+  await page.screenshot({
+    animations: "disabled",
+    path: `${SHOTS}/term-narrowed-en.png`,
+  });
 
   await page.getByRole("button", { name: "Show all" }).click();
   await expect(page.getByTestId("list-filter-notice")).toHaveCount(0);
