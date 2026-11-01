@@ -219,7 +219,6 @@ function folioQuery(
       on unit.id = stay.accommodation_unit_id
     left join public.accommodation_units as room
       on room.id = unit.parent_id
-     and unit.parent_unit_type = 'room'
     left join public.reservations as reservation
       on reservation.id = stay.reservation_id
     -- Left, because the Reservation is: a Stay that began without one has no

@@ -26,7 +26,7 @@
 -- Every assertion below was checked by breaking the thing it asserts and
 -- confirming it went red.
 begin;
-select plan(22);
+select plan(26);
 
 insert into public.users (id, email) values
   ('51111111-1111-4111-8111-111111111111', 'unit-staff@example.test');
@@ -154,6 +154,56 @@ select throws_ok(
             'A3', 'bed')$$,
   '23503', NULL,
   'and cannot claim a bed is a room: the foreign key reads the parent''s own type');
+
+-- Nor say nothing about it. A null parent type passed the check (null = 'room'
+-- is null, and a check passes on null) and switched the composite foreign key
+-- off (MATCH SIMPLE skips a row with any null column), so one blank column
+-- defeated both clauses above: the yurt seed's 120 beds were written that way
+-- (20260916014500). Under a bed, as here, nothing else would have noticed.
+select throws_ok(
+  $$insert into public.accommodation_units
+      (property_id, organization_id, parent_id, name, unit_type)
+    values ('5c111111-1111-4111-8111-111111111111',
+            '5a111111-1111-4111-8111-111111111111',
+            '5d1a1111-1111-4111-8111-111111111111',
+            'A4', 'bed')$$,
+  '23514', NULL,
+  'a bed with a parent must name the parent''s type, or neither clause above can hold');
+
+-- The two halves of that fix, each on its own. A blank is filled from the
+-- parent, so a writer who leaves it out of a bed under a room is not refused
+-- and the row says 'room'; the check is what refuses a blank nothing could
+-- fill, here a parent that does not exist, which the foreign key never saw.
+select lives_ok(
+  $$insert into public.accommodation_units
+      (id, property_id, organization_id, parent_id, name, unit_type)
+    values ('5d1b1111-1111-4111-8111-111111111111',
+            '5c111111-1111-4111-8111-111111111111',
+            '5a111111-1111-4111-8111-111111111111',
+            '5d111111-1111-4111-8111-111111111111',
+            'A5', 'bed')$$,
+  'a bed under a room may leave the parent''s type to the parent');
+
+select is(
+  (select parent_unit_type from public.accommodation_units
+    where id = '5d1b1111-1111-4111-8111-111111111111'),
+  'room',
+  'and the row then names it, for the foreign key to prove');
+
+-- Gone again, so the room still holds exactly the one bed the reach assertion
+-- at the end counts.
+delete from public.accommodation_units
+ where id = '5d1b1111-1111-4111-8111-111111111111';
+
+select throws_ok(
+  $$insert into public.accommodation_units
+      (property_id, organization_id, parent_id, name, unit_type)
+    values ('5c111111-1111-4111-8111-111111111111',
+            '5a111111-1111-4111-8111-111111111111',
+            '5dffffff-ffff-4fff-8fff-ffffffffffff',
+            'A6', 'bed')$$,
+  '23514', NULL,
+  'a bed under a parent that does not exist is refused, not left unchecked');
 
 select throws_ok(
   $$insert into public.accommodation_units

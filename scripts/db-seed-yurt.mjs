@@ -179,8 +179,10 @@ psql(`
 
 psql(`
   insert into public.accommodation_units
-    (property_id, organization_id, name, unit_type, capacity, parent_id)
-  select room.property_id, room.organization_id, bed.name, 'bed', 1, room.id
+    (property_id, organization_id, name, unit_type, capacity, parent_id,
+     parent_unit_type)
+  select room.property_id, room.organization_id, bed.name, 'bed', 1, room.id,
+         'room'
     from public.accommodation_units as room
     cross join lateral unnest(
       (array[${BED_NAMES.map(literal).join(", ")}])[1:room.capacity]
