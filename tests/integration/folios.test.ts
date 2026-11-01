@@ -1134,6 +1134,38 @@ describe("checking out against the bill", () => {
   });
 });
 
+describe("a Folio names its bed by its room (ADR 0025)", () => {
+  it("reads a bed as room · bed and a room as itself", async () => {
+    const room = await aBilledUnit();
+    const roomName = `FO-BED-${room.slice(0, 6)}`;
+    const bed = randomUUID();
+    await owner.$executeRawUnsafe(
+      `update public.accommodation_units set name = $2 where id = $1::uuid`,
+      room,
+      roomName,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.accommodation_units
+         (id, property_id, organization_id, parent_id, parent_unit_type, name,
+          unit_type, capacity)
+       values ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'room', 'A', 'bed', 1)`,
+      bed,
+      PROPERTY,
+      ORG,
+      room,
+    );
+    const inBed = await folioAt(bed, "Bed Folio Student");
+    const plainRoom = await aBilledUnit();
+    const inRoom = await folioAt(plainRoom, "Room Folio Guest");
+
+    const listed = await folios.listFolios(MEMBER, PROPERTY);
+    const nameOf = (folioId: string) =>
+      listed.find((folio) => folio.folioId === folioId)?.unitName;
+    expect(nameOf(inBed)).toBe(`${roomName} · A`);
+    expect(nameOf(inRoom)).toBe(`FO-${plainRoom.slice(0, 6)}`);
+  });
+});
+
 describe("the decision sheet's Folio rows", () => {
   it("lists open Folios before closed ones, each group by unit name (FO-S9-02)", async () => {
     // Named so the closed one would sort first by name, and the open pair

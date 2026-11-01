@@ -181,7 +181,9 @@ function folioQuery(
       folio.status                          as "status",
       folio.currency                        as "currency",
       coalesce(guest.full_name, '')         as "guestName",
-      unit.name                             as "unitName",
+      -- A bed by its room and its own name, "401 · A", as the desk says it
+      -- (ADR 0025): a dormitory has a bed A in every room.
+      concat_ws(' · ', room.name, unit.name) as "unitName",
       to_char(stay.starts_on, 'YYYY-MM-DD') as "startsOn",
       to_char(stay.ends_on, 'YYYY-MM-DD')   as "endsOn",
       -- What was charged and what was paid, each net of its reversals, so the
@@ -215,6 +217,9 @@ function folioQuery(
       on stay.id = folio.stay_id
     join public.accommodation_units as unit
       on unit.id = stay.accommodation_unit_id
+    left join public.accommodation_units as room
+      on room.id = unit.parent_id
+     and unit.parent_unit_type = 'room'
     left join public.reservations as reservation
       on reservation.id = stay.reservation_id
     -- Left, because the Reservation is: a Stay that began without one has no
@@ -250,7 +255,8 @@ function folioQuery(
     }
     where ${predicate}
       and app.can_use_capability(folio.property_id, $2, $3)
-    group by folio.id, stay.id, reservation.id, unit.name, guest.full_name,
+    group by folio.id, stay.id, reservation.id, unit.name, room.name,
+             guest.full_name,
              today.day${pending ? ", pending.nights, pending.amount" : ""}`;
 }
 
