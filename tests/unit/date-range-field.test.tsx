@@ -23,6 +23,13 @@ const labels = {
 
 afterEach(cleanup);
 
+/**
+ * The Property's day the fixtures are written around. Without it a field with
+ * no value opens on the machine's month, and every October fixture vanished
+ * from the calendar the night the clock reached November.
+ */
+const TODAY = "2026-10-01";
+
 function renderField(
   props: Partial<Parameters<typeof DateRangeField>[0]> = {},
 ) {
@@ -33,6 +40,7 @@ function renderField(
         labels={labels}
         locale="en"
         names={{ from: "startsOn", to: "endsOn" }}
+        today={TODAY}
         {...props}
       />
     </form>,
