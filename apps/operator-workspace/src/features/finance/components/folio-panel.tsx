@@ -382,7 +382,13 @@ export function FolioPanel({
             // Not a disabled button: nothing the reader can do here closes
             // it, and the reason is the useful part (FO-S5-01).
             <p className="text-step--1 text-muted-foreground">
-              {t("folioInHouseNote")}
+              {/* A Resident is never charged by the night (ADR 0038), so
+                  their Folio is not held open for nights. */}
+              {t(
+                folio.stayType === "resident"
+                  ? "folioInHouseNoteResident"
+                  : "folioInHouseNote",
+              )}
             </p>
           ) : (
             <CloseDialog

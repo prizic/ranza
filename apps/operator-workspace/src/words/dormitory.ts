@@ -31,6 +31,8 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   tr: {
     openInHousekeeping: "Temizlikte aç",
     searchGuestRoomReference: "Ad, oda veya kayıt ara",
+    folioInHouseNoteResident:
+      "Öğrenci hâlâ konaklıyor, bu yüzden folyo açık kalır. Gecelik ücretlendirilmez: taksitleri vade günlerinde ve eklenen ücretler buraya işlenir. Çıkıştan sonra kapatılabilir.",
     noFoliosDescription:
       "Bu tesiste açık bir folyo bulunmuyor. Folyo, giriş yapıldığında açılır.",
     roomsPage: {
@@ -140,6 +142,8 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   en: {
     openInHousekeeping: "Open in Cleaning",
     searchGuestRoomReference: "Search by name, room or reference",
+    folioInHouseNoteResident:
+      "The student is still in house, so the Folio stays open. They are not charged by the night: their instalments are posted here on each due date, with any charge added. It can be closed after check-out.",
     noFoliosDescription:
       "Nothing has been opened at this Property. A folio opens at check-in.",
     roomsPage: { housekeepingLink: "Which are clean or dirty? See Cleaning" },
@@ -246,6 +250,8 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   ar: {
     openInHousekeeping: "فتح في التنظيف",
     searchGuestRoomReference: "ابحث بالاسم أو الغرفة أو رقم التسجيل",
+    folioInHouseNoteResident:
+      "الطالب ما زال في المنشأة، لذا يبقى الحساب مفتوحًا. لا يُحاسب بالليلة: تُسجَّل أقساطه هنا في موعد استحقاق كل منها، مع أي رسوم تُضاف. يمكن إغلاقه بعد المغادرة.",
     noFoliosDescription:
       "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل الوصول.",
     roomsPage: { housekeepingLink: "أيها نظيفة وأيها متسخة؟ افتح التنظيف" },

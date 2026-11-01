@@ -945,6 +945,7 @@ export interface Messages {
   folioClosedNote: string;
   /** Why an open Folio offers no Close while its Guest is in house (FO-S5-01). */
   folioInHouseNote: string;
+  folioInHouseNoteResident: string;
 
   /** The Finance screen: the Folio list, a Folio, and the four things done to one. */
   finance: {
@@ -4669,6 +4670,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closing: "Kapatılıyor…",
     folioInHouseNote:
       "Misafir hâlâ konaklıyor, bu yüzden folyo açık kalır: kalan geceleri buraya ücretlendirilir. Çıkıştan sonra kapatılabilir.",
+    folioInHouseNoteResident:
+      "Sakin hâlâ konaklıyor, bu yüzden folyo açık kalır. Gecelik ücretlendirilmez: taksitleri vade günlerinde ve eklenen ücretler buraya işlenir. Çıkıştan sonra kapatılabilir.",
     folioClosedNote:
       "Bu folyo kapalı. Satırlar olduğu gibi kalır; kapalı bir folyoya yeni satır işlenemez.",
     finance: {
@@ -8780,6 +8783,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closing: "Closing…",
     folioInHouseNote:
       "The Guest is still in house, so the Folio stays open: their remaining nights are charged to it. It can be closed after check-out.",
+    folioInHouseNoteResident:
+      "The Resident is still in house, so the Folio stays open. They are not charged by the night: their instalments are posted here on each due date, with any charge added. It can be closed after check-out.",
     folioClosedNote:
       "This folio is closed. Its lines stay exactly as they are, and nothing further can be posted to it.",
     finance: {
@@ -12857,6 +12862,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     closing: "جارٍ الإغلاق…",
     folioInHouseNote:
       "الضيف ما زال في المنشأة، لذا يبقى الحساب مفتوحًا: تُحتسب عليه لياليه المتبقية. يمكن إغلاقه بعد المغادرة.",
+    folioInHouseNoteResident:
+      "المقيم ما زال في المنشأة، لذا يبقى الحساب مفتوحًا. لا يُحاسب بالليلة: تُسجَّل أقساطه هنا في موعد استحقاق كل منها، مع أي رسوم تُضاف. يمكن إغلاقه بعد المغادرة.",
     folioClosedNote:
       "هذا الحساب مغلق. تبقى بنوده كما هي، ولا يمكن قيد أي شيء جديد عليه.",
     finance: {

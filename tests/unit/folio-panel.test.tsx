@@ -279,6 +279,22 @@ describe("closing a Folio (FO-S5-01)", () => {
     expect(screen.getByRole("button", { name: "Close folio" })).toBeTruthy();
     expect(screen.queryByText(/The Guest is still in house/)).toBeNull();
   });
+
+  it("a Resident in house is not said to be charged by the night", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={{ ...FOLIO, stayType: "resident" }}
+          locale="en"
+          mayReverse
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText(/The Resident is still in house/)).toBeTruthy();
+    expect(screen.getByText(/not charged by the night/)).toBeTruthy();
+    expect(screen.queryByText(/remaining nights/)).toBeNull();
+  });
 });
 
 function panel(
