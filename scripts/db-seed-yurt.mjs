@@ -296,11 +296,26 @@ psql(`
          accommodation_unit_id, id, 'resident', 'in_house', starts_on, ends_on
     from arrived`);
 
+// A check-in also opens the Stay's Folio, in the Property's currency, so
+// Finance has a bill to show for every Resident in house. Its own statement, so
+// that a yurt seeded before it did this is given its Folios on a second run.
+psql(`
+  insert into public.folios (organization_id, property_id, stay_id, currency)
+  select stay.organization_id, stay.property_id, stay.id, property.currency
+    from public.stays as stay
+    join public.properties as property on property.id = stay.property_id
+   where stay.property_id = ${literal(propertyId)}
+     and stay.status = 'in_house'
+     and not exists (
+       select 1 from public.folios where folios.stay_id = stay.id)`);
+
 const summary = psql(`
   select count(*) filter (where unit.parent_id is not null) || ' beds, ' ||
-         count(stay.id) || ' Residents in house'
+         count(stay.id) || ' Residents in house, ' ||
+         count(folio.id) || ' with a Folio'
     from public.accommodation_units as unit
     left join public.stays as stay
       on stay.accommodation_unit_id = unit.id and stay.status = 'in_house'
+    left join public.folios as folio on folio.stay_id = stay.id
    where unit.property_id = ${literal(propertyId)}`);
 console.log(`${PROPERTY} in ${ORGANIZATION}: ${summary}.`);
