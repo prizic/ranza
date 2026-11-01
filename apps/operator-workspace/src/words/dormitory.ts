@@ -30,6 +30,9 @@ export type WordsOverlay<T> = {
 export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   tr: {
     openInHousekeeping: "Temizlikte aç",
+    searchGuestRoomReference: "Ad, oda veya kayıt ara",
+    noFoliosDescription:
+      "Bu tesiste açık bir folyo bulunmuyor. Folyo, giriş yapıldığında açılır.",
     roomsPage: {
       housekeepingLink: "Hangileri temiz, hangileri kirli? Temizliğe bakın",
     },
@@ -136,6 +139,9 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   },
   en: {
     openInHousekeeping: "Open in Cleaning",
+    searchGuestRoomReference: "Search by name, room or reference",
+    noFoliosDescription:
+      "Nothing has been opened at this Property. A folio opens at check-in.",
     roomsPage: { housekeepingLink: "Which are clean or dirty? See Cleaning" },
     housekeeping: {
       stayoverSettingsHint:
@@ -239,6 +245,9 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   },
   ar: {
     openInHousekeeping: "فتح في التنظيف",
+    searchGuestRoomReference: "ابحث بالاسم أو الغرفة أو رقم التسجيل",
+    noFoliosDescription:
+      "لم يُفتح أي حساب في هذه المنشأة. يُفتح الحساب عند تسجيل الوصول.",
     roomsPage: { housekeepingLink: "أيها نظيفة وأيها متسخة؟ افتح التنظيف" },
     housekeeping: {
       stayoverSettingsHint:

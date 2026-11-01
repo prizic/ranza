@@ -7295,7 +7295,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       curfew: "Yoklama saati {time}",
       curfewNone: "Yoklama saati yok",
       curfewDefault: "varsayılan",
-      curfewPassed: "Saat geçti",
+      curfewPassed: "Yoklama saati geçti",
       curfewChange: "Saati değiştir",
       curfewTitle: "Yoklama saati",
       curfewHint:
@@ -15442,7 +15442,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       curfew: "موعد التحضير {time}",
       curfewNone: "بلا موعد تحضير",
       curfewDefault: "افتراضي",
-      curfewPassed: "انتهى الموعد",
+      curfewPassed: "انتهى موعد التحضير",
       curfewChange: "تغيير الموعد",
       curfewTitle: "موعد التحضير",
       curfewHint:
