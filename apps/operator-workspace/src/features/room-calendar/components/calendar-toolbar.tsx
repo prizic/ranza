@@ -229,7 +229,9 @@ export function CalendarToolbar({
           {lengths.map((days) => (
             <Button
               aria-pressed={view.days === days}
-              className="h-7 px-3 text-xs"
+              // Tight, because the term made this four buttons and the row
+              // has no width to spare at 1240 px (CALENDAR-12).
+              className="h-7 px-2 text-xs"
               key={days}
               onClick={() =>
                 // A term opens on its own start and leaves for today: a
