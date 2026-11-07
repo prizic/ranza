@@ -30,6 +30,7 @@ export type WordsOverlay<T> = {
 export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   tr: {
     openInHousekeeping: "Temizlikte aç",
+    moveResident: "Öğrenciyi taşı",
     searchGuestRoomReference: "Ad, oda veya kayıt ara",
     folioInHouseNoteResident:
       "Öğrenci hâlâ konaklıyor, bu yüzden folyo açık kalır. Gecelik ücretlendirilmez: taksitleri vade günlerinde ve eklenen ücretler buraya işlenir. Çıkıştan sonra kapatılabilir.",
@@ -141,6 +142,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   },
   en: {
     openInHousekeeping: "Open in Cleaning",
+    moveResident: "Move student",
     searchGuestRoomReference: "Search by name, room or reference",
     folioInHouseNoteResident:
       "The student is still in house, so the Folio stays open. They are not charged by the night: their instalments are posted here on each due date, with any charge added. It can be closed after check-out.",
@@ -249,6 +251,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   },
   ar: {
     openInHousekeeping: "فتح في التنظيف",
+    moveResident: "نقل الطالب",
     searchGuestRoomReference: "ابحث بالاسم أو الغرفة أو رقم التسجيل",
     folioInHouseNoteResident:
       "الطالب ما زال في المنشأة، لذا يبقى الحساب مفتوحًا. لا يُحاسب بالليلة: تُسجَّل أقساطه هنا في موعد استحقاق كل منها، مع أي رسوم تُضاف. يمكن إغلاقه بعد المغادرة.",

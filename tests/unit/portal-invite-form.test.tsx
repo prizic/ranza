@@ -403,3 +403,15 @@ describe("the form behind a Guest's link", () => {
     }
   }
 });
+
+describe("the welcome a link opens on", () => {
+  // The same link reaches a student at a dormitory, who is no Guest there, and
+  // the page cannot tell which (it is not told the stay's type).
+  it.each([
+    ["tr", /misafir/i],
+    ["en", /guest/i],
+    ["ar", /الضيف/],
+  ] as const)("names no Guest in %s", (locale, guestWord) => {
+    expect(messages[locale].invite.summary).not.toMatch(guestWord);
+  });
+});

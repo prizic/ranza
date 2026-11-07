@@ -79,6 +79,8 @@ export interface ChangeableStay {
    * said when the dialog opens, before any date is chosen.
    */
   unpriced?: boolean;
+  /** A Resident's stay, which is named in the words for one, not a Guest's. */
+  resident?: boolean;
 }
 
 type PreviewAnswer =

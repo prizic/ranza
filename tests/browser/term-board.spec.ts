@@ -101,13 +101,20 @@ function aYurt(): string {
            from bed, guest, term
          returning id, organization_id, property_id, accommodation_unit_id,
                    starts_on, ends_on
+       ), stayed as (
+         insert into public.stays
+           (organization_id, property_id, accommodation_unit_id,
+            reservation_id, stay_type, status, starts_on, ends_on)
+         select organization_id, property_id, accommodation_unit_id, id,
+                'resident', 'in_house', starts_on, ends_on
+           from arrived
+         returning id, organization_id, property_id
        )
-       insert into public.stays
-         (organization_id, property_id, accommodation_unit_id, reservation_id,
-          stay_type, status, starts_on, ends_on)
-       select organization_id, property_id, accommodation_unit_id, id,
-              'resident', 'in_house', starts_on, ends_on
-         from arrived`,
+       insert into public.folios (organization_id, property_id, stay_id, currency)
+       select stayed.organization_id, stayed.property_id, stayed.id,
+              property.currency
+         from stayed
+         join public.properties as property on property.id = stayed.property_id`,
     );
   }
   return propertyId;
@@ -169,9 +176,21 @@ test("a ten-month booking is drawn whole on a dormitory's term, which it opens o
     path: `${SHOTS}/term-en.png`,
   });
 
-  // Opening a bar is the quick action at this scale.
+  // Opening a bar is the quick action at this scale. A student is neither
+  // charged by the night nor moved as a Guest (RT-S2-05).
   await bar.click();
-  await expect(page.getByRole("dialog")).toContainText("Elif Yurt");
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toContainText("Elif Yurt");
+  await expect(drawer).toContainText(
+    "Not charged by the night: instalments post on each due date",
+  );
+  await expect(drawer).not.toContainText("Later nights post");
+  await expect(
+    drawer.getByRole("button", { name: "Move student" }),
+  ).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Move Guest" })).toHaveCount(
+    0,
+  );
   await page.keyboard.press("Escape");
 
   // Thirty days is the day scale again, with the bar to be dragged.

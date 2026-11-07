@@ -152,6 +152,14 @@ describe("a Reservations row's actions", () => {
     expect(items).not.toContain(messages.en.changeBooking);
   });
 
+  it("a Resident in house is moved as a Resident, never named a Guest (RT-S2-05)", () => {
+    const row = show({ ...IN_HOUSE, stayType: "resident", mayAmend: true });
+    openMenu(row);
+    const items = screen.getAllByRole("menuitem").map((i) => i.textContent);
+    expect(items).toContain(messages.en.moveResident);
+    expect(items).not.toContain(messages.en.moveGuest);
+  });
+
   it("open_folio_is_only_offered_when_the_row_has_an_open_folio: no Folio, no Open folio", () => {
     const row = show({ ...IN_HOUSE, folioId: null });
     openMenu(row);

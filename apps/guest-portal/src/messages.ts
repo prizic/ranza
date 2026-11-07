@@ -195,7 +195,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       pageTitle: "Portalınızı açın",
       welcome: "Merhaba {name}",
       summary:
-        "{organization} sizin için misafir portalını açtı. Odanızı, tarihlerinizi ve bakiyenizi görmek için kendi hesabınızı oluşturun.",
+        "{organization} sizin için portalı açtı. Odanızı, tarihlerinizi ve bakiyenizi görmek için kendi hesabınızı oluşturun.",
       createAccount: "Hesap oluştur",
       haveAccount: "Zaten hesabım var",
       name: "Ad soyad",
@@ -341,7 +341,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       pageTitle: "Open your portal",
       welcome: "Hello, {name}",
       summary:
-        "{organization} has opened the guest portal for you. Create your own login to see your room, your dates and what you owe.",
+        "{organization} has opened the portal for you. Create your own login to see your room, your dates and what you owe.",
       createAccount: "Create an account",
       haveAccount: "I already have an account",
       name: "Full name",
@@ -489,7 +489,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       pageTitle: "افتح بوابتك",
       welcome: "مرحبًا {name}",
       summary:
-        "فتح {organization} بوابة الضيف من أجلك. أنشئ حسابك الخاص لترى غرفتك وتواريخ إقامتك والمبلغ المستحق عليك.",
+        "فتح {organization} البوابة من أجلك. أنشئ حسابك الخاص لترى غرفتك وتواريخ إقامتك والمبلغ المستحق عليك.",
       createAccount: "إنشاء حساب",
       haveAccount: "لدي حساب بالفعل",
       name: "الاسم الكامل",

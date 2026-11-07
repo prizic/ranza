@@ -362,7 +362,11 @@ function DrawerBody({
         {formatMoney(bar.balance.balanceMinor, bar.balance.currency, locale)}
         {inHouse ? (
           <span className="block text-xs font-normal text-muted-foreground">
-            {t("laterNightsPost")}
+            {t(
+              bar.stayType === "resident"
+                ? "laterNightsPostResident"
+                : "laterNightsPost",
+            )}
           </span>
         ) : null}
         {bar.balance.closed ? (
@@ -464,7 +468,9 @@ function DrawerBody({
               type="button"
               variant="outline"
             >
-              {common("moveGuest")}
+              {common(
+                bar.stayType === "resident" ? "moveResident" : "moveGuest",
+              )}
             </Button>
             {moving ? (
               <MoveGuestDialog

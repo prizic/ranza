@@ -925,6 +925,7 @@ function departureActionColumn(
                   unpriced:
                     row.original.stayType === "guest" &&
                     row.original.nightlyRateMinor === null,
+                  resident: row.original.stayType === "resident",
                 }
               : undefined
           }
@@ -1118,6 +1119,7 @@ export function ReservationMenu({
               unpriced:
                 booking.stayType === "guest" &&
                 booking.nightlyRateMinor === null,
+              resident: booking.stayType === "resident",
             }
           : undefined
       }

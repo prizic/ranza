@@ -889,6 +889,8 @@ export interface Messages {
 
   /** Moving an in-house Guest (amend-booking slice 3). */
   moveGuest: string;
+  /** The same, for a Resident's stay: never named a Guest. */
+  moveResident: string;
   moveGuestSummary: string;
   moveGuestReason: string;
   moveReason: Record<"fault" | "upgrade" | "guest_request" | "other", string>;
@@ -2091,6 +2093,8 @@ export interface Messages {
     balance: string;
     balanceAsOfCharge: string;
     laterNightsPost: string;
+    /** A Resident is not charged by the night (RT-S2-05): what does post. */
+    laterNightsPostResident: string;
     folioClosed: string;
     open: Record<"arrivals" | "departures" | "reservations", string>;
     /** The short word a bar carries beside a warning's icon, when it fits. */
@@ -4605,6 +4609,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     saveDeparture: "Çıkışı kaydet",
     extendStay: "Uzat",
     moveGuest: "Misafiri taşı",
+    moveResident: "Sakini taşı",
     moveGuestSummary:
       "Bu geceden itibaren başka bir odaya taşıyın. Konaklama, folyosu ve fiyatı onunla gider; ayrılan oda temizliğe işaretlenir.",
     moveGuestReason: "Neden",
@@ -5021,6 +5026,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       balance: "Bakiye",
       balanceAsOfCharge: "Son ücrete göre bakiye",
       laterNightsPost: "Sonraki geceler gün kapanışında ya da çıkışta işlenir.",
+      laterNightsPostResident:
+        "Gecelik ücretlendirilmez: taksitler vade günlerinde, eklenen ücretlerle birlikte işlenir.",
       folioClosed: "Folyo kapalı",
       open: {
         arrivals: "Girişlerde aç",
@@ -8718,6 +8725,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     saveDeparture: "Save departure",
     extendStay: "Extend",
     moveGuest: "Move Guest",
+    moveResident: "Move Resident",
     moveGuestSummary:
       "Move them to another room from tonight. The stay, its folio and its price go with them; the room left is marked for cleaning.",
     moveGuestReason: "Reason",
@@ -9140,6 +9148,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       balanceAsOfCharge: "Balance as of the last charge",
       laterNightsPost:
         "Later nights post at the close of the day, or at check-out.",
+      laterNightsPostResident:
+        "Not charged by the night: instalments post on each due date, with any charge added.",
       folioClosed: "Folio closed",
       open: {
         arrivals: "Open in Arrivals",
@@ -12802,6 +12812,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     saveDeparture: "حفظ موعد المغادرة",
     extendStay: "تمديد",
     moveGuest: "نقل الضيف",
+    moveResident: "نقل المقيم",
     moveGuestSummary:
       "انقله إلى غرفة أخرى بدءًا من الليلة. تنتقل معه الإقامة وحسابها وسعرها؛ وتُعلَّم الغرفة التي غادرها للتنظيف.",
     moveGuestReason: "السبب",
@@ -13212,6 +13223,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       balanceAsOfCharge: "الرصيد حتى آخر رسم",
       laterNightsPost:
         "تُرحَّل الليالي اللاحقة عند إغلاق اليوم أو عند المغادرة.",
+      laterNightsPostResident:
+        "لا يُحاسب بالليلة: تُسجَّل الأقساط في موعد استحقاق كل منها، مع أي رسوم تُضاف.",
       folioClosed: "الفوليو مغلق",
       open: {
         arrivals: "فتح في الوصول",

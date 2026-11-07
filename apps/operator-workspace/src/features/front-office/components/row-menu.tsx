@@ -225,7 +225,7 @@ export function FrontDeskRowMenu({
           {stay ? (
             <DropdownMenuItem onSelect={() => setMoving(true)}>
               <DoorOpen className="size-4" />
-              <span>{t("moveGuest")}</span>
+              <span>{t(stay.resident ? "moveResident" : "moveGuest")}</span>
             </DropdownMenuItem>
           ) : null}
           {booking?.change ? (
