@@ -262,6 +262,7 @@ describe("the map of a Property", { timeout: BUDGET_MS }, () => {
   let property: string;
   let today: string;
   const ids: Record<string, string> = {};
+  let inHouseReservation: string;
 
   beforeAll(async () => {
     property = await newProperty();
@@ -297,6 +298,7 @@ describe("the map of a Property", { timeout: BUDGET_MS }, () => {
       0,
       2,
     );
+    inHouseReservation = arriving;
     await reservations.checkIn(OWNER, arriving, {
       readinessAcknowledged: true,
     });
@@ -399,6 +401,7 @@ describe("the map of a Property", { timeout: BUDGET_MS }, () => {
       kind: "in_house",
       guestName: "In House Guest",
       endsOn: await propertyDay(property, 2),
+      reservationId: inHouseReservation,
     });
     // Occupancy comes from the Stay: the status column was never touched.
     expect(inHouse.status).toBe("available");
@@ -412,6 +415,7 @@ describe("the map of a Property", { timeout: BUDGET_MS }, () => {
       kind: "in_house",
       guestName: "",
       endsOn: null,
+      reservationId: null,
     });
   });
 

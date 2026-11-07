@@ -1308,6 +1308,7 @@ describe("empty beds by whom the room admits (RB-S5-20)", () => {
     kind: "in_house",
     guestName: "Elif Yurt",
     endsOn: null,
+    reservationId: null,
   } as const;
   const bed = (unitId: string, state: UnitEntry["state"]) =>
     unit({ unitId, name: unitId, unitType: "bed", state });

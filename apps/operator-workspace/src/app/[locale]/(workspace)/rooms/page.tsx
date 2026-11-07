@@ -63,15 +63,19 @@ export default async function RoomsPage({
     );
   }
 
-  const [data, maintenance, mayConfigure, housekeeping, readiness] =
+  const [data, maintenance, mayConfigure, housekeeping, bookings, readiness] =
     await Promise.all([
       rooms(property.propertyId),
       roomsMaintenance(property.propertyId),
       mayConfigureRooms(property.propertyId),
       screenProperties(gateOf("housekeeping")),
+      screenProperties(gateOf("reservations")),
       roomsReadiness(property.propertyId),
     ]);
   const hasHousekeeping = housekeeping.some(
+    (candidate) => candidate.propertyId === property.propertyId,
+  );
+  const hasReservations = bookings.some(
     (candidate) => candidate.propertyId === property.propertyId,
   );
   // A building no room is in is no narrowing, like an unknown ?show= (TD-S5-04).
@@ -96,6 +100,11 @@ export default async function RoomsPage({
       initialView={search.view === "list" ? "list" : "map"}
       locale={locale}
       maintenance={maintenance}
+      reservationsHref={
+        hasReservations
+          ? `${localizeHref(locale, "reservations")}?property=${property.propertyId}`
+          : null
+      }
       mayConfigure={mayConfigure}
       offerAdmits={property.operatingModel === "dormitory"}
       propertyId={property.propertyId}

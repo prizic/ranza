@@ -106,6 +106,7 @@ interface UnitRow {
   stayId: string | null;
   guestName: string | null;
   endsOn: string | null;
+  reservationId: string | null;
   /** Start of a confirmed Reservation that covers tonight. */
   tonightStartsOn: string | null;
   /** The earliest confirmed Reservation starting after tonight. */
@@ -128,6 +129,7 @@ function stateOf(row: UnitRow): UnitState {
       kind: "in_house",
       guestName: row.guestName ?? "",
       endsOn: row.endsOn,
+      reservationId: row.reservationId,
     };
   }
   if (row.status === "blocked") {
@@ -207,6 +209,7 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           occupant.stay_id                         as "stayId",
           occupant.guest_name                      as "guestName",
           to_char(occupant.ends_on, 'YYYY-MM-DD')  as "endsOn",
+          occupant.reservation_id                  as "reservationId",
           to_char(tonight.starts_on, 'YYYY-MM-DD') as "tonightStartsOn",
           to_char(later.starts_on, 'YYYY-MM-DD')   as "nextArrivalOn",
           to_char(today.day, 'YYYY-MM-DD')         as "today"
@@ -217,7 +220,8 @@ export function createAccommodationModule(deps: AccommodationDeps) {
           select app.property_today(${propertyId}::uuid) as day
         ) as today
         left join lateral (
-          select stay.id as stay_id, stay.ends_on, guest.full_name as guest_name
+          select stay.id as stay_id, stay.ends_on, stay.reservation_id,
+                 guest.full_name as guest_name
           from public.stays as stay
           left join public.reservations as reservation
             on reservation.id = stay.reservation_id

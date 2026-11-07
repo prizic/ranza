@@ -52,6 +52,7 @@ export function BlockUnitDialog({
   hold,
   maintenanceHref,
   reportHref,
+  reservationsHref,
   today,
 }: {
   /** The room calendar of this Property, which a `q` narrows to one room. */
@@ -69,6 +70,8 @@ export function BlockUnitDialog({
   maintenanceHref: string;
   /** Null when the viewer may not report, or the Property has no maintenance. */
   reportHref: string | null;
+  /** Reservations at this Property; null when the viewer may not open it. */
+  reservationsHref: string | null;
   /** The Property's business date, which tells a late arrival from a coming one. */
   today: string;
 }) {
@@ -160,6 +163,13 @@ export function BlockUnitDialog({
       {t("maintenance.reportProblem")}
     </Link>
   ) : null;
+
+  // The common question about an occupied room is about the stay, so the
+  // read-only view leads there. A Stay opened without a booking has no sheet.
+  const stayHref =
+    occupied && state?.kind === "in_house" && state.reservationId
+      ? reservationsHref && `${reservationsHref}&open=${state.reservationId}`
+      : null;
 
   const calendarLink = (
     <Link
@@ -266,6 +276,18 @@ export function BlockUnitDialog({
                   {t("maintenance.close")}
                 </CancelButton>
               </DialogClose>
+              {stayHref ? (
+                <Link
+                  className={buttonVariants({
+                    className:
+                      "h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90",
+                  })}
+                  href={stayHref}
+                  prefetch={false}
+                >
+                  {rp("openStay")}
+                </Link>
+              ) : null}
             </DialogActions>
           </>
         ) : isBlocked ? (

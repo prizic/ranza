@@ -86,6 +86,7 @@ export function RoomsView({
   propertyId,
   data,
   housekeepingHref,
+  reservationsHref,
   initialFilter,
   initialView,
   maintenance,
@@ -99,6 +100,8 @@ export function RoomsView({
   data: UnitMap;
   /** The board that says which rooms are clean, for a viewer who has one. */
   housekeepingHref: string | null;
+  /** Reservations at this Property, or null when the viewer may not open it. */
+  reservationsHref: string | null;
   /**
    * What the address narrowed the map to: Today's Empty beds figures open it at
    * `?show=free&admits=` (RB-S5-20). The page remounts the view when it changes.
@@ -897,6 +900,7 @@ export function RoomsView({
         open={blockDialogOpen}
         onOpenChange={setBlockDialogOpen}
         reportHref={selectedUnit ? reportHref(selectedUnit.unitId) : null}
+        reservationsHref={reservationsHref}
         today={data.today}
         roomName={
           data.units.find((room) => room.unitId === selectedRoomId)?.name ??

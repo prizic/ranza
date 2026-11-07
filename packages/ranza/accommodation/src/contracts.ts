@@ -88,7 +88,13 @@ export const ROOM_NUMBER = { min: 1, max: 8 } as const;
  * does not read wholly reserved while every room is empty tonight.
  */
 export type UnitState =
-  | { kind: "in_house"; guestName: string; endsOn: string | null }
+  | {
+      kind: "in_house";
+      guestName: string;
+      endsOn: string | null;
+      /** The booking the Stay came from; null for a Stay opened without one. */
+      reservationId: string | null;
+    }
   | { kind: "blocked"; reason: string }
   | { kind: "out_of_service" }
   | { kind: "reserved"; arrivesOn: string }

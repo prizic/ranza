@@ -2386,6 +2386,7 @@ export interface Messages {
     reportStillOpen: string;
     occupiedCannotBlock: string;
     showOnCalendar: string;
+    openStay: string;
     unitStateReservedLate: string;
     reservedLateBadge: string;
     findRoom: string;
@@ -6275,6 +6276,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       occupiedCannotBlock:
         "Odada bir misafir var, bu yüzden kapatılamaz. Önce misafiri oda takviminden taşıyın ya da çıkışını yapın.",
       showOnCalendar: "Oda takviminde göster",
+      openStay: "Konaklamayı aç",
       unitStateReservedLate:
         "Burada {date} tarihinde gelmesi beklenen bir rezervasyon var ve kimse giriş yapmadı. Giriş yaptırın ya da Rezervasyonlar sayfasında gelmedi olarak işaretleyin.",
       reservedLateBadge: "Gelmedi · {date} tarihinde gelecekti",
@@ -10400,6 +10402,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       occupiedCannotBlock:
         "A Guest is in this room, so it can't be blocked. Move the Guest from the room calendar, or check them out, first.",
       showOnCalendar: "Show on the room calendar",
+      openStay: "Open stay",
       unitStateReservedLate:
         "A booking here was due on {date} and nobody has checked in. Check them in, or mark it a no-show in Reservations.",
       reservedLateBadge: "Not arrived · due {date}",
@@ -14441,6 +14444,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       occupiedCannotBlock:
         "يوجد ضيف في هذه الغرفة، لذا لا يمكن إغلاقها. انقل الضيف من تقويم الغرف أو سجّل مغادرته أولًا.",
       showOnCalendar: "عرض في تقويم الغرف",
+      openStay: "فتح الإقامة",
       unitStateReservedLate:
         "كان هنا حجز موعد وصوله {date} ولم يسجّل أحد دخوله. سجّل دخوله، أو سجّل الحجز «عدم حضور» من صفحة الحجوزات.",
       reservedLateBadge: "لم يصل · موعده {date}",

@@ -81,6 +81,7 @@ const map: UnitMap = {
       kind: "in_house",
       guestName: "Ayşe Yılmaz",
       endsOn: "2026-10-02",
+      reservationId: "bb000001-0000-4000-8000-000000000106",
     }),
   ],
   counts: {
@@ -107,6 +108,7 @@ function screenOf(
     offerAdmits?: boolean;
     readiness?: Readonly<Record<string, RoomReadiness>> | null;
     reportable?: boolean;
+    reservationsHref?: string | null;
   } = {},
 ) {
   return (
@@ -124,6 +126,11 @@ function screenOf(
         offerAdmits={options.offerAdmits ?? false}
         propertyId="dd000003-0000-4000-8000-000000000001"
         readiness={options.readiness ?? null}
+        reservationsHref={
+          options.reservationsHref === undefined
+            ? "/en/reservations?property=dd000003-0000-4000-8000-000000000001"
+            : options.reservationsHref
+        }
       />
     </NextIntlClientProvider>
   );
@@ -281,7 +288,12 @@ describe("the words for a Property with and without beds (ROOMS-06, ROOMS-13)", 
 
 describe("beds taken on a room let by the bed (RB-S5-19)", () => {
   const inHouse = (name: string): UnitEntry =>
-    unit(name, { kind: "in_house", guestName: `Guest ${name}`, endsOn: null });
+    unit(name, {
+      kind: "in_house",
+      guestName: `Guest ${name}`,
+      endsOn: null,
+      reservationId: null,
+    });
   const roomOf = (name: string, beds: UnitEntry[]): UnitEntry => ({
     ...unit(name, null),
     beds,
@@ -683,6 +695,65 @@ describe("what pressing a room opens, and for whom (CALENDAR-08, CALENDAR-09)", 
     expect(
       within(dialog).getByRole("button", { name: "Block room" }),
     ).toBeVisible();
+  });
+
+  it("leads an occupied room's details to its stay, and only when there is one the viewer may open", async () => {
+    const withWalkIn: UnitMap = {
+      ...map,
+      units: [
+        ...map.units,
+        unit("107", {
+          kind: "in_house",
+          guestName: "Walk In",
+          endsOn: null,
+          reservationId: null,
+        }),
+      ],
+    };
+    const unitId = (name: string) =>
+      withWalkIn.units.find((candidate) => candidate.name === name)!.unitId;
+    const press = (name: string) =>
+      fireEvent.click(document.getElementById(`unit-${unitId(name)}`)!);
+
+    render(screenOf("en", { data: withWalkIn }));
+    press("106");
+    const link = within(await screen.findByRole("dialog")).getByRole("link", {
+      name: "Open stay",
+    });
+    expect(link).toHaveAttribute(
+      "href",
+      "/en/reservations?property=dd000003-0000-4000-8000-000000000001&open=bb000001-0000-4000-8000-000000000106",
+    );
+
+    // A Stay opened without a booking has no sheet to open.
+    cleanup();
+    render(screenOf("en", { data: withWalkIn }));
+    press("107");
+    expect(
+      within(await screen.findByRole("dialog")).queryByRole("link", {
+        name: "Open stay",
+      }),
+    ).toBeNull();
+
+    // Somebody who may not open Reservations is not sent to a denied screen.
+    cleanup();
+    render(screenOf("en", { reservationsHref: null }));
+    press("106");
+    expect(
+      within(await screen.findByRole("dialog")).queryByRole("link", {
+        name: "Open stay",
+      }),
+    ).toBeNull();
+
+    // A room nobody is in has no stay to open.
+    cleanup();
+    render(screenOf("en"));
+    press("103");
+    expect(
+      within(await screen.findByRole("dialog")).queryByRole("link", {
+        name: "Open stay",
+      }),
+    ).toBeNull();
   });
 
   it("says in words on every tile what pressing it opens", () => {
