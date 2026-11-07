@@ -245,8 +245,10 @@
         room's dialog, commit <code>49ae2cc4</code>, rows RB-S6-04 and
         RB-DEF-06. (2) D-07: that same dialog's Maintenance and calendar links,
         and the report link that leads to Maintenance, now appear only when the
-        viewer may open the screen, row RB-S6-05. The other 59 are
-        <strong>not</strong> fixed; this document is their ranked backlog.
+        viewer may open the screen, row RB-S6-05. (3) The two real bugs the
+        sweep confirmed, B-17 and A-01, each with a test that fails on the old
+        code. The other 57 are <strong>not</strong> fixed; this document is
+        their ranked backlog.
       </div>
 
       <h2>What is wrong, by root cause</h2>
@@ -329,7 +331,12 @@
         <code>booked-ahead-card.tsx</code> calls <code>useState</code> after an
         early return, a rules-of-hooks violation that throws when a 60-second
         refresh moves a Property from no units in use to some. Both I confirmed
-        in the code.
+        in the code, and <strong>both are now fixed</strong>: the sheet keeps
+        the booking's id and reads the list's live row, as the
+        <code>?open=</code> path does, and the hook runs before the early
+        return. Each has a test that fails on the old code; B-17's fails with
+        React's "Rendered more hooks than during the previous render", so it was
+        a real crash.
       </p>
 
       <h3>6. The navigation layer</h3>
@@ -349,9 +356,8 @@
       <h2>Fix order</h2>
       <ol class="rank">
         <li>
-          <strong>B-17</strong>, then <strong>A-01</strong>. Real bugs, small,
-          local. B-17 is a one-line move. A-01 keeps only the selected id and
-          derives the row, as the <code>?open=</code> path already does.
+          <strong>B-17</strong>, then <strong>A-01</strong>. <em>Done.</em> Real
+          bugs, small, local.
         </li>
         <li>
           <strong>C-01</strong> portal sign-out. A shared-device session you
@@ -646,6 +652,14 @@
             <code>linkedSheet</code> does at <code>:196-198</code>; close (or
             show the &quot;gone&quot; state) when the row is no longer on the
             list.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong
+              >fixed (the sheet keeps the booking&#x27;s id and reads the
+              list&#x27;s live row;
+              tests/unit/reservation-sheet-live.test.tsx)</strong
+            >
           </dd>
         </dl>
       </details>
@@ -1926,6 +1940,14 @@
           <dd>conditional hook call.</dd>
           <dt>Fix</dt>
           <dd>move the <code>useState</code> above the early return.</dd>
+          <dt>Status</dt>
+          <dd>
+            <strong
+              >fixed (the hook runs before the early return;
+              tests/unit/booked-ahead-card.test.tsx reproduces the crash on the
+              old code)</strong
+            >
+          </dd>
         </dl>
       </details>
       <h3>
@@ -2971,8 +2993,8 @@
           <dt>Status</dt>
           <dd>
             <strong
-              >fixed in this change (Rooms dialog links follow the viewer&#x27;s
-              gates)</strong
+              >fixed (Rooms dialog links follow the viewer&#x27;s gates,
+              RB-S6-05)</strong
             >
           </dd>
         </dl>
