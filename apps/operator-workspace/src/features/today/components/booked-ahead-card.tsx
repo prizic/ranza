@@ -80,13 +80,15 @@ function Line({
   nights: readonly BookedNight[];
 }) {
   const t = useTranslations("dashboard");
+  // Before the early return: the card refreshes every minute and a Property can
+  // go from no units in use to some, which must not change how many hooks run.
+  const [active, setActive] = useState<number | null>(null);
   const first = nights[0];
   const last = nights.at(-1);
   if (!first || !last || nights.every((night) => night.inUse === 0)) {
     return <p className="text-sm text-muted-foreground">{t("noUnits")}</p>;
   }
 
-  const [active, setActive] = useState<number | null>(null);
   const step =
     nights.length > 1 ? (WIDTH - 2 * INSET) / (nights.length - 1) : 0;
   const points = nights.map((night, index) => ({

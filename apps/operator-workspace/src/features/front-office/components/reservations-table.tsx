@@ -16,7 +16,7 @@ import { formatDate, formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { useTableLabels } from "../../../lib/table-labels";
 import { ChangeBookingDialog } from "./change-booking-dialog";
 import { ReservationDetailSheet } from "./reservation-detail-sheet";
-import { useReservationColumns, type ReservationListRow } from "./columns";
+import { useReservationColumns } from "./columns";
 import {
   attentionRank,
   daysBetween,
@@ -108,8 +108,9 @@ export function ReservationsTable({
   const pathname = usePathname();
   const search = useSearchParams();
   const [tab, setTab] = useState<ReservationTab>("all");
-  const [selectedReservation, setSelectedReservation] =
-    useState<ReservationListRow | null>(null);
+  // The id, not the row: an action in the sheet changes the booking, and the
+  // sheet must read the list's current row, as one opened from a link does.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openingDismissed, setOpeningDismissed] = useState(false);
   // The list is the only proof a booking or a check-in worked, and a tab can
   // narrow it to somewhere the result is not. So when a row appears or changes
@@ -196,6 +197,8 @@ export function ReservationsTable({
   const linkedSheet = openingDismissed
     ? undefined
     : reservations.find((row) => row.reservationId === opening);
+  const sheetRow =
+    reservations.find((row) => row.reservationId === selectedId) ?? linkedSheet;
 
   // Closing it drops the parameter, so a refresh does not open it again.
   // Stable, because the dialog closes itself from an effect that lists it.
@@ -260,7 +263,7 @@ export function ReservationsTable({
         }
         labels={{ ...labels, searchBy: () => t("searchReservations") }}
         getRowId={(row) => row.reservationId}
-        onRowClick={(row) => setSelectedReservation(row)}
+        onRowClick={(row) => setSelectedId(row.reservationId)}
         rowClassName={(row) =>
           row.reservationId === highlighted ? JUST_CHANGED : undefined
         }
@@ -283,7 +286,7 @@ export function ReservationsTable({
         mayReadHistory={mayReadHistory}
         onOpenChange={(open) => {
           if (open) return;
-          setSelectedReservation(null);
+          setSelectedId(null);
           if (linkedSheet) {
             setOpeningDismissed(true);
             const next = new URLSearchParams(search);
@@ -291,17 +294,9 @@ export function ReservationsTable({
             router.replace(`${pathname}?${next}`, { scroll: false });
           }
         }}
-        open={selectedReservation !== null || linkedSheet !== undefined}
+        open={sheetRow !== undefined}
         propertyId={propertyId}
-        reservation={
-          selectedReservation ??
-          (linkedSheet
-            ? {
-                ...linkedSheet,
-                guestPhoneDigits: "",
-              }
-            : null)
-        }
+        reservation={sheetRow ? { ...sheetRow, guestPhoneDigits: "" } : null}
         today={today}
       />
       {linked ? (
