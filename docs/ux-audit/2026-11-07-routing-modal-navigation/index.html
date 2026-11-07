@@ -1,0 +1,3239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Routing, modal and navigation audit, 2026-11-07</title>
+    <style>
+      :root {
+        --bg: #fbf9f4;
+        --fg: #1d2a26;
+        --mut: #5d6b66;
+        --line: #e3ded2;
+        --card: #fff;
+        --acc: #1f5d4a;
+        --soft: #e8f1ec;
+        --warn: #8a5a00;
+        --warnbg: #fbf0d8;
+        --bad: #9b2c2c;
+        --badbg: #f8e5e3;
+        --code: #f1eee6;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #121816;
+          --fg: #e8ede9;
+          --mut: #9fb0a9;
+          --line: #2a3631;
+          --card: #18211e;
+          --acc: #7cc4a8;
+          --soft: #1c2a25;
+          --warn: #e0b25a;
+          --warnbg: #2b2412;
+          --bad: #f0a3a3;
+          --badbg: #2c1a1a;
+          --code: #222d29;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 20px 80px;
+      }
+      h1 {
+        font-size: 2.1rem;
+        line-height: 1.2;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        margin: 0.2em 0 0.3em;
+      }
+      h2 {
+        font-size: 1.35rem;
+        font-weight: 600;
+        margin: 2.4em 0 0.6em;
+        padding-top: 0.6em;
+        border-top: 1px solid var(--line);
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 1.6em 0 0.3em;
+      }
+      .eyebrow {
+        font:
+          600 0.72rem/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--mut);
+      }
+      .lede {
+        font-size: 1.15rem;
+        color: var(--fg);
+      }
+      p,
+      li {
+        max-width: 72ch;
+      }
+      code {
+        background: var(--code);
+        padding: 0.08em 0.32em;
+        border-radius: 4px;
+        font:
+          0.88em ui-monospace,
+          Menlo,
+          monospace;
+        word-break: break-word;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.92rem;
+        margin: 1em 0;
+      }
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 0.45em 0.6em;
+        text-align: start;
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--mut);
+        font-weight: 600;
+      }
+      td.n,
+      th.n {
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .callout {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 14px;
+        padding: 14px 18px;
+        margin: 1em 0;
+      }
+      .callout.warn {
+        background: var(--warnbg);
+        border-color: transparent;
+        color: var(--warn);
+      }
+      .callout.ok {
+        background: var(--soft);
+        border-color: transparent;
+      }
+      .pill {
+        display: inline-block;
+        font:
+          600 0.7rem/1 ui-monospace,
+          Menlo,
+          monospace;
+        letter-spacing: 0.06em;
+        padding: 0.3em 0.55em;
+        border-radius: 99px;
+        background: var(--soft);
+        color: var(--acc);
+        margin-inline-end: 0.35em;
+        vertical-align: middle;
+      }
+      .pill.high {
+        background: var(--badbg);
+        color: var(--bad);
+      }
+      .pill.medium {
+        background: var(--warnbg);
+        color: var(--warn);
+      }
+      .pill.me {
+        background: var(--acc);
+        color: var(--bg);
+      }
+      details {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 12px;
+        margin: 0.5em 0;
+        padding: 0.1em 14px;
+      }
+      summary {
+        overflow-wrap: anywhere;
+        cursor: pointer;
+        padding: 0.7em 0;
+        font-weight: 500;
+      }
+      summary .id {
+        font:
+          600 0.85rem ui-monospace,
+          Menlo,
+          monospace;
+        margin-inline-end: 0.5em;
+      }
+      dl {
+        margin: 0.2em 0 0.9em;
+        display: grid;
+        grid-template-columns: 8.5em 1fr;
+        gap: 0.35em 1em;
+        font-size: 0.93rem;
+      }
+      dt {
+        color: var(--mut);
+      }
+      dd {
+        margin: 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      ol.rank > li {
+        margin: 0.7em 0;
+      }
+      .mut {
+        color: var(--mut);
+      }
+      @media (max-width: 640px) {
+        dl {
+          grid-template-columns: 1fr;
+        }
+        dt {
+          margin-top: 0.5em;
+        }
+        h1 {
+          font-size: 1.7rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">
+        Ranza · UX audit · 2026-11-07 · origin/main 49ae2cc4
+      </p>
+      <h1>
+        A room tile that went nowhere was not a one-off: sixty more like it
+      </h1>
+      <p class="lede">
+        Pressing an occupied room on Rooms opened a dialog titled "Room details"
+        that mostly said the room cannot be blocked. It had no way to the stay.
+        Four read-only agents then traced every tile, dialog, sheet and link in
+        the operator workspace and the guest portal for the same class of
+        defect. They found 64 defects, 60 after removing the ones two lanes both
+        found. The pattern is systemic, not a one-off, and most of it is cheap
+        to fix.
+      </p>
+
+      <div class="callout ok">
+        <strong>Already fixed.</strong> (1) <em>Open stay</em> in an occupied
+        room's dialog, commit <code>49ae2cc4</code>, rows RB-S6-04 and
+        RB-DEF-06. (2) D-07: that same dialog's Maintenance and calendar links,
+        and the report link that leads to Maintenance, now appear only when the
+        viewer may open the screen, row RB-S6-05. The other 59 are
+        <strong>not</strong> fixed; this document is their ranked backlog.
+      </div>
+
+      <h2>What is wrong, by root cause</h2>
+      <p>
+        The 60 findings are 57 tweaks to behaviour that already exists and 3
+        proposals that need the owner. By severity: 3 high, 25 medium, 32 low.
+        They come from six causes, and fixing a cause once is cheaper than
+        fixing its findings one by one.
+      </p>
+
+      <h3>
+        1. A link is built by hand from a weaker check than the destination's
+        own gate (GATE)
+      </h3>
+      <p>
+        The page offers a button; the target screen then refuses the viewer.
+        Examples: Arrivals "New booking" to someone who cannot book (D-03, also
+        A-04), Configuration's Rooms and People tiles (D-04, also C-07), People
+        to HR (D-05, also C-09) and HR to People (D-06, also C-08), and the
+        Rooms dialog's own Maintenance and calendar links (D-07, now fixed).
+        Rooms already holds the right pattern: compute each link through
+        <code>screenProperties(gateOf(segment))</code> and pass
+        <code>null</code> when closed. <strong>Recommendation:</strong> extract
+        that as one shared server helper (the Rooms page now has a local
+        <code>linkTo</code>) and make "a hand-built
+        <code>?property=</code> template string" a review red flag.
+      </p>
+
+      <h3>2. A named thing has no link to where it lives (NO-HOME)</h3>
+      <p>
+        Guests, stays, reservations, rooms and requests appear as plain text on
+        Close the day (A-05), the finance overdue list (C-05), the audit log
+        (C-02, C-03, C-04), Today's rows (B-07, B-10, B-11, B-12) and more. The
+        reservation detail sheet is already reachable by
+        <code>?open=&lt;reservationId&gt;</code>, and the audit log's
+        <code>links.ts</code> still says a booking cannot be shown alone, which
+        stopped being true. <strong>Recommendation:</strong> one subject-to-link
+        registry that every list uses, starting from the audit log's existing
+        <code>subjectReach</code>.
+      </p>
+
+      <h3>
+        3. A blocker or refusal names a problem and points at a screen that
+        cannot fix it (DEAD-END)
+      </h3>
+      <p>
+        The worst case is B-01: an arrival blocked by a blocked or
+        out-of-service room, and the attention items for out-of-service rooms,
+        send the desk to Housekeeping, which can only mark rooms clean or dirty
+        and cannot lift a block or return a room. It is the Rooms bug again, on
+        Today. A-02 ("check them out first", "unblock it") has the same shape on
+        Arrivals and Reservations. B-01 and A-02 need <code>unitId</code> added
+        to <code>UnitLabel</code> and the arrival and attention rows (the agent
+        traced this in <code>server/today-derive.ts</code>).
+      </p>
+
+      <h3>
+        4. A deep link does nothing when its target is not on the list
+        (DEEPLINK)
+      </h3>
+      <p>
+        <code>?open=</code> and <code>?change=</code> on Reservations do nothing
+        when the booking has left the list, and the calendar's departed bars
+        link there (A-03). The Maintenance board cannot open one request, though
+        Today, Rooms and Maintenance all name MT-numbers (B-02). A Ledger
+        entry's Back returns to the newest page because its link drops
+        <code>cursor</code> (B-05). Finance <code>?folio=</code> renders another
+        Property's folio under this Property's name (D-10).
+        <strong>Recommendation:</strong> every link parameter either opens its
+        target or says in words why not; a silent no-op is the defect.
+      </p>
+
+      <h3>5. Two real bugs found on the way, not UX at all</h3>
+      <p>
+        <strong>A-01 (high):</strong> the Reservations detail sheet stores the
+        clicked row, not its id. After Check in, Undo or Cancel the list behind
+        updates, but the sheet keeps the old status and still offers the action;
+        a second press is refused. The <code>?open=</code> path re-reads the
+        live row, so the two disagree. <strong>B-17:</strong>
+        <code>booked-ahead-card.tsx</code> calls <code>useState</code> after an
+        early return, a rules-of-hooks violation that throws when a 60-second
+        refresh moves a Property from no units in use to some. Both I confirmed
+        in the code.
+      </p>
+
+      <h3>6. The navigation layer</h3>
+      <p>
+        The Back arrow and every "Go to Today" always point at Today, even at a
+        Property where Today is switched off, which silently lands the person on
+        another Property's day (D-01). Four page error screens have a "Try
+        again" that cannot work for server failures, because they call
+        <code>reset</code> without <code>router.refresh()</code> (D-02). The
+        workspace shell's own error screen has no exit at all (D-13). The guest
+        portal has no sign-out: its avatar is an inert <code>AccountMenu</code>,
+        so a Resident on a shared dormitory device cannot end the session (C-01;
+        the workspace fixed the same thing as SIGN-01). The ADR 0035 back button
+        itself is correct everywhere checked.
+      </p>
+
+      <h2>Fix order</h2>
+      <ol class="rank">
+        <li>
+          <strong>B-17</strong>, then <strong>A-01</strong>. Real bugs, small,
+          local. B-17 is a one-line move. A-01 keeps only the selected id and
+          derives the row, as the <code>?open=</code> path already does.
+        </li>
+        <li>
+          <strong>C-01</strong> portal sign-out. A shared-device session you
+          cannot end. The action already exists
+          (<code>sign-out-item.tsx</code>). The owner may prefer to treat it as
+          a proposal.
+        </li>
+        <li>
+          <strong>B-01 and A-02</strong>. They need the
+          <code>unitId</code> contract change first, then route
+          <code>unit_blocked</code> to Rooms <code>?unit=</code> and
+          out-of-service to Maintenance.
+        </li>
+        <li>
+          <strong>The GATE batch</strong> (D-03, D-04, D-05, D-06 and their
+          lane-A and lane-C twins, plus A-06, A-08, C-10, B-13) behind one
+          shared helper. One decision, one test pattern.
+        </li>
+        <li>
+          <strong>D-01, D-02, D-13</strong>. Back target when Today is off, the
+          four error screens, the exit from the shell error. Delete the four
+          bespoke error files in favour of <code>RouteError</code>.
+        </li>
+        <li>
+          <strong>The DEEPLINK batch</strong> (A-03, B-02, B-05, B-06, C-16,
+          D-10, D-11).
+        </li>
+        <li>
+          <strong>The NO-HOME batch</strong>, once the link registry exists.
+        </li>
+        <li>
+          LABEL, STEPS and the remaining low items: D-08 and D-09 (phone dock),
+          B-09 (the link omits <code>?new=1</code>), B-04, and the rest in the
+          appendix.
+        </li>
+      </ol>
+      <p>
+        <strong>Needs the owner, not code:</strong> A-11 (the reserved-room half
+        is already proposed as RB-S2-23), C-15, C-19, D-14 (a past-due notice
+        with no way to pay, which depends on where payment happens) and a
+        one-line "this room is filtered out" notice when
+        <code>?unit=</code> names a hidden room.
+      </p>
+      <p>
+        <strong>Rules for any fix in this list.</strong> A tweak to existing
+        behaviour ships with its own test and a sabotage run that goes red; a
+        new interaction is a <code>proposed</code> row first. Every link a fix
+        adds must be gated like D-07. Turkish, English and Arabic ship together.
+        The two fixes already landed are the worked example.
+      </p>
+
+      <h2>By class and lane</h2>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Class</th>
+              <th class="n">A front desk</th>
+              <th class="n">B Today and ops</th>
+              <th class="n">C back office, portal</th>
+              <th class="n">D routing</th>
+              <th class="n">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>BACK</td>
+              <td class="n">·</td>
+              <td class="n">·</td>
+              <td class="n">·</td>
+              <td class="n">2</td>
+              <td class="n"><strong>2</strong></td>
+            </tr>
+            <tr>
+              <td>DEAD-END</td>
+              <td class="n">5</td>
+              <td class="n">3</td>
+              <td class="n">5</td>
+              <td class="n">3</td>
+              <td class="n"><strong>16</strong></td>
+            </tr>
+            <tr>
+              <td>DEEPLINK</td>
+              <td class="n">1</td>
+              <td class="n">3</td>
+              <td class="n">1</td>
+              <td class="n">2</td>
+              <td class="n"><strong>7</strong></td>
+            </tr>
+            <tr>
+              <td>GATE</td>
+              <td class="n">3</td>
+              <td class="n">1</td>
+              <td class="n">4</td>
+              <td class="n">5</td>
+              <td class="n"><strong>13</strong></td>
+            </tr>
+            <tr>
+              <td>LABEL</td>
+              <td class="n">·</td>
+              <td class="n">2</td>
+              <td class="n">1</td>
+              <td class="n">1</td>
+              <td class="n"><strong>4</strong></td>
+            </tr>
+            <tr>
+              <td>MODAL</td>
+              <td class="n">1</td>
+              <td class="n">·</td>
+              <td class="n">·</td>
+              <td class="n">·</td>
+              <td class="n"><strong>1</strong></td>
+            </tr>
+            <tr>
+              <td>NO-HOME</td>
+              <td class="n">3</td>
+              <td class="n">6</td>
+              <td class="n">6</td>
+              <td class="n">1</td>
+              <td class="n"><strong>16</strong></td>
+            </tr>
+            <tr>
+              <td>OTHER</td>
+              <td class="n">·</td>
+              <td class="n">1</td>
+              <td class="n">·</td>
+              <td class="n">·</td>
+              <td class="n"><strong>1</strong></td>
+            </tr>
+            <tr>
+              <td>STEPS</td>
+              <td class="n">1</td>
+              <td class="n">1</td>
+              <td class="n">2</td>
+              <td class="n">·</td>
+              <td class="n"><strong>4</strong></td>
+            </tr>
+            <tr>
+              <td><strong>All</strong></td>
+              <td class="n"><strong>14</strong></td>
+              <td class="n"><strong>17</strong></td>
+              <td class="n"><strong>19</strong></td>
+              <td class="n"><strong>14</strong></td>
+              <td class="n"><strong>64</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mut">
+        Raw counts, before removing duplicates. Four defects were found by two
+        lanes each: D-03 and A-04, D-04 and C-07, D-06 and C-08, D-05 and C-09;
+        the routing lane's entry is the one to fix under. Lane C's own summary
+        miscounted its classes; this table is computed from the finding headers.
+      </p>
+
+      <h2>How much to trust it</h2>
+      <div class="callout warn">
+        <strong>Nothing here was run.</strong> Every finding is from reading
+        code. No screen was opened in a browser, so layout, RTL and focus
+        behaviour are untested, and a "verified" tag means the agent read the
+        lines it cites, not that it saw the outcome.
+      </div>
+      <ul>
+        <li>
+          <strong>Checked by me against the code (7):</strong> A-01, B-01, B-17,
+          C-01, D-02, D-03, D-07. All seven held. These carry a "checked by me"
+          mark below. The other 53 are agent-reported and cite file and line,
+          but I did not re-read them.
+        </li>
+        <li>
+          <strong>Inferred, not read:</strong> A-06 (which roles hold finance),
+          B-13, C-10, and parts of C-09, C-13 and A-01's consequence. The agents
+          marked these themselves.
+        </li>
+        <li>
+          <strong>Prior audit:</strong>
+          <code>docs/ux-audit/2026-10-24</code> (184 findings, an older SHA)
+          overlaps in places. Known overlaps are marked in the findings (C-12 is
+          FINANCE-08, B-01 relates to TODAY-08). Anything unmarked was not found
+          there by search, which is weaker than a line-by-line comparison.
+        </li>
+        <li>
+          <strong>Not covered:</strong> <code>apps/control-plane</code>,
+          <code>apps/storefront</code>, <code>apps/worker</code>, the Security
+          screen's internals, and every flow that needs a database to reach.
+          Lane C did not read how before-opening analytics days are built.
+        </li>
+        <li>
+          <strong>Cost:</strong> four Sonnet lanes, read-only, about 1.1 million
+          subagent tokens and 6 to 7 minutes each.
+        </li>
+      </ul>
+
+      <h2>A checklist for any new or changed screen</h2>
+      <ol>
+        <li>
+          Does every dialog, sheet or panel that explains a refusal also say
+          what to do next, with a link that works for this viewer?
+        </li>
+        <li>
+          Does every label ("details", "manage", "open") promise only what the
+          destination delivers?
+        </li>
+        <li>
+          Is every link to another screen computed through that screen's gate,
+          and absent when the viewer cannot open it?
+        </li>
+        <li>
+          Is every person, room, stay, reservation or request named on screen a
+          link to its home?
+        </li>
+        <li>
+          If a screen reads <code>?open=</code>, <code>?unit=</code> or another
+          link parameter, what does it do when the target is not on the list?
+        </li>
+        <li>
+          Does a sheet hold an id and derive its row, or a stale copy of the
+          row?
+        </li>
+        <li>
+          Does Back go to the stated parent and keep <code>?property=</code>,
+          including where the parent is switched off?
+        </li>
+        <li>
+          Does the error and denied state have a way out that works for a server
+          failure?
+        </li>
+      </ol>
+
+      <h2>How to run it again</h2>
+      <p>
+        The brief that produced this is <code>brief.md</code> beside this file:
+        eight defect classes, the rules in force, the output format, and a lane
+        split by file area so no two agents read the same files. Update the SHA,
+        tell each lane to skip what is fixed here, and verify the top findings
+        yourself before acting. The four raw lane files (<code>audit-A.md</code>
+        to <code>audit-D.md</code>) sit beside it and are greppable, and each
+        ends with a "Checked and fine" list that shows what was traced and found
+        correct.
+      </p>
+
+      <h2>All findings</h2>
+      <p class="mut">
+        Grouped by lane, ordered by severity within each. "checked by me" marks
+        the seven I verified.
+      </p>
+      <h3>
+        Lane A: Front desk (reservations, arrivals, departures, close the day,
+        rooms, room calendar)
+      </h3>
+      <details id="A-01">
+        <summary>
+          <span class="id">A-01</span><span class="pill high">high</span
+          ><span class="pill">MODAL</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut"
+            >TWEAK · verified (code), UX consequence inferred</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Reservations, detail sheet opened by clicking a row.
+            <code
+              >features/front-office/components/reservations-table.tsx:111-112</code
+            >
+            (state), <code>:263</code> (<code>onRowClick</code> stores the row
+            object), <code>:296-303</code> (sheet reads that stored object); the
+            <code>?open=</code> path at <code>:196-198</code> re-finds the row
+            in <code>reservations</code> on every render.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the desk opens a booking, presses Check in (or Undo, or
+            Cancel/No-show/Change from the &quot;…&quot; in the sheet footer).
+            The action revalidates the page and the list behind the sheet
+            updates, but the sheet keeps the row as it was when clicked: status
+            badge still &quot;Confirmed&quot;, Check in button still there,
+            Cancel still offered. A second press is refused (&quot;already
+            checked in&quot; / &quot;withdrawn&quot;).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the sheet shows a snapshot while the same sheet opened from a link
+            (<code>?open=</code>) shows live data, so the two disagree and the
+            snapshot offers actions that are already done.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            keep only the selected <code>reservationId</code> in state and
+            derive the row with <code>reservations.find(...)</code> exactly as
+            <code>linkedSheet</code> does at <code>:196-198</code>; close (or
+            show the &quot;gone&quot; state) when the row is no longer on the
+            list.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-02">
+        <summary>
+          <span class="id">A-02</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Arrivals row action cell
+            <code>features/front-office/components/columns.tsx:545-558</code>;
+            Reservations row <code>columns.tsx:1389-1398</code>; Reservations
+            sheet notice
+            <code
+              >features/front-office/components/reservation-detail-sheet.tsx:315-320</code
+            >; strings <code>checkInBlocked.*</code> in
+            <code>messages.ts</code> (en ~7934-7937).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            where the Check in button would be, the row says &quot;Somebody is
+            still in the room. Check them out first.&quot; / &quot;The Unit is
+            blocked. Unblock it or choose another.&quot; / &quot;The Unit is out
+            of order. Choose another.&quot; Plain text; the occupant, the
+            Departures page, the room tile and &quot;Change booking&quot; are
+            not offered next to it (they are only reachable through the
+            &quot;…&quot; menu, if the viewer thinks to look; &quot;Check out
+            (opens Departures)&quot; is not even offered on these rows, since
+            <code>checkOutDue</code> is not passed).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            it is the Rooms &quot;occupied, cannot block&quot; defect again: a
+            refusal that names the next step in words and gives no way to take
+            it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            under the text, one link chosen by <code>checkInBlocker</code>:
+            <code>unit_occupied</code> to <code>departures?property=</code> (the
+            same link <code>row-menu.tsx:183-193</code> builds),
+            <code>unit_blocked</code> / <code>unit_out_of_service</code> to
+            <code>rooms?property=&amp;unit=</code>
+            (<code>row-menu.tsx:194-203</code>, <code>reach.rooms</code>), each
+            gated by <code>reach</code> as the menu already is; on Reservations
+            (which passes no <code>reach</code>, see A-06) reuse the same gate.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-03">
+        <summary>
+          <span class="id">A-03</span><span class="pill medium">medium</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            receiver
+            <code
+              >features/front-office/components/reservations-table.tsx:192-198</code
+            >
+            (<code>?change=</code>, <code>?open=</code>); sources include the
+            calendar drawer
+            <code
+              >features/room-calendar/components/bar-drawer.tsx:263-268</code
+            >
+            and <code>:550-553</code>; the list&#x27;s filter is
+            <code>packages/ranza/reservations/src/module.ts:1812-1816</code>
+            (<code>ends_on &gt;= today</code> or still
+            <code>requested/confirmed/checked_in</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            on the room calendar, with &quot;Show departed&quot; on, open a
+            Guest who left on an earlier day. The drawer&#x27;s reference link
+            and the main button (&quot;Open Reservations&quot;) go to
+            <code>reservations?open=&lt;id&gt;</code>. That booking is checked
+            out and ended before today, so it is not on the list and the page
+            opens as a plain list with no sheet and no word. Same silence for
+            <code>?change=</code> (sent by
+            <code>features/maintenance/components/impact-notice.tsx:67</code>)
+            when the booking has since been checked in, cancelled, or is no
+            longer changeable (<code>mayAmend</code> false).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a link that the product itself built does nothing and says nothing
+            when its target is outside the list.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            when <code>opening</code>/<code>changing</code> is set and no row
+            matches, show a one-line notice (&quot;That booking has ended and is
+            no longer on this list&quot; / &quot;That booking can no longer be
+            changed&quot;) above the table; better, have
+            <code>reservations/page.tsx</code> read the one booking by id when
+            it is not on the list so the sheet opens for past bookings too. Also
+            hide the drawer link for a departed bar whose <code>endsOn</code> is
+            before today.
+          </dd>
+          <dt>known</dt>
+          <dd>
+            <code
+              >docs/ux-audit/2026-10-25-fix-reports/lane-04-calendar-rooms.md</code
+            >
+            CALENDAR-07 added the link; the departed case was not considered
+            there.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-04">
+        <summary>
+          <span class="id">A-04</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Arrivals
+            <code>app/[locale]/(workspace)/arrivals/page.tsx:106-118</code>
+            (&quot;New booking&quot; link, unconditional); Reservations
+            <code>app/[locale]/(workspace)/reservations/page.tsx:97-122</code>
+            (the dialog exists only when <code>mayBook</code>);
+            <code
+              >features/front-office/components/new-reservation-dialog.tsx:201</code
+            >
+            (<code>startOpen</code> is initial state only).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Arrivals is open to anyone with any of the five front-desk
+            permissions (<code>lib/screens.ts:122-128, 221-229</code>). A viewer
+            with <code>front_desk.check_in</code> but not
+            <code>front_desk.book</code> is shown &quot;New booking&quot;; it
+            lands on <code>reservations?new=1</code>, where nothing is rendered
+            for them: no dialog, no button, no explanation. Separately,
+            <code>?new=1</code> is never removed when the dialog closes (compare
+            <code>change</code> and <code>open</code>, which are removed at
+            <code>reservations-table.tsx:200-210, 284-292</code>), so a reload
+            or a copied link reopens the form.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a button offered to a viewer who cannot use it, ending in silence;
+            and a one-shot parameter that behaves as a permanent one.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in <code>arrivals/page.tsx</code> compute <code>mayBook</code> with
+            <code>permittedProperties(&quot;front_desk.book&quot;)</code>
+            exactly as <code>reservations/page.tsx:96-98</code> does and render
+            the link only then; in the dialog&#x27;s
+            <code>onOpenChange(false)</code> do
+            <code>router.replace</code> without <code>new</code>.
+          </dd>
+          <dt>Duplicate of</dt>
+          <dd>D-03 (same defect, found from another lane)</dd>
+        </dl>
+      </details>
+      <details id="A-05">
+        <summary>
+          <span class="id">A-05</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Close the day
+            <code
+              >features/front-office/components/close-day-view.tsx:258-316</code
+            >
+            (not-arrived rows), <code>:326-379</code> (not-departed rows), menu
+            call at <code>:299-313</code>;
+            <code
+              >features/front-office/components/row-menu.tsx:105, 115,
+              194-203</code
+            >.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            each row that holds the day open names a Guest, a reference and a
+            room, but none is a link. The not-arrived row&#x27;s &quot;…&quot;
+            menu is built without <code>reservationId</code> and
+            <code>unitId</code>, so there is no &quot;Open reservation&quot;,
+            and &quot;Show on room map&quot; is still offered (reach defaults to
+            everything) and opens the unfiltered map. The not-departed rows have
+            no menu at all, only Check out / Extend. Only the &quot;room nights
+            not charged&quot; list (<code>:460-476</code>) links to the booking.
+            The data is there: <code>OpenArrival</code> and
+            <code>OpenDeparture</code> both carry
+            <code>reservationId</code>
+            (<code>packages/ranza/business-day/src/contracts.ts:55-65</code>).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the screen exists to resolve named bookings, yet the booking cannot
+            be opened from the row, and one menu item promises a room it does
+            not select.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            pass <code>reservationId</code> and <code>unitId</code> (add
+            <code>unitId</code> to the contract rows or drop the room-map item
+            when there is none) into <code>FrontDeskRowMenu</code>, and render
+            the guest name as the same <code>?open=</code> link
+            <code>GuestName</code> uses (<code>columns.tsx:238-271</code>),
+            gated by the reservations gate.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-06">
+        <summary>
+          <span class="id">A-06</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut"
+            >TWEAK · inferred (role contents), verified (code)</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/front-office/components/columns.tsx:1069-1125</code>
+            (<code>ReservationMenu</code> passes no <code>reach</code>, so
+            <code>REACHES_EVERYTHING</code> applies,
+            <code>reach.ts:13-18</code>);
+            <code>reservation-detail-sheet.tsx:132-134, 302-311</code> (Folio
+            link unconditional);
+            <code>close-day-view.tsx:519-525</code> (&quot;Open folio&quot;),
+            <code>:294</code> (Open arrivals), <code>:463</code> (Open booking);
+            <code>close-day-check-out.tsx:52-58</code> and
+            <code>room-calendar/components/bar-drawer.tsx:575-581</code> (<code
+              >CheckOutDialog</code
+            >
+            without <code>canOpenFolio</code>, default true,
+            <code>check-out-dialog.tsx:84</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Arrivals and Departures compute
+            <code>frontDeskReach</code>
+            (<code>server/front-desk.ts:83-105</code>) so a menu never offers a
+            page the viewer cannot open (ARRIVALS-15). Reservations, the sheet,
+            Close the day and the calendar drawer do not: they offer &quot;Open
+            folio&quot; / &quot;Review folio&quot; to anyone, and Finance is a
+            separate screen gate (<code>lib/screens.ts:323-334</code>). Close
+            the day&#x27;s gate is <code>front_desk.close_day</code> alone
+            (<code>:241-249</code>), so a viewer holding only that is also
+            offered Arrivals and Reservations links that their gate
+            (<code>FRONT_DESK_WORK</code>) refuses.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            same class as the Rooms <code>reservationsHref</code> fix; the menus
+            rely on a default that is wrong on exactly the screens that did not
+            opt in.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            call <code>frontDeskReach(property.propertyId)</code> in
+            <code>reservations/page.tsx</code>,
+            <code>close-day/page.tsx</code> and pass it down (Reservations table
+            to <code>ReservationMenu</code> and the sheet; close-day to its
+            links and <code>CheckOutDialog canOpenFolio</code>); the calendar
+            can take <code>reach.folio</code> from its page the same way.
+          </dd>
+          <dt>note</dt>
+          <dd>
+            I did not read the seeded role permission sets, so whether Front
+            Desk lacks finance is not verified; the code path is.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-07">
+        <summary>
+          <span class="id">A-07</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code
+              >features/front-office/components/undo-check-in-dialog.tsx:106-116</code
+            >; strings <code>stayHasCharges</code>,
+            <code>checkInDayClosed</code>, <code>checkInMoved</code>,
+            <code>undoCheckInRefused</code> (<code>messages.ts</code> en
+            ~7871-7878).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Undo check-in refused: &quot;Charges have been posted ... Correct
+            the charges in Finance.&quot; / &quot;... check them out on the
+            departures screen.&quot; The dialog shows the sentence and nothing
+            else; it is not given the Folio or the Property, so it cannot link.
+            <code>undoCheckInRefused</code> (&quot;That check-in cannot be
+            withdrawn.&quot;) gives no reason at all.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the refusal tells the desk where to go and does not take them.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            pass <code>propertyId</code> (all three callers have it:
+            <code>columns.tsx:1403</code>, <code>:538</code>, sheet
+            <code>:360</code>) and <code>folioId</code> (the row has it,
+            <code>columns.tsx:1105</code>), and show a Folio link (gated by
+            <code>reach.folio</code>) for <code>charges</code> and a Departures
+            link for <code>dayClosed</code>/<code>moved</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-08">
+        <summary>
+          <span class="id">A-08</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Rooms
+            <code>features/rooms/components/rooms-view.tsx:891</code>
+            (<code>calendarHref</code>),
+            <code>:898</code> (<code>maintenanceHref</code>) into
+            <code>block-unit-dialog.tsx:174-183</code> and
+            <code>:231-239</code>; compare
+            <code>app/[locale]/(workspace)/rooms/page.tsx:63-95</code> where
+            <code>housekeepingHref</code> and <code>reservationsHref</code> are
+            gated and these two are not.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Rooms is gated by
+            <code>ROOM_WORK = FRONT_DESK_WORK + accommodation.configure</code>
+            (<code>lib/screens.ts:130, 211-218</code>) but the room calendar by
+            <code>FRONT_DESK_WORK</code> only (<code>:200-208</code>). A viewer
+            who can open Rooms through
+            <code>accommodation.configure</code> alone is offered &quot;Show on
+            calendar&quot; in every room dialog and is refused on arrival. The
+            out-of-order dialog&#x27;s &quot;Maintenance&quot; button likewise
+            has no maintenance gate (<code>MAINTENANCE_WORK</code>,
+            <code>:144-149</code>) and goes to the list, not to the request it
+            names.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            GATE class; two of the four outbound links on the screen were gated
+            and two were not.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in <code>rooms/page.tsx</code> compute <code>calendarHref</code> and
+            <code>maintenanceHref</code> with
+            <code>screenProperties(gateOf(&quot;room-calendar&quot;))</code> /
+            <code>gateOf(&quot;maintenance&quot;)</code>, null when not
+            reachable, and have the dialog omit them.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-09">
+        <summary>
+          <span class="id">A-09</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Departures, &quot;Left today&quot;
+            <code
+              >features/front-office/components/live-left-today.tsx:98-168</code
+            >; contract
+            <code>packages/ranza/reservations/src/contracts.ts:199-220</code>
+            (<code>DepartedStay</code> has no <code>reservationId</code> or
+            <code>folioId</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the table of Guests who left names guest, reference and room, and
+            &quot;Needs cleaning&quot; as a badge; none is a link. This is where
+            the desk goes to check a Guest who &quot;just left&quot; owes
+            nothing.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            entity named, no link to where it lives; the live rows above it link
+            both.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>reservationId</code> (and <code>folioId</code>) to
+            <code>DepartedStay</code>&#x27;s query and link the name to
+            <code>reservations?open=</code> / the badge to
+            <code>housekeeping?property=</code> when reachable. (A same-day
+            departure is still on the Reservations list,
+            <code>ends_on &gt;= today</code>, so the sheet opens.)
+          </dd>
+          <dt>known</dt>
+          <dd>
+            <code>docs/ux-audit/2026-10-11/departures/report.html</code> (asked
+            for a room-status chip, which exists; the links were not raised).
+          </dd>
+        </dl>
+      </details>
+      <details id="A-10">
+        <summary>
+          <span class="id">A-10</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/rooms/components/room-admits.tsx:128-131</code>
+            (<code>admitsStillHeld</code>: &quot;Somebody booked into this room,
+            or staying in it, would no longer be admitted. Move them first, or
+            open the room to anyone.&quot;);
+            <code>block-unit-dialog.tsx:113-121</code>
+            (<code>blockOccupied</code>: &quot;Check them out first&quot;).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the refusal says who must be moved but not who they are, and offers
+            no route to them.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>next step named, not offered.</dd>
+          <dt>Fix</dt>
+          <dd>
+            add the same &quot;Show on calendar&quot; link the block dialog
+            builds (<code>block-unit-dialog.tsx:174-183</code>,
+            <code>calendarHref</code> + <code>&amp;q=&lt;room&gt;</code>) under
+            the refusal, and <code>departures</code> for the occupied block
+            case.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-11">
+        <summary>
+          <span class="id">A-11</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut"
+            >TWEAK (walk-in) / PROPOSAL (reserved) · verified</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/rooms/components/block-unit-dialog.tsx:167-172</code>
+            (<code>stayHref</code> null without a reservation) and
+            <code>:130-133, 254</code> (reserved notice);
+            <code>packages/ranza/accommodation/src/contracts.ts:100</code>
+            (<code>reserved</code> carries only <code>arrivesOn</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            (a) a Guest in house on a walk-in Stay has no reservation, so the
+            Room details dialog ends at &quot;A Guest is in this room ... check
+            them out&quot; with a Show on calendar link and no Departures link,
+            where the Stay lives. (b) a reserved tile&#x27;s dialog says
+            &quot;Reserved from 12 Nov&quot; with no booking to open.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            same class as the fixed in-house case; two states still end flat.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            (a) when <code>stayHref</code> is null and <code>occupied</code>,
+            offer <code>departures?property=</code> (gate it like
+            <code>reservationsHref</code>). (b) adding
+            <code>reservationId</code> to the reserved state is new data on a
+            tile; it is the already-proposed <code>RB-S2-23</code> (tile opens
+            the booking), so leave it to that row.
+          </dd>
+          <dt>known</dt>
+          <dd>
+            <code
+              >docs/ux-audit/2026-10-25-fix-reports/lane-04-calendar-rooms.md</code
+            >
+            (CALENDAR-10 splits the guest-name link into proposal
+            <code>RB-S2-23</code>).
+          </dd>
+        </dl>
+      </details>
+      <details id="A-12">
+        <summary>
+          <span class="id">A-12</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            calendar drawer
+            <code
+              >features/room-calendar/components/bar-drawer.tsx:406-425</code
+            >
+            (<code>overlapNote</code>, <code>clashNote</code>,
+            <code>clashStayNote</code>, <code>blockedNote</code>); calendar row
+            header
+            <code
+              >features/room-calendar/components/calendar-grid.tsx:714-763</code
+            >
+            (room name, &quot;Blocked / Out of service · MR-n&quot; as plain
+            text and tooltip).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a booking whose room is blocked or out of order says &quot;its
+            check-in will be refused until it is released&quot;, and the
+            calendar row says &quot;Out of service · MR-12&quot;; neither links
+            to the Rooms tile (<code>rooms?property=&amp;unit=</code>) where it
+            is released, or to the request. The overlap and clash notes do not
+            say with which booking.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the cause is named and unreachable, on the screen whose job is to
+            resolve it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in the drawer, append a &quot;Show on room map&quot; link built like
+            <code>row-menu.tsx:194-203</code> to the <code>blockedNote</code>;
+            make the row header&#x27;s lock label a link to the same address.
+            Naming the clashing booking in <code>overlapNote</code> needs the
+            other bar&#x27;s id in the read; leave that.
+          </dd>
+        </dl>
+      </details>
+      <details id="A-13">
+        <summary>
+          <span class="id">A-13</span><span class="pill low">low</span
+          ><span class="pill">STEPS</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            reservation sheet footer
+            <code
+              >features/front-office/components/reservation-detail-sheet.tsx:344-351</code
+            >
+            (the whole booking menu is a &quot;…&quot; button),
+            <code>row-menu.tsx:146-160</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Change booking, Mark no-show, Cancel booking, Change departure and
+            Move guest live only behind an unlabelled &quot;…&quot; in the
+            sheet&#x27;s action bar, which has room for buttons and shows only
+            Check in / Undo as buttons.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the sheet is where a desk reads a booking and then acts on it, and
+            the common edit costs a hidden menu plus a click. Visible, not new
+            behaviour.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            show Change booking (and Change departure for a stay) as an outline
+            button beside Check in, keep Cancel and No-show in the menu
+            (consequential, stays one step further).
+          </dd>
+        </dl>
+      </details>
+      <details id="A-14">
+        <summary>
+          <span class="id">A-14</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code
+              >features/front-office/components/change-departure-dialog.tsx:325-329</code
+            >
+            (<code>changeDepartureBlocked</code>),
+            <code>change-booking-dialog.tsx:~402</code> (<code
+              >unitChipBooked</code
+            >
+            with a reference),
+            <code
+              >features/room-calendar/components/move-dialogs.tsx:50-72</code
+            >
+            (<code>moveConflict.booked</code> names a Guest and dates).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            dialogs say another booking blocks the change and give its reference
+            or Guest as plain text.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the blocker is named and cannot be opened; leaving the dialog loses
+            the form, so a link would need to open in a new tab (as
+            <code>check-out-dialog.tsx:117-126</code> does for the Folio).
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            render the reference as a <code>target=_blank</code> link to
+            <code>reservations?open=</code> (the booking is on the list by
+            construction: it overlaps future nights).
+          </dd>
+        </dl>
+      </details>
+      <h3>
+        Lane B: Today and operations (Today, maintenance, housekeeping, guest
+        experience, roll call, ledger)
+      </h3>
+      <details id="B-01">
+        <summary>
+          <span class="id">B-01</span><span class="pill high">high</span
+          ><span class="pill">DEAD-END</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Today, blocked arrivals and out-of-service rooms.
+            <code>features/today/layouts/parts.tsx:190-200</code>
+            (<code>blockerScreen</code>),
+            <code>layouts/do-now.tsx:187-193</code>,
+            <code>layouts/house-layout.tsx:449-458</code>,
+            <code>layouts/next-up-layout.tsx:415-418</code>,
+            <code>components/attention-queue.tsx:226-235</code>. Related prior
+            finding: known <code>ux-audit/2026-10-24 TODAY-08</code> (same
+            button, other wording).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            an arrival blocked by <code>unit_blocked</code> or
+            <code>unit_out_of_service</code> gets a button &quot;Open
+            housekeeping&quot;. An attention item &quot;Out of service&quot;
+            gets &quot;Open board&quot;, which is Housekeeping. Housekeeping has
+            only mark-clean/dirty/inspected and &quot;Report a problem&quot;
+            (<code>features/housekeeping/components/columns.tsx:280-296</code>).
+            It cannot lift a block or return a room from out-of-order, and it
+            shows no reason or request number.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            this is the same defect as the Rooms &quot;cannot block&quot;
+            dialog. The button promises the fix and lands on a screen that holds
+            none of it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            send <code>unit_blocked</code> to Rooms
+            (<code>?unit=&lt;unitId&gt;</code>, handled by
+            <code>app/[locale]/(workspace)/rooms/page.tsx</code>
+            <code>targetUnitId</code>, where the block can be lifted). Send
+            <code>unit_out_of_service</code> and the attention
+            <code>out_of_service</code> item to Maintenance
+            <code>?outOfOrder=1</code> (<code>maintenance-board.tsx:150</code>,
+            already parsed).
+            <code>UnitLabel</code> (<code>server/today-derive.ts:617</code>)
+            carries no <code>unitId</code>, so add it to
+            <code>ArrivalRow.unit</code> and <code>AttentionItem.unit</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-02">
+        <summary>
+          <span class="id">B-02</span><span class="pill medium">medium</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Maintenance board.
+            <code>app/[locale]/(workspace)/maintenance/page.tsx:28-36</code>
+            accepts only <code>property</code> and <code>report</code>.
+            <code
+              >features/maintenance/components/maintenance-board.tsx:131</code
+            >
+            keeps <code>selectedId</code> in local state. Callers:
+            <code>features/today/components/attention-queue.tsx:174-179</code>,
+            <code>maintenance-card.tsx</code>, <code>open-work-card.tsx</code>.
+            Related prior finding: known
+            <code>ux-audit/2026-10-11 MAINT-06</code>, TD-DEF-09.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Today&#x27;s attention item &quot;MT-12 Leaking pipe, room 204&quot;
+            (urgent or overdue return) opens the whole board. The reader has to
+            find MT-12 among four columns. Rooms
+            (<code>rooms-view.tsx:177</code>) links to Maintenance the same way,
+            so the missing parameter hurts more than one lane.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>the item names a request and the link does not go to it.</dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>?request=&lt;number&gt;</code> to
+            <code>maintenance/page.tsx</code>, resolve it against
+            <code>board.requests</code>, and pass it as the initial
+            <code>selectedId</code>.
+            <code>AttentionRequest.number</code> already exists
+            (<code>server/today-derive.ts:362</code>). Ignore an unknown number,
+            strip the parameter on close as <code>onReportingChange</code> does
+            for
+            <code>report</code> (<code>maintenance-board.tsx:226-237</code>),
+            and keep it across a refresh.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-03">
+        <summary>
+          <span class="id">B-03</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Maintenance.
+            <code
+              >features/maintenance/components/equipment-register.tsx:180-184</code
+            >
+            (open fault &quot;MT-n&quot; as plain text).
+            <code>service-plan.tsx:95-101</code> (badge &quot;Work order MT-n
+            open&quot;). <code>outcome-message.tsx:22</code> (&quot;Reported
+            MT-n&quot;). <code>report-dialog.tsx:206-218</code> (&quot;Already
+            open for this room: MT-n · title · state&quot;).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            four places name a request number and none opens it. The report
+            dialog&#x27;s warning that a room already has an open request is the
+            point where the reader most wants to open that request and does not
+            report a duplicate. Equipment and Plan are separate tabs
+            (<code>maintenance-board.tsx:402-414</code>, uncontrolled
+            <code>Tabs defaultValue=&quot;requests&quot;</code>), so the request
+            is a tab switch plus a card hunt away.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>facts about a request with no way into the request.</dd>
+          <dt>Fix</dt>
+          <dd>
+            make each number a button that calls a board-level
+            <code>openRequest(requestId)</code>, which switches to the Requests
+            tab (control <code>Tabs</code> with <code>value</code>) and sets
+            <code>selectedId</code>. In the report dialog it first closes the
+            dialog. The items already carry
+            <code>requestId</code> (<code>board.requests</code>,
+            <code>openRequests</code> prop). The work-order badge and
+            <code>item.openFault</code> need the id exposed; check
+            <code>EquipmentItem</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-04">
+        <summary>
+          <span class="id">B-04</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Guest Experience.
+            <code
+              >features/guest-experience/components/guest-experience-view.tsx:70,98-111</code
+            >
+            (Urgent tile toggles <code>urgentOnly</code>).
+            <code
+              >features/guest-experience/components/requests-table.tsx:153-158</code
+            >
+            (<code>showAll</code>) and <code>:176-191</code> (empty state).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            pressing the &quot;Urgent open&quot; tile filters the list. If
+            nothing matches, or the reader is on the Resolved tab, the empty
+            state offers &quot;Show all&quot;, whose handler resets tab, query,
+            assignee and category but not <code>urgentOnly</code>. That state
+            lives in the parent and arrives as a prop. The button appears to do
+            nothing and the list stays empty. The only way out is to find the
+            tile again. The tile is a bare <code>&lt;button&gt;</code> around a
+            <code>Stat</code> and its <code>title</code> exists only once the
+            filter is on (<code>:99</code>), so the gesture also has no visible
+            affordance.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the empty state&#x27;s escape hatch cannot clear the filter that
+            caused it. The filter has no visible control.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            lift <code>urgentOnly</code> handling so <code>showAll</code> clears
+            it (pass <code>onClearUrgent</code>, or move the state into
+            <code>RequestsTable</code>). Show the filter as a removable chip
+            beside the tabs, as the other filters are, and add a pressed style
+            or hint on the tile.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-05">
+        <summary>
+          <span class="id">B-05</span><span class="pill medium">medium</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Ledger.
+            <code>app/[locale]/(workspace)/ledger/page.tsx:149-152,168</code>
+            (<code>withoutCursor</code> is passed to
+            <code>JournalTable</code> as <code>search</code>).
+            <code>features/ledger/components/journal-table.tsx:107-110</code>
+            (entry link built from it). Back goes to the list via
+            <code>DETAIL_KEYS</code> (<code>workspace-page-bar.tsx:23</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the reader pages &quot;Older&quot; three times, opens an entry, and
+            Back returns to the newest page, not the page they were on, because
+            the entry link does not carry <code>cursor</code>.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            ADR 0035 Back should return to the list the reader came from;
+            position is lost.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            build the entry href from
+            <code>{ ...search, cursor: search.cursor, entry }</code>. Keep
+            <code>withoutCursor</code> only for <code>olderHref</code> and
+            <code>newestHref</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-06">
+        <summary>
+          <span class="id">B-06</span><span class="pill medium">medium</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Today roll-call card
+            <code>features/today/components/roll-call-card.tsx:20-24,88-95</code
+            >; Roll call page
+            <code>app/[locale]/(workspace)/roll-call/page.tsx:27-33</code>
+            (takes only <code>property</code>); filter state
+            <code>features/attendance/components/roll-call-view.tsx:99</code>
+            (<code>useState&lt;RollFilter&gt;(&quot;all&quot;)</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the card shows &quot;On leave 2 / Missing 3 / Not called 5&quot; and
+            all three open the same unfiltered roll call. The card&#x27;s doc
+            comment says the screen &quot;takes no narrowing&quot;, but the
+            screen&#x27;s five figures are filter buttons
+            (<code>figures-strip.tsx:57-88</code>, LA-S2-04). From &quot;Missing
+            3&quot; the warden presses Missing again.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the card tells the reader the figure opens the people it counts and
+            lands on the full list.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            accept <code>?show=on_leave|absent|not_called</code> in
+            <code>roll-call/page.tsx</code>, validated against
+            <code>NightStatus</code>, and pass it as the initial
+            <code>filter</code> to <code>RollCallView</code>. Add
+            <code>show</code> to <code>todayHref</code> calls in
+            <code>roll-call-card.tsx</code>. Fix the stale comment.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-07">
+        <summary>
+          <span class="id">B-07</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Today.
+            <code>features/today/components/movements-card.tsx:273,380</code>
+            (every arrival and departure row links to <code>href</code>/the
+            list).
+            <code>features/today/components/clean-first-card.tsx:104-111</code>
+            (every row links to the whole board).
+            <code>components/attention-queue.tsx</code> (item names room and
+            guest, opens a list).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a row reads &quot;Ayşe Demir · 204 · Not ready&quot; and pressing it
+            opens the Arrivals list. The reader has to find Ayşe again among the
+            rows. Clean-first rows open the Housekeeping board, which has no
+            per-room target.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the entity is named and its link goes to a list. The row comment
+            (TD-S1-22) chose the list on purpose, but
+            <code>ArrivalRow.reservationId</code> and
+            <code>DepartureRow.folioId</code> are already in the row and are
+            unused for navigation.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            arrival rows to
+            <code>reservations?open=&lt;reservationId&gt;</code> (supported,
+            <code>reservations/page.tsx:146</code>). Departure rows with
+            <code>folioId</code> to
+            <code>finance?folio=&lt;folioId&gt;</code> as
+            <code>money-cards.tsx:67-69</code> already does. Keep the list as
+            the &quot;All N&quot; link. The Arrivals list carries the Check in
+            button, so keep that beside the row. Likely needs the owner&#x27;s
+            nod because it reverses TD-S1-22&#x27;s wording; still a link-target
+            tweak.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-08">
+        <summary>
+          <span class="id">B-08</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Today House layout, room detail
+            <code>features/today/layouts/house-layout.tsx:535-578</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            pressing an occupied tile shows &quot;In house: Ayşe Demir, leaves
+            12 Nov&quot; and nothing else; a room with
+            <code>state === &quot;in_house&quot;</code> and no
+            <code>endsOn</code> shows an empty line. An out-of-service tile
+            shows <code>outOfServiceNote</code> with no link. Only
+            dirty/awaiting rooms get &quot;Open housekeeping&quot;, and only
+            ready rooms with <code>mayBook</code> get a link.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>this is the Rooms occupied-tile defect again, on Today.</dd>
+          <dt>Fix</dt>
+          <dd>
+            for an in-house tile link to the stay
+            (<code>reservations?open=</code>, gated by the same
+            <code>screenProperties(gateOf(&quot;reservations&quot;))</code> test
+            as <code>rooms/page.tsx:73-80</code>; <code>DeskRoom</code> needs
+            the reservation id) and to Departures for the folio. For out of
+            service link to Maintenance <code>?outOfOrder=1</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-09">
+        <summary>
+          <span class="id">B-09</span><span class="pill medium">medium</span
+          ><span class="pill">LABEL</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/today/components/today-header.tsx:115-122</code> and
+            <code>features/today/layouts/house-layout.tsx:565-571</code>
+            (&quot;New booking&quot;). Prior finding: none found.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            &quot;New booking&quot; opens the Reservations list, not the
+            new-booking dialog. <code>reservations/page.tsx:136</code> opens the
+            dialog only when <code>?new=1</code>, which these links do not send.
+            The desk&#x27;s most frequent job costs an extra click.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>a verb label that lands one step short.</dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>new: &quot;1&quot;</code> in the
+            <code>todayHref(...)</code> extra for both links (<code
+              >todayHref</code
+            >
+            takes <code>extra</code>, <code>features/today/links.ts</code>).
+          </dd>
+        </dl>
+      </details>
+      <details id="B-10">
+        <summary>
+          <span class="id">B-10</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Housekeeping rows.
+            <code>features/housekeeping/components/columns.tsx:143-157</code>
+            (room name), <code>:52-60,121-134</code> (<code>DayBadge</code>,
+            <code>OccupancyBadge</code>). Prior finding: known
+            <code>ux-audit/2026-10-24 HOUSEKEEPING-16</code> (request or fault
+            not shown on the row).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a room row shows &quot;Out of service&quot;, &quot;Arriving&quot;,
+            &quot;Leaving&quot; and &quot;In house&quot; badges, none of which
+            link anywhere, and the room name does not open Rooms. Out of service
+            gives no reason or request number. The reader of a
+            &quot;Leaving&quot; row cannot reach the stay.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>facts about a booking or hold with no way to the thing.</dd>
+          <dt>Fix</dt>
+          <dd>
+            room name to <code>rooms?unit=&lt;unitId&gt;</code> where the viewer
+            may open Rooms (compute the href in
+            <code>housekeeping/page.tsx</code> like <code>reportHref</code>).
+            Out of service badge to Maintenance <code>?outOfOrder=1</code> when
+            the viewer may open it. Arrival/leaving badge to
+            <code>reservations?open=</code> (the id is in
+            <code>days</code>/arrival rows read at
+            <code>housekeeping/page.tsx:79-84</code>).
+          </dd>
+        </dl>
+      </details>
+      <details id="B-11">
+        <summary>
+          <span class="id">B-11</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Maintenance request sheet
+            <code
+              >features/maintenance/components/request-sheet.tsx:249-258</code
+            >
+            (<code>where</code> fact),
+            <code>request-money.tsx:194-205</code> (charge lines).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the room or bed and equipment a request is about are plain text;
+            posted charge lines show amount and guest with no Folio link.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>the sheet names a room and a guest with no route to them.</dd>
+          <dt>Fix</dt>
+          <dd>
+            room to Rooms
+            <code>?unit=&lt;request.unit.unitId&gt;</code> (available), gated as
+            in <code>rooms/page.tsx:73-80</code>; pass a nullable
+            <code>roomsHref</code> prop as
+            <code>block-unit-dialog.tsx</code> does. Charge lines need
+            <code>folioId</code> added to the line to link to
+            <code>finance?folio=</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-12">
+        <summary>
+          <span class="id">B-12</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/maintenance/components/impact-notice.tsx:50-58</code>
+            (in-house list),
+            <code>packages/ranza/maintenance/src/contracts.ts:183-188</code>
+            (<code>OutOfOrderImpact.inHouse</code> has no reservation or stay
+            id).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            taking a room out of order lists the guest in it (&quot;Ayşe Demir
+            is in 204 until 12 Nov&quot;). The booking rows below get a
+            &quot;Change booking&quot; link; the in-house rows get nothing. The
+            desk must leave the form and find the guest by hand.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the more urgent half of the warning is the half without a way
+            forward.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>reservationId</code> (and <code>mayAmend</code>) to
+            <code>inHouse</code> entries as <code>reservations</code> already
+            has, and offer the same new-tab link
+            (<code>reservations?open=</code>).
+          </dd>
+        </dl>
+      </details>
+      <details id="B-13">
+        <summary>
+          <span class="id">B-13</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · inferred</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Today.
+            <code>server/today-derive.ts:549-585</code> (<code>needsFor</code>:
+            arrivals/departures/units read for <code>manager</code> focus;
+            <code>rooms</code> read on the capability, not the permission),
+            against <code>lib/screens.ts:48-65,180-250</code> (screen
+            permissions). Links in
+            <code>today-dashboard.tsx</code> (<code>Tiles</code>) and
+            <code>rooms-card.tsx</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a composed role with <code>staff.administer</code> or
+            <code>audit.read</code> but no front-desk commands gets the
+            Arrivals, Departures and Rooms tiles; one with a capability but not
+            <code>housekeeping.update_status</code> gets the Rooms card. Their
+            links lead to <code>ScreenDenied</code>. Migration
+            <code>20260916003100</code> gives
+            <code>housekeeping.update_status</code> to all four shipped roles,
+            so only custom roles are affected.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>a link is offered to a viewer who cannot open it.</dd>
+          <dt>Fix</dt>
+          <dd>
+            derive the link or tile from the destination&#x27;s gate (<code
+              >gateOf(...)</code
+            >
+            against the viewer&#x27;s permissions, as
+            <code>rooms/page.tsx:73-80</code> does) or render the figure
+            unlinked. I did not read the permission set of any real composed
+            role.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-14">
+        <summary>
+          <span class="id">B-14</span><span class="pill low">low</span
+          ><span class="pill">STEPS</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Guest Experience create dialog
+            <code
+              >features/guest-experience/components/create-request-dialog.tsx:80-90</code
+            >, list <code>requests-table.tsx</code> (tab/assignee/category
+            state).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            after &quot;Submit&quot; the dialog closes with no message. If the
+            reader is on the Resolved tab or filtered to &quot;Mine&quot;, the
+            new request is not visible, so they cannot tell whether it saved.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the page confirms nothing when the result is hidden by the current
+            view.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            on <code>done</code> show a short &quot;Request #N logged&quot;
+            status with an &quot;Open requests&quot; action that sets tab to
+            Open and clears the filters (<code>showAll</code>-style).
+          </dd>
+        </dl>
+      </details>
+      <details id="B-15">
+        <summary>
+          <span class="id">B-15</span><span class="pill low">low</span
+          ><span class="pill">LABEL</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Roll call leaves list
+            <code>features/attendance/components/roll-call-view.tsx:349</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            <code>leave.residentName ?? leave.stayId</code> prints a raw UUID
+            when the name is missing.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>an internal id shown as a name.</dd>
+          <dt>Fix</dt>
+          <dd>
+            fall back to the room/bed (<code>placeOf</code>) as
+            <code>roll-call-row.tsx:61</code> does, via a lookup in
+            <code>rows</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-16">
+        <summary>
+          <span class="id">B-16</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Ledger accounts tab
+            <code>features/ledger/components/accounts-table.tsx:61-83</code>;
+            entry lines
+            <code>features/ledger/components/entry-panel.tsx:103-112</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a balance on the Accounts tab and an account on an entry&#x27;s
+            lines cannot be traced to the entries behind them, though the
+            journal already filters by
+            <code>?account=</code> (<code>features/ledger/query.ts:34</code>,
+            <code>ledgerHref</code>).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>a figure with no route to its explanation.</dd>
+          <dt>Fix</dt>
+          <dd>
+            make the account cell a link to
+            <code
+              >ledgerHref(route, propertyId, { account: balance.accountId, from,
+              to, currency })</code
+            >; entry lines the same.
+          </dd>
+        </dl>
+      </details>
+      <details id="B-17">
+        <summary>
+          <span class="id">B-17</span><span class="pill low">low</span
+          ><span class="pill">OTHER</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>features/today/components/booked-ahead-card.tsx:80-89</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            <code>Line</code> returns early when <code>nights</code> are all
+            unused and then calls <code>useState</code> below it. The summary
+            refetches every 60 s (<code>today-dashboard.tsx</code>); if a
+            refresh moves a Property from &quot;no units in use&quot; to some,
+            React throws &quot;Rendered more hooks than during the previous
+            render&quot; and the card&#x27;s error boundary takes the page
+            (inferred). Not a routing defect; found while tracing the
+            card&#x27;s link.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>conditional hook call.</dd>
+          <dt>Fix</dt>
+          <dd>move the <code>useState</code> above the early return.</dd>
+        </dl>
+      </details>
+      <h3>
+        Lane C: Back office and guest portal (people, HR, finance, analytics,
+        configuration, export, integrations, audit log, portfolio, portal)
+      </h3>
+      <details id="C-01">
+        <summary>
+          <span class="id">C-01</span><span class="pill high">high</span
+          ><span class="pill">DEAD-END</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            guest portal, every signed-in page,
+            <code>P/app/[locale]/(portal)/layout.tsx:76</code> and
+            <code>:105</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the Resident sees an avatar in the bar and the rail. It looks like
+            an account menu, but pressing it does nothing, and there is no Sign
+            out anywhere in the portal (<code>grep sign-out</code> in
+            <code>P/</code> finds it only inside the invite form).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>AccountMenu</code> renders a plain inert avatar when it has no
+            children
+            (<code>packages/ui/src/components/account-menu.tsx:~72</code>), so a
+            Resident on a shared dormitory computer or phone cannot end the
+            session; the workspace fixed exactly this as SIGN-01.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            pass the workspace&#x27;s sign-out menu item
+            (<code>W/app/[locale]/(workspace)/sign-out-item.tsx</code>, posts
+            <code>/api/auth/sign-out</code>, then a full load to sign-in) as
+            <code>AccountMenu</code> children in the portal layout. The owner
+            may treat adding it to the portal as a PROPOSAL; the action itself
+            already exists.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-02">
+        <summary>
+          <span class="id">C-02</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Audit log list and record,
+            <code>W/features/audit-log/components/audit-table.tsx:275-280</code
+            >, <code>W/features/audit-log/links.ts:8-12</code> and
+            <code>:27-43</code>, <code>record-panel.tsx:46-52</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a record about a reservation or a stay shows &quot;Reservation ·
+            R-1234&quot; that opens the audit log narrowed to that subject. It
+            never opens the booking. In the record panel the subject is not even
+            a link, only the small &quot;history&quot; link under it.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>links.ts</code> says &quot;a reservation and a stay are not
+            shown alone anywhere&quot;, which is stale: Reservations opens one
+            booking by
+            <code>?open=&lt;reservationId&gt;</code>
+            (<code>W/app/[locale]/(workspace)/reservations/page.tsx:146</code>,
+            and Analytics already uses it,
+            <code>day-detail-sheet.tsx:215</code>).
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>reservations</code> to <code>SubjectReach</code>, computed
+            in <code>subjectReach()</code> (<code>audit-log/page.tsx:296</code>)
+            with
+            <code>screenProperties(gateOf(&quot;reservations&quot;))</code> like
+            the other four, and return
+            <code>reservations?property=…&amp;open=&lt;id&gt;</code> for
+            <code>reservation</code> in <code>subjectHref</code>. Keep the
+            history link as the second link. A <code>stay</code> subject has no
+            booking id on the entry, so it keeps the history fallback.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-03">
+        <summary>
+          <span class="id">C-03</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Audit log, <code>W/features/audit-log/links.ts:27-43</code>; subject
+            types in <code>W/features/audit-log/actions.ts:156-177</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            only 5 of the 20 known subject types can open anywhere (folio, room
+            or bed, property, organization, data export). <code>employee</code>,
+            <code>leave_request</code>, <code>payroll_run</code>,
+            <code>membership</code>, <code>role</code>,
+            <code>business_day_close</code>, <code>maintenance_request</code>,
+            <code>maintenance_equipment</code>, <code>webhook_endpoint</code>,
+            <code>failed_operation</code>, <code>organization_brand</code> and
+            <code>payment_plan</code> render as plain text although each has a
+            screen.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the log is where a manager lands asking &quot;who did this to
+            what&quot;, and the thing it names has a home that is one click away
+            for anyone who can open it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            extend <code>subjectHref</code> and <code>SubjectReach</code> with
+            the screens <code>hr</code> (tab by type), <code>people</code>,
+            <code>close-day</code>, <code>maintenance</code>,
+            <code>integrations</code>, <code>branding</code>, each gated by
+            <code>screenProperties(gateOf(..))</code> as
+            <code>subjectReach()</code> already does. Screen-level links only;
+            do not invent deep links the targets lack.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-04">
+        <summary>
+          <span class="id">C-04</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Audit record detail table,
+            <code
+              >W/features/audit-log/components/context-facts.tsx:235-243</code
+            >
+            (<code>scalar</code>) and <code>:419-433</code>; keys in
+            <code>context-keys.ts</code> (<code>stayId</code>,
+            <code>reservationId</code>, <code>folioId</code>,
+            <code>accommodationUnitId</code>, <code>fromUnitId</code>,
+            <code>toUnitId</code>, <code>guestId</code>,
+            <code>employeeId</code>, <code>userId</code>)
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the details table resolves each id to a name via
+            <code>words.name(id)</code> and prints it as text. A check-out
+            record names its Folio, its room and its booking, none of them
+            links.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the facts exist so a reader can follow what happened; naming a folio
+            or a room and not linking it makes the reader search for it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            pass <code>locale</code>, <code>propertyId</code> and
+            <code>reach</code> into
+            <code>ContextFacts</code> (<code>record-panel.tsx:120</code>) and
+            wrap <code>folioId</code> / <code>accommodationUnitId</code> /
+            <code>fromUnitId</code> / <code>toUnitId</code> /
+            <code>reservationId</code> in the same
+            <code>subjectHref</code> result as C-02/C-03. Guest and stay ids
+            stay text (no screen shows them alone).
+          </dd>
+        </dl>
+      </details>
+      <details id="C-05">
+        <summary>
+          <span class="id">C-05</span><span class="pill medium">medium</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Finance, Today&#x27;s overdue figure view
+            <code>?show=overdue</code>,
+            <code
+              >W/features/finance/components/overdue-residents.tsx:40-57</code
+            >, route
+            <code>W/app/[locale]/(workspace)/finance/page.tsx:152-168</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the list names each Resident who is overdue, with the amount and the
+            oldest due date, and nothing opens. The row has the
+            <code>reservationId</code> (<code>getRowId</code>,
+            <code>:131</code>) but the name is plain text and the page computes
+            no Reservations reach.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            this is the screen for chasing money, and the person to chase has no
+            link to their booking (where the payment plan lives) or their folio.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            compute <code>reservationsHref</code> in the
+            <code>show === &quot;overdue&quot;</code> branch exactly as
+            <code>analytics/page.tsx:97-107</code> does and link the name to
+            <code>${reservationsHref}&amp;open=${reservationId}</code>; render
+            plain text when null.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-06">
+        <summary>
+          <span class="id">C-06</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Guest portal invitation link, refused state,
+            <code>P/app/[locale]/invite/[token]/invite-form.tsx:225-240</code>;
+            copy <code>P/messages.ts:385-388</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a Resident signed in as the wrong account opens their invitation and
+            is refused with &quot;This account is connected to someone else.
+            Create an account with a different email, or ask the front
+            desk&quot;. The only button is &quot;Go to my stay&quot;, which
+            opens the wrong person&#x27;s stay.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the copy tells them to switch account and the screen offers no way
+            to do it; the sign-out button (<code>useAnotherAccount</code>,
+            <code>:205-218</code>) exists only in the pre-refusal view, which
+            the refused view replaces.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in the refused view, for <code>another_guest</code>, render the
+            existing <code>useAnotherAccount</code> button, and have it clear
+            <code>refused</code> (<code>setRefused(null)</code>) so the form
+            reappears in sign-in/create mode.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-07">
+        <summary>
+          <span class="id">C-07</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Configuration, &quot;Managed on their own screens&quot; card,
+            <code
+              >W/app/[locale]/(workspace)/configuration/page.tsx:134-135</code
+            >
+            and <code>:269-271</code>,
+            <code
+              >W/features/configuration/components/overview-cards.tsx:78-92</code
+            >
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Rooms and People links are offered whenever the Property has
+            <code>front_desk</code> or
+            <code>staff_administration</code> switched on. A Manager who may
+            configure but holds none of the staff permissions is offered People
+            and lands on a denial; likewise Rooms for a role without room work.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>showRooms</code>/<code>showPeople</code> check only the
+            capability, not the viewer&#x27;s permission (the gates are
+            <code>ROOM_WORK</code> / <code>STAFF_WORK</code>,
+            <code>lib/screens.ts:~100,355</code>). This is the
+            <code>rooms/page.tsx:71-72</code> pattern done halfway.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            compute both with
+            <code>screenProperties(gateOf(&quot;rooms&quot;))</code> and
+            <code>screenProperties(gateOf(&quot;people&quot;))</code> filtered
+            to this Property, as <code>rooms/page.tsx</code> does for
+            <code>reservationsHref</code>.
+          </dd>
+          <dt>Duplicate of</dt>
+          <dd>D-04 (same defect, found from another lane)</dd>
+        </dl>
+      </details>
+      <details id="C-08">
+        <summary>
+          <span class="id">C-08</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            HR, three links to People:
+            <code>W/features/hr/components/hr-view.tsx:62-67</code> (always
+            shown), <code>employees-table.tsx:305-319</code> (&quot;Has a
+            login&quot; on each row),
+            <code>terminate-employee-dialog.tsx:107-113</code> (in the End
+            employment dialog)
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            an HR manager (role holds
+            <code>hr.view</code>/<code>hr.manage</code>) is shown &quot;Staff
+            &amp; permissions&quot; links on every HR tab and in the End
+            employment dialog. If the role lacks
+            <code>staff.administer</code> and
+            <code>staff.define_roles</code> (People&#x27;s gate,
+            <code>lib/screens.ts:349-358</code>) each lands on a permission
+            denial.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the links are unconditional and <code>hr/page.tsx</code> computes no
+            People reach. The End employment dialog is the worst place: it tells
+            the user to go and remove login access there, a step they may not be
+            able to take.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            compute <code>peopleHref</code> once in <code>hr/page.tsx</code> via
+            <code>screenProperties(gateOf(&quot;people&quot;))</code> (null when
+            the Property is not in the list) and pass it down; when null show
+            the same sentence without the link (and in the dialog name who can).
+          </dd>
+          <dt>Duplicate of</dt>
+          <dd>D-06 (same defect, found from another lane)</dd>
+        </dl>
+      </details>
+      <details id="C-09">
+        <summary>
+          <span class="id">C-09</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified (module part inferred)</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            People, &quot;HR &amp; payroll&quot; pointer,
+            <code>W/app/[locale]/(workspace)/people/page.tsx:87</code> and
+            <code>:155-165</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the pointer is shown when the Organization-wide check
+            <code>holds(&quot;hr.view&quot;)</code> passes. HR also needs the
+            <code>human_resources</code> module and the
+            <code>staff_administration</code> capability at the Property
+            (<code>lib/screens.ts:362-375</code>), and the link carries
+            <code>home.propertyId</code>. An Organization without the HR module,
+            or a Property that lacks it, gets a link to a &quot;not
+            enabled&quot; refusal.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>permittedProperties(&quot;hr.view&quot;)</code> asks the
+            permission only; the page&#x27;s own gate is
+            <code>gateOf(&quot;hr&quot;)</code>.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            replace <code>mayViewHr</code> for the link with
+            <code
+              >(await screenProperties(gateOf(&quot;hr&quot;))).some(p =&gt;
+              p.propertyId === home.propertyId)</code
+            >. <code>employmentOfLogins</code> can keep its own check.
+          </dd>
+          <dt>Duplicate of</dt>
+          <dd>D-05 (same defect, found from another lane)</dd>
+        </dl>
+      </details>
+      <details id="C-10">
+        <summary>
+          <span class="id">C-10</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · inferred</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Portfolio cards and table,
+            <code>W/features/portfolio/components/property-card.tsx:60-69</code
+            >, <code>:93-110</code>, <code>property-table.tsx:38-53</code>,
+            <code>:144-160</code>; component <code>property-link.tsx:6-14</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Arrivals, Departures, Maintenance and Money-owed figures are links
+            to those screens at each Property. A count of
+            <code>null</code> (module off at that Property) is already &quot;not
+            available&quot;, but a viewer whose role cannot open the destination
+            (analytics holders without front-desk or maintenance permissions)
+            still gets a link that ends in a denial.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>property-link.tsx</code> documents &quot;a screen that is
+            switched off turns the viewer away itself; nothing here decides
+            that&quot;, which holds for the Property case but not the role case.
+            Inferred because I did not read what <code>portfolio()</code> nulls
+            per role.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            have <code>portfolio/page.tsx</code> pass, per Property, which of
+            the four segments the viewer reaches
+            (<code>screenProperties(gateOf(segment))</code>) and render the
+            figure as plain text when it does not.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-11">
+        <summary>
+          <span class="id">C-11</span><span class="pill low">low</span
+          ><span class="pill">LABEL</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Finance folio detail,
+            <code>W/app/[locale]/(workspace)/finance/page.tsx:114-117</code> and
+            <code>:128</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            for a viewer who reaches several Properties, opening
+            <code>?folio=</code> of a Folio at another Property shows the
+            sub-heading of the active <code>?property=</code> (&quot;Hotel
+            A&quot;) above a folio that is at Hotel B; the back button then
+            returns to Hotel A&#x27;s list.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            <code>folioProperty</code> is already resolved two lines above (and
+            used for the time zone) but the heading uses
+            <code>property.propertyName</code>.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            print <code>folioProperty.propertyName</code> at <code>:128</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-12">
+        <summary>
+          <span class="id">C-12</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut"
+            >TWEAK · verified · known: `2026-10-24/finance-analytics-portfolio`
+            FINANCE-08</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Finance folio, unpriced booking note,
+            <code>W/features/finance/components/folio-panel.tsx:243-247</code>;
+            copy <code>finance.nightsUnpriced</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            &quot;This booking has no price… Add a price to the booking from the
+            Reservations screen.&quot; is plain text. The booking link exists
+            only as the small &quot;Reservation REF&quot; reference at the top
+            (<code>:178-192</code>), and only when the folio has a reference.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the sentence names the next step and the link to it is elsewhere, so
+            the shortest path is two eye-moves away (and absent without a
+            reference).
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            make the sentence&#x27;s &quot;Reservations&quot; a link to
+            <code>reservationHref</code> (<code>folio-panel.tsx:137-140</code>,
+            built from <code>folio.reservationId</code>, not the reference) when
+            <code>mayOpenReservation</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-13">
+        <summary>
+          <span class="id">C-13</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified (frequency inferred)</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            People header,
+            <code>W/app/[locale]/(workspace)/people/page.tsx:114</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            when a viewer holds <code>staff.administer</code> but
+            <code>invitableRoles</code> is empty, the Invite button is not
+            rendered and nothing says why (<code>staff.readOnly</code> appears
+            only when the viewer holds neither permission,
+            <code>:151-156</code>).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a missing button with no reason reads as broken; the dialog&#x27;s
+            own <code>rolesWithheld</code> note never gets drawn.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            when
+            <code>mayAdminister &amp;&amp; invitableRoles.length === 0</code>,
+            show one muted line &quot;Your role cannot invite anyone at your
+            level or above&quot; in the same place, as the
+            disabled-button-reason pattern from DATA-12.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-14">
+        <summary>
+          <span class="id">C-14</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Staff roster,
+            <code>W/features/staff/components/roster-table.tsx:413-433</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a member whose employment ended gets a warning badge &quot;Left HR
+            on 5 Oct&quot; (the cue to revoke login). The employee&#x27;s name
+            from HR is shown but neither the badge nor the name leads to HR.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the warning exists to prompt action at the People row (revoke is in
+            the row menu, which is fine), but the record that explains it is one
+            invisible step away.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            when HR is reachable (see C-09 fix), make the badge a link to
+            <code>hr?property=…&amp;tab=employees</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-15">
+        <summary>
+          <span class="id">C-15</span><span class="pill low">low</span
+          ><span class="pill">STEPS</span
+          ><span class="mut">PROPOSAL · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Analytics, &quot;Nights with no charge&quot; section,
+            <code
+              >W/features/analytics/components/uncharged-section.tsx:33-58</code
+            >; copy <code>unchargedAction</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the section lists counts per reason (no price, no folio, closed
+            folio…) and says &quot;Open a day from the table to see which
+            bookings, then open a booking to add its price.&quot; Three steps
+            and no link to the first.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            it knows the nights are uncharged but not which days, so it cannot
+            link; the reader hunts the days table for them.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            propose adding the first affected day (or a day list per reason) to
+            <code>UnchargedNights</code> so each row links to
+            <code>?day=</code> (Mews and Opera Cloud reconcile revenue
+            exceptions this way). Needs a read change, so owner approval.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-16">
+        <summary>
+          <span class="id">C-16</span><span class="pill low">low</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Audit log subject links,
+            <code>W/features/audit-log/links.ts:34-39</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a <code>data_export</code> record opens Data export at its default
+            tab, not the export; <code>property</code> and
+            <code>organization</code> records open Configuration at the top, not
+            the section.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the data-export screen already has a &quot;show this run&quot;
+            mechanism (<code>shownRun</code>,
+            <code>data-export-view.tsx:96-98,176-179</code>) and Configuration
+            has section anchors, but the log passes no target.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            for <code>data_export</code>, accept
+            <code>?show=&lt;exportId&gt;</code> in
+            <code>data-export/page.tsx</code> and seed
+            <code>shownRun</code>/<code>panel</code>; for <code>property</code>,
+            append <code>#property</code>. Low value, listed for completeness.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-17">
+        <summary>
+          <span class="id">C-17</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Finance folio, in-house note,
+            <code>W/features/finance/components/folio-panel.tsx:381-395</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            &quot;The Guest is still in house, so the Folio stays open… It can
+            be closed after check-out.&quot; is the only content where Close
+            would be; there is no link to the Departures list or the stay.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the reason is right, but the next action (check the Guest out) is on
+            another screen with no pointer.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            link &quot;check-out&quot; to
+            <code>departures?property=…</code> when the viewer reaches it
+            (<code>gateOf(&quot;departures&quot;)</code>), plain text otherwise.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-18">
+        <summary>
+          <span class="id">C-18</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Configuration, &quot;What this Property uses&quot;,
+            <code
+              >W/features/configuration/components/overview-cards.tsx:41-55</code
+            >
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the card lists the switched-on modules as inert tiles with icons, in
+            the same grid style as the link tiles in the card below.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            tiles that look like destinations and are not links; each is a rail
+            screen the viewer may or may not open.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            link the tiles the viewer reaches (same gate as C-07) or drop the
+            tile styling; low priority.
+          </dd>
+        </dl>
+      </details>
+      <details id="C-19">
+        <summary>
+          <span class="id">C-19</span><span class="pill low">low</span
+          ><span class="pill">STEPS</span
+          ><span class="mut">PROPOSAL · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Integrations endpoint cards,
+            <code
+              >W/features/integrations/components/endpoint-cards.tsx:105-113</code
+            >
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            each card shows &quot;Open failures N&quot; and the failures table
+            above names the endpoint per row, with no way to narrow the table to
+            one endpoint.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            with several endpoints the number on the card cannot be followed to
+            its rows.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            propose <code>?endpoint=&lt;id&gt;</code> on Integrations with the
+            card&#x27;s count linking to it (Stripe and Mews webhook consoles do
+            this). New behaviour, so a proposal.
+          </dd>
+        </dl>
+      </details>
+      <h3>
+        Lane D: Routing layer (page bar and back button, gates, ?property=,
+        search params, error and denied screens)
+      </h3>
+      <details id="D-01">
+        <summary>
+          <span class="id">D-01</span><span class="pill medium">medium</span
+          ><span class="pill">BACK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            every inner page&#x27;s back button, every
+            <code>ScreenRefusal</code> &quot;Go to Today&quot;, the rail
+            brand/root link.
+            <code>(ws)/workspace-page-bar.tsx:81</code> (<code>rootHref</code>),
+            <code>(ws)/screen-denied.tsx:35</code>,
+            <code>(ws)/inventory/page.tsx:63</code>,
+            <code>(ws)/food-and-beverage/page.tsx:63</code>,
+            <code>(ws)/layout.tsx:182</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a Staff Member working at a Property where Today is switched off
+            (the layout and <code>switchTarget</code> both say this exists:
+            <code>layout.tsx</code> &quot;a Property can have Today without the
+            front desk&quot;, <code>lib/property-choice.ts</code>
+            <code>switchTarget</code>) presses Back on, say, Housekeeping. Back
+            always points at <code>/today?property=P</code>.
+            <code>today/page.tsx:77-79</code> finds P is not in Today&#x27;s
+            list and redirects to bare <code>/today</code>, which picks the
+            remembered/first Today Property, Q. The person lands on another
+            Property&#x27;s day and the switcher now names Q. A Property switch
+            nobody asked for, from the one control ADR 0035 says must keep the
+            Property. &quot;Go to Today&quot; in refusals and the Soon screens
+            does the same (and the refusal one also drops
+            <code>?property=</code> entirely).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the rail already hides Today at P (<code>lib/nav.ts</code>
+            <code>open()</code>), but the back arrow and the refusal button
+            ignore <code>segmentsByProperty</code>, so they lead somewhere other
+            than the stated parent.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in <code>WorkspacePageBar</code> (it already receives
+            <code>segmentsByProperty</code>) pick the up target with
+            <code>switchTarget(undefined, segmentsByProperty[property])</code>
+            (<code>lib/property-choice.ts</code>) when
+            <code>&quot;today&quot;</code> is not in that list; do the same
+            inside <code>ScreenRefusal</code> by passing the Property and the
+            open segments, so the button reads the same as the rail.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-02">
+        <summary>
+          <span class="id">D-02</span><span class="pill medium">medium</span
+          ><span class="pill">DEAD-END</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>(ws)/data-export/error.tsx:30</code>,
+            <code>(ws)/portfolio/error.tsx:31</code>,
+            <code>(ws)/room-calendar/error.tsx:30</code>,
+            <code>(ws)/branding/error.tsx:30</code> versus
+            <code>app/[locale]/route-error.tsx:25-29</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            when one of these four pages fails to render on the server, the
+            screen shows a &quot;Try again&quot; button wired to the bare
+            <code>reset</code>. The shared <code>RouteError</code> documents why
+            that does nothing for a Server Component failure (&quot;not undone
+            by drawing the same payload again: the route is fetched
+            afresh&quot;) and calls <code>router.refresh()</code> first. These
+            four do not, so the button re-renders the same cached failure; the
+            person keeps pressing it and the only exit is the rail.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the retry affordance exists but cannot succeed for the failure class
+            (database blip) the screens&#x27; own comments say they are for.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            delete the four bespoke <code>error.tsx</code> files, or make each
+            render
+            <code>RouteError</code> (<code>app/[locale]/route-error.tsx</code>)
+            with its <code>event</code> name (<code
+              >data_export.render_failed</code
+            >
+            etc.) and its own title/description keys;
+            <code>(ws)/error.tsx</code> already shows the pattern.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-03">
+        <summary>
+          <span class="id">D-03</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Arrivals, &quot;New booking&quot; button,
+            <code>(ws)/arrivals/page.tsx:116-123</code>; target
+            <code>(ws)/reservations/page.tsx:103-120</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            the button is offered to everyone who can open Arrivals
+            (<code>FRONT_DESK_WORK</code>: any of book, check in, check out,
+            cancel, amend). A person who holds
+            <code>front_desk.check_in</code> but not
+            <code>front_desk.book</code> presses it, lands on
+            <code>/reservations?new=1</code>, and sees a list with no dialog and
+            no sentence about why: Reservations renders
+            <code>!mayBook ? null</code> and ignores <code>?new=1</code>.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a button offered to a viewer who cannot do what it promises, ending
+            in a silent no-op deep link.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in the Arrivals page compute <code>mayBook</code> the way
+            Reservations does
+            (<code>permittedProperties(&quot;front_desk.book&quot;)</code>,
+            <code>reservations/page.tsx:99-101</code>) and render the button
+            only when it holds.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-04">
+        <summary>
+          <span class="id">D-04</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut"
+            >TWEAK · verified (existence of a role without the permission:
+            inferred)</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Configuration, &quot;Elsewhere&quot; card,
+            <code>(ws)/configuration/page.tsx:125-135</code>
+            (<code>showRooms</code>, <code>showPeople</code>) and
+            <code
+              >features/configuration/components/overview-cards.tsx:81-92</code
+            >
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Rooms and People links are shown when the capability is on at the
+            Property (<code>isOn(&quot;front_desk&quot;)</code>,
+            <code>isOn(&quot;staff_administration&quot;)</code>). Configuration
+            itself opens for <code>configuration.manage</code>,
+            <code>accommodation.configure</code> or
+            <code>rates.manage</code> (<code>lib/screens.ts</code>
+            <code>CONFIGURATION_WORK</code>); Rooms needs
+            <code>ROOM_WORK</code> and People needs
+            <code>staff.administer</code>/<code>staff.define_roles</code>. A
+            viewer with, for example, <code>rates.manage</code> only sees a
+            &quot;People&quot; tile that opens a &quot;your role cannot open
+            this page&quot; refusal.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the link is offered by the capability gate alone; the page&#x27;s
+            own gate (rooms/page.tsx:51-52) also asks the permission.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            replace <code>isOn(...)</code> for these two with
+            <code>screenProperties(gateOf(&quot;rooms&quot;))</code> /
+            <code>screenProperties(gateOf(&quot;people&quot;))</code> filtered
+            to the Property, exactly as <code>rooms/page.tsx:86-91</code> does
+            for <code>hasHousekeeping</code>.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-05">
+        <summary>
+          <span class="id">D-05</span><span class="pill medium">medium</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            People, the &quot;Human Resources&quot; pointer,
+            <code>(ws)/people/page.tsx:112,155-165</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            <code>mayViewHr = holds(&quot;hr.view&quot;)</code> is
+            <code>permittedProperties(&quot;hr.view&quot;)</code> with no module
+            and no capability and it matches on Organization, not on this
+            Property. The HR screen&#x27;s gate (<code>lib/screens.ts</code>
+            segment <code>hr</code>) also needs the
+            <code>human_resources</code> module bought and
+            <code>staff_administration</code> on at the Property. An
+            Organization without Human Resources, or a Property where it is off,
+            shows the pointer to a person with <code>hr.view</code>, which opens
+            &quot;This module is not in your Subscription&quot;.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a link built by hand from a weaker check than the destination&#x27;s
+            own gate.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            <code
+              >const mayViewHr = (await
+              screenProperties(gateOf(&quot;hr&quot;))).some(p =&gt;
+              p.propertyId === home.propertyId)</code
+            >. Keep <code>employmentOfLogins</code> on the same boolean.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-06">
+        <summary>
+          <span class="id">D-06</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            HR, three links to People with no gate check:
+            <code>features/hr/components/hr-view.tsx:63-67</code>,
+            <code>features/hr/components/employees-table.tsx:309-312</code>
+            (&quot;has login&quot;),
+            <code
+              >features/hr/components/terminate-employee-dialog.tsx:108-112</code
+            >. People needs <code>staff.administer</code> or
+            <code>staff.define_roles</code>; HR needs only <code>hr.view</code>.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            an HR-only viewer sees &quot;See People&quot;, a key-icon link per
+            employee and a link inside the terminate dialog, each opening a
+            refusal.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the mirror of D-05, links to a screen the viewer may not open.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            have <code>(ws)/hr/page.tsx</code> compute
+            <code>peopleHref</code> from
+            <code>screenProperties(gateOf(&quot;people&quot;))</code> (null when
+            closed) and pass it down; render the three links only when non-null.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-07">
+        <summary>
+          <span class="id">D-07</span><span class="pill low">low</span
+          ><span class="pill">GATE</span
+          ><span class="pill me">checked by me</span
+          ><span class="mut">TWEAK · verified (cross-lane with Rooms)</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Rooms, <code>rooms/page.tsx:93-107</code> gates
+            <code>housekeepingHref</code> and <code>reservationsHref</code> but
+            <code>features/rooms/components/rooms-view.tsx:177</code>
+            (<code>maintenanceHref</code>) and
+            <code>:891</code> (<code>calendarHref</code>) are built by hand and
+            offered always: &quot;Maintenance&quot; button in the hold branch
+            (<code>block-unit-dialog.tsx:236</code>) and &quot;Show on
+            calendar&quot; in all four branches
+            (<code>block-unit-dialog.tsx:174-183</code>).
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            Rooms opens for <code>accommodation.configure</code> alone
+            (<code>ROOM_WORK</code>), the Calendar does not (<code
+              >FRONT_DESK_WORK</code
+            >
+            only); Maintenance needs a <code>maintenance.*</code> permission.
+            Those viewers get a refusal from a button in the very dialog that
+            was just fixed for the same class.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            same defect class as the reported one; two of the four neighbouring
+            links were gated, two were not.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            add <code>calendarHref</code> and <code>maintenanceHref</code> to
+            <code>rooms/page.tsx</code> computed with
+            <code>screenProperties(gateOf(&quot;room-calendar&quot;))</code> and
+            <code>screenProperties(gateOf(&quot;maintenance&quot;))</code>, null
+            when closed, and hide the links on null.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong
+              >fixed in this change (Rooms dialog links follow the viewer&#x27;s
+              gates)</strong
+            >
+          </dd>
+        </dl>
+      </details>
+      <details id="D-08">
+        <summary>
+          <span class="id">D-08</span><span class="pill low">low</span
+          ><span class="pill">BACK</span
+          ><span class="mut"
+            >TWEAK · inferred (behaviour) / verified (code)</span
+          >
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            phone bottom dock,
+            <code>packages/ui/src/components/nav.ts:63-71</code>
+            (<code>toMobileNav</code>) and
+            <code>app-rail.tsx:79-88,648</code> (<code>useActiveHref</code>)
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            a group such as Front Office is one dock tile pointing at its first
+            page. The tile is &quot;active&quot; only when the path equals that
+            first page, so on Room calendar, Arrivals or Close the day (any page
+            but the first) no tile is highlighted; the person has no marker of
+            where they are in the dock (the page-bar
+            <code>SectionTabs</code> does mark it).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            an unhighlighted dock reads as lost; also the tile promises
+            &quot;Front Office&quot; but opens one child.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in <code>toMobileNav</code> keep the group&#x27;s child hrefs on the
+            item and have <code>AppBottomNav</code> mark the tile active when
+            any child matches.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-09">
+        <summary>
+          <span class="id">D-09</span><span class="pill low">low</span
+          ><span class="pill">LABEL</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            phone dock,
+            <code>packages/ui/src/components/app-rail.tsx:675-701</code> renders
+            no badge; the sidebar (<code>:416-425</code>) and chips
+            (<code>nav-chips.tsx:80</code>) do. <code>lib/nav.ts:129</code> sets
+            <code>badge: soon</code> for Food and beverage and Inventory.
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            on a phone a configuration manager sees &quot;Food and
+            Beverage&quot; and &quot;Inventory&quot; tiles that look as built as
+            Today and open a &quot;Not available yet&quot; screen. On desktop
+            the same entries say &quot;Soon&quot;.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            &quot;unbuilt is a position&quot; is read honestly on two surfaces
+            and not the third.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            render <code>badge</code> in <code>AppBottomNav</code> as the other
+            two surfaces do (a small dot or the word, per the dock&#x27;s
+            width).
+          </dd>
+        </dl>
+      </details>
+      <details id="D-10">
+        <summary>
+          <span class="id">D-10</span><span class="pill low">low</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Finance <code>?folio=</code>,
+            <code>(ws)/finance/page.tsx:95-134</code> (<code
+              >&lt;p&gt;{property.propertyName}&lt;/p&gt;</code
+            >
+            at the folio branch) vs <code>selected.propertyId</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            <code>folio(search.folio)</code> reads by id alone, so
+            <code>/finance?property=P&amp;folio=&lt;folio of Q&gt;</code> (a
+            stale bookmark, an edited link) renders Q&#x27;s folio, its
+            permissions and timezone, under P&#x27;s name in the page and P in
+            the switcher. App-built links all pass the folio&#x27;s own Property
+            (<code>ledger/journal-table.tsx:151</code>,
+            <code>row-menu.tsx:175</code>) so only hand-made URLs hit it.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            the page and the switcher disagree about where the viewer is
+            working, the class HK-S1-24 closed for lists.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            when <code>selected.propertyId !== property.propertyId</code>,
+            <code
+              >redirect(withProperty(finance, search,
+              selected.propertyId))</code
+            >
+            using <code>server/front-desk.ts:62</code>, or show the folio as not
+            found.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-11">
+        <summary>
+          <span class="id">D-11</span><span class="pill low">low</span
+          ><span class="pill">DEEPLINK</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>(ws)/front-office/page.tsx:30-35</code>;
+            <code>(ws)/inventory/page.tsx:50-57,63</code>;
+            <code>(ws)/food-and-beverage/page.tsx:50-57,63</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            (a) <code>/front-office?property=P</code> redirects to the first
+            child open at ANY Property and forwards P unvalidated; if that child
+            is closed at P the person lands on a refusal even though another
+            Front Office page opens at P. A dormitory also gets Reservations
+            first although its rail starts with Rooms
+            (<code>DORMITORY_FRONT_OFFICE</code>). (b) The two Soon screens test
+            <code>properties.length === 0</code> over all Properties, so naming
+            a Property where the module is off still shows &quot;Not available
+            yet&quot; instead of &quot;not switched on at this Property&quot;,
+            and neither calls <code>frontDeskProperty</code>, so their URL
+            carries no <code>?property=</code> and the Today button forwards a
+            raw, unchecked value.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a named Property is ignored in the redirect/gate check, the rule
+            <code>chooseProperty</code> documents.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            in front-office, test each child with
+            <code>screenProperties(...)</code> filtered to
+            <code>property</code> when one is named, and use
+            <code>screensFor(model)</code> order; in the Soon pages use
+            <code>frontDeskProperty</code> like built screens.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-12">
+        <summary>
+          <span class="id">D-12</span><span class="pill low">low</span
+          ><span class="pill">NO-HOME</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            Configuration, &quot;Switched on&quot; card,
+            <code
+              >features/configuration/components/overview-cards.tsx:41-60</code
+            >
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            each switched-on module is drawn as an icon row, the same pattern as
+            the Elsewhere links directly below it, but is inert text. Nine to
+            twelve rows that look clickable and go nowhere.
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>
+            a hidden non-affordance; the page that holds the module is one click
+            away in the rail but this list does not offer it.
+          </dd>
+          <dt>Fix</dt>
+          <dd>
+            render each row as a <code>Link</code> to
+            <code>?property=&lt;id&gt;</code> when
+            <code>screenProperties(gateOf(segment))</code> opens it at this
+            Property, else plain text (the card already receives the filtered
+            list from the page).
+          </dd>
+        </dl>
+      </details>
+      <details id="D-13">
+        <summary>
+          <span class="id">D-13</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">TWEAK · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>app/[locale]/error.tsx</code> via
+            <code>route-error.tsx:48-62</code>
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            when the workspace layout itself fails (database read in
+            <code>layout.tsx</code>), the person gets title, description,
+            &quot;Try again&quot;, and a digest. No rail, no sign-out, no Today
+            link, no reload-elsewhere; if the read keeps failing the screen is a
+            loop. (Inside the shell, <code>(ws)/error.tsx</code> is fine because
+            the rail stays.)
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>the one place with no navigation has no exit.</dd>
+          <dt>Fix</dt>
+          <dd>
+            add a &quot;Go to sign-in&quot; or &quot;Go to Today&quot; link
+            beside the retry in <code>RouteError</code> when rendered at
+            <code>[locale]</code> level.
+          </dd>
+        </dl>
+      </details>
+      <details id="D-14">
+        <summary>
+          <span class="id">D-14</span><span class="pill low">low</span
+          ><span class="pill">DEAD-END</span
+          ><span class="mut">PROPOSAL · verified</span>
+        </summary>
+        <dl>
+          <dt>Where</dt>
+          <dd>
+            <code>(ws)/billing-notice.tsx:19-40</code>, copy
+            <code>messages.ts:7728-7731</code> (&quot;Please settle the
+            payment.&quot;)
+          </dd>
+          <dt>What happens</dt>
+          <dd>
+            an Owner whose Organization is past due sees a warning on every page
+            that tells them to pay and gives no way: no link, no contact, no
+            amount. The audit already recorded that no support contact exists
+            (SHELL-11,
+            <code
+              >docs/ux-audit/2026-10-25-fix-reports/lane-01-shell-access.md</code
+            >, owner decision).
+          </dd>
+          <dt>Why it is wrong</dt>
+          <dd>an instruction with no next action.</dd>
+          <dt>Fix</dt>
+          <dd>
+            nothing without an owner decision on where payment is made;
+            comparable systems (Mews, Cloudbeds) link to a billing page.
+            Recommend recording it as a <code>proposed</code> row.
+          </dd>
+        </dl>
+      </details>
+    </main>
+  </body>
+</html>
