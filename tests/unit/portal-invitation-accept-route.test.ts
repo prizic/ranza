@@ -22,12 +22,16 @@ const ORIGIN = "http://portal.test";
 const TOKEN = "a-token-the-desk-handed-over";
 const VIEWER = { userId: "d9300001-0000-4000-8000-000000000001" };
 
+/** What a request's own URL names behind the proxy: the container, not the site. */
+const CONTAINER = "http://0.0.0.0:3001";
+
 function request(
   body: unknown,
   headers: Record<string, string> = {},
   raw?: string,
+  served = ORIGIN,
 ): Request {
-  return new Request(`${ORIGIN}/api/portal-invitation/accept`, {
+  return new Request(`${served}/api/portal-invitation/accept`, {
     method: "POST",
     headers: { "content-type": "application/json", ...headers },
     body: raw ?? JSON.stringify(body),
@@ -43,6 +47,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   logged.mockRestore();
+  vi.unstubAllEnvs();
 });
 
 describe("accepting a Guest's link", () => {
@@ -97,6 +102,39 @@ describe("accepting a Guest's link", () => {
 
     expect(response.status).toBe(403);
     expect(acceptInvitation).not.toHaveBeenCalled();
+  });
+
+  it("GP-S3-09: behind the proxy, accepts the Portal's own page though the request names the container", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", ORIGIN);
+    acceptInvitation.mockResolvedValue({ outcome: "accepted", linkedStays: 1 });
+
+    const response = await POST(
+      request({ token: TOKEN }, { origin: ORIGIN }, undefined, CONTAINER),
+    );
+
+    expect(response.status).toBe(200);
+    expect(acceptInvitation).toHaveBeenCalledWith(TOKEN);
+  });
+
+  it("GP-S3-09: behind the proxy, still refuses another site, and says so in the log", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", ORIGIN);
+    const warned = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const response = await POST(
+      request(
+        { token: TOKEN },
+        { origin: "https://elsewhere.test" },
+        undefined,
+        CONTAINER,
+      ),
+    );
+
+    expect(response.status).toBe(403);
+    expect(acceptInvitation).not.toHaveBeenCalled();
+    expect(warned).toHaveBeenCalledWith("portal_invitation.accept_refused", {
+      origin: "https://elsewhere.test",
+    });
+    warned.mockRestore();
   });
 
   it("GP-S3-09: refuses a body that is not JSON, which a cross-site form can send and a script cannot without a preflight", async () => {

@@ -1,4 +1,5 @@
 import { acceptInvitation } from "../../../../server/portal-invitation";
+import { siteOrigin } from "../../../../server/site-origin";
 import { currentViewer } from "../../../../server/viewer";
 
 /**
@@ -11,14 +12,18 @@ import { currentViewer } from "../../../../server/viewer";
  *
  * Two guards against a page on another site making somebody's browser accept
  * a stranger's link: the body must be JSON, which a cross-site form cannot
- * send without a preflight, and an `Origin` that is not this site is refused.
+ * send without a preflight, and an `Origin` that is not this site is refused —
+ * this site as the student reached it, not the container behind the proxy,
+ * which once refused every link anybody opened. A refusal is logged with the
+ * origin it named, so the next such mismatch is seen rather than reported.
  */
 
 const TOKEN_MAX_LENGTH = 200;
 
 export async function POST(request: Request): Promise<Response> {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  if (origin && origin !== siteOrigin(request)) {
+    console.warn("portal_invitation.accept_refused", { origin });
     return new Response(null, { status: 403 });
   }
   if (!request.headers.get("content-type")?.startsWith("application/json")) {
