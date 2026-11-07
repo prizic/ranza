@@ -287,7 +287,9 @@ export function ReservationDetailSheet({
                   t("priceColumn"),
                   priced
                     ? formatMoney(nightlyRateMinor, rateCurrency, locale)
-                    : t("bookedUnpriced"),
+                    : stayType === "resident"
+                      ? t("bookedResident")
+                      : t("bookedUnpriced"),
                 ],
               ]}
               {...(totalMinor !== null && rateCurrency !== null

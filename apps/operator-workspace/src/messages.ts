@@ -619,6 +619,9 @@ export interface Messages {
   /** A booking's own price per night on the list; `{price}` formatted. */
   bookedPerNight: string;
   bookedUnpriced: string;
+  /** A Resident's booking where a price goes: never priced by the night
+      (RT-S2-05), which is not the same as a Guest booking left unpriced. */
+  bookedResident: string;
   /** The reservations list's price column. */
   priceColumn: string;
   /** One field for arrival and departure; the halves keep those names. */
@@ -4323,6 +4326,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "Sakin gecelik ücretlendirilmez. Kirasını Finans folyoya işler.",
     bookedPerNight: "{price} / gece",
     bookedUnpriced: "Fiyat yok",
+    bookedResident: "Gecelik ücretlendirilmez",
     priceColumn: "Fiyat",
     stayDates: "Konaklama tarihleri",
     bookingAddDate: "Tarih seçin",
@@ -5264,7 +5268,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       overdueLink: "Taksidi geciken {count, plural, other {# sakin}}, {amount}",
       rollCallTitle: "Bu geceki yoklama",
       rollCallHint:
-        "{count, plural, other {# sakin}} içeride. Her rakam yoklamayı açar.",
+        "{count, plural, other {# sakin}} konaklıyor. Her rakam yoklamayı açar.",
       rollCallLink: "{label}: {count, number}",
       filterShowAll: "Tümünü göster",
       filterReadyCount: "{count, plural, one {# hazır} other {# hazır}}",
@@ -8431,6 +8435,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "A Resident is not charged by the night. Finance posts their rent to the Folio.",
     bookedPerNight: "{price} / night",
     bookedUnpriced: "No price",
+    bookedResident: "Not charged by the night",
     priceColumn: "Price",
     stayDates: "Stay dates",
     bookingAddDate: "Add date",
@@ -12528,6 +12533,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       "لا يُحاسَب المقيم بسعر الليلة. يقيّد قسم المالية إيجاره في الفوليو.",
     bookedPerNight: "{price} / ليلة",
     bookedUnpriced: "بلا سعر",
+    bookedResident: "لا يُحتسب بسعر الليلة",
     priceColumn: "السعر",
     stayDates: "تواريخ الإقامة",
     bookingAddDate: "أضف تاريخًا",

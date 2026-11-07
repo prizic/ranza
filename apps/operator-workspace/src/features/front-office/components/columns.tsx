@@ -1314,12 +1314,17 @@ function reservationColumns(
         />
       ),
       cell: ({ row }) => {
-        const { nightlyRateMinor, rateCurrency, stayNights, totalMinor } =
-          row.original;
+        const {
+          nightlyRateMinor,
+          rateCurrency,
+          stayNights,
+          stayType,
+          totalMinor,
+        } = row.original;
         if (nightlyRateMinor === null || rateCurrency === null) {
           return (
             <span className="text-step--1 text-muted-foreground">
-              {t("bookedUnpriced")}
+              {t(stayType === "resident" ? "bookedResident" : "bookedUnpriced")}
             </span>
           );
         }

@@ -1,5 +1,11 @@
 import { notFound } from "next/navigation";
-import { formatMoney, isSupportedLocale, localizeHref } from "@ranza/i18n";
+import {
+  formatMoney,
+  isSupportedLocale,
+  localizeHref,
+  type SupportedLocale,
+} from "@ranza/i18n";
+import type { OverdueResident } from "@ranza/payment-plans";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { FoliosTable } from "../../../../features/finance/components/folios-table";
 import { FolioPanel } from "../../../../features/finance/components/folio-panel";
@@ -12,6 +18,7 @@ import {
   POST_CHARGE_PERMISSION,
   POST_PAYMENT_PERMISSION,
   requireViewer,
+  reservations,
   REVERSE_CHARGE_PERMISSION,
   REVERSE_PAYMENT_PERMISSION,
   screenProperties,
@@ -151,6 +158,11 @@ export default async function FinancePage({
   // Today's overdue figure opens here: the Residents it counts, not Folios.
   if (search.show === "overdue") {
     const { currency, residents } = await overdueStanding(property.propertyId);
+    const bookingHrefs = await overdueBookingHrefs(
+      locale,
+      property.propertyId,
+      residents,
+    );
     return (
       <>
         <p className="text-sm text-muted-foreground">
@@ -158,6 +170,7 @@ export default async function FinancePage({
         </p>
         <OverdueResidents
           allHref={financeHref}
+          bookingHrefs={bookingHrefs}
           currency={currency}
           locale={locale}
           residents={residents}
@@ -213,5 +226,35 @@ export default async function FinancePage({
         total={total}
       />
     </>
+  );
+}
+
+/**
+ * Where each overdue Resident's booking opens: only for a viewer who reaches
+ * Reservations at this Property, and only for a booking on the list its drawer
+ * opens from, which a Resident who has left is not — so the list decides,
+ * rather than a second copy of its rule.
+ */
+async function overdueBookingHrefs(
+  locale: SupportedLocale,
+  propertyId: string,
+  residents: readonly OverdueResident[],
+): Promise<Record<string, string>> {
+  if (residents.length === 0) return {};
+  const reachesReservations = (
+    await screenProperties(gateOf("reservations"))
+  ).some((reachable) => reachable.propertyId === propertyId);
+  if (!reachesReservations) return {};
+  const onTheList = new Set(
+    (await reservations(propertyId)).map((row) => row.reservationId),
+  );
+  const listHref = `${localizeHref(locale, "reservations")}?property=${propertyId}`;
+  return Object.fromEntries(
+    residents
+      .filter((resident) => onTheList.has(resident.reservationId))
+      .map((resident) => [
+        resident.reservationId,
+        `${listHref}&open=${resident.reservationId}`,
+      ]),
   );
 }

@@ -121,4 +121,23 @@ describe("the Reservations list price column", () => {
     ).toBeVisible();
     expect(within(rowOf("RZ-UNPRICED")).queryByText(/\/ night/)).toBeNull();
   });
+
+  it("RT-S2-05: a Resident's booking is not charged by the night, which is not No price", () => {
+    show([
+      {
+        ...BASE,
+        reference: "RZ-RESIDENT",
+        stayType: "resident",
+        nightlyRateMinor: null,
+        rateCurrency: null,
+      },
+    ]);
+
+    expect(
+      within(rowOf("RZ-RESIDENT")).getByText(messages.en.bookedResident),
+    ).toBeVisible();
+    expect(
+      within(rowOf("RZ-RESIDENT")).queryByText(messages.en.bookedUnpriced),
+    ).toBeNull();
+  });
 });

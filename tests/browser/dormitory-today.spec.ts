@@ -519,8 +519,20 @@ test("the Residents' standing: tonight's roll call and the instalments overdue, 
   await expect(page.getByTestId("overdue-notice")).toContainText(
     "1 student has an instalment past its date",
   );
-  await expect(page.getByText("Elif Yurt")).toBeVisible();
   await expect(page.getByText("Cem Yurt")).toHaveCount(0);
+
+  // A name opens that Student's booking, where the plan and the Folio are.
+  await page.getByRole("link", { name: "Elif Yurt" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/en/reservations\\?property=${yurt}&open=[0-9a-f-]{36}$`),
+  );
+  const booking = page.getByRole("dialog");
+  await expect(booking).toContainText("Elif Yurt");
+  await expect(
+    booking.getByRole("heading", { name: "Payment plan" }),
+  ).toBeVisible();
+  await page.goBack();
+
   await page.getByRole("link", { name: "Show all" }).click();
   await expect(page).toHaveURL(new RegExp(`/en/finance\\?property=${yurt}$`));
 
@@ -544,9 +556,10 @@ test("the Residents' standing reads in Turkish and Arabic, mirrored, on the over
   await drawTodayAs(page, "timeline");
 
   await page.goto(`/tr/today?property=${yurt}`);
+  // Staying, not "inside": a Student on leave is counted here and is out.
   await expect(
     page.getByRole("region", { name: "Bu geceki yoklama" }),
-  ).toBeVisible();
+  ).toContainText("3 öğrenci konaklıyor");
   await expect(
     page.getByRole("region", { name: "Geciken taksitler" }),
   ).toBeVisible();

@@ -16,6 +16,7 @@ const folio = vi.fn();
 const folioPage = vi.fn();
 const overdueStanding = vi.fn();
 const permittedProperties = vi.fn();
+const reservations = vi.fn();
 const whyDenied = vi.fn();
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
@@ -60,6 +61,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   folioPage,
   overdueStanding,
   permittedProperties,
+  reservations,
   whyDenied,
   requireViewer: async () => ({
     userId: "d9100001-0000-4000-8000-000000000001",
@@ -132,6 +134,7 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ currency: "TRY", residents: [] });
   permittedProperties.mockReset().mockResolvedValue([]);
+  reservations.mockReset().mockResolvedValue([]);
   whyDenied.mockReset().mockResolvedValue({ reason: "not_reachable" });
   folioPanel.mockReset();
 });
@@ -349,6 +352,43 @@ describe("the Residents Today's overdue figure opens (TD-S10-15)", () => {
       "href",
       `/en/finance?property=${PROPERTY.propertyId}`,
     );
+  });
+
+  it("a name opens the booking on the Reservations list, and one not on it opens nothing", async () => {
+    overdueStanding.mockResolvedValue({
+      currency: "TRY",
+      residents: RESIDENTS,
+    });
+    // Elif's booking is on the list; the second Resident's is not, as for one
+    // who has left with an instalment still unpaid.
+    reservations.mockResolvedValue([
+      { reservationId: RESIDENTS[0]!.reservationId },
+    ]);
+    await show({ property: PROPERTY.propertyId, show: "overdue" });
+    expect(reservations).toHaveBeenCalledWith(PROPERTY.propertyId);
+    expect(screen.getByRole("link", { name: "Elif Yurt" })).toHaveAttribute(
+      "href",
+      `/en/reservations?property=${PROPERTY.propertyId}&open=${RESIDENTS[0]!.reservationId}`,
+    );
+    expect(screen.getByText("Name not shown").closest("a")).toBeNull();
+  });
+
+  it("names open nothing for a viewer who does not reach Reservations", async () => {
+    const { gateOf } =
+      await import("../../apps/operator-workspace/src/lib/screens");
+    screenProperties.mockImplementation(async (gate: unknown) =>
+      gate === gateOf("reservations") ? [] : [PROPERTY],
+    );
+    overdueStanding.mockResolvedValue({
+      currency: "TRY",
+      residents: RESIDENTS,
+    });
+    reservations.mockResolvedValue(
+      RESIDENTS.map((resident) => ({ reservationId: resident.reservationId })),
+    );
+    await show({ property: PROPERTY.propertyId, show: "overdue" });
+    expect(screen.getByText("Elif Yurt").closest("a")).toBeNull();
+    expect(reservations).not.toHaveBeenCalled();
   });
 
   it("says nobody is overdue when the figure was open on a day somebody has paid", async () => {

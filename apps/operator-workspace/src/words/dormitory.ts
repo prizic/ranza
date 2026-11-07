@@ -85,7 +85,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       overdueLink:
         "Taksidi geciken {count, plural, other {# öğrenci}}, {amount}",
       rollCallHint:
-        "{count, plural, other {# öğrenci}} içeride. Her rakam yoklamayı açar.",
+        "{count, plural, other {# öğrenci}} konaklıyor. Her rakam yoklamayı açar.",
     },
     todayLayouts: {
       rooms: {
