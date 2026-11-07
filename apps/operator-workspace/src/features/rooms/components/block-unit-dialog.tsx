@@ -55,8 +55,11 @@ export function BlockUnitDialog({
   reservationsHref,
   today,
 }: {
-  /** The room calendar of this Property, which a `q` narrows to one room. */
-  calendarHref: string;
+  /**
+   * The room calendar of this Property, which a `q` narrows to one room; null
+   * when the viewer may not open it.
+   */
+  calendarHref: string | null;
   locale: string;
   /** Whether the viewer holds `accommodation.configure` here (RB-S3-09). */
   mayBlock: boolean;
@@ -67,7 +70,8 @@ export function BlockUnitDialog({
   roomName: string | null;
   /** The request holding this Unit out of order, or its room. */
   hold: UnitHold | null;
-  maintenanceHref: string;
+  /** Maintenance at this Property; null when the viewer may not open it. */
+  maintenanceHref: string | null;
   /** Null when the viewer may not report, or the Property has no maintenance. */
   reportHref: string | null;
   /** Reservations at this Property; null when the viewer may not open it. */
@@ -171,7 +175,7 @@ export function BlockUnitDialog({
       ? reservationsHref && `${reservationsHref}&open=${state.reservationId}`
       : null;
 
-  const calendarLink = (
+  const calendarLink = calendarHref ? (
     <Link
       className="inline-flex items-center gap-1.5 justify-self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
       href={`${calendarHref}&q=${encodeURIComponent(roomName ?? unit.name)}`}
@@ -180,7 +184,7 @@ export function BlockUnitDialog({
       <CalendarRange aria-hidden="true" className="size-4" />
       {rp("showOnCalendar")}
     </Link>
-  );
+  ) : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -228,15 +232,17 @@ export function BlockUnitDialog({
                   {t("maintenance.close")}
                 </CancelButton>
               </DialogClose>
-              <Link
-                className={buttonVariants({
-                  className:
-                    "h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90",
-                })}
-                href={maintenanceHref}
-              >
-                {t("navigation.maintenance")}
-              </Link>
+              {maintenanceHref ? (
+                <Link
+                  className={buttonVariants({
+                    className:
+                      "h-13 rounded-full bg-foreground px-6 text-base font-semibold text-background hover:bg-foreground/90",
+                  })}
+                  href={maintenanceHref}
+                >
+                  {t("navigation.maintenance")}
+                </Link>
+              ) : null}
             </DialogActions>
           </>
         ) : readOnly ? (

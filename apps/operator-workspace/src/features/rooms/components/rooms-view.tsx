@@ -86,6 +86,8 @@ export function RoomsView({
   propertyId,
   data,
   housekeepingHref,
+  calendarHref,
+  maintenanceHref,
   reservationsHref,
   initialFilter,
   initialView,
@@ -100,6 +102,10 @@ export function RoomsView({
   data: UnitMap;
   /** The board that says which rooms are clean, for a viewer who has one. */
   housekeepingHref: string | null;
+  /** The room calendar at this Property, or null when the viewer may not open it. */
+  calendarHref: string | null;
+  /** Maintenance at this Property, or null when the viewer may not open it. */
+  maintenanceHref: string | null;
   /** Reservations at this Property, or null when the viewer may not open it. */
   reservationsHref: string | null;
   /**
@@ -174,9 +180,10 @@ export function RoomsView({
   );
   const holdFor = (unitId: string, roomId: string | null) =>
     holdByUnit.get(unitId) ?? (roomId ? holdByUnit.get(roomId) : undefined);
-  const maintenanceHref = `/${locale}/maintenance?property=${propertyId}`;
   const reportHref = (unitId: string) =>
-    maintenance.mayReport ? `${maintenanceHref}&report=${unitId}` : null;
+    maintenance.mayReport && maintenanceHref
+      ? `${maintenanceHref}&report=${unitId}`
+      : null;
   // Out of order, with the request that holds it and when the room is expected
   // back: the front desk reads the same words Arrivals uses (MT-S2-28,
   // MT-DIFF-01). Day and month only — a tile has no room for the year.
@@ -888,7 +895,7 @@ export function RoomsView({
       )}
 
       <BlockUnitDialog
-        calendarHref={`/${locale}/room-calendar?property=${propertyId}`}
+        calendarHref={calendarHref}
         hold={
           selectedUnit
             ? (holdFor(selectedUnit.unitId, selectedRoomId) ?? null)

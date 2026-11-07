@@ -109,12 +109,19 @@ function screenOf(
     readiness?: Readonly<Record<string, RoomReadiness>> | null;
     reportable?: boolean;
     reservationsHref?: string | null;
+    calendarHref?: string | null;
+    maintenanceHref?: string | null;
   } = {},
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RoomsView
         data={options.data ?? map}
+        calendarHref={
+          options.calendarHref === undefined
+            ? "/en/room-calendar?property=dd000003-0000-4000-8000-000000000001"
+            : options.calendarHref
+        }
         housekeepingHref="/en/housekeeping?property=dd000003-0000-4000-8000-000000000001"
         initialFilter={
           options.initialFilter ?? { show: null, admits: null, block: null }
@@ -122,6 +129,11 @@ function screenOf(
         initialView="map"
         locale={locale}
         maintenance={{ holds: [], mayReport: options.reportable ?? false }}
+        maintenanceHref={
+          options.maintenanceHref === undefined
+            ? "/en/maintenance?property=dd000003-0000-4000-8000-000000000001"
+            : options.maintenanceHref
+        }
         mayConfigure={options.mayConfigure ?? true}
         offerAdmits={options.offerAdmits ?? false}
         propertyId="dd000003-0000-4000-8000-000000000001"
@@ -753,6 +765,56 @@ describe("what pressing a room opens, and for whom (CALENDAR-08, CALENDAR-09)", 
       within(await screen.findByRole("dialog")).queryByRole("link", {
         name: "Open stay",
       }),
+    ).toBeNull();
+  });
+
+  it("offers the calendar and Maintenance only to somebody who may open them", async () => {
+    const press = (name: string) =>
+      fireEvent.click(document.getElementById(`unit-${unitId(name)}`)!);
+    const unitId = (name: string) =>
+      map.units.find((candidate) => candidate.name === name)!.unitId;
+
+    render(screenOf("en"));
+    press("105");
+    const open = await screen.findByRole("dialog");
+    expect(
+      within(open).getByRole("link", { name: "Maintenance" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/maintenance?property=dd000003-0000-4000-8000-000000000001",
+    );
+    expect(
+      within(open).getByRole("link", { name: "Show on the room calendar" }),
+    ).toBeVisible();
+
+    // The request number and the day it is expected back are still read; only
+    // the buttons that would end in a refusal are withheld.
+    cleanup();
+    render(screenOf("en", { calendarHref: null, maintenanceHref: null }));
+    press("105");
+    const closed = await screen.findByRole("dialog");
+    expect(within(closed).queryByRole("link")).toBeNull();
+    expect(
+      within(closed).getAllByRole("button", { name: "Close" }).length,
+    ).toBeGreaterThan(0);
+
+    // A room somebody may block says the same of the calendar, and the report
+    // link follows Maintenance: no screen to report on, no report link.
+    cleanup();
+    render(
+      screenOf("en", {
+        calendarHref: null,
+        maintenanceHref: null,
+        reportable: true,
+      }),
+    );
+    press("103");
+    const block = await screen.findByRole("dialog");
+    expect(
+      within(block).queryByRole("link", { name: "Show on the room calendar" }),
+    ).toBeNull();
+    expect(
+      within(block).queryByRole("link", { name: "Report a problem" }),
     ).toBeNull();
   });
 
