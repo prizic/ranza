@@ -164,8 +164,11 @@ DIRECT_URL="postgresql://ranza:<POSTGRES_PASSWORD>@localhost:54329/ranza" pnpm d
 ```
 
 It adds "Demo Yurt Kadıköy" to Prizic Demo and assigns it to nobody: the Owner
-reaches it, and anybody else is given it on People, as for any Property. Run
-again, it creates nothing twice.
+reaches it, and anybody else is given it on People, as for any Property. Its
+students pay the term by instalments, monthly or in four senets, with a few
+behind; a few are on leave tonight and the past week's roll call is taken, all
+dated from the yurt's own today. Run again, it creates nothing twice. Folio
+lines are append-only, so take a dump first.
 
 ## When something is wrong
 

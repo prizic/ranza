@@ -1,12 +1,18 @@
 // Adds a student dormitory, "Demo Yurt Kadıköy", to an existing Organization:
 // two blocks of women's and men's rooms let by the bed, and Residents booked
-// for the academic term and in house, with their particulars (RANZ-105).
+// for the academic term and in house, with their particulars (RANZ-105). Each
+// pays the term by instalments, a few are behind, a few are on leave tonight,
+// and the past week's roll call has been taken.
 //
 // It exists because nothing a dormitory sees — beds taken, empty beds by
-// gender, a student's guardian — can be looked at on a hotel, and staging has
-// only a hotel. It adds to an Organization rather than making one: an
-// Organization is the Control Plane's to create, and the people who should see
-// the yurt are the ones already in it.
+// gender, a student's guardian, who is overdue, who is out tonight — can be
+// looked at on a hotel, and staging has only a hotel. It adds to an
+// Organization rather than making one: an Organization is the Control Plane's
+// to create, and the people who should see the yurt are the ones already in it.
+//
+// Money and attendance are dated from the Property's own today, so the yurt
+// tells the same story whenever it is seeded. They are written as the
+// application would have written them, with no audit record or outbox event.
 //
 // Run it again and it creates nothing twice: every row is looked up by its
 // name first. It writes only to a database on this machine — staging's is
@@ -309,13 +315,237 @@ psql(`
      and not exists (
        select 1 from public.folios where folios.stay_id = stay.id)`);
 
+// Where a row records who acted — a plan, a leave, a roll call — it names the
+// Organization's first owner, as the desk working under them would.
+const actorId = psql(`
+  select user_id from public.organization_memberships
+   where organization_id = ${literal(organizationId)}
+     and role = 'owner' and status = 'active'
+   order by created_at
+   limit 1`);
+if (!actorId) {
+  console.error(
+    `"${ORGANIZATION}" has no active owner to record as the one who took the payment plans and the roll call.`,
+  );
+  process.exit(1);
+}
+
+/** The seed's own students in house, numbered in a fixed order, as SQL. */
+const seededStudents = `
+  select stay.id as stay_id, stay.reservation_id, stay.starts_on,
+         stay.ends_on, bed.parent_id as room_id,
+         row_number() over (order by guest.email) as n
+    from public.stays as stay
+    join public.reservations as booking on booking.id = stay.reservation_id
+    join public.guests as guest
+      on guest.id = booking.guest_id
+     and guest.email like '%@demo-yurt.example'
+    join public.accommodation_units as bed
+      on bed.id = stay.accommodation_unit_id
+   where stay.property_id = ${literal(propertyId)}
+     and stay.status = 'in_house'`;
+
+const today = `app.property_today(${literal(propertyId)})`;
+const localTime = (day, time) =>
+  `((${day}) + time '${time}') at time zone property.timezone`;
+
+// The term's fee in instalments, the way the booking dialog suggests it: the
+// nights at the price of a bed in that size of room, a month apart from
+// arrival and all before departure, with what does not divide evenly on the
+// first (payment-plan-split.ts). Every fourth student pays in four senets,
+// two months apart, instead. What has fallen due is charged on its due date,
+// as the worker's app.post_due_instalments() words it, and paid a few days
+// later — except by a few students, who are behind on the latest one, paid
+// half of it, or have paid nothing. A bed the price list does not price gets
+// no plan: nothing is invented from a price that is not there.
+psql(`
+  begin;
+
+  create temporary table seeded_plan on commit drop as
+  select student.*, rate.amount_minor * (student.ends_on - student.starts_on)
+           as total_minor,
+         case when student.n % 4 = 0 then 2 else 1 end as months_apart,
+         case when student.n % 4 = 0 then 4 else 60 end as most_instalments
+    from (${seededStudents}) as student
+    join public.accommodation_units as room on room.id = student.room_id
+    cross join lateral (
+      select amount_minor from public.property_rates
+       where property_id = ${literal(propertyId)}
+         and unit_type = 'bed' and amount_minor is not null
+         and (room_capacity = room.capacity or room_capacity is null)
+       order by room_capacity nulls last
+       limit 1
+    ) as rate
+   where not exists (
+     select 1 from public.payment_plans as plan
+      where plan.reservation_id = student.reservation_id);
+
+  create temporary table seeded_instalment on commit drop as
+  select plan.reservation_id, plan.n, due.ordinal, due.due_on,
+         plan.total_minor / count(*) over booking
+           + case when due.ordinal = 1
+                  then plan.total_minor % count(*) over booking
+                  else 0 end as amount_minor,
+         count(*) over booking as instalments
+    from seeded_plan as plan
+    cross join lateral (
+      select ordinal::integer,
+             (plan.starts_on
+               + make_interval(months => (ordinal::integer - 1) * plan.months_apart))::date
+               as due_on
+        from generate_series(1, plan.most_instalments) as ordinal
+    ) as due
+   where due.due_on < plan.ends_on
+  window booking as (partition by plan.reservation_id);
+
+  insert into public.payment_plans
+    (organization_id, property_id, reservation_id, currency, created_by,
+     created_at)
+  select ${literal(organizationId)}, property.id, plan.reservation_id,
+         property.currency, ${literal(actorId)},
+         ${localTime("plan.starts_on", "10:00")}
+    from seeded_plan as plan
+    join public.properties as property on property.id = ${literal(propertyId)};
+
+  insert into public.plan_instalments
+    (organization_id, property_id, plan_id, ordinal, amount_minor, due_on,
+     revision, created_at)
+  select plan.organization_id, plan.property_id, plan.id, due.ordinal,
+         due.amount_minor, due.due_on, 1, plan.created_at
+    from seeded_instalment as due
+    join public.payment_plans as plan
+      on plan.reservation_id = due.reservation_id;
+
+  create temporary table seeded_due on commit drop as
+  select due.*, instalment.id as instalment_id, folio.id as folio_id,
+         max(due.ordinal) over (partition by due.reservation_id) as latest
+    from seeded_instalment as due
+    join public.payment_plans as plan
+      on plan.reservation_id = due.reservation_id
+    join public.plan_instalments as instalment
+      on instalment.plan_id = plan.id and instalment.ordinal = due.ordinal
+    join public.stays as stay on stay.reservation_id = due.reservation_id
+    join public.folios as folio
+      on folio.stay_id = stay.id and folio.status = 'open'
+   where due.due_on <= ${today};
+
+  insert into public.folio_lines
+    (organization_id, property_id, folio_id, line_type, description,
+     amount_minor, source, business_date, instalment_id, posted_at)
+  select property.organization_id, property.id, due.folio_id, 'charge',
+         'Instalment ' || due.ordinal || ' of ' || due.instalments,
+         due.amount_minor, 'instalment', due.due_on, due.instalment_id,
+         ${localTime("due.due_on", "09:00")}
+    from seeded_due as due
+    join public.properties as property on property.id = ${literal(propertyId)};
+
+  insert into public.folio_lines
+    (organization_id, property_id, folio_id, line_type, description,
+     amount_minor, payment_method, posted_at)
+  select property.organization_id, property.id, paid.folio_id, 'payment',
+         'Taksit ' || paid.ordinal || ' ödemesi', -paid.paid_minor,
+         (array['bank_transfer', 'cash', 'card'])[(paid.n % 3 + 1)::integer],
+         least(${localTime("paid.due_on + (paid.n % 4 + 1)::integer", "14:00")},
+               now())
+    from (
+      select due.*,
+             case
+               when due.n % 40 = 19 then 0
+               when due.ordinal = due.latest and due.n % 20 = 7
+                 then due.amount_minor / 2
+               when due.ordinal = due.latest and due.n % 16 = 3 then 0
+               else due.amount_minor
+             end as paid_minor
+        from seeded_due as due
+    ) as paid
+    join public.properties as property on property.id = ${literal(propertyId)}
+   where paid.paid_minor > 0;
+
+  commit;`);
+
+// A curfew, a few students on leave from tonight with the reason they gave,
+// and the roll call of the week before, with one student out last night.
+// Tonight's is left for the desk to take. Leave and roll call are stamped with
+// the acting user by the database, so this acts as the owner.
+const LEAVE_REASONS = [
+  "Hafta sonu ailesinin yanında",
+  "Bölüm gezisi, Kapadokya",
+  "Hastanede annesine refakat",
+];
+psql(`
+  begin;
+  select set_config('app.user_id', ${literal(actorId)}, true);
+
+  insert into public.attendance_settings
+    (property_id, organization_id, curfew_time, updated_by)
+  values (${literal(propertyId)}, ${literal(organizationId)}, '23:00',
+          ${literal(actorId)})
+  on conflict (property_id) do nothing;
+
+  create temporary table seeded_student on commit drop as
+  ${seededStudents};
+
+  with away (n, reason) as (
+    values ${rows(LEAVE_REASONS.map((reason, index) => [5 + index * 23, reason]))}
+  ), granted as (
+    insert into public.attendance_leaves
+      (organization_id, property_id, stay_id, from_night, to_night,
+       planned_to_night, granted_by)
+    select ${literal(organizationId)}, ${literal(propertyId)}, student.stay_id,
+           ${today}, ${today} + 2, ${today} + 2, ${literal(actorId)}
+      from seeded_student as student
+      join away on away.n::bigint = student.n
+     where not exists (
+       select 1 from public.attendance_leaves as held
+        join seeded_student as seeded on seeded.stay_id = held.stay_id)
+    returning id, stay_id
+  )
+  insert into public.attendance_leave_reasons
+    (leave_id, organization_id, property_id, reason)
+  select granted.id, ${literal(organizationId)}, ${literal(propertyId)},
+         away.reason
+    from granted
+    join seeded_student as student on student.stay_id = granted.stay_id
+    join away on away.n::bigint = student.n;
+
+  insert into public.attendance_marks
+    (organization_id, property_id, stay_id, night, status, marked_by)
+  select ${literal(organizationId)}, ${literal(propertyId)}, student.stay_id,
+         night.day,
+         case when night.day = ${today} - 1 and student.n = 12
+              then 'absent' else 'present' end,
+         ${literal(actorId)}
+    from seeded_student as student
+    cross join lateral (
+      select (${today} - back)::date as day
+        from generate_series(1, 7) as back
+    ) as night
+   where night.day >= student.starts_on
+     and not exists (
+       select 1 from public.attendance_marks as mark
+        where mark.property_id = ${literal(propertyId)}
+          and mark.night = night.day);
+
+  commit;`);
+
 const summary = psql(`
   select count(*) filter (where unit.parent_id is not null) || ' beds, ' ||
          count(stay.id) || ' Residents in house, ' ||
-         count(folio.id) || ' with a Folio'
+         count(folio.id) || ' with a Folio, ' ||
+         count(plan.id) || ' paying by instalments'
     from public.accommodation_units as unit
     left join public.stays as stay
       on stay.accommodation_unit_id = unit.id and stay.status = 'in_house'
     left join public.folios as folio on folio.stay_id = stay.id
+    left join public.payment_plans as plan
+      on plan.reservation_id = stay.reservation_id
    where unit.property_id = ${literal(propertyId)}`);
-console.log(`${PROPERTY} in ${ORGANIZATION}: ${summary}.`);
+const standing = psql(`
+  select overdue.students || ' overdue, '
+         || (select count(*) from public.attendance_leaves
+              where property_id = ${literal(propertyId)}
+                and status = 'granted'
+                and ${today} between from_night and to_night)
+         || ' on leave tonight'
+    from app.payment_plans_overdue(${literal(propertyId)}) as overdue`);
+console.log(`${PROPERTY} in ${ORGANIZATION}: ${summary}; ${standing}.`);
