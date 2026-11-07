@@ -49,7 +49,28 @@ const FIRST_NAMES = {
   female: ["Elif", "Zeynep", "Ayşe", "Merve", "Defne", "Ece", "İrem", "Selin"],
   male: ["Emre", "Mert", "Can", "Burak", "Kerem", "Arda", "Yusuf", "Efe"],
 };
-const SURNAMES = ["Yılmaz", "Kaya", "Demir", "Şahin", "Çelik", "Arslan"];
+const SURNAMES = [
+  "Yılmaz",
+  "Kaya",
+  "Demir",
+  "Şahin",
+  "Çelik",
+  "Arslan",
+  "Yıldız",
+  "Yıldırım",
+  "Öztürk",
+  "Aydın",
+  "Özdemir",
+  "Doğan",
+  "Kılıç",
+  "Polat",
+  "Çetin",
+  "Kara",
+  "Koç",
+  "Kurt",
+  "Özkan",
+  "Şimşek",
+];
 const PARENTS = ["Ahmet", "Fatma", "Mehmet", "Hatice", "Mustafa", "Emine"];
 const INSTITUTIONS = [
   "İstanbul Üniversitesi",
@@ -206,10 +227,21 @@ const beds = rooms.flatMap((room) =>
 
 function residentFor(seat, index) {
   const gender = seat.room.block.admits;
-  const first = FIRST_NAMES[gender][index % 8];
-  const surname = SURNAMES[Math.floor(index / 8) % 6];
+  // Both names step by a stride coprime to their list, so neighbours in a room
+  // never share either, and no two of a block's forty share a full name: rows
+  // of "Elif Yılmaz, Zeynep Yılmaz, Ayşe Yılmaz" read as made up at a glance.
+  const surname = SURNAMES[(index * 7) % SURNAMES.length];
+  const first =
+    FIRST_NAMES[gender][
+      (index * 3 + Math.floor(index / SURNAMES.length)) %
+        FIRST_NAMES[gender].length
+    ];
+  // A second run finds a Resident by this address, so changing a name here
+  // seeds that bed's Resident again unless the hosted rows are renamed with it.
   const handle = `${first}.${surname}.${seat.room.name}${seat.bed}`
     .toLocaleLowerCase("tr")
+    // ı has no decomposed form, so without this Yılmaz would lose a letter.
+    .replace(/ı/g, "i")
     .normalize("NFD")
     .replace(/[^a-z0-9.-]/g, "");
   return {
