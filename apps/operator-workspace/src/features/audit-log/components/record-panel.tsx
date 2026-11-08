@@ -115,6 +115,8 @@ export function RecordPanel({
         action={readAs(entry.action, entry.subjectType)}
         context={entry.context ?? {}}
         locale={locale}
+        propertyId={propertyId}
+        reach={reach}
         words={words}
       />
     </section>

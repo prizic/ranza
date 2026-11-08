@@ -29,6 +29,13 @@ const REACH = {
   rooms: true,
   configuration: true,
   dataExport: true,
+  reservations: true,
+  closeDay: true,
+  maintenance: true,
+  hr: true,
+  people: true,
+  branding: true,
+  integrations: true,
 };
 
 function entry(overrides: Partial<AuditEntry>): AuditEntry {

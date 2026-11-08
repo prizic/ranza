@@ -97,6 +97,13 @@ describe("an export named by the audit log (C-16)", () => {
     rooms: true,
     configuration: true,
     dataExport: true,
+    reservations: true,
+    closeDay: true,
+    maintenance: true,
+    hr: true,
+    people: true,
+    branding: true,
+    integrations: true,
   };
 
   it("C-16: the log's link names the export, not just the screen", () => {
@@ -110,6 +117,13 @@ describe("an export named by the audit log (C-16)", () => {
       subjectHref("en", PROPERTY, "data_export", RUN, {
         ...reach,
         dataExport: false,
+        reservations: false,
+        closeDay: false,
+        maintenance: false,
+        hr: false,
+        people: false,
+        branding: false,
+        integrations: false,
       }),
     ).toBeNull();
   });

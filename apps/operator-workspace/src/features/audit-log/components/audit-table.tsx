@@ -266,27 +266,40 @@ function SubjectLine({
   reach: SubjectReach;
   words: AuditWords;
 }) {
+  const t = useTranslations();
   const label = `${words.subjectType(entry.subjectType)} · ${words.name(entry.subjectId)}`;
-  const opens =
-    subjectHref(
-      locale,
-      propertyId,
-      entry.subjectType,
-      entry.subjectId,
-      reach,
-    ) ??
-    (entry.subjectType === "reservation" || entry.subjectType === "stay"
+  const opens = subjectHref(
+    locale,
+    propertyId,
+    entry.subjectType,
+    entry.subjectId,
+    reach,
+  );
+  // A booking and a stay have every record about them in the log, which is
+  // the way in for a stay and the second way for a booking that opens (C-02).
+  const history =
+    entry.subjectType === "reservation" || entry.subjectType === "stay"
       ? historyHref(locale, propertyId, entry.subjectId)
-      : null);
-  return opens ? (
-    <Link
-      className="relative z-10 block w-fit text-step--1 text-muted-foreground hover:text-foreground hover:underline"
-      href={opens}
-      prefetch={false}
-      title={entry.subjectId}
-    >
-      {label}
-    </Link>
+      : null;
+  const primary = opens ?? history;
+  const linkClass =
+    "relative z-10 w-fit text-step--1 text-muted-foreground hover:text-foreground hover:underline";
+  return primary ? (
+    <span className="flex flex-wrap items-baseline gap-x-2">
+      <Link
+        className={linkClass}
+        href={primary}
+        prefetch={false}
+        title={entry.subjectId}
+      >
+        {label}
+      </Link>
+      {opens && history ? (
+        <Link className={linkClass} href={history} prefetch={false}>
+          {t("auditHistoryLink")}
+        </Link>
+      ) : null}
+    </span>
   ) : (
     <span
       className="block text-step--1 text-muted-foreground"

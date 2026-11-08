@@ -37,12 +37,26 @@ const REACH = {
   rooms: true,
   configuration: true,
   dataExport: true,
+  reservations: true,
+  closeDay: true,
+  maintenance: true,
+  hr: true,
+  people: true,
+  branding: true,
+  integrations: true,
 };
 const NO_REACH = {
   finance: false,
   rooms: false,
   configuration: false,
   dataExport: false,
+  reservations: false,
+  closeDay: false,
+  maintenance: false,
+  hr: false,
+  people: false,
+  branding: false,
+  integrations: false,
 };
 
 function entry(overrides: Partial<AuditEntry>): AuditEntry {
@@ -253,7 +267,21 @@ describe("where a record's subject opens", () => {
     ).toHaveAttribute("href", `/en/rooms?property=${PROPERTY}&unit=${ROOM}`);
   });
 
-  it("AL-S2-04: a reservation, which no screen shows alone, opens its own history in the log", () => {
+  it("AL-S2-04: a stay, which no screen shows alone, opens its own history in the log", () => {
+    show([
+      entry({
+        action: "stay.checked_in",
+        subjectType: "stay",
+        subjectId: RESERVATION,
+      }),
+    ]);
+    expect(screen.getByRole("link", { name: /Stay · / })).toHaveAttribute(
+      "href",
+      `/en/audit-log?property=${PROPERTY}&subject=${RESERVATION}`,
+    );
+  });
+
+  it("C-02: a reservation opens the booking, with its history one link beside it", () => {
     show([
       entry({
         action: "reservation.amended",
@@ -261,6 +289,31 @@ describe("where a record's subject opens", () => {
         subjectId: RESERVATION,
       }),
     ]);
+    expect(
+      screen.getByRole("link", { name: /Reservation · / }),
+    ).toHaveAttribute(
+      "href",
+      `/en/reservations?property=${PROPERTY}&open=${RESERVATION}`,
+    );
+    expect(
+      screen.getByRole("link", { name: "Every record about this" }),
+    ).toHaveAttribute(
+      "href",
+      `/en/audit-log?property=${PROPERTY}&subject=${RESERVATION}`,
+    );
+  });
+
+  it("C-02: without Reservations the cell keeps the history it had", () => {
+    show(
+      [
+        entry({
+          action: "reservation.amended",
+          subjectType: "reservation",
+          subjectId: RESERVATION,
+        }),
+      ],
+      { reach: { ...REACH, reservations: false } },
+    );
     expect(
       screen.getByRole("link", { name: /Reservation · / }),
     ).toHaveAttribute(
@@ -286,6 +339,54 @@ describe("where a record's subject opens", () => {
       screen.queryByRole("link", { name: /Folio · / }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Room or bed · 204/)).toBeInTheDocument();
+  });
+
+  it("C-04: a check-out record's folio, room and booking in its details are the way to them", () => {
+    const record = entry({
+      action: "stay.checked_out",
+      subjectType: "stay",
+      context: {
+        folioId: FOLIO,
+        accommodationUnitId: ROOM,
+        reservationId: RESERVATION,
+      },
+    });
+    const open = (reach: typeof REACH) => {
+      cleanup();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages.en}>
+          <RecordPanel
+            entry={record}
+            locale="en"
+            names={pageOf([record])}
+            propertyId={PROPERTY}
+            reach={reach}
+            openedPropertyName={OPENED.name}
+            viewerId={VIEWER}
+          />
+        </NextIntlClientProvider>,
+      );
+    };
+    open(REACH);
+    expect(screen.getByRole("link", { name: /Ayşe Yılmaz/ })).toHaveAttribute(
+      "href",
+      `/en/finance?property=${PROPERTY}&folio=${FOLIO}`,
+    );
+    expect(screen.getByRole("link", { name: "204" })).toHaveAttribute(
+      "href",
+      `/en/rooms?property=${PROPERTY}&unit=${ROOM}`,
+    );
+    expect(
+      document.querySelector(
+        `a[href="/en/reservations?property=${PROPERTY}&open=${RESERVATION}"]`,
+      ),
+    ).not.toBeNull();
+
+    // Where the viewer cannot open the screen, the name stays text.
+    open(NO_REACH);
+    expect(screen.queryByRole("link", { name: "204" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Ayşe Yılmaz/ })).toBeNull();
+    expect(screen.getByText("204")).toBeTruthy();
   });
 
   it("AL-S2-05: the record names its subject, links it where it can, and offers every record about it", () => {

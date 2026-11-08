@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import {
@@ -24,6 +25,7 @@ import {
   useRoomAdmitsWord,
   useStayoverWord,
 } from "../summary";
+import { subjectHref, type SubjectReach } from "../links";
 import type { AuditWords } from "../words";
 
 /**
@@ -202,16 +204,31 @@ function changeOf(value: unknown): { from: string; to: string } | null {
     : null;
 }
 
+/** The context keys that hold the id of a subject a screen can open, and what it is. */
+const LINKED_SUBJECT: Readonly<Record<string, string>> = {
+  reservationId: "reservation",
+  folioId: "folio",
+  accommodationUnitId: "accommodation_unit",
+  fromUnitId: "accommodation_unit",
+  toUnitId: "accommodation_unit",
+};
+
 export function ContextFacts({
   action,
   context,
   locale,
+  propertyId,
+  reach,
   words,
 }: {
   /** The action as the log reads it (`readAs`): what `from` and `to` mean depends on it. */
   action: string;
   context: Record<string, unknown>;
   locale: SupportedLocale;
+  /** The Property the log is opened from, which every link keeps. */
+  propertyId: string;
+  /** Which of the screens a fact's subject opens in the viewer may open. */
+  reach: SubjectReach;
   words: AuditWords;
 }) {
   const t = useTranslations();
@@ -246,6 +263,24 @@ export function ContextFacts({
   }
 
   function render(key: string, value: unknown): ReactNode {
+    // An id that names a booking, a Folio or a room is the way to it, where
+    // the viewer may open it (audit 2026-11-07, C-04).
+    const subject = LINKED_SUBJECT[key];
+    if (subject && typeof value === "string" && UUID.test(value)) {
+      const href = subjectHref(locale, propertyId, subject, value, reach);
+      if (href) {
+        return (
+          <Link
+            className="hover:underline"
+            href={href}
+            prefetch={false}
+            title={value}
+          >
+            {words.name(value)}
+          </Link>
+        );
+      }
+    }
     const minor = MONEY.has(key) ? minorUnitsOf(value) : null;
     if (minor !== null && currency) {
       return formatMoney(shownAmount(action, minor), currency, locale);

@@ -297,10 +297,32 @@ export default async function AuditLogPage({
 
 /** Which of the screens a record's subject opens in the viewer may open at this Property. */
 async function subjectReach(propertyId: string): Promise<SubjectReach> {
-  const [finance, rooms, configuration, dataExport] = await Promise.all(
-    ["finance", "rooms", "configuration", "data-export"].map((segment) =>
-      screenProperties(gateOf(segment)),
-    ),
+  const [
+    finance,
+    rooms,
+    configuration,
+    dataExport,
+    reservations,
+    closeDay,
+    maintenance,
+    hr,
+    people,
+    branding,
+    integrations,
+  ] = await Promise.all(
+    [
+      "finance",
+      "rooms",
+      "configuration",
+      "data-export",
+      "reservations",
+      "close-day",
+      "maintenance",
+      "hr",
+      "people",
+      "branding",
+      "integrations",
+    ].map((segment) => screenProperties(gateOf(segment))),
   );
   const opensHere = (list: readonly { propertyId: string }[] | undefined) =>
     list?.some((candidate) => candidate.propertyId === propertyId) ?? false;
@@ -309,5 +331,12 @@ async function subjectReach(propertyId: string): Promise<SubjectReach> {
     rooms: opensHere(rooms),
     configuration: opensHere(configuration),
     dataExport: opensHere(dataExport),
+    reservations: opensHere(reservations),
+    closeDay: opensHere(closeDay),
+    maintenance: opensHere(maintenance),
+    hr: opensHere(hr),
+    people: opensHere(people),
+    branding: opensHere(branding),
+    integrations: opensHere(integrations),
   };
 }
