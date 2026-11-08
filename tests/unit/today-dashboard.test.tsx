@@ -103,6 +103,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
     focus: "front_desk",
     mayBook: true,
     mayOpenRooms: true,
+    mayOpenReservations: true,
     arrivals: {
       status: "ok",
       data: {
@@ -180,6 +181,7 @@ function housekeeping(): TodaySummary {
     focus: "housekeeping",
     mayBook: false,
     mayOpenRooms: false,
+    mayOpenReservations: false,
     rooms: ROOMS,
     attention: {
       items: [item({ guestName: null, reference: null })],
@@ -449,6 +451,7 @@ describe("where attention leads", () => {
     const { rooms: _rooms, ...noBoard } = frontDesk({
       attention,
       mayOpenRooms: false,
+      mayOpenReservations: false,
     });
     view(noBoard, "en");
     expect(
@@ -497,6 +500,7 @@ describe("states", () => {
       focus: "none",
       mayBook: false,
       mayOpenRooms: false,
+      mayOpenReservations: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -510,6 +514,7 @@ describe("states", () => {
       focus: "finance",
       mayBook: false,
       mayOpenRooms: false,
+      mayOpenReservations: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -624,6 +629,7 @@ describe("the finance tiles", () => {
     focus: "finance",
     mayBook: false,
     mayOpenRooms: false,
+    mayOpenReservations: false,
     money: {
       status: "ok",
       data: {
@@ -685,6 +691,7 @@ describe("the finance card", () => {
       focus: "finance",
       mayBook: false,
       mayOpenRooms: false,
+      mayOpenReservations: false,
       money: {
         status: "ok",
         data: {

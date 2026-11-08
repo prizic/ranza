@@ -196,6 +196,30 @@ describe("the desk section", () => {
     ]);
   });
 
+  it("B-08: carries the booking behind the Stay, so a tile can open it", () => {
+    const desk = deskFrom({
+      arrivals: [],
+      departures: [],
+      departed: 0,
+      board: board([
+        room({ name: "102", inHouse: true }),
+        room({ unitId: "u-103", name: "103" }),
+      ]),
+      inHouse: [
+        departure({
+          unitName: "102",
+          guestName: "Yılmaz",
+          reservationId: "r-102",
+        }),
+      ],
+      daysWaiting: undefined,
+    });
+    expect(desk.rooms.map((r) => [r.name, r.reservationId])).toEqual([
+      ["102", "r-102"],
+      ["103", null],
+    ]);
+  });
+
   it("a_bed_is_found_in_its_room", () => {
     const desk = deskFrom({
       arrivals: [],

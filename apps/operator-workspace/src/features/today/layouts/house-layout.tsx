@@ -210,6 +210,8 @@ export function HouseLayout(props: LayoutProps) {
             desk={desk}
             locale={locale}
             mayBook={summary.mayBook}
+            mayOpenReservations={summary.mayOpenReservations}
+            mayOpenRooms={summary.mayOpenRooms}
             propertyId={scope.propertyId}
             rooms={rooms}
             reviews={reviews}
@@ -363,6 +365,8 @@ function Detail({
   desk,
   locale,
   mayBook,
+  mayOpenReservations,
+  mayOpenRooms,
   propertyId,
   reviews,
   rooms,
@@ -376,6 +380,8 @@ function Detail({
   desk: LayoutProps["desk"];
   locale: SupportedLocale;
   mayBook: boolean;
+  mayOpenReservations: boolean;
+  mayOpenRooms: boolean;
   propertyId: string;
   reviews: ReturnType<typeof useCheckOutReviews>["reviews"];
   rooms: ReadonlyMap<string, DeskRoom>;
@@ -561,6 +567,34 @@ function Detail({
             href={todayHref(locale, "housekeeping", propertyId)}
           >
             {t("open.housekeeping")}
+          </Link>
+        ) : null}
+        {room.state === "in_house" &&
+        room.reservationId &&
+        mayOpenReservations ? (
+          <Link
+            className={LINK_BUTTON}
+            href={todayHref(locale, "reservations", propertyId, {
+              open: room.reservationId,
+            })}
+          >
+            {t("open.stay")}
+          </Link>
+        ) : null}
+        {room.state === "in_house" ? (
+          <Link
+            className={LINK_BUTTON}
+            href={todayHref(locale, "departures", propertyId)}
+          >
+            {t("open.departures")}
+          </Link>
+        ) : null}
+        {room.state === "out_of_service" && mayOpenRooms ? (
+          <Link
+            className={LINK_BUTTON}
+            href={todayHref(locale, "rooms", propertyId, { unit: room.unitId })}
+          >
+            {t("open.rooms")}
           </Link>
         ) : null}
         {room.state === "ready" && mayBook ? (

@@ -45,6 +45,7 @@ const room = (
   state,
   guestName: null,
   endsOn: null,
+  reservationId: null,
   ...extra,
 });
 

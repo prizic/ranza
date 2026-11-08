@@ -78,6 +78,8 @@ const room = (
   state,
   guestName,
   endsOn: guestName ? "2026-10-21" : null,
+  // Kaya is a walk-in: a Stay with no booking behind it.
+  reservationId: guestName && guestName !== "Kaya" ? `res-${name}` : null,
 });
 
 const arrival = (
@@ -132,6 +134,7 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
     focus: "front_desk",
     mayBook: true,
     mayOpenRooms: true,
+    mayOpenReservations: true,
     occupancy: {
       status: "ok",
       data: {
@@ -929,6 +932,47 @@ describe("the house map", () => {
       screen.getByRole("link", { name: "Open Rooms" }).getAttribute("href"),
     ).toMatch(/\/rooms\?.*unit=u-306/);
     expect(screen.queryByRole("button", { name: /Check in/i })).toBeNull();
+  });
+
+  it("B-08: an occupied tile leads to the booking and to Departures, not nowhere", () => {
+    view(summary(), { layout: "house" });
+    const map = within(screen.getByRole("region", { name: "The house" }));
+    fireEvent.click(map.getByRole("button", { name: /^102,/ }));
+    expect(
+      screen.getByRole("link", { name: "Open stay" }).getAttribute("href"),
+    ).toBe(`/en/reservations?property=${PROPERTY}&open=res-102`);
+    expect(
+      screen
+        .getByRole("link", { name: "Open Departures" })
+        .getAttribute("href"),
+    ).toBe(`/en/departures?property=${PROPERTY}`);
+  });
+
+  it("B-08: a walk-in has no booking to open, and a viewer without Reservations is not sent there", () => {
+    view(summary(), { layout: "house" });
+    const map = () => within(screen.getByRole("region", { name: "The house" }));
+    fireEvent.click(map().getByRole("button", { name: /^103,/ }));
+    expect(screen.queryByRole("link", { name: "Open stay" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Open Departures" })).toBeTruthy();
+
+    cleanup();
+    view(summary({ mayOpenReservations: false }), { layout: "house" });
+    fireEvent.click(map().getByRole("button", { name: /^102,/ }));
+    expect(screen.queryByRole("link", { name: "Open stay" })).toBeNull();
+  });
+
+  it("B-08: an out-of-service tile opens the room on Rooms, for a viewer who may open Rooms", () => {
+    view(summary(), { layout: "house" });
+    const map = () => within(screen.getByRole("region", { name: "The house" }));
+    fireEvent.click(map().getByRole("button", { name: /^306,/ }));
+    expect(
+      screen.getByRole("link", { name: "Open Rooms" }).getAttribute("href"),
+    ).toBe(`/en/rooms?property=${PROPERTY}&unit=u-306`);
+
+    cleanup();
+    view(summary({ mayOpenRooms: false }), { layout: "house" });
+    fireEvent.click(map().getByRole("button", { name: /^306,/ }));
+    expect(screen.queryByRole("link", { name: "Open Rooms" })).toBeNull();
   });
 
   it("a_filter_narrows_by_state_and_its_count_is_the_rooms_it_shows", () => {

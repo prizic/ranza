@@ -430,6 +430,8 @@ export interface TodaySummary {
    * lifted, only for a viewer who can open it (audit 2026-11-07, B-01).
    */
   mayOpenRooms: boolean;
+  /** Whether Reservations opens for the viewer, where a Stay's booking is read. */
+  mayOpenReservations: boolean;
   /** Absent means the viewer may not see it here; never shown as zero. */
   arrivals?: Section<ArrivalsCard>;
   departures?: Section<DeparturesCard>;
@@ -1387,6 +1389,10 @@ export function deriveToday(input: TodayInput): TodaySummary {
     input.capabilities.frontDesk &&
     permitsScreen("rooms", input.day.permissions);
 
+  const mayOpenReservations =
+    input.capabilities.frontDesk &&
+    permitsScreen("reservations", input.day.permissions);
+
   const summary: TodaySummary = {
     day: {
       propertyId: input.day.propertyId,
@@ -1403,6 +1409,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
       input.day.permissions.includes("front_desk.book") &&
       input.capabilities.frontDesk,
     mayOpenRooms,
+    mayOpenReservations,
     attention: {
       items: attentionFrom(
         grants,

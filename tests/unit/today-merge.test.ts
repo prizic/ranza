@@ -21,6 +21,7 @@ function summary(overrides: Partial<TodaySummary>): TodaySummary {
     focus: "manager",
     mayBook: true,
     mayOpenRooms: true,
+    mayOpenReservations: true,
     attention: { items: [], complete: true },
     ...overrides,
   };

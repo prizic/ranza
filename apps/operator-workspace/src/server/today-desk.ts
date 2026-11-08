@@ -34,6 +34,8 @@ export interface DeskRoom {
   guestName: string | null;
   /** When the Guest in it is due to leave, as `YYYY-MM-DD`; null for an empty room. */
   endsOn: string | null;
+  /** The booking behind the Stay in it; null for an empty room and for a walk-in. */
+  reservationId: string | null;
 }
 
 /** Days past their cutoff and not yet closed (ADR 0034); the oldest comes first. */
@@ -103,6 +105,7 @@ export function deskFrom(input: DeskInput): DeskCard {
       state: roomState(room),
       guestName: stay?.guestName ?? null,
       endsOn: stay?.endsOn ?? null,
+      reservationId: stay?.reservationId ?? null,
     };
   });
 
