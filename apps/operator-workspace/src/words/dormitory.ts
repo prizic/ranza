@@ -29,6 +29,7 @@ export type WordsOverlay<T> = {
  */
 export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
   tr: {
+    attendance: { leaveResidentUnknown: "Bir öğrenci" },
     openInHousekeeping: "Temizlikte aç",
     moveResident: "Öğrenciyi taşı",
     searchGuestRoomReference: "Ad, oda veya kayıt ara",
@@ -141,6 +142,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     },
   },
   en: {
+    attendance: { leaveResidentUnknown: "A student" },
     openInHousekeeping: "Open in Cleaning",
     moveResident: "Move student",
     searchGuestRoomReference: "Search by name, room or reference",
@@ -250,6 +252,7 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     },
   },
   ar: {
+    attendance: { leaveResidentUnknown: "أحد الطلاب" },
     openInHousekeeping: "فتح في التنظيف",
     moveResident: "نقل الطالب",
     searchGuestRoomReference: "ابحث بالاسم أو الغرفة أو رقم التسجيل",
