@@ -34,7 +34,9 @@ export function subjectHref(
     case "organization":
       return reach.configuration ? here("configuration", "") : null;
     case "data_export":
-      return reach.dataExport ? here("data-export", "") : null;
+      return reach.dataExport
+        ? here("data-export", `&show=${subjectId}`)
+        : null;
     default:
       return null;
   }

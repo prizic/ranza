@@ -514,3 +514,64 @@ describe("the Reservations list's price column", () => {
     expect(within(row("RZ-FREE")).queryByText(/in total/)).toBeNull();
   });
 });
+
+describe("a link to a booking the list does not hold (A-03)", () => {
+  function showLinked(link: { opening?: string; changing?: string }) {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <ReservationsTable
+          changing={link.changing ?? null}
+          locale="en"
+          opening={link.opening ?? null}
+          propertyId="p1"
+          reach={REACHES_EVERYTHING}
+          reservations={ROWS}
+          today={TODAY}
+        />
+      </NextIntlClientProvider>,
+    );
+  }
+  const notice = () => screen.queryByTestId("booking-link-notice");
+
+  it("A-03: says an opened booking is not on the list, rather than showing a plain list", () => {
+    showLinked({ opening: "r_ended_long_ago" });
+    expect(notice()).toHaveTextContent(messages.en.bookingNotOnList);
+  });
+
+  it("A-03: says a booking to change can no longer be changed", () => {
+    showLinked({ changing: "r_gone" });
+    expect(notice()).toHaveTextContent(messages.en.bookingNoLongerChangeable);
+  });
+
+  it("A-03: says the same of a booking that is listed but no longer changeable", () => {
+    showLinked({ changing: UPCOMING.reservationId });
+    expect(notice()).toHaveTextContent(messages.en.bookingNoLongerChangeable);
+  });
+
+  it("A-03: says nothing when the booking is on the list", () => {
+    showLinked({ opening: UPCOMING.reservationId });
+    expect(notice()).toBeNull();
+  });
+
+  it("A-03: says nothing of a booking that can be changed, and opens it", () => {
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <ReservationsTable
+          changing={UPCOMING.reservationId}
+          locale="en"
+          opening={null}
+          propertyId="p1"
+          reach={REACHES_EVERYTHING}
+          reservations={[{ ...UPCOMING, mayAmend: true }]}
+          today={TODAY}
+        />
+      </NextIntlClientProvider>,
+    );
+    expect(notice()).toBeNull();
+  });
+
+  it("A-03: says nothing when no link named a booking", () => {
+    showLinked({});
+    expect(notice()).toBeNull();
+  });
+});

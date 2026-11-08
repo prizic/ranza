@@ -244,6 +244,18 @@ describe("the front desk", () => {
     ).toBeInTheDocument();
   });
 
+  it("B-09: New booking opens the booking form, not the list it sits on", () => {
+    view(frontDesk());
+    expect(
+      screen.getByRole("link", { name: /Yeni rezervasyon/ }),
+    ).toHaveAttribute("href", `/tr/reservations?property=${PROPERTY}&new=1`);
+  });
+
+  it("B-09: a desk that may not book is offered no such link", () => {
+    view(frontDesk({ mayBook: false }));
+    expect(screen.queryByRole("link", { name: /Yeni rezervasyon/ })).toBeNull();
+  });
+
   it("every_way_in_carries_the_property", () => {
     view(frontDesk());
     const links = screen.getAllByRole("link");
@@ -779,12 +791,16 @@ describe("maintenance", () => {
     expect(runs).toContain("تسرّب في السقف");
     expect(runs).toContain("Lift 1");
     const section = screen.getByRole("region", { name: /يحتاج إلى انتباه/ });
-    for (const link of within(section).getAllByRole("link")) {
-      expect(link).toHaveAttribute(
-        "href",
-        `/ar/maintenance?property=${PROPERTY}`,
-      );
-    }
+    // Each line opens the request it names, not the whole board (B-02).
+    expect(
+      within(section)
+        .getAllByRole("link")
+        .map((link) => link.getAttribute("href"))
+        .sort(),
+    ).toEqual([
+      `/ar/maintenance?property=${PROPERTY}&request=12`,
+      `/ar/maintenance?property=${PROPERTY}&request=13`,
+    ]);
   });
 
   it("a_failed_maintenance_read_leaves_the_rest: the card offers a retry", () => {

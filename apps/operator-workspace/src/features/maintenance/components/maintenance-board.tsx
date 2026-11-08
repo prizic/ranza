@@ -131,6 +131,7 @@ export function MaintenanceBoard({
   propertyName,
   timeZone,
   limits,
+  openRequestId = null,
   reportUnitId,
   viewerId,
 }: {
@@ -143,6 +144,12 @@ export function MaintenanceBoard({
   propertyName: string;
   timeZone: string;
   limits: MaintenanceLimits;
+  /**
+   * The request to open on arrival, from a line elsewhere that names it
+   * (`?request=<number>`, audit 2026-11-07, B-02). Null when the link names
+   * none this Property holds.
+   */
+  openRequestId?: string | null;
   /** A Unit to report about, when the reader arrived from Rooms. */
   reportUnitId: string | null;
   viewerId: string;
@@ -163,7 +170,7 @@ export function MaintenanceBoard({
   // A dialog that was only closed keeps its draft; one that sent its report
   // starts again empty, or the next press would file the same problem twice.
   const [reportKey, setReportKey] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(openRequestId);
   const [query, setQuery] = useState("");
   const priorityParam = searchParams.get("priority");
   const priority: Priority | "all" =
@@ -239,6 +246,15 @@ export function MaintenanceBoard({
     },
     [pathname, router, searchParams],
   );
+
+  // `?request=` opened the sheet; once it is closed it has done its job, and a
+  // reload must not open it again.
+  const dropRequestParameter = useCallback(() => {
+    if (!searchParams.has("request")) return;
+    const rest = new URLSearchParams(searchParams);
+    rest.delete("request");
+    router.replace(`${pathname}?${rest.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const assigneeId = assignee === "me" ? viewerId : assignee;
   const visible = useMemo(
@@ -550,7 +566,9 @@ export function MaintenanceBoard({
           mayManage={board.mayManage}
           mayTakeOutOfOrder={board.mayTakeOutOfOrder}
           onOpenChange={(isOpen) => {
-            if (!isOpen) setSelectedId(null);
+            if (isOpen) return;
+            setSelectedId(null);
+            dropRequestParameter();
           }}
           propertyId={propertyId}
           request={selected}

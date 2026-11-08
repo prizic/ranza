@@ -39,6 +39,7 @@ export function DataExportView({
   abilities,
   exports,
   initialDraft,
+  initialShownRun = null,
   locale,
   organization,
   propertyId,
@@ -52,6 +53,8 @@ export function DataExportView({
   exports: DataExportRecord[];
   /** A request being made from a link, such as the audit log's. */
   initialDraft: ExportDraft | null;
+  /** The export a link named (`?show=`), marked in the list on arrival. */
+  initialShownRun?: string | null;
   locale: SupportedLocale;
   organization: string;
   propertyId: string;
@@ -78,7 +81,7 @@ export function DataExportView({
   >(null);
   // The export a schedule's last run made, when a schedule row sent the
   // reader to it (DATA-11).
-  const [shownRun, setShownRun] = useState<string | null>(null);
+  const [shownRun, setShownRun] = useState<string | null>(initialShownRun);
 
   // An export is produced by the worker, not by the request, so a screen that
   // is showing one still waiting is asked to read again until it is not.

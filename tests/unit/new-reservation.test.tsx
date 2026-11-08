@@ -1288,3 +1288,46 @@ describe("a payment plan (PP-S2-*)", () => {
     expect(dueOn(1)).toHaveValue("2026-09-26");
   });
 });
+
+describe("a link that opens the form is spent when it closes (A-04)", () => {
+  afterEach(() => window.history.replaceState(null, "", "/"));
+
+  function openFromLink(search: string) {
+    window.history.replaceState(null, "", `/en/reservations?${search}`);
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <NewReservationDialog
+          locale="en"
+          propertyId="d9000003-0000-4000-8000-000000000001"
+          startOpen
+          today="2026-09-25"
+          units={UNITS}
+        />
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("A-04: drops new from the address when the form is closed, and keeps the Property and the rest", () => {
+    openFromLink("property=p-1&show=owing&new=1");
+    expect(screen.getByRole("dialog")).toBeVisible();
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(window.location.search).toBe("?property=p-1&show=owing");
+  });
+
+  it("A-04: leaves the address alone while the form is still open", () => {
+    openFromLink("property=p-1&new=1");
+    expect(window.location.search).toBe("?property=p-1&new=1");
+  });
+
+  it("A-04: closing a form that no link opened leaves the address as it was", () => {
+    window.history.replaceState(null, "", "/en/reservations?property=p-1");
+    openForm();
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    expect(window.location.search).toBe("?property=p-1");
+  });
+});

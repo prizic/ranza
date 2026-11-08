@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { TriangleAlert } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReservationRow } from "@ranza/reservations";
@@ -197,6 +198,20 @@ export function ReservationsTable({
   const linked = reservations.find(
     (row) => row.reservationId === changing && row.mayAmend,
   );
+  // A link the product built can name a booking the list does not hold: one
+  // that has ended, or that can no longer be changed. Decided on arrival and
+  // kept, so an action in the sheet that moves its row off the list does not
+  // read as a broken link afterwards (audit 2026-11-07, A-03).
+  const [unmatched] = useState(() => ({
+    opening:
+      Boolean(opening) &&
+      !reservations.some((row) => row.reservationId === opening),
+    changing:
+      Boolean(changing) &&
+      !reservations.some(
+        (row) => row.reservationId === changing && row.mayAmend,
+      ),
+  }));
 
   const linkedSheet = openingDismissed
     ? undefined
@@ -218,6 +233,16 @@ export function ReservationsTable({
 
   return (
     <div className="mt-4">
+      {unmatched.opening || unmatched.changing ? (
+        <ul className="mb-3 grid gap-2" data-testid="booking-link-notice">
+          {unmatched.opening ? (
+            <LinkNotice>{t("bookingNotOnList")}</LinkNotice>
+          ) : null}
+          {unmatched.changing ? (
+            <LinkNotice>{t("bookingNoLongerChangeable")}</LinkNotice>
+          ) : null}
+        </ul>
+      ) : null}
       {today && reservations.length > 0 ? (
         <Tabs
           className="mb-3"
@@ -323,5 +348,17 @@ export function ReservationsTable({
         />
       ) : null}
     </div>
+  );
+}
+
+function LinkNotice({ children }: { children: string }) {
+  return (
+    <li
+      className="flex items-start gap-2 rounded-2xl bg-warning-soft px-4 py-3 text-sm text-foreground"
+      role="status"
+    >
+      <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+      {children}
+    </li>
   );
 }

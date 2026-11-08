@@ -312,6 +312,8 @@ export interface Messages {
   includesNights: string;
   wasDueOn: string;
   overdueDays: string;
+  bookingNotOnList: string;
+  bookingNoLongerChangeable: string;
   didNotArriveDays: string;
   wasDueToArriveOn: string;
   overdueNightsNote: string;
@@ -3953,6 +3955,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, one {çıkışta ücretlendirilecek # gece dahil} other {çıkışta ücretlendirilecek # gece dahil}}",
     wasDueOn: "{date} tarihinde çıkacaktı",
     overdueDays: "Gecikmiş · {count, plural, one {# gün} other {# gün}}",
+    bookingNotOnList:
+      "Bu rezervasyon bu listede yok: sona ermiş ya da geri çekilmiş olabilir.",
+    bookingNoLongerChangeable: "Bu rezervasyon artık değiştirilemiyor.",
     didNotArriveDays: "Gelmedi · {count, plural, one {# gün} other {# gün}}",
     wasDueToArriveOn: "{date} tarihinde gelecekti",
     overdueNightsNote:
@@ -8064,6 +8069,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       "{count, plural, one {includes # night charged at check-out} other {includes # nights charged at check-out}}",
     wasDueOn: "Was due {date}",
     overdueDays: "Overdue · {count, plural, one {# day} other {# days}}",
+    bookingNotOnList:
+      "That booking is not on this list: it may have ended or been withdrawn.",
+    bookingNoLongerChangeable: "That booking can no longer be changed.",
     didNotArriveDays:
       "Did not arrive · {count, plural, one {# day} other {# days}}",
     wasDueToArriveOn: "Was due to arrive {date}",
@@ -12177,6 +12185,8 @@ export const messages: Record<SupportedLocale, Messages> = {
     wasDueOn: "كان موعد المغادرة {date}",
     overdueDays:
       "متأخر · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+    bookingNotOnList: "هذا الحجز ليس في هذه القائمة: ربما انتهى أو سُحب.",
+    bookingNoLongerChangeable: "لم يعد تعديل هذا الحجز ممكنًا.",
     didNotArriveDays:
       "لم يصل · {count, plural, one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
     wasDueToArriveOn: "كان موعد الوصول {date}",

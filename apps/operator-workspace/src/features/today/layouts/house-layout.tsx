@@ -564,7 +564,7 @@ function Detail({
         {room.state === "ready" && mayBook ? (
           <Link
             className={LINK_BUTTON}
-            href={todayHref(locale, "reservations", propertyId)}
+            href={todayHref(locale, "reservations", propertyId, { new: "1" })}
           >
             {t("house.newBooking")}
           </Link>

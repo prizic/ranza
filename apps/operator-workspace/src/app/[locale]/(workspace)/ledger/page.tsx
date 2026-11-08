@@ -187,7 +187,7 @@ export default async function LedgerPage({
         olderHref={olderHref}
         propertyId={property.propertyId}
         route={route}
-        search={withoutCursor}
+        search={search}
       />
     </>
   );

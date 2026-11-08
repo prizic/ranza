@@ -39,7 +39,11 @@ export default async function MaintenancePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string; report?: string }>;
+  searchParams: Promise<{
+    property?: string;
+    report?: string;
+    request?: string;
+  }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
@@ -80,6 +84,12 @@ export default async function MaintenancePage({
     ? (query.report ?? null)
     : null;
 
+  // The number a line elsewhere names ("MT-12"), read against this Property's
+  // own board: one it does not hold opens nothing, as a stale `?report=` does.
+  const openRequestId =
+    board.requests.find((request) => String(request.number) === query.request)
+      ?.requestId ?? null;
+
   return (
     <MaintenanceBoard
       board={board}
@@ -97,6 +107,7 @@ export default async function MaintenancePage({
         },
       }}
       locale={locale}
+      openRequestId={openRequestId}
       options={options}
       propertyId={property.propertyId}
       propertyName={property.propertyName}

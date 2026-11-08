@@ -1408,15 +1408,16 @@ describe("a dormitory's Today (RANZ-108)", () => {
       const card = within(
         screen.getByRole("region", { name: "Tonight's roll call" }),
       );
-      for (const [name, count] of [
-        ["On leave", "2"],
-        ["Missing", "1"],
-        ["Not yet called", "4"],
+      // Each opens the roll call narrowed to the people it counts (B-06).
+      for (const [name, count, show] of [
+        ["On leave", "2", "on_leave"],
+        ["Missing", "1", "absent"],
+        ["Not yet called", "4", "not_called"],
       ] as const) {
         const link = card.getByRole("link", { name: `${name}: ${count}` });
         expect(link).toHaveAttribute(
           "href",
-          `/en/roll-call?property=${PROPERTY}`,
+          `/en/roll-call?property=${PROPERTY}&show=${show}`,
         );
       }
       expect(card.getByText("Curfew has passed")).toBeVisible();

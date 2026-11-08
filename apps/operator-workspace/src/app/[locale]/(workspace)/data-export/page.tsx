@@ -54,6 +54,7 @@ export default async function DataExportPage({
     dataset?: string;
     from?: string;
     to?: string;
+    show?: string;
   }>;
 }) {
   const { locale } = await params;
@@ -92,6 +93,9 @@ export default async function DataExportPage({
       abilities={abilities}
       exports={exports}
       initialDraft={draftFrom(search)}
+      initialShownRun={
+        exports.find((item) => item.id === search.show)?.id ?? null
+      }
       locale={locale}
       organization={property.organizationName}
       propertyId={property.propertyId}

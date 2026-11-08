@@ -7,6 +7,17 @@ import type {
 /** What the list is narrowed to: everyone, or those in one state tonight. */
 export type RollFilter = "all" | NightStatus;
 
+const NARROWINGS: readonly RollFilter[] = ["on_leave", "absent", "not_called"];
+
+/**
+ * The narrowing a link asks for (`?show=`), or everyone when it names none the
+ * screen knows: a figure elsewhere opens the people it counts, and a stale or
+ * hand-made value must not hide the whole list.
+ */
+export function rollFilterFrom(value: string | undefined): RollFilter {
+  return NARROWINGS.find((candidate) => candidate === value) ?? "all";
+}
+
 export interface FloorGroup {
   key: string;
   floor: number | null;

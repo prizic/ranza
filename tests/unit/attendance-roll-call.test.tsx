@@ -45,6 +45,9 @@ vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
 
 const { RollCallView } =
   await import("../../apps/operator-workspace/src/features/attendance/components/roll-call-view");
+const { rollFilterFrom } =
+  await import("../../apps/operator-workspace/src/features/attendance/grouping");
+import type { RollFilter } from "../../apps/operator-workspace/src/features/attendance/grouping";
 
 const NIGHT = "2026-10-31";
 
@@ -101,11 +104,19 @@ const TONIGHT: RollCall = {
   mayConfigure: false,
 };
 
-function show(rollCall: RollCall, locale: SupportedLocale = "en") {
+function show(
+  rollCall: RollCall,
+  locale: SupportedLocale = "en",
+  initialFilter?: RollFilter,
+) {
   cleanup();
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
-      <RollCallView locale={locale} rollCall={rollCall} />
+      <RollCallView
+        initialFilter={initialFilter}
+        locale={locale}
+        rollCall={rollCall}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -224,4 +235,32 @@ describe("every language", () => {
       ).toBeVisible();
     },
   );
+});
+
+describe("a roll call opened from a figure elsewhere (B-06)", () => {
+  it("B-06: opens narrowed to the people the figure counted, with that figure pressed", () => {
+    show(TONIGHT, "en", "on_leave");
+    expect(screen.getByText("Zeynep Kaya")).toBeVisible();
+    expect(screen.queryByText("Elif Yılmaz")).toBeNull();
+    const pressed = screen
+      .getAllByRole("button", { pressed: true })
+      .map((button) => button.textContent);
+    expect(pressed).toHaveLength(1);
+    expect(pressed[0]).toContain("On leave");
+  });
+
+  it("B-06: opens whole when no figure was named", () => {
+    show(TONIGHT);
+    expect(screen.getByText("Zeynep Kaya")).toBeVisible();
+    expect(screen.getByText("Elif Yılmaz")).toBeVisible();
+  });
+
+  it("B-06: reads only the narrowings the screen has, and everyone for the rest", () => {
+    expect(rollFilterFrom("absent")).toBe("absent");
+    expect(rollFilterFrom("on_leave")).toBe("on_leave");
+    expect(rollFilterFrom("not_called")).toBe("not_called");
+    expect(rollFilterFrom("present")).toBe("all");
+    expect(rollFilterFrom("<script>")).toBe("all");
+    expect(rollFilterFrom(undefined)).toBe("all");
+  });
 });

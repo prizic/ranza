@@ -154,6 +154,19 @@ async function fetchGuestMatches(
   return body.guests ?? [];
 }
 
+/**
+ * `?new=1` is what opened the form, and it is spent once the form closes: a
+ * reload or a copied link would otherwise open it again, as `change` and `open`
+ * do not (audit 2026-11-07, A-04). Dropped in place, the rest of the address
+ * kept, without the navigation a router call would make.
+ */
+function spendNewParameter(): void {
+  const address = new URL(window.location.href);
+  if (!address.searchParams.has("new")) return;
+  address.searchParams.delete("new");
+  window.history.replaceState(window.history.state, "", address);
+}
+
 /** Characters a telephone number is written with; anything else is not one. */
 const PHONE_CHARACTERS = /^[0-9\s+().-]*$/;
 
@@ -274,6 +287,7 @@ export function NewReservationDialog({
   // uncontrolled, so the next open is a fresh form rather than the last booking.
   const closeAndReset = useCallback(() => {
     setOpen(false);
+    spendNewParameter();
     onClose?.();
     setUnitId("");
     setStayType(defaultStayType);

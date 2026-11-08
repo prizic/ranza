@@ -115,7 +115,9 @@ export function TodayHeader({
         {mayBook ? (
           <Link
             className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-            href={todayHref(locale, "reservations", day.propertyId)}
+            href={todayHref(locale, "reservations", day.propertyId, {
+              new: "1",
+            })}
           >
             <Plus aria-hidden="true" className="size-4" />
             {t("newBooking")}

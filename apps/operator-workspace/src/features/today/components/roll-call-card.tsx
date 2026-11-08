@@ -14,9 +14,9 @@ import { SectionUnavailable } from "./section-unavailable";
 
 /**
  * Tonight's roll call at a Property that keeps one: who is on leave, who was
- * marked missing, who nobody has called yet. The roll call screen takes no
- * narrowing, so each figure opens the screen itself, where the same three
- * figures head the list. The words are the roll call's own (`attendance`).
+ * marked missing, who nobody has called yet. Each figure opens the roll call
+ * narrowed to the people it counts (`?show=`); the same figures head that list
+ * and widen it again. The words are the roll call's own (`attendance`).
  */
 export function RollCallCard({
   locale,
@@ -38,18 +38,21 @@ export function RollCallCard({
   const figures = [
     {
       key: "onLeave",
+      show: "on_leave",
       count: onLeave,
       label: a("figures.onLeave"),
       alert: false,
     },
     {
       key: "missing",
+      show: "absent",
       count: missing,
       label: a("figures.missing"),
       alert: true,
     },
     {
       key: "notCalled",
+      show: "not_called",
       count: notCalled,
       label: a("figures.notCalled"),
       alert: curfewPassed,
@@ -81,7 +84,9 @@ export function RollCallCard({
                 count: figure.count,
               })}
               className="flex h-full flex-col gap-1 rounded-2xl border border-border p-3 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              href={todayHref(locale, "roll-call", propertyId)}
+              href={todayHref(locale, "roll-call", propertyId, {
+                show: figure.show,
+              })}
               prefetch={false}
             >
               <span

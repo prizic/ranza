@@ -60,15 +60,18 @@ function applyChange(
  * decide which controls are offered.
  */
 export function RollCallView({
+  initialFilter = "all",
   locale,
   rollCall,
 }: {
+  /** The figure a link opened the list narrowed to, until the desk presses another. */
+  initialFilter?: RollFilter;
   locale: SupportedLocale;
   rollCall: RollCall;
 }) {
   const t = useTranslations("attendance");
   const [rows, applyOptimistic] = useOptimistic(rollCall.rows, applyChange);
-  const [filter, setFilter] = useState<RollFilter>("all");
+  const [filter, setFilter] = useState<RollFilter>(initialFilter);
   const [needle, setNeedle] = useState("");
   const [problem, setProblem] = useState<AttendanceOutcome | null>(null);
   const [activeStay, setActiveStay] = useState<string | null>(null);

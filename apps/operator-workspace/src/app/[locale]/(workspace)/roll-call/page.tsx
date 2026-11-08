@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { RollCallView } from "../../../../features/attendance/components/roll-call-view";
+import { rollFilterFrom } from "../../../../features/attendance/grouping";
 import {
   requireViewer,
   rollCall,
@@ -38,17 +39,18 @@ export default async function RollCallPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ property?: string }>;
+  searchParams: Promise<{ property?: string; show?: string }>;
 }) {
   const { locale } = await params;
   if (!isSupportedLocale(locale)) notFound();
   setRequestLocale(locale);
 
   await requireViewer(locale);
+  const search = await searchParams;
   const properties = await screenProperties(gateOf("roll-call"));
   const property = await frontDeskProperty(
     properties,
-    await searchParams,
+    search,
     localizeHref(locale, "roll-call"),
   );
   const night = property ? await rollCall(property.propertyId) : null;
@@ -56,10 +58,7 @@ export default async function RollCallPage({
   if (!property || !night) {
     return (
       <ScreenDenied
-        denial={await whyDenied(
-          gateOf("roll-call"),
-          (await searchParams).property,
-        )}
+        denial={await whyDenied(gateOf("roll-call"), search.property)}
         locale={locale}
       />
     );
@@ -68,7 +67,11 @@ export default async function RollCallPage({
   return (
     <>
       <p className="text-sm text-muted-foreground">{property.propertyName}</p>
-      <RollCallView locale={locale} rollCall={night} />
+      <RollCallView
+        initialFilter={rollFilterFrom(search.show)}
+        locale={locale}
+        rollCall={night}
+      />
     </>
   );
 }
