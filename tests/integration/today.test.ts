@@ -891,7 +891,11 @@ describe("the edges", () => {
       expect(summary?.attention.items).toContainEqual(
         expect.objectContaining({
           kind: "out_of_service",
-          unit: { unitName: "B", roomName: "TD-M1" },
+          unit: {
+            unitId: expect.any(String),
+            unitName: "B",
+            roomName: "TD-M1",
+          },
         }),
       );
     },
@@ -1083,7 +1087,11 @@ describe("maintenance", () => {
         ),
       ).toEqual([
         expect.objectContaining({
-          unit: { unitName: units.urgent, roomName: null },
+          unit: {
+            unitId: expect.any(String),
+            unitName: units.urgent,
+            roomName: null,
+          },
           request: expect.objectContaining({
             title: "Water through the ceiling",
           }),
