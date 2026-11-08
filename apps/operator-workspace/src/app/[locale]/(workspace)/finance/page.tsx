@@ -143,6 +143,9 @@ export default async function FinancePage({
     const mayOpenReservation = (
       await screenProperties(gateOf("reservations"))
     ).some((reachable) => reachable.propertyId === selected.propertyId);
+    const mayOpenDepartures = (
+      await screenProperties(gateOf("departures"))
+    ).some((reachable) => reachable.propertyId === selected.propertyId);
     return (
       <>
         <p className="text-sm text-muted-foreground">{property.propertyName}</p>
@@ -150,6 +153,11 @@ export default async function FinancePage({
           auditHref={
             mayReadHistory
               ? `${localizeHref(locale, "audit-log")}?${new URLSearchParams({ property: selected.propertyId, subject: selected.folioId })}`
+              : null
+          }
+          departuresHref={
+            mayOpenDepartures
+              ? `${localizeHref(locale, "departures")}?property=${selected.propertyId}`
               : null
           }
           folio={selected}

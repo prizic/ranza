@@ -62,6 +62,7 @@ export function FolioPanel({
   folio,
   locale,
   mayOpenReservation = false,
+  departuresHref = null,
   mayReverse,
   mayPostCharge = true,
   mayReverseCharge,
@@ -84,6 +85,8 @@ export function FolioPanel({
   timeZone: string;
   /** Whether the viewer reaches the Reservations screen at this Property. */
   mayOpenReservation?: boolean;
+  /** Departures at this Property; null when the viewer may not open it. */
+  departuresHref?: string | null;
   /** Backwards compatible alias for mayReverseCharge. */
   mayReverse?: boolean;
   mayPostCharge?: boolean;
@@ -250,6 +253,18 @@ export function FolioPanel({
                   })
                 : f("nightsNoneYet")
               : f("nightsSoFar", { charged: money(folio.chargedMinor) })}
+          {note === "unpriced" && reservationHref ? (
+            <>
+              {" "}
+              <Link
+                className="font-medium text-primary hover:underline"
+                href={reservationHref}
+                prefetch={false}
+              >
+                {t("openReservation")}
+              </Link>
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -389,6 +404,18 @@ export function FolioPanel({
                   ? "folioInHouseNoteResident"
                   : "folioInHouseNote",
               )}
+              {departuresHref ? (
+                <>
+                  {" "}
+                  <Link
+                    className="font-medium text-primary hover:underline"
+                    href={departuresHref}
+                    prefetch={false}
+                  >
+                    {t("checkOutInDepartures")}
+                  </Link>
+                </>
+              ) : null}
             </p>
           ) : (
             <CloseDialog

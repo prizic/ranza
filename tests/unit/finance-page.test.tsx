@@ -251,6 +251,34 @@ describe("a folio's history (AUDIT-03)", () => {
   });
 });
 
+describe("a folio's way to Departures (C-17)", () => {
+  const FOLIO = {
+    folioId: "d9100005-0000-4000-8000-000000000002",
+    propertyId: PROPERTY.propertyId,
+  };
+  const departures = () =>
+    (folioPanel.mock.calls.at(-1)?.[0] as { departuresHref: string | null })
+      .departuresHref;
+
+  it("C-17: is offered where the viewer may open Departures at the folio's Property", async () => {
+    folio.mockResolvedValue(FOLIO);
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(departures()).toBe(`/en/departures?property=${PROPERTY.propertyId}`);
+  });
+
+  it("C-17: is not offered when the screens the viewer opens leave Departures out", async () => {
+    folio.mockResolvedValue(FOLIO);
+    const { gateOf } =
+      await import("../../apps/operator-workspace/src/lib/screens");
+    const finance = gateOf("finance");
+    screenProperties.mockImplementation(async (gate: unknown) =>
+      gate === finance ? [PROPERTY] : [],
+    );
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(departures()).toBeNull();
+  });
+});
+
 describe("a folio of another Property than the one named (D-10)", () => {
   const OTHER = {
     ...PROPERTY,

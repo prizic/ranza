@@ -1091,3 +1091,75 @@ describe("posting a charge asks once, naming what it does (FINANCE-04)", () => {
     expect(screen.getByRole("button", { name: "Post" })).toBeDisabled();
   });
 });
+
+describe("the notes under a Folio lead on (audit 2026-11-07, C-12, C-17)", () => {
+  const render_ = (
+    folio: FolioDetail,
+    props: { departuresHref?: string | null; mayOpenReservation?: boolean },
+  ) =>
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <FolioPanel
+          timeZone="Europe/Istanbul"
+          folio={folio}
+          locale="en"
+          mayReverse
+          propertyId="p1"
+          {...props}
+        />
+      </NextIntlClientProvider>,
+    );
+  const UNPRICED: FolioDetail = {
+    ...FOLIO,
+    lines: [],
+    lineCount: 0,
+    chargedMinor: 0,
+    paidMinor: 0,
+    balanceMinor: 0,
+    roomNightLines: 0,
+    lastPostedAt: null,
+    nightlyRateMinor: null,
+  };
+
+  it("C-17: a Guest still in house leads to Departures, where they are checked out", () => {
+    render_(FOLIO, { departuresHref: "/en/departures?property=p1" });
+    expect(
+      screen
+        .getByRole("link", { name: "Check out (opens Departures)" })
+        .getAttribute("href"),
+    ).toBe("/en/departures?property=p1");
+  });
+
+  it("C-17: no link where the viewer cannot open Departures", () => {
+    render_(FOLIO, { departuresHref: null });
+    expect(screen.getByText(/The Guest is still in house/)).toBeTruthy();
+    expect(
+      screen.queryByRole("link", { name: "Check out (opens Departures)" }),
+    ).toBeNull();
+  });
+
+  it("C-12: a booking with no price leads to the booking, where the price is added", () => {
+    render_(UNPRICED, { mayOpenReservation: true });
+    const note = within(screen.getByTestId("nights-note"));
+    expect(
+      note.getByRole("link", { name: "Open reservation" }).getAttribute("href"),
+    ).toContain(`open=${FOLIO.reservationId}`);
+  });
+
+  it("C-12: a viewer who cannot open Reservations is told to ask, with no link", () => {
+    render_(UNPRICED, { mayOpenReservation: false });
+    expect(
+      within(screen.getByTestId("nights-note")).queryByRole("link"),
+    ).toBeNull();
+  });
+
+  it("C-12: a note about something else carries no booking link", () => {
+    render_(
+      { ...UNPRICED, nightlyRateMinor: 10000 },
+      { mayOpenReservation: true },
+    );
+    expect(
+      within(screen.getByTestId("nights-note")).queryByRole("link"),
+    ).toBeNull();
+  });
+});
