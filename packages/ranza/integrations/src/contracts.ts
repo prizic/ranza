@@ -80,6 +80,8 @@ export interface FailedOperationQuery {
   readonly view: FailureView;
   readonly limit: number;
   readonly offset: number;
+  /** Only the failures of this endpoint; every endpoint's when absent. */
+  readonly endpointId?: string | undefined;
 }
 
 export interface FailedOperationRecord {

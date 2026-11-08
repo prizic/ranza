@@ -15,9 +15,13 @@ import { FailedOperationsTable } from "./failed-operations-table";
 
 interface IntegrationsViewProps {
   endpoints: EndpointsView;
+  /** The one endpoint the failures are narrowed to, from the address; null for all of them. */
+  endpointId: string | null;
   failures: FailedOperationPage;
-  /** The two lists of failures, as the links that open them. */
+  /** The two lists of failures, as the links that open them, narrowed as the address is. */
   hrefs: { open: string; closed: string };
+  /** The same two lists with no endpoint chosen: the way back from a narrowing. */
+  hrefsToAll: { open: string; closed: string };
   /** Whether the viewer holds integrations.manage at this Property. */
   mayActOnFailures: boolean;
   locale: string;
@@ -32,8 +36,10 @@ interface IntegrationsViewProps {
 
 export function IntegrationsView({
   endpoints,
+  endpointId,
   failures,
   hrefs,
+  hrefsToAll,
   mayActOnFailures,
   locale,
   openTotal,
@@ -54,7 +60,13 @@ export function IntegrationsView({
   // their order on the page changes, because the dialog that adds an endpoint
   // holds the new secret in its state and cannot be moved or remounted.
   const firstSetup =
-    endpoints.endpoints.length === 0 && openTotal === 0 && failures.total === 0;
+    endpoints.endpoints.length === 0 &&
+    openTotal === 0 &&
+    failures.total === 0 &&
+    endpointId === null;
+  const narrowedTo = endpointId
+    ? endpoints.endpoints.find((endpoint) => endpoint.id === endpointId)
+    : undefined;
 
   return (
     <div className="flex flex-col gap-8">
@@ -85,7 +97,8 @@ export function IntegrationsView({
 
       <section
         aria-labelledby="failed-operations-heading"
-        className="space-y-3"
+        className="scroll-mt-4 space-y-3"
+        id="failed-operations"
       >
         <h2 className="sr-only" id="failed-operations-heading">
           {t("failedOperationsTitle")}
@@ -112,11 +125,35 @@ export function IntegrationsView({
             </Link>
           ))}
         </nav>
+        {endpointId ? (
+          <div
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2.5 text-step--1"
+            data-testid="failures-narrowed"
+            role="status"
+          >
+            <span className="font-medium">
+              {narrowedTo
+                ? t("narrowedToEndpoint", {
+                    name: narrowedTo.name,
+                    count: failures.total,
+                  })
+                : t("narrowedToUnknownEndpoint", { count: failures.total })}
+            </span>
+            <Link
+              className="ms-auto font-semibold text-primary hover:underline"
+              href={hrefsToAll[view]}
+              prefetch={false}
+            >
+              {t("allEndpoints")}
+            </Link>
+          </div>
+        ) : null}
         <FailedOperationsTable
           failures={failures}
           hrefs={hrefs}
           locale={locale}
           mayAct={mayActOnFailures}
+          narrowed={endpointId !== null}
           page={page}
           pageSize={pageSize}
           propertyId={propertyId}
@@ -159,6 +196,7 @@ export function IntegrationsView({
           <p className="text-step--1 text-muted-foreground">{t("readOnly")}</p>
         ) : null}
         <EndpointCards
+          failuresHref={hrefsToAll.open}
           locale={locale}
           propertyId={propertyId}
           view={endpoints}

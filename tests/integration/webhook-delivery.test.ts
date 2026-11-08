@@ -1313,6 +1313,27 @@ describe("a screenful of failures", () => {
     expect(stopped.filter((item) => item.retryable)).toHaveLength(3);
     expect(stopped.filter((item) => !item.retryable)).toHaveLength(1);
 
+    // INT-S1-82: narrowed to the endpoint, the list and its total are that
+    // endpoint's alone; to an id nothing failed on, both are empty.
+    const narrowed = await integrations.failedOperations(MANAGER, PROPERTY, {
+      view: "open",
+      limit: 50,
+      offset: 0,
+      endpointId,
+    });
+    expect(narrowed.records.map((item) => item.id).sort()).toEqual(
+      stopped.map((item) => item.id).sort(),
+    );
+    expect(narrowed.total).toBe(stopped.length);
+    expect(
+      await integrations.failedOperations(MANAGER, PROPERTY, {
+        view: "open",
+        limit: 50,
+        offset: 0,
+        endpointId: randomUUID(),
+      }),
+    ).toEqual({ records: [], total: 0 });
+
     await expect(
       integrations.retryAllOperations(VIEWER, { propertyId: PROPERTY }),
     ).rejects.toMatchObject({ reason: "not_permitted" });

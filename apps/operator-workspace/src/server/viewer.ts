@@ -1648,6 +1648,7 @@ export async function propertyIntegrations(
   propertyId: string,
   view: FailureView,
   page: number,
+  endpointId: string | null = null,
 ): Promise<IntegrationsViewData> {
   const viewer = await currentViewer();
   if (!viewer) {
@@ -1664,13 +1665,16 @@ export async function propertyIntegrations(
     view,
     limit: INTEGRATIONS_PAGE_SIZE,
     offset: (page - 1) * INTEGRATIONS_PAGE_SIZE,
+    endpointId: endpointId ?? undefined,
   };
   const [endpoints, failures] = await Promise.all([
     integrations.endpoints(viewer.userId, organizationId),
     integrations.failedOperations(viewer.userId, propertyId, shown),
   ]);
+  // The tile and the tab count the Property's open failures, however the list
+  // below is narrowed, so only an unnarrowed open list can answer it.
   const openTotal =
-    view === "open"
+    view === "open" && endpointId === null
       ? failures.total
       : (
           await integrations.failedOperations(viewer.userId, propertyId, {

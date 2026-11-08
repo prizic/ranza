@@ -42,6 +42,11 @@ interface FailedOperationsTableProps {
   /** Whether the viewer holds integrations.manage at this Property. */
   mayAct: boolean;
   locale: string;
+  /**
+   * The list is one endpoint's, so a command that would act on the whole
+   * Property is not offered: it would send rows the reader cannot see.
+   */
+  narrowed: boolean;
   page: number;
   pageSize: number;
   propertyId: string;
@@ -54,6 +59,7 @@ export function FailedOperationsTable({
   hrefs,
   mayAct,
   locale,
+  narrowed,
   page,
   pageSize,
   propertyId,
@@ -112,7 +118,7 @@ export function FailedOperationsTable({
                 : t("failedOperationsDescription")}
             </CardDescription>
           </div>
-          {!closed && mayAct && stopped ? (
+          {!closed && mayAct && stopped && !narrowed ? (
             <RetryAllButton locale={locale} propertyId={propertyId} />
           ) : null}
         </div>

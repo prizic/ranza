@@ -1272,6 +1272,10 @@ export interface Messages {
     neverDelivered: string;
     queued: string;
     openFailures: string;
+    showFailuresOf: string;
+    narrowedToEndpoint: string;
+    narrowedToUnknownEndpoint: string;
+    allEndpoints: string;
     sends: string;
     sendTest: string;
     testEvent: string;
@@ -5525,6 +5529,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       neverDelivered: "Henüz hiçbir şey ulaşmadı",
       queued: "Sırada",
       openFailures: "Açık hata",
+      showFailuresOf: "{name} uç noktasının açık hatalarını göster",
+      narrowedToEndpoint:
+        "Yalnızca {name} uç noktasının hataları gösteriliyor: {count}.",
+      narrowedToUnknownEndpoint:
+        "Yalnızca seçilen uç noktanın hataları gösteriliyor: {count}.",
+      allEndpoints: "Tüm uç noktalar",
       sends: "Gönderir",
       sendTest: "Deneme olayı gönder",
       testEvent: "Deneme olayı",
@@ -9669,6 +9679,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       neverDelivered: "Nothing delivered yet",
       queued: "Queued",
       openFailures: "Open failures",
+      showFailuresOf: "Show the open failures of {name}",
+      narrowedToEndpoint: "Showing only the failures of {name}: {count}.",
+      narrowedToUnknownEndpoint:
+        "Showing only the failures of the endpoint you chose: {count}.",
+      allEndpoints: "All endpoints",
       sends: "Sends",
       sendTest: "Send test event",
       testEvent: "Test event",
@@ -13743,6 +13758,11 @@ export const messages: Record<SupportedLocale, Messages> = {
       neverDelivered: "لم يصل شيء بعد",
       queued: "في الانتظار",
       openFailures: "إخفاقات مفتوحة",
+      showFailuresOf: "عرض الإخفاقات المفتوحة لـ {name}",
+      narrowedToEndpoint: "تُعرض فقط إخفاقات {name}: {count}.",
+      narrowedToUnknownEndpoint:
+        "تُعرض فقط إخفاقات نقطة النهاية التي اخترتها: {count}.",
+      allEndpoints: "كل نقاط النهاية",
       sends: "ترسل",
       sendTest: "إرسال حدث اختبار",
       testEvent: "حدث اختبار",

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, CircleDashed } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
@@ -26,12 +27,15 @@ const HEALTH: Record<
 };
 
 interface EndpointCardsProps {
+  /** The Property's open failures with no endpoint chosen; an endpoint's count leads to its own. */
+  failuresHref: string;
   locale: string;
   propertyId: string;
   view: EndpointsView;
 }
 
 export function EndpointCards({
+  failuresHref,
   locale,
   propertyId,
   view,
@@ -127,7 +131,22 @@ export function EndpointCards({
                 </div>
                 <div className="grid gap-0.5">
                   <dt className="text-muted-foreground">{t("openFailures")}</dt>
-                  <dd className="m-0 tabular-nums">{endpoint.openFailures}</dd>
+                  <dd className="m-0 tabular-nums">
+                    {endpoint.openFailures > 0 ? (
+                      <Link
+                        aria-label={t("showFailuresOf", {
+                          name: endpoint.name,
+                        })}
+                        className="font-semibold text-primary underline-offset-4 hover:underline"
+                        href={`${failuresHref}&endpoint=${endpoint.id}#failed-operations`}
+                        prefetch={false}
+                      >
+                        {endpoint.openFailures}
+                      </Link>
+                    ) : (
+                      endpoint.openFailures
+                    )}
+                  </dd>
                 </div>
               </dl>
               {endpoint.overdue > 0 ? (

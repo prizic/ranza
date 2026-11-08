@@ -19,6 +19,13 @@ function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** An endpoint to narrow the failures to; anything that is not an id is no narrowing. */
+function endpointOf(value: string | undefined): string | null {
+  return value !== undefined && UUID.test(value) ? value.toLowerCase() : null;
+}
+
 function pageNumber(value: string | undefined): number {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed >= 1 ? parsed : 1;
@@ -33,6 +40,7 @@ export default async function IntegrationsPage({
     property?: string;
     view?: string | string[];
     page?: string | string[];
+    endpoint?: string | string[];
   }>;
 }) {
   const { locale } = await params;
@@ -62,11 +70,13 @@ export default async function IntegrationsPage({
 
   const view: FailureView = one(search.view) === "closed" ? "closed" : "open";
   const requestedPage = pageNumber(one(search.page));
+  const endpointId = endpointOf(one(search.endpoint));
   let data = await propertyIntegrations(
     property.organizationId,
     property.propertyId,
     view,
     requestedPage,
+    endpointId,
   );
   const lastPage = Math.max(
     1,
@@ -80,17 +90,23 @@ export default async function IntegrationsPage({
       property.propertyId,
       view,
       lastPage,
+      endpointId,
     );
   }
+
+  const base = `${localizeHref(locale, "integrations")}?property=${property.propertyId}`;
+  const narrowing = endpointId ? `&endpoint=${endpointId}` : "";
 
   return (
     <IntegrationsView
       endpoints={data.endpoints}
       failures={data.failures}
+      endpointId={endpointId}
       hrefs={{
-        open: `${localizeHref(locale, "integrations")}?property=${property.propertyId}`,
-        closed: `${localizeHref(locale, "integrations")}?property=${property.propertyId}&view=closed`,
+        open: `${base}${narrowing}`,
+        closed: `${base}&view=closed${narrowing}`,
       }}
+      hrefsToAll={{ open: base, closed: `${base}&view=closed` }}
       locale={locale}
       mayActOnFailures={managing.some(
         (permittedProperty) =>

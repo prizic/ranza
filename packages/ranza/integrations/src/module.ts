@@ -234,6 +234,7 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
       query: FailedOperationQuery,
     ): Promise<FailedOperationPage> {
       const closed = query.view === "closed";
+      const endpointId = query.endpointId ?? null;
       return inContext(userId, async (client) => {
         const rows = await client.$queryRaw<FailedOperationRow[]>`
           select failure.id,
@@ -258,6 +259,8 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
              and delivery.organization_id = failure.organization_id
            where failure.property_id = ${propertyId}::uuid
              and (failure.status in ('resolved', 'cancelled')) = ${closed}
+             and (${endpointId}::uuid is null
+                  or failure.endpoint_id = ${endpointId}::uuid)
            order by case when ${closed} then failure.closed_at
                          else failure.last_attempt_at end desc nulls last,
                     failure.id
@@ -270,7 +273,9 @@ export function createIntegrationsModule({ db }: IntegrationsDeps) {
           select count(*)::int as total
             from public.failed_operations as failure
            where failure.property_id = ${propertyId}::uuid
-             and (failure.status in ('resolved', 'cancelled')) = ${closed}`;
+             and (failure.status in ('resolved', 'cancelled')) = ${closed}
+             and (${endpointId}::uuid is null
+                  or failure.endpoint_id = ${endpointId}::uuid)`;
         return { records, total: counted?.total ?? 0 };
       });
     },

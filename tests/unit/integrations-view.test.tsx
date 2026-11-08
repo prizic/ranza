@@ -18,7 +18,10 @@ import {
   type EndpointsView,
   type FailedOperationRecord,
 } from "../../packages/ranza/integrations/src";
-import type { SupportedLocale } from "../../packages/i18n/src";
+import {
+  supportedLocales,
+  type SupportedLocale,
+} from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 import { IntegrationsView } from "../../apps/operator-workspace/src/features/integrations/components/integrations-view";
 import {
@@ -159,10 +162,15 @@ const closedFailures: FailedOperationRecord[] = [
   },
 ];
 
-const HREFS = {
+const HREFS_TO_ALL = {
   open: "/en/integrations?property=bb",
   closed: "/en/integrations?property=bb&view=closed",
 };
+const CHANNEL_MANAGER = "e1111111-1111-4111-8111-111111111111";
+const narrowedTo = (id: string) => ({
+  open: `${HREFS_TO_ALL.open}&endpoint=${id}`,
+  closed: `${HREFS_TO_ALL.closed}&endpoint=${id}`,
+});
 
 function renderView(
   locale: SupportedLocale,
@@ -175,15 +183,19 @@ function renderView(
     shown?: "open" | "closed";
     page?: number;
     pageSize?: number;
+    endpointId?: string | null;
   } = {},
 ) {
   const records = options.failedOperations ?? failures;
+  const endpointId = options.endpointId ?? null;
   return render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <IntegrationsView
+        endpointId={endpointId}
         endpoints={options.view ?? endpoints(true)}
         failures={{ records, total: options.total ?? records.length }}
-        hrefs={HREFS}
+        hrefs={endpointId ? narrowedTo(endpointId) : HREFS_TO_ALL}
+        hrefsToAll={HREFS_TO_ALL}
         locale={locale}
         mayActOnFailures={options.mayActOnFailures ?? true}
         openTotal={options.openTotal ?? failures.length}
@@ -505,7 +517,7 @@ describe("what a failure says and offers", () => {
     );
     expect(screen.getByTestId("failures-tab-open")).toHaveAttribute(
       "href",
-      HREFS.open,
+      HREFS_TO_ALL.open,
     );
   });
 
@@ -530,11 +542,11 @@ describe("what a failure says and offers", () => {
     expect(screen.getByText("26–27 of 61")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Newer" })).toHaveAttribute(
       "href",
-      HREFS.open,
+      HREFS_TO_ALL.open,
     );
     expect(screen.getByRole("link", { name: "Older" })).toHaveAttribute(
       "href",
-      `${HREFS.open}&page=3`,
+      `${HREFS_TO_ALL.open}&page=3`,
     );
     expect(screen.getByTestId("failures-tab-open")).toHaveTextContent(
       "Open (61)",
@@ -639,5 +651,100 @@ describe("the screen's own list of events and failures", () => {
         expect(words.failureAdvice[code], `${locale} ${code}`).toBeTruthy();
       }
     }
+  });
+});
+
+describe("an endpoint's failure count leads to its failures (INT-S1-82)", () => {
+  afterEach(cleanup);
+  const notice = () => screen.queryByTestId("failures-narrowed");
+
+  it("INT-S1-82: a count above zero is a link to that endpoint's failures, and zero is only a number", () => {
+    renderView("en");
+    const [failing, delivering] = screen.getAllByTestId("webhook-endpoint");
+    expect(
+      within(failing!).getByRole("link", {
+        name: "Show the open failures of Channel manager",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `${HREFS_TO_ALL.open}&endpoint=${CHANNEL_MANAGER}#failed-operations`,
+    );
+    expect(within(delivering!).queryByRole("link")).toBeNull();
+  });
+
+  it("INT-S1-82: a count is a link from a narrowed list too, and leads to its own endpoint, not the one shown", () => {
+    renderView("en", { endpointId: "e2222222-2222-4222-8222-222222222222" });
+    const [failing] = screen.getAllByTestId("webhook-endpoint");
+    expect(
+      within(failing!).getByRole("link", {
+        name: "Show the open failures of Channel manager",
+      }),
+    ).toHaveAttribute(
+      "href",
+      `${HREFS_TO_ALL.open}&endpoint=${CHANNEL_MANAGER}#failed-operations`,
+    );
+  });
+
+  it("INT-S1-82: says which endpoint the list is narrowed to and how many, with the way back to all", () => {
+    renderView("en", { endpointId: CHANNEL_MANAGER, total: 1 });
+    expect(notice()).toHaveTextContent(
+      "Showing only the failures of Channel manager: 1.",
+    );
+    expect(
+      within(notice()!).getByRole("link", { name: "All endpoints" }),
+    ).toHaveAttribute("href", HREFS_TO_ALL.open);
+  });
+
+  it("INT-S1-82: the way back keeps the list the reader is on", () => {
+    renderView("en", { endpointId: CHANNEL_MANAGER, shown: "closed" });
+    expect(
+      within(notice()!).getByRole("link", { name: "All endpoints" }),
+    ).toHaveAttribute("href", HREFS_TO_ALL.closed);
+  });
+
+  it("INT-S1-82: says nothing when no endpoint was chosen", () => {
+    renderView("en");
+    expect(notice()).toBeNull();
+  });
+
+  it("INT-S1-82: an endpoint that is not on the list is still said, not silently ignored", () => {
+    renderView("en", {
+      endpointId: "e9999999-9999-4999-8999-999999999999",
+      total: 0,
+      failedOperations: [],
+    });
+    expect(notice()).toHaveTextContent(
+      "Showing only the failures of the endpoint you chose: 0.",
+    );
+  });
+
+  it("INT-S1-82: the tabs keep the narrowing, and their count stays the Property's", () => {
+    renderView("en", { endpointId: CHANNEL_MANAGER, total: 1, openTotal: 3 });
+    expect(screen.getByTestId("failures-tab-open")).toHaveAttribute(
+      "href",
+      narrowedTo(CHANNEL_MANAGER).open,
+    );
+    expect(screen.getByTestId("failures-tab-closed")).toHaveAttribute(
+      "href",
+      narrowedTo(CHANNEL_MANAGER).closed,
+    );
+    expect(screen.getByTestId("failures-tab-open")).toHaveTextContent("3");
+  });
+
+  it("INT-S1-82: Retry all is not offered on a narrowed list, for it would send rows the reader cannot see", () => {
+    renderView("en");
+    expect(screen.getByTestId("retry-all")).toBeInTheDocument();
+    cleanup();
+    renderView("en", { endpointId: CHANNEL_MANAGER });
+    expect(screen.queryByTestId("retry-all")).toBeNull();
+  });
+
+  it.each(supportedLocales)("INT-S1-82: has its own words in %s", (locale) => {
+    renderView(locale, { endpointId: CHANNEL_MANAGER, total: 2 });
+    expect(notice()).toHaveTextContent(
+      messages[locale].integrations.narrowedToEndpoint
+        .replace("{name}", "Channel manager")
+        .replace("{count}", "2"),
+    );
   });
 });
