@@ -29,7 +29,7 @@ import {
 import { CurfewControl } from "./curfew-control";
 import { FiguresStrip } from "./figures-strip";
 import { GiveLeaveDialog } from "./give-leave-dialog";
-import { nightLabel, RollCallRowView } from "./roll-call-row";
+import { nightLabel, placeOf, RollCallRowView } from "./roll-call-row";
 
 interface Change {
   stayIds: readonly string[];
@@ -71,6 +71,12 @@ export function RollCallView({
 }) {
   const t = useTranslations("attendance");
   const [rows, applyOptimistic] = useOptimistic(rollCall.rows, applyChange);
+  // A leave names its stay; when the viewer may not read the name, the room says
+  // who, as on the row, and a Resident not on tonight's roll is only a Resident.
+  const leaveWhere = (stayId: string) => {
+    const row = rows.find((candidate) => candidate.stayId === stayId);
+    return row ? placeOf(row) : t("leaveResidentUnknown");
+  };
   const [filter, setFilter] = useState<RollFilter>(initialFilter);
   const [needle, setNeedle] = useState("");
   const [problem, setProblem] = useState<AttendanceOutcome | null>(null);
@@ -349,7 +355,7 @@ export function RollCallView({
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">
-                    {leave.residentName ?? leave.stayId}
+                    {leave.residentName ?? leaveWhere(leave.stayId)}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">
                     {leave.fromNight === leave.toNight

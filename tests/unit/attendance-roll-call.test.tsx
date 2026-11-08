@@ -264,3 +264,33 @@ describe("a roll call opened from a figure elsewhere (B-06)", () => {
     expect(rollFilterFrom(undefined)).toBe("all");
   });
 });
+
+describe("a leave whose Resident the viewer may not name (B-15)", () => {
+  const unnamed = (leaveRow: RollCall["leaves"][number]): RollCall => ({
+    ...TONIGHT,
+    rows: TONIGHT.rows.map((row) => ({ ...row, residentName: null })),
+    leaves: [leaveRow],
+  });
+  const LEAVE = {
+    leaveId: "l9",
+    stayId: "s2",
+    residentName: null,
+    fromNight: "2026-10-30",
+    toNight: "2026-11-01",
+    reason: null,
+  } as unknown as RollCall["leaves"][number];
+
+  it("B-15: says the room and bed, never the stay's id", () => {
+    show(unnamed(LEAVE));
+    const list = screen.getByRole("heading", { name: "Leave" }).parentElement!;
+    expect(within(list).getByText("A-101 · B")).toBeVisible();
+    expect(within(list).queryByText("s2")).toBeNull();
+  });
+
+  it("B-15: a Resident not on tonight's roll is only a Resident", () => {
+    show(unnamed({ ...LEAVE, stayId: "s-gone" } as typeof LEAVE));
+    const list = screen.getByRole("heading", { name: "Leave" }).parentElement!;
+    expect(within(list).getByText("A Resident")).toBeVisible();
+    expect(within(list).queryByText("s-gone")).toBeNull();
+  });
+});

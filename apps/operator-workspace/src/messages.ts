@@ -3318,6 +3318,7 @@ export interface Messages {
     leaveSubmitting: string;
     leavesTitle: string;
     leavesEmpty: string;
+    leaveResidentUnknown: string;
     leaveRange: string;
     emptyTitle: string;
     emptyHint: string;
@@ -7381,6 +7382,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       leaveSubmitting: "Veriliyor…",
       leavesTitle: "İzinler",
       leavesEmpty: "Verilmiş ya da yaklaşan izin yok.",
+      leaveResidentUnknown: "Bir sakin",
       leaveRange: "{from} – {to}",
       emptyTitle: "Bu gece yurtta kimse yok",
       emptyHint: "Giriş yapılanlar burada görünür.",
@@ -11511,6 +11513,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       leaveSubmitting: "Giving…",
       leavesTitle: "Leave",
       leavesEmpty: "No leave is given or coming up.",
+      leaveResidentUnknown: "A Resident",
       leaveRange: "{from} – {to}",
       emptyTitle: "Nobody is in house tonight",
       emptyHint: "People who have checked in appear here.",
@@ -15550,6 +15553,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       leaveSubmitting: "جارٍ المنح…",
       leavesTitle: "الإجازات",
       leavesEmpty: "لا إجازات ممنوحة أو قادمة.",
+      leaveResidentUnknown: "أحد المقيمين",
       leaveRange: "{from} – {to}",
       emptyTitle: "لا أحد في السكن الليلة",
       emptyHint: "يظهر هنا من سجّل وصوله.",
