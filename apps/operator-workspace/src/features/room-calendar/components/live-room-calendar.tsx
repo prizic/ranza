@@ -101,6 +101,7 @@ export function LiveRoomCalendar({
   initialView,
   lengths,
   locale,
+  roomsHref,
   scope,
 }: {
   /**
@@ -120,6 +121,8 @@ export function LiveRoomCalendar({
   initialView: RoomCalendarView;
   lengths: number[];
   locale: SupportedLocale;
+  /** Rooms at this Property; null when the viewer may not open it. */
+  roomsHref: string | null;
   scope: Scope;
 }) {
   const t = useTranslations("roomCalendar");
@@ -540,6 +543,7 @@ export function LiveRoomCalendar({
         entry={opened}
         locale={locale}
         mayAmend={calendar.mayAmend}
+        roomsHref={roomsHref}
         onChanged={() => void query.refetch()}
         onClose={() => setDrawerOpen(false)}
         open={drawerOpen}

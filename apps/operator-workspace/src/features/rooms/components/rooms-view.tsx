@@ -87,6 +87,7 @@ export function RoomsView({
   data,
   housekeepingHref,
   calendarHref,
+  departuresHref,
   maintenanceHref,
   reservationsHref,
   initialFilter,
@@ -104,6 +105,8 @@ export function RoomsView({
   housekeepingHref: string | null;
   /** The room calendar at this Property, or null when the viewer may not open it. */
   calendarHref: string | null;
+  /** Departures at this Property; null when the viewer may not open it. */
+  departuresHref: string | null;
   /** Maintenance at this Property, or null when the viewer may not open it. */
   maintenanceHref: string | null;
   /** Reservations at this Property, or null when the viewer may not open it. */
@@ -669,6 +672,7 @@ export function RoomsView({
                                 </p>
                               )}
                               <RoomAdmits
+                                calendarHref={calendarHref}
                                 locale={locale}
                                 mayChange={mayConfigure}
                                 offer={offerAdmits}
@@ -896,6 +900,7 @@ export function RoomsView({
 
       <BlockUnitDialog
         calendarHref={calendarHref}
+        departuresHref={departuresHref}
         hold={
           selectedUnit
             ? (holdFor(selectedUnit.unitId, selectedRoomId) ?? null)

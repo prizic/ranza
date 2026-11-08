@@ -14,6 +14,7 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -120,6 +121,7 @@ const EPOCH = formatTime(
 function renderCalendar(
   calendar: RoomCalendar = CALENDAR,
   locale: "en" | "ar" = "en",
+  roomsHref: string | null = `/${locale}/rooms?property=${scope.propertyId}`,
 ): void {
   const prefetched = requestQueryClient();
   prefetched.setQueryData(
@@ -149,6 +151,7 @@ function renderCalendar(
             }}
             lengths={[7, 14, 30]}
             locale={locale}
+            roomsHref={roomsHref}
             scope={scope}
           />
         </Hydrated>
@@ -482,5 +485,39 @@ describe("who sees it in the rail", () => {
     expect(JSON.stringify(frontOffice)).toContain(
       "/en/room-calendar?property=p-1",
     );
+  });
+});
+
+describe("a booking on a room that is blocked or out of service (audit 2026-11-07, A-12)", () => {
+  const blocked = (bar: RoomCalendarBar = ADA) =>
+    withUnits([
+      room("101", {
+        status: "blocked",
+        statusReason: "Broken window",
+        bars: [{ ...bar, bookedWhileBlocked: true }],
+      }),
+    ]);
+
+  async function openDrawer() {
+    fireEvent.click(document.querySelector<HTMLElement>("[data-bar-key]")!);
+    return within(await screen.findByRole("dialog"));
+  }
+
+  it("A-12: the note that check-in will be refused links to the room, where the block is lifted", async () => {
+    renderCalendar(blocked());
+    const drawer = await openDrawer();
+    const link = drawer.getByRole("link", { name: "Show on the room map" });
+    expect(link.getAttribute("href")).toMatch(
+      new RegExp(`^/en/rooms\\?property=${scope.propertyId}&unit=`),
+    );
+  });
+
+  it("A-12: no link to a viewer who cannot open Rooms", async () => {
+    renderCalendar(blocked(), "en", null);
+    const drawer = await openDrawer();
+    expect(drawer.getByText(/check-in will be refused|refused/i)).toBeTruthy();
+    expect(
+      drawer.queryByRole("link", { name: "Show on the room map" }),
+    ).toBeNull();
   });
 });

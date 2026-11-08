@@ -135,6 +135,11 @@ export default async function RoomCalendarPage({
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}
         locale={locale}
+        roomsHref={
+          reach.rooms
+            ? `${localizeHref(locale, "rooms")}?property=${property.propertyId}`
+            : null
+        }
         scope={scope}
       />
     </Hydrated>

@@ -110,6 +110,7 @@ function screenOf(
     reportable?: boolean;
     reservationsHref?: string | null;
     calendarHref?: string | null;
+    departuresHref?: string | null;
     maintenanceHref?: string | null;
   } = {},
 ) {
@@ -121,6 +122,11 @@ function screenOf(
           options.calendarHref === undefined
             ? "/en/room-calendar?property=dd000003-0000-4000-8000-000000000001"
             : options.calendarHref
+        }
+        departuresHref={
+          options.departuresHref === undefined
+            ? "/en/departures?property=dd000003-0000-4000-8000-000000000001"
+            : options.departuresHref
         }
         housekeepingHref="/en/housekeeping?property=dd000003-0000-4000-8000-000000000001"
         initialFilter={
@@ -737,13 +743,25 @@ describe("what pressing a room opens, and for whom (CALENDAR-08, CALENDAR-09)", 
       "/en/reservations?property=dd000003-0000-4000-8000-000000000001&open=bb000001-0000-4000-8000-000000000106",
     );
 
-    // A Stay opened without a booking has no sheet to open.
+    // A Stay opened without a booking has no sheet to open; it is checked out
+    // on Departures, which the dialog leads to instead (A-11).
     cleanup();
     render(screenOf("en", { data: withWalkIn }));
     press("107");
+    const walkIn = within(await screen.findByRole("dialog"));
+    expect(walkIn.queryByRole("link", { name: "Open stay" })).toBeNull();
+    expect(walkIn.getByRole("link", { name: "Departures" })).toHaveAttribute(
+      "href",
+      "/en/departures?property=dd000003-0000-4000-8000-000000000001",
+    );
+
+    // Not to somebody who may not open Departures.
+    cleanup();
+    render(screenOf("en", { data: withWalkIn, departuresHref: null }));
+    press("107");
     expect(
       within(await screen.findByRole("dialog")).queryByRole("link", {
-        name: "Open stay",
+        name: "Departures",
       }),
     ).toBeNull();
 
@@ -985,6 +1003,28 @@ describe("whom a room admits (RB-S5-13, RB-S5-14, RB-S5-15)", () => {
     expect(screen.queryByRole("button", { name: /^Change who/ })).toBeNull();
   });
 
+  it("A-10: a block refused because somebody moved in leads to Departures, where they leave", async () => {
+    vi.mocked(accommodation.blockUnit).mockResolvedValue({
+      status: "occupied",
+    });
+    render(screenOf("en"));
+    fireEvent.click(document.getElementById(`unit-${map.units[2]!.unitId}`)!);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/Reason/), {
+      target: { value: "Broken window" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Block room" }));
+    expect(
+      await within(dialog).findByText(/Check them out first/),
+    ).toBeVisible();
+    expect(
+      within(dialog).getByRole("link", { name: "Departures" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/departures?property=dd000003-0000-4000-8000-000000000001",
+    );
+  });
+
   it("a_dormitory_offers_the_choice_on_every_room_to_whoever_may_configure_it", () => {
     render(screenOf("en", { offerAdmits: true }));
     expect(
@@ -1022,6 +1062,28 @@ describe("whom a room admits (RB-S5-13, RB-S5-14, RB-S5-15)", () => {
         "Somebody booked into this room, or staying in it, would no longer be admitted. Move them first, or open the room to anyone.",
       ),
     ).toBeVisible();
+    // The refusal names who must move; it takes the desk to them (A-10).
+    expect(
+      within(dialog).getByRole("link", { name: "Show on the room calendar" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/room-calendar?property=dd000003-0000-4000-8000-000000000001&q=103",
+    );
+  });
+
+  it("A-10: a refused change of who a room admits offers no calendar link to a viewer who cannot open it", async () => {
+    vi.mocked(accommodation.setRoomAdmits).mockResolvedValue({
+      status: "stillHeld",
+    });
+    render(screenOf("en", { offerAdmits: true, calendarHref: null }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Change who 103 admits" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("radio", { name: "Women only" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await within(dialog).findByText(/would no longer be admitted/);
+    expect(within(dialog).queryByRole("link")).toBeNull();
   });
 
   it("rooms are added for women or men only, and the preview says so", async () => {

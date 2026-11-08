@@ -43,6 +43,7 @@ import { submitWithoutReset } from "../../../lib/submit-without-reset";
  */
 export function BlockUnitDialog({
   calendarHref,
+  departuresHref,
   locale,
   mayBlock,
   open,
@@ -60,6 +61,8 @@ export function BlockUnitDialog({
    * when the viewer may not open it.
    */
   calendarHref: string | null;
+  /** Departures at this Property; null when the viewer may not open it. */
+  departuresHref: string | null;
   locale: string;
   /** Whether the viewer holds `accommodation.configure` here (RB-S3-09). */
   mayBlock: boolean;
@@ -175,6 +178,18 @@ export function BlockUnitDialog({
       ? reservationsHref && `${reservationsHref}&open=${state.reservationId}`
       : null;
 
+  // A Guest in house is checked out on Departures: the way on from a room that
+  // cannot be blocked, and the only one for a Stay opened without a booking.
+  const departuresLink = departuresHref ? (
+    <Link
+      className="inline-flex items-center gap-1.5 justify-self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+      href={departuresHref}
+      prefetch={false}
+    >
+      {t("navigation.departures")}
+    </Link>
+  ) : null;
+
   const calendarLink = calendarHref ? (
     <Link
       className="inline-flex items-center gap-1.5 justify-self-start text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
@@ -275,6 +290,7 @@ export function BlockUnitDialog({
               </p>
               {reportLink}
               {calendarLink}
+              {occupied && !stayHref ? departuresLink : null}
             </DialogBody>
             <DialogActions>
               <DialogClose asChild>
@@ -391,6 +407,7 @@ export function BlockUnitDialog({
                     <FormError>
                       {refusal(blockOutcome, "blockRefused")}
                     </FormError>
+                    {blockOutcome.status === "occupied" ? departuresLink : null}
                   </div>
                 )}
             </DialogBody>

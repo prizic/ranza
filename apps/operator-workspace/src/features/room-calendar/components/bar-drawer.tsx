@@ -105,6 +105,7 @@ export function BarDrawer({
   onChanged,
   onClose,
   open,
+  roomsHref,
   scope,
   today,
 }: {
@@ -123,6 +124,8 @@ export function BarDrawer({
   onChanged: () => void;
   onClose: () => void;
   open: boolean;
+  /** Rooms at this Property; null when the viewer may not open it. */
+  roomsHref: string | null;
   scope: Scope;
   today: string;
 }) {
@@ -167,6 +170,7 @@ export function BarDrawer({
             mayAmend={mayAmend}
             onChanged={onChanged}
             onClose={onClose}
+            roomsHref={roomsHref}
             scope={scope}
             today={today}
           />
@@ -185,6 +189,7 @@ function DrawerBody({
   mayAmend,
   onChanged,
   onClose,
+  roomsHref,
   scope,
   today,
 }: {
@@ -196,6 +201,8 @@ function DrawerBody({
   mayAmend: boolean;
   onChanged: () => void;
   onClose: () => void;
+  /** Rooms at this Property; null when the viewer may not open it. */
+  roomsHref: string | null;
   scope: Scope;
   today: string;
 }) {
@@ -431,6 +438,18 @@ function DrawerBody({
                   .filter(Boolean)
                   .join(" · "),
               })}
+              {roomsHref ? (
+                <>
+                  {" "}
+                  <Link
+                    className="font-medium underline underline-offset-4"
+                    href={`${roomsHref}&unit=${encodeURIComponent(unit.unitId)}`}
+                    prefetch={false}
+                  >
+                    {common("showOnRoomMap")}
+                  </Link>
+                </>
+              ) : null}
             </DialogNotice>
           ) : null}
           {late ? (

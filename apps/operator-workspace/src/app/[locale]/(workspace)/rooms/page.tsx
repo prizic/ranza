@@ -76,6 +76,7 @@ export default async function RoomsPage({
         "reservations",
         "room-calendar",
         "maintenance",
+        "departures",
       ]),
       roomsReadiness(property.propertyId),
     ],
@@ -94,6 +95,7 @@ export default async function RoomsPage({
       // the filters somebody set by hand.
       key={`${initialFilter.show}:${initialFilter.admits}:${initialFilter.block === null ? "" : blockParam(initialFilter.block.block)}`}
       calendarHref={links["room-calendar"]}
+      departuresHref={links.departures}
       housekeepingHref={links.housekeeping}
       initialFilter={initialFilter}
       initialView={search.view === "list" ? "list" : "map"}

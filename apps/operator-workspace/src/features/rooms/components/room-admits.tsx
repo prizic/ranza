@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Users } from "lucide-react";
 import {
@@ -40,11 +41,14 @@ import type { UnitEntry } from "../../../server/viewer";
  * admitted (RB-S5-08); the dialog says what to do instead.
  */
 export function RoomAdmits({
+  calendarHref,
   locale,
   mayChange,
   offer,
   room,
 }: {
+  /** The room calendar at this Property; null when the viewer may not open it. */
+  calendarHref: string | null;
   locale: string;
   /** Whether the viewer holds `accommodation.configure` here. */
   mayChange: boolean;
@@ -130,6 +134,15 @@ export function RoomAdmits({
                     ? rp("admitsStillHeld")
                     : rp("admitsRefused")}
                 </FormError>
+                {outcome.status === "stillHeld" && calendarHref ? (
+                  <Link
+                    className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    href={`${calendarHref}&q=${encodeURIComponent(room.name)}`}
+                    prefetch={false}
+                  >
+                    {rp("showOnCalendar")}
+                  </Link>
+                ) : null}
               </div>
             ) : null}
           </DialogBody>

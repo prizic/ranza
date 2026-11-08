@@ -132,6 +132,7 @@ function renderTerm(
         <Hydrated client={prefetched}>
           <LiveRoomCalendar
             canOpenFolio
+            roomsHref={null}
             booking={null}
             defaultLength={DAYS}
             initialView={{
@@ -261,6 +262,7 @@ describe("block and gender chips (RC-S7-05)", () => {
           <Hydrated client={prefetched}>
             <LiveRoomCalendar
               canOpenFolio
+              roomsHref={null}
               booking={null}
               defaultLength={DAYS}
               initialView={{
