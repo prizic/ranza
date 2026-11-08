@@ -729,6 +729,7 @@ describe("out of order", { timeout: DATABASE_BUDGET_MS }, () => {
       impact: {
         inHouse: [
           {
+            reservationId: expect.any(String),
             unitName: "MTI-103",
             guestName: "Maintenance Guest",
             endsOn: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),

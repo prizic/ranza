@@ -103,6 +103,7 @@ function sheet(
         onOpenChange={vi.fn()}
         propertyId="d9000003-0000-4000-8000-000000000001"
         request={overrides.request ?? REQUEST}
+        reservationsHref={null}
         roomsHref={overrides.roomsHref ?? null}
         timeZone="Europe/Istanbul"
         today="2026-10-25"

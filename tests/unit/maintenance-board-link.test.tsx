@@ -123,6 +123,7 @@ function show(
         options={{ units: [], equipment: [], assignees: [] }}
         propertyId={PROPERTY}
         propertyName="Deniz Otel"
+        reservationsHref={null}
         roomsHref={null}
         register={register as never}
         reportUnitId={null}

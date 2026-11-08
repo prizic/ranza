@@ -133,6 +133,7 @@ export function MaintenanceBoard({
   limits,
   openRequestId = null,
   reportUnitId,
+  reservationsHref,
   roomsHref,
   viewerId,
 }: {
@@ -153,6 +154,8 @@ export function MaintenanceBoard({
   openRequestId?: string | null;
   /** A Unit to report about, when the reader arrived from Rooms. */
   reportUnitId: string | null;
+  /** Reservations at this Property, `?property=` on it; null where the viewer cannot open them. */
+  reservationsHref: string | null;
   /** Rooms at this Property, `?property=` on it; null where the viewer cannot open Rooms. */
   roomsHref: string | null;
   viewerId: string;
@@ -564,6 +567,7 @@ export function MaintenanceBoard({
           onOpenRequest={openRequest}
           open={reporting}
           openRequests={board.requests}
+          reservationsHref={reservationsHref}
           options={options}
           propertyId={propertyId}
           today={board.today}
@@ -586,6 +590,7 @@ export function MaintenanceBoard({
           }}
           propertyId={propertyId}
           request={selected}
+          reservationsHref={reservationsHref}
           roomsHref={roomsHref}
           timeZone={timeZone}
           today={board.today}

@@ -2615,6 +2615,7 @@ export interface Messages {
     impactBooking: string;
     /** Opens the booking in Change booking, in a new tab (AB-S1-17). */
     impactChangeBooking: string;
+    impactOpenBooking: string;
     aGuest: string;
     impactHint: string;
     confirmOutOfOrder: string;
@@ -6545,6 +6546,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouseOpen: "{guest}, {unit} biriminde kalıyor.",
       impactBooking: "{guest}, {from} tarihinden itibaren {unit} için rezerve.",
       impactChangeBooking: "Rezervasyonu değiştir",
+      impactOpenBooking: "Rezervasyonu aç",
       aGuest: "Bir misafir",
       impactHint:
         "Hiçbir şey iptal edilmez ya da taşınmaz. Ön büronun onları taşıması gerekecek.",
@@ -10684,6 +10686,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouseOpen: "{guest} is staying in {unit}.",
       impactBooking: "{guest} is booked into {unit} from {from}.",
       impactChangeBooking: "Change booking",
+      impactOpenBooking: "Open booking",
       aGuest: "A Guest",
       impactHint:
         "Nothing will be cancelled or moved. The front desk will need to move them.",
@@ -14736,6 +14739,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       impactInHouseOpen: "{guest} يقيم في {unit}.",
       impactBooking: "{guest} محجوز في {unit} ابتداءً من {from}.",
       impactChangeBooking: "تعديل الحجز",
+      impactOpenBooking: "افتح الحجز",
       aGuest: "ضيف",
       impactHint: "لن يُلغى أو يُنقل أي شيء. سيحتاج المكتب الأمامي إلى نقلهم.",
       confirmOutOfOrder: "إخراجها من الخدمة على أي حال",

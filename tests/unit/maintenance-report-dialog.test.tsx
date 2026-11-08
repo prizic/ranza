@@ -66,6 +66,7 @@ function openedFromRooms(
         onOpenRequest={overrides.onOpenRequest ?? vi.fn()}
         open
         openRequests={overrides.openRequests ?? []}
+        reservationsHref="/en/reservations?property=d9000003-0000-4000-8000-000000000001"
         options={{
           units: [
             { unitId: ROOM, name: "101", roomName: null, status: "available" },
@@ -143,7 +144,14 @@ describe("reporting a problem about a room somebody is booked into", () => {
     reportProblem.mockResolvedValueOnce({
       status: "impact",
       impact: {
-        inHouse: [{ unitName: "101", guestName: "Cahit Arf", endsOn: null }],
+        inHouse: [
+          {
+            reservationId: null,
+            unitName: "101",
+            guestName: "Cahit Arf",
+            endsOn: null,
+          },
+        ],
         reservations: [],
       },
     });

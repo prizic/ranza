@@ -84,6 +84,7 @@ export function RequestSheet({
   limits,
   onOpenChange,
   propertyId,
+  reservationsHref,
   roomsHref,
   viewerId,
   whenDone,
@@ -99,6 +100,8 @@ export function RequestSheet({
   limits: { cancelReason: number; note: number; vendor: number };
   /** The Property the board is for, which links out of the sheet name. */
   propertyId: string;
+  /** Reservations at this Property, `?property=` on it; null if closed to the viewer. */
+  reservationsHref: string | null;
   /** Rooms at this Property, `?property=` on it; null where the viewer cannot open Rooms. */
   roomsHref: string | null;
   onOpenChange: (open: boolean) => void;
@@ -482,7 +485,7 @@ export function RequestSheet({
                     <ImpactNotice
                       impact={impact}
                       locale={locale}
-                      propertyId={propertyId}
+                      reservationsHref={reservationsHref}
                     />
                   ) : null}
                   <div className="flex flex-wrap gap-2">

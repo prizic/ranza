@@ -76,7 +76,7 @@ export default async function MaintenancePage({
     maintenanceReportOptions(property.propertyId),
     maintenanceSettings(property.propertyId),
     equipmentRegister(property.propertyId),
-    screenLinks(locale, property.propertyId, ["rooms"]),
+    screenLinks(locale, property.propertyId, ["reservations", "rooms"]),
   ]);
   // Only a Unit the form can offer: a stale link, or one to another
   // Property, opens nothing rather than a form that cannot be sent.
@@ -115,6 +115,7 @@ export default async function MaintenancePage({
       propertyName={property.propertyName}
       register={register}
       reportUnitId={reportUnitId}
+      reservationsHref={links.reservations}
       roomsHref={links.rooms}
       settings={settings}
       timeZone={property.timezone}

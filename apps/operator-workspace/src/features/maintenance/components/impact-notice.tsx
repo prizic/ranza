@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { TriangleAlert } from "lucide-react";
 import type { OutOfOrderImpact } from "@ranza/maintenance";
-import { isolate, localizeHref, type SupportedLocale } from "@ranza/i18n";
+import { isolate, type SupportedLocale } from "@ranza/i18n";
 import { formatDay } from "./look";
 
 /**
@@ -11,19 +11,21 @@ import { formatDay } from "./look";
  * (MT-S2-09, MT-S2-10): each Guest in it, and each booking on its coming
  * nights. Nothing is cancelled or moved; the desk decides.
  *
- * Each booking opens in Change booking (AB-S1-17), in a new tab: the notice
- * sits inside a form that is not finished yet, and following a link in place
- * would throw that form away.
+ * Each booking opens in Change booking (AB-S1-17), and each Guest in house
+ * opens their booking, in a new tab: the notice sits inside a form that is not
+ * finished yet, and following a link in place would throw that form away. The
+ * links exist only where the viewer may open Reservations (audit 2026-11-07,
+ * B-12), so none leads to a refusal.
  */
 export function ImpactNotice({
   impact,
   locale,
-  propertyId,
+  reservationsHref,
 }: {
   impact: OutOfOrderImpact;
   locale: SupportedLocale;
-  /** The Property the room is in, which the booking links name. */
-  propertyId: string;
+  /** Reservations at the room's Property, `?property=` on it; null if closed to the viewer. */
+  reservationsHref: string | null;
 }) {
   const t = useTranslations("maintenance");
   const guest = (name: string | null) => isolate(name ?? t("aGuest"));
@@ -50,6 +52,19 @@ export function ImpactNotice({
                   guest: guest(stay.guestName),
                   unit: isolate(stay.unitName),
                 })}
+            {reservationsHref && stay.reservationId ? (
+              <>
+                {" "}
+                <a
+                  className="font-medium underline underline-offset-2"
+                  href={`${reservationsHref}&open=${stay.reservationId}`}
+                  rel="noopener"
+                  target="_blank"
+                >
+                  {t("impactOpenBooking")}
+                </a>
+              </>
+            ) : null}
           </li>
         ))}
         {impact.reservations.map((booking) => (
@@ -61,10 +76,10 @@ export function ImpactNotice({
               unit: isolate(booking.unitName),
               from: formatDay(booking.startsOn, locale),
             })}{" "}
-            {booking.mayAmend ? (
+            {booking.mayAmend && reservationsHref ? (
               <a
                 className="font-medium underline underline-offset-2"
-                href={`${localizeHref(locale, "reservations")}?${new URLSearchParams({ property: propertyId, change: booking.reservationId })}`}
+                href={`${reservationsHref}&change=${booking.reservationId}`}
                 rel="noopener"
                 target="_blank"
               >

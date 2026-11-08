@@ -182,6 +182,8 @@ export interface ReportOptions {
 /** Who a Unit going out of order affects (MT-S2-09, MT-S2-10). */
 export interface OutOfOrderImpact {
   inHouse: readonly {
+    /** So the notice can open the stay's booking; null for a walk-in with none. */
+    reservationId: string | null;
     unitName: string;
     guestName: string | null;
     endsOn: string | null;

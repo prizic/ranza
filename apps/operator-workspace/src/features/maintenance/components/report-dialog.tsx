@@ -72,6 +72,7 @@ export function ReportDialog({
   initialUnitId,
   today,
   openRequests,
+  reservationsHref,
   onOpenRequest,
   onDone,
 }: {
@@ -87,6 +88,8 @@ export function ReportDialog({
   today: string;
   /** The requests still open, so a room already reported says so. */
   openRequests: readonly MaintenanceRequestCard[];
+  /** Reservations at this Property, `?property=` on it; null if closed to the viewer. */
+  reservationsHref: string | null;
   /** Closes this form and opens a request's sheet, from one named as already open. */
   onOpenRequest: (requestId: string) => void;
   /** What the board says once the dialog has closed on a success. */
@@ -382,7 +385,7 @@ export function ReportDialog({
                 <ImpactNotice
                   impact={impact}
                   locale={locale}
-                  propertyId={propertyId}
+                  reservationsHref={reservationsHref}
                 />
               </div>
             ) : null}

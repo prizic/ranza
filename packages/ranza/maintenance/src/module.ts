@@ -439,7 +439,8 @@ export function createMaintenanceModule(deps: MaintenanceDeps) {
     unitId: string,
   ): Promise<OutOfOrderImpact> {
     const inHouse = await tx.$queryRaw<OutOfOrderImpact["inHouse"][number][]>`
-      select unit.name as "unitName",
+      select stay.reservation_id as "reservationId",
+             unit.name as "unitName",
              guest.full_name as "guestName",
              to_char(stay.ends_on, 'YYYY-MM-DD') as "endsOn"
         from public.stays as stay
