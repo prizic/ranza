@@ -126,7 +126,8 @@ test.beforeAll(async ({ playwright, baseURL }) => {
        select '${PROPERTY_WITHOUT_THE_MODULE}', id, 'E2E Property without the module ${SUFFIX}' from org
      ), caps as (
        insert into public.property_capabilities (property_id, organization_id, capability_key, enabled)
-       select '${PROPERTY}', id, 'integrations', true from org
+       select '${PROPERTY}', id, wanted.key, true
+         from org, (values ('integrations'), ('today')) as wanted (key)
      ), viewer_role as (
        insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
        select id, 'integrations_viewer', id, 'Integrations viewer', array['integrations.view']
