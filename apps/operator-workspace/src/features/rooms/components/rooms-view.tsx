@@ -166,17 +166,6 @@ export function RoomsView({
     return parentRoom?.unitId ?? null;
   }, [data.units, targetUnitId]);
 
-  useEffect(() => {
-    if (!targetUnitId) return;
-    const el =
-      document.getElementById(`unit-${targetUnitId}`) ??
-      document.getElementById(`room-${targetUnitId}`) ??
-      document.getElementById(`list-unit-${targetUnitId}`);
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [targetUnitId]);
-
   // A bed under a room out of order is held by the room's request.
   const holdByUnit = new Map(
     maintenance.holds.map((hold) => [hold.unitId, hold]),
@@ -297,6 +286,24 @@ export function RoomsView({
     const admitted = admits === null || admitsOf(room) === admits;
     return named && inState && isReady && admitted && inBlock(room, block);
   });
+
+  // A link names a room the filters may leave out; the board then has nothing
+  // to scroll to, so the reader is told why and can clear the filters (RB-S6-06).
+  const targetRoom = data.units.find((u) => u.unitId === targetRoomId);
+  const targetHidden =
+    targetRoom !== undefined &&
+    !visibleUnits.some((room) => room.unitId === targetRoom.unitId);
+
+  useEffect(() => {
+    if (!targetUnitId || targetHidden) return;
+    const el =
+      document.getElementById(`unit-${targetUnitId}`) ??
+      document.getElementById(`room-${targetUnitId}`) ??
+      document.getElementById(`list-unit-${targetUnitId}`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [targetUnitId, targetHidden]);
   // The figure Today showed, from the same count, so the notice gives it back.
   const narrowing: Narrowing = { admits, block };
   const freeIds = new Set(data.units.flatMap((room) => freePlaces(room)));
@@ -566,6 +573,25 @@ export function RoomsView({
               {...notice}
             />
           )}
+          {targetHidden && targetRoom ? (
+            <div
+              className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-4 py-2.5 text-step--1"
+              role="status"
+            >
+              <span className="font-medium">
+                {rp("targetHidden", { room: targetRoom.name })}
+              </span>
+              <Button
+                className="ms-auto font-semibold text-primary"
+                onClick={clearFilters}
+                size="sm"
+                variant="ghost"
+              >
+                {rp("showAll")}
+                <X aria-hidden="true" />
+              </Button>
+            </div>
+          ) : null}
         </>
       ) : null}
 

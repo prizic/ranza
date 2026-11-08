@@ -2404,6 +2404,7 @@ export interface Messages {
     showAll: string;
     noMatchTitle: string;
     noMatchDescription: string;
+    targetHidden: string;
     noRoomsReadOnly: string;
     housekeepingLink: string;
     refresh: string;
@@ -6312,6 +6313,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatchTitle: "Eşleşen oda yok",
       noMatchDescription:
         "Bu arama ve bu filtrelerle eşleşen oda yok. Tesisinizin odaları yerinde duruyor.",
+      targetHidden: "{room} odası, ayarladığınız filtreler yüzünden gizli.",
       noRoomsReadOnly:
         "Bu tesise henüz oda eklenmedi. Rolünde “{permission}” bulunan biri ekleyebilir.",
       housekeepingLink:
@@ -10453,6 +10455,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatchTitle: "No rooms match",
       noMatchDescription:
         "No room matches this search with these filters. Your Property still has its rooms.",
+      targetHidden: "Room {room} is hidden by the filters you set.",
       noRoomsReadOnly:
         "No rooms have been added to this Property yet. Someone whose role holds “{permission}” can add them.",
       housekeepingLink: "Which are clean or dirty? See Housekeeping",
@@ -14508,6 +14511,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       noMatchTitle: "لا توجد غرف مطابقة",
       noMatchDescription:
         "لا توجد غرفة تطابق هذا البحث مع هذه المرشحات. غرف عقارك ما زالت موجودة.",
+      targetHidden: "الغرفة {room} مخفية بسبب المرشحات التي حددتها.",
       noRoomsReadOnly:
         "لم تُضف أي غرف إلى هذا العقار بعد. يستطيع إضافتها من يحمل دوره الصلاحية «{permission}».",
       housekeepingLink: "أيها نظيفة وأيها متسخة؟ افتح التدبير الفندقي",

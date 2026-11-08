@@ -22,7 +22,10 @@ import type {
   UnitMap,
 } from "../../packages/ranza/accommodation/src";
 import type { RoomReadiness } from "../../apps/operator-workspace/src/server/viewer";
-import type { SupportedLocale } from "../../packages/i18n/src";
+import {
+  supportedLocales,
+  type SupportedLocale,
+} from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
 // The page asks the server again while it is open; there is no router here.
@@ -112,6 +115,7 @@ function screenOf(
     calendarHref?: string | null;
     departuresHref?: string | null;
     maintenanceHref?: string | null;
+    targetUnitId?: string | null;
   } = {},
 ) {
   return (
@@ -144,6 +148,7 @@ function screenOf(
         offerAdmits={options.offerAdmits ?? false}
         propertyId="dd000003-0000-4000-8000-000000000001"
         readiness={options.readiness ?? null}
+        targetUnitId={options.targetUnitId ?? null}
         reservationsHref={
           options.reservationsHref === undefined
             ? "/en/reservations?property=dd000003-0000-4000-8000-000000000001"
@@ -1108,5 +1113,69 @@ describe("whom a room admits (RB-S5-13, RB-S5-14, RB-S5-15)", () => {
       .getByTestId("add-rooms-preview")
       .closest("form")!;
     expect(new FormData(form).get("admits")).toBe("female");
+  });
+});
+
+describe("a link to a room the filters hide says so (RB-S6-06)", () => {
+  const BLOCKED_104 = "dd000004-0000-4000-8000-000000000104";
+  const FREE_ONLY = { show: "free", admits: null, block: null } as const;
+  const notice = () => screen.queryByRole("status");
+
+  it("RB-S6-06: says the room is hidden by the filters, with one press to clear them", () => {
+    render(
+      screenOf("en", { initialFilter: FREE_ONLY, targetUnitId: BLOCKED_104 }),
+    );
+    expect(notice()).toHaveTextContent(
+      "Room 104 is hidden by the filters you set.",
+    );
+    expect(screen.queryByText("104")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      within(notice()!).getByRole("button", { name: "Show all rooms" }),
+    );
+    expect(screen.getByText("104")).toBeInTheDocument();
+    expect(notice()).toBeNull();
+  });
+
+  it("RB-S6-06: says nothing when the room is on the board", () => {
+    render(screenOf("en", { targetUnitId: BLOCKED_104 }));
+    expect(notice()).toBeNull();
+    cleanup();
+    render(
+      screenOf("en", {
+        initialFilter: FREE_ONLY,
+        targetUnitId: "dd000004-0000-4000-8000-000000000101",
+      }),
+    );
+    expect(notice()).toBeNull();
+  });
+
+  it("RB-S6-06: says nothing for a link that names no room on this Property", () => {
+    render(
+      screenOf("en", {
+        initialFilter: FREE_ONLY,
+        targetUnitId: "dd000004-0000-4000-8000-0000000009ff",
+      }),
+    );
+    expect(notice()).toBeNull();
+  });
+
+  it("RB-S6-06: the reader's own search that hides the room raises it too, and clearing it lifts it", () => {
+    render(screenOf("en", { targetUnitId: BLOCKED_104 }));
+    fireEvent.change(screen.getByRole("searchbox"), {
+      target: { value: "101" },
+    });
+    expect(notice()).toHaveTextContent("Room 104 is hidden");
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "" } });
+    expect(notice()).toBeNull();
+  });
+
+  it.each(supportedLocales)("RB-S6-06: has its own words in %s", (locale) => {
+    render(
+      screenOf(locale, { initialFilter: FREE_ONLY, targetUnitId: BLOCKED_104 }),
+    );
+    expect(notice()).toHaveTextContent(
+      messages[locale].roomsPage.targetHidden.replace("{room}", "104"),
+    );
   });
 });
