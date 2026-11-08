@@ -242,12 +242,12 @@
 
       <div class="callout ok">
         <strong>Status after the backlog pass, 2026-11-08.</strong> Of the 60
-        findings, <strong>47 are fixed</strong>,
+        findings, <strong>50 are fixed</strong>,
         <strong>7 are partly fixed</strong> (what is left is named on each),
-        <strong>4 are proposed rows</strong> for the owner and were deliberately
-        not built, and <strong>2 are open</strong> (A-14 and B-13, with the
-        reason on each). Each fix ships with a test and a sabotage run in which
-        the test was seen to fail. The first fixes, Open stay
+        <strong>1 is a proposed row</strong> that waits on a product decision
+        and was not built, and <strong>2 are open</strong> (A-14 and B-13, with
+        the reason on each). Each fix ships with a test and a sabotage run in
+        which the test was seen to fail. The first fixes, Open stay
         (<code>49ae2cc4</code>), D-07, B-17 and A-01, came before this pass.
       </div>
 
@@ -355,16 +355,26 @@
 
       <h2>What remains</h2>
       <p>
-        <strong>Needs the owner, not code.</strong> Five proposed rows were
-        written and not built: <code>AN-S6-06</code> (C-15, uncharged nights to
-        their days), <code>INT-S1-82</code> (C-19, an endpoint's failures),
-        <code>OA-S5-30</code> (D-14, a past-due notice with no way to pay;
-        depends on where payment happens), <code>TD-S1-32</code> (B-07, a named
-        row on Today opens the booking; it conflicts with the wording of
-        <code>TD-S1-22</code>, so that row needs an amendment first) and
-        <code>RB-S6-06</code> (a room hidden by the filters says so). A-11's
-        reserved half was already the proposed row <code>RB-S2-23</code>, and
-        the peek panel is the deferred <code>RB-DEF-06</code>.
+        <strong>Proposals approved and built on 2026-11-08.</strong> Albaraa
+        Zain approved the ranked proposals and five were built, each with its
+        row, tests and a sabotage run: <code>TD-S1-32</code> (B-07, a named
+        Guest in the Movements card opens their booking or Folio, with
+        <code>TD-S1-22</code> amended), <code>AN-S6-06</code> (C-15, each
+        uncharged reason links to its first day), <code>INT-S1-82</code> (C-19,
+        an endpoint's failure count leads to its failures),
+        <code>RB-S6-06</code> (a room hidden by the filters says so) and
+        <code>RB-S2-23</code> (a room with a Guest in it opens their stay, and a
+        reserved or occupied room the calendar, from the board). The SQL that
+        <code>INT-S1-82</code>, <code>AN-S6-06</code>, B-12 and A-09 rely on was
+        run against a database.
+      </p>
+      <p>
+        <strong>Not built, and why.</strong> <code>OA-S5-30</code> (D-14, a
+        past-due notice with no way to pay) waits on a product decision: nothing
+        can be linked to until it is decided where payment happens.
+        <code>RB-DEF-06</code>, the room peek panel, stays deferred: after
+        <code>RB-S2-23</code> it would change only what pressing a free room
+        does first, which needs a design grill before code.
       </p>
       <p>
         <strong>Open.</strong> A-14 (the blocking booking is named by a
@@ -504,10 +514,11 @@
         proved by a vitest test that fails when the fix is broken. No fix was
         seen in a browser, so layout, RTL and focus are unchecked; the A-13
         buttons in the booking sheet and the B-10 link under a room name are the
-        two most likely to need a visual pass. Two fixes add one selected column
-        to a SQL query (B-12 in the maintenance module and A-09 in the
-        reservations module); no database was running, so neither query, nor the
-        integration assertion added for B-12, has been executed.
+        two most likely to need a visual pass. The SQL behind B-12, A-09, C-15
+        and C-19 was run against a throwaway local database on 2026-11-08 and
+        the matching integration suites pass; that run also found two
+        integration assertions that the B-01 change had silently broken (they
+        are fixed), which is a reminder that CI does not run integration suites.
       </div>
       <ul>
         <li>
@@ -1093,7 +1104,8 @@
           <dd>
             <strong>Fixed:</strong> Left today: the name opens the booking, the
             cleaning badge opens Housekeeping, each by reach. DepartedStay
-            gained reservationId; the SQL was not run against a database
+            gained reservationId; the SQL was run against a database on
+            2026-11-08 (tests/integration/today.test.ts)
           </dd>
         </dl>
       </details>
@@ -1685,8 +1697,12 @@
           </dd>
           <dt>Status</dt>
           <dd>
-            <strong>Proposed, not built:</strong> row TD-S1-32; it conflicts
-            with TD-S1-22 as written, so it needs an amendment
+            <strong>Fixed:</strong> approved by Albaraa Zain on 2026-11-08 and
+            built as TD-S1-32, with TD-S1-22 amended: in the Movements card an
+            arriving Guest&#x27;s row opens their booking and a leaving
+            Guest&#x27;s row their Folio, each where the viewer may open it. The
+            other layouts&#x27; rows are buttons with their own behaviour and
+            were not changed
           </dd>
         </dl>
       </details>
@@ -1892,7 +1908,8 @@
           <dd>
             <strong>Fixed:</strong> a Guest in house in the out-of-order warning
             opens their booking, and the existing Change booking link is now
-            gated too. The SQL was not run against a database
+            gated too. The SQL was run against a database on 2026-11-08
+            (tests/integration/maintenance.test.ts)
           </dd>
         </dl>
       </details>
@@ -2747,7 +2764,11 @@
             exceptions this way). Needs a read change, so owner approval.
           </dd>
           <dt>Status</dt>
-          <dd><strong>Proposed, not built:</strong> row AN-S6-06</dd>
+          <dd>
+            <strong>Fixed:</strong> approved and built as AN-S6-06: each reason
+            links to the first closed day that holds one of its nights; the read
+            now carries that day
+          </dd>
         </dl>
       </details>
       <details id="C-16">
@@ -2892,7 +2913,12 @@
             this). New behaviour, so a proposal.
           </dd>
           <dt>Status</dt>
-          <dd><strong>Proposed, not built:</strong> row INT-S1-82</dd>
+          <dd>
+            <strong>Fixed:</strong> approved and built as INT-S1-82: an
+            endpoint&#x27;s count links to its failures through ?endpoint=, with
+            a notice and the way back; Retry all is withheld while narrowed. The
+            SQL was run against a database
+          </dd>
         </dl>
       </details>
       <h3>
@@ -3516,8 +3542,9 @@
           </dd>
           <dt>Status</dt>
           <dd>
-            <strong>Proposed, not built:</strong> row OA-S5-30; it depends on
-            where payment is made
+            <strong>Proposed, not built:</strong> row OA-S5-30; not built,
+            because it depends on a product decision on where payment is made,
+            and nothing can be linked to until that is decided
           </dd>
         </dl>
       </details>
