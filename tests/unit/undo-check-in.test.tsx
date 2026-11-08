@@ -17,12 +17,19 @@
  * and it is either there or it is not. An `aria-label` is a string, and a
  * string is where the isolates get dropped.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
 import { REVERSAL_REASON } from "../../packages/ranza/reservations/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 import type { SupportedLocale } from "../../packages/i18n/src";
+import type { UndoWays } from "../../apps/operator-workspace/src/features/front-office/undo-ways";
 
 // The server action, which this component only calls. Reaching it would drag
 // in the composition root, a database connection and Next's request context to
@@ -31,6 +38,18 @@ vi.mock("../../apps/operator-workspace/src/server/front-office", () => ({
   reverseCheckIn: vi.fn(),
 }));
 
+vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
+}));
+
+const { reverseCheckIn } =
+  await import("../../apps/operator-workspace/src/server/front-office");
 const { UndoCheckInDialog } =
   await import("../../apps/operator-workspace/src/features/front-office/components/undo-check-in-dialog");
 
@@ -41,7 +60,9 @@ const CLOSE = "⁩";
 /** A name that is both scripts and a bracket — the case that misreads. */
 const GUEST = "Ada Lovelace (VIP)";
 
-function open(locale: SupportedLocale) {
+const NO_WAYS: UndoWays = { folioHref: null, departuresHref: null };
+
+function open(locale: SupportedLocale, ways: UndoWays = NO_WAYS) {
   // Between renders as well as between tests: these ask the same question in
   // three languages, and two of the same button in one document answers none
   // of them.
@@ -51,8 +72,10 @@ function open(locale: SupportedLocale) {
       <UndoCheckInDialog
         guestName={GUEST}
         locale={locale}
+        reservationId="d9000005-0000-4000-8000-000000000002"
         stayId="d9000005-0000-4000-8000-000000000001"
         unitName="101"
+        ways={ways}
       />
     </NextIntlClientProvider>,
   );
@@ -90,5 +113,76 @@ describe("the reason field", () => {
     expect(reason).toHaveAttribute("maxLength", String(REVERSAL_REASON.max));
     expect(reason).toHaveAttribute("minLength", String(REVERSAL_REASON.min));
     expect(reason).toBeRequired();
+  });
+});
+
+describe("a withdrawal the system refuses leads on (audit 2026-11-07, A-07)", () => {
+  const WAYS: UndoWays = {
+    folioHref: "/en/finance?property=p1&folio=f1",
+    departuresHref: "/en/departures?property=p1",
+  };
+
+  async function refused(
+    outcome: "charges" | "dayClosed" | "moved",
+    ways: UndoWays,
+  ) {
+    vi.mocked(reverseCheckIn).mockResolvedValue(outcome);
+    open("en", ways).click();
+    fireEvent.change(await screen.findByLabelText("Why is it being undone?"), {
+      target: { value: "Wrong room" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Undo check-in" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeVisible());
+  }
+
+  it("A-07: posted charges lead to the Folio", async () => {
+    await refused("charges", WAYS);
+    expect(
+      screen.getByRole("link", { name: "Open folio" }).getAttribute("href"),
+    ).toBe(WAYS.folioHref);
+  });
+
+  it("A-07: a closed day or a move leads to Departures", async () => {
+    await refused("dayClosed", WAYS);
+    expect(
+      screen
+        .getByRole("link", { name: "Check out (opens Departures)" })
+        .getAttribute("href"),
+    ).toBe(WAYS.departuresHref);
+    cleanup();
+    await refused("moved", WAYS);
+    expect(
+      screen.getByRole("link", { name: "Check out (opens Departures)" }),
+    ).toBeVisible();
+  });
+
+  it("A-07: no link to a page the viewer cannot open", async () => {
+    await refused("charges", { ...WAYS, folioHref: null });
+    expect(screen.queryByRole("link")).toBeNull();
+    cleanup();
+    await refused("dayClosed", { ...WAYS, departuresHref: null });
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+});
+
+describe("where a refused withdrawal may lead (A-07)", () => {
+  it("A-07: asks the viewer's reach, and leaves out a Stay with no Folio", async () => {
+    const { undoWays } =
+      await import("../../apps/operator-workspace/src/features/front-office/undo-ways");
+    const { REACHES_EVERYTHING } =
+      await import("../../apps/operator-workspace/src/features/front-office/reach");
+    expect(undoWays("en", "p1", REACHES_EVERYTHING, "f1")).toEqual({
+      folioHref: "/en/finance?property=p1&folio=f1",
+      departuresHref: "/en/departures?property=p1",
+    });
+    expect(undoWays("en", "p1", REACHES_EVERYTHING, null).folioHref).toBeNull();
+    expect(
+      undoWays(
+        "en",
+        "p1",
+        { ...REACHES_EVERYTHING, folio: false, departures: false },
+        "f1",
+      ),
+    ).toEqual({ folioHref: null, departuresHref: null });
   });
 });

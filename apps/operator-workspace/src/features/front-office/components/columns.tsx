@@ -42,6 +42,7 @@ import { UndoCheckInDialog } from "./undo-check-in-dialog";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { FrontDeskRowMenu } from "./row-menu";
 import type { FrontDeskReach } from "../reach";
+import { undoWays } from "../undo-ways";
 import { CopyReferenceButton } from "./copy-reference-button";
 
 const BLOCKED_WAY_CLASS =
@@ -545,6 +546,7 @@ function arrivalActionColumn(
               reservationId={arrival.reservationId}
               stayId={arrival.stayId}
               unitName={label}
+              ways={undoWays(locale, propertyId, reach, arrival.folioId)}
             />
           ) : arrival.nightsPassed ? (
             // A booking that cannot be checked in says what can be done with
@@ -1441,6 +1443,7 @@ function reservationColumns(
                 reservationId={booking.reservationId}
                 stayId={booking.stayId}
                 unitName={label}
+                ways={undoWays(locale, propertyId, reach, booking.folioId)}
               />
             ) : null}
             {menu || booking.folioId || booking.unitId ? (

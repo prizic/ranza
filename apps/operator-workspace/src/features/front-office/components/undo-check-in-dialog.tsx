@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Undo2 } from "lucide-react";
 import { isolate } from "@ranza/i18n";
@@ -28,6 +29,7 @@ import {
   type ReverseCheckInOutcome,
 } from "../../../server/front-office";
 import { claimCheckInFocus, focusCheckInFor } from "../check-in-focus";
+import type { UndoWays } from "../undo-ways";
 
 /**
  * Taking back a check-in that should not have happened (ADR 0022).
@@ -65,12 +67,15 @@ export function UndoCheckInDialog({
   reservationId,
   stayId,
   unitName,
+  ways,
 }: {
   guestName: string;
   locale: string;
   reservationId: string;
   stayId: string;
   unitName: string;
+  /** Where a refusal sends the desk, each null where the viewer may not open it. */
+  ways: UndoWays;
 }) {
   const t = useTranslations();
   /**
@@ -114,6 +119,15 @@ export function UndoCheckInDialog({
           : outcome === "refused"
             ? t("undoCheckInRefused")
             : null;
+  const way =
+    outcome === "charges"
+      ? ways.folioHref && { href: ways.folioHref, label: t("openFolio") }
+      : outcome === "dayClosed" || outcome === "moved"
+        ? ways.departuresHref && {
+            href: ways.departuresHref,
+            label: t("checkOutInDepartures"),
+          }
+        : null;
   const message =
     outcome === "reasonTooShort"
       ? t("reasonTooShort", { min: REASON.min })
@@ -170,6 +184,15 @@ export function UndoCheckInDialog({
             {final ? (
               <div role="alert">
                 <DialogNotice>{final}</DialogNotice>
+                {way ? (
+                  <Link
+                    className="mt-3 inline-block text-sm font-medium text-primary-text underline underline-offset-4"
+                    href={way.href}
+                    prefetch={false}
+                  >
+                    {way.label}
+                  </Link>
+                ) : null}
               </div>
             ) : (
               <>

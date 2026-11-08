@@ -31,6 +31,7 @@ import {
 import { expectedArrivalLabel } from "../expected-arrival";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
 import type { FrontDeskReach } from "../reach";
+import { undoWays } from "../undo-ways";
 import { unitLabel } from "../unit-label";
 import { CheckInBlockedWay } from "./check-in-blocked-way";
 import { CopyReferenceButton } from "./copy-reference-button";
@@ -382,6 +383,7 @@ export function ReservationDetailSheet({
               reservationId={reservation.reservationId}
               stayId={stayId}
               unitName={displayUnit}
+              ways={undoWays(locale, propertyId, reach, folioId)}
             />
           ) : null}
         </DialogActions>
