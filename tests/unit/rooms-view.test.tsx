@@ -1179,3 +1179,89 @@ describe("a link to a room the filters hide says so (RB-S6-06)", () => {
     );
   });
 });
+
+describe("a room opens its booking and its place on the calendar from the board (RB-S2-23)", () => {
+  const PROPERTY = "dd000003-0000-4000-8000-000000000001";
+  const idOf = (name: string) =>
+    map.units.find((candidate) => candidate.name === name)!.unitId;
+  const card = (name: string) =>
+    within(document.getElementById(`room-${idOf(name)}`)!);
+  const STAY = `/en/reservations?property=${PROPERTY}&open=bb000001-0000-4000-8000-000000000106`;
+  const CALENDAR = (name: string) =>
+    `/en/room-calendar?property=${PROPERTY}&q=${name}`;
+
+  it("RB-S2-23: a room with a Guest in it offers their stay and the calendar, outside the tile's own button", () => {
+    render(screenOf("en"));
+    const stay = card("106").getByRole("link", { name: "Open stay" });
+    expect(stay).toHaveAttribute("href", STAY);
+    expect(stay.closest("button")).toBeNull();
+    const calendar = card("106").getByRole("link", {
+      name: "Show on the room calendar",
+    });
+    expect(calendar).toHaveAttribute("href", CALENDAR("106"));
+    expect(calendar.closest("button")).toBeNull();
+  });
+
+  it("RB-S2-23: a room reserved for tonight offers the calendar only, for there is no booking to open yet", () => {
+    render(screenOf("en"));
+    expect(card("102").queryByRole("link", { name: "Open stay" })).toBeNull();
+    expect(
+      card("102").getByRole("link", { name: "Show on the room calendar" }),
+    ).toHaveAttribute("href", CALENDAR("102"));
+  });
+
+  it("RB-S2-23: a free, blocked or out-of-order room offers neither", () => {
+    render(screenOf("en"));
+    for (const name of ["101", "103", "104", "105"]) {
+      expect(card(name).queryByRole("link", { name: "Open stay" })).toBeNull();
+      expect(
+        card(name).queryByRole("link", { name: "Show on the room calendar" }),
+      ).toBeNull();
+    }
+  });
+
+  it("RB-S2-23: each link is offered only where the viewer may open its screen", () => {
+    render(screenOf("en", { reservationsHref: null }));
+    expect(card("106").queryByRole("link", { name: "Open stay" })).toBeNull();
+    expect(
+      card("106").getByRole("link", { name: "Show on the room calendar" }),
+    ).toBeInTheDocument();
+    cleanup();
+    render(screenOf("en", { calendarHref: null }));
+    expect(
+      card("106").queryByRole("link", { name: "Show on the room calendar" }),
+    ).toBeNull();
+    expect(
+      card("106").getByRole("link", { name: "Open stay" }),
+    ).toBeInTheDocument();
+  });
+
+  it("RB-S2-23: the list carries the same two links on the row", () => {
+    render(screenOf("en"));
+    fireEvent.click(screen.getByRole("button", { name: /Room list/ }));
+    const row = within(document.getElementById(`list-unit-${idOf("106")}`)!);
+    expect(row.getByRole("link", { name: "Open stay" })).toHaveAttribute(
+      "href",
+      STAY,
+    );
+    expect(
+      row.getByRole("link", { name: "Show on the room calendar" }),
+    ).toHaveAttribute("href", CALENDAR("106"));
+    expect(
+      within(document.getElementById(`list-unit-${idOf("101")}`)!).queryByRole(
+        "link",
+      ),
+    ).toBeNull();
+  });
+
+  it.each(supportedLocales)("RB-S2-23: names both links in %s", (locale) => {
+    render(screenOf(locale));
+    const names = card("106")
+      .getAllByRole("link")
+      .map((link) => link.textContent);
+    expect(names).toEqual([
+      messages[locale].roomsPage.openStay,
+      messages[locale].roomsPage.showOnCalendar,
+    ]);
+  });
+});

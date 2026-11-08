@@ -58,6 +58,7 @@ import type {
   UnitState,
 } from "../../../server/viewer";
 import { ListFilterNotice } from "../../today/components/list-filter-notice";
+import { RoomShortcuts } from "./room-shortcuts";
 import {
   admitsOf,
   blockParam,
@@ -787,6 +788,17 @@ export function RoomsView({
                                   />
                                 </div>
                               )}
+                              {/* Above the stretched button, so each is
+                                  pressed in its own right (RB-S2-23). */}
+                              {isLetByTheBed ? null : (
+                                <RoomShortcuts
+                                  calendarHref={calendarHref}
+                                  className="relative z-10 mt-2"
+                                  reservationsHref={reservationsHref}
+                                  roomName={room.name}
+                                  unit={room}
+                                />
+                              )}
                             </CardContent>
                           </Card>
                         );
@@ -854,13 +866,21 @@ export function RoomsView({
                         )}
                       </TableCell>
                       <TableCell className="text-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleSelectUnit(bed, room.unitId)}
-                        >
-                          {actionLabel(bed)}
-                        </Button>
+                        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                          <RoomShortcuts
+                            calendarHref={calendarHref}
+                            reservationsHref={reservationsHref}
+                            roomName={room.name}
+                            unit={bed}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleSelectUnit(bed, room.unitId)}
+                          >
+                            {actionLabel(bed)}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ));
@@ -908,13 +928,21 @@ export function RoomsView({
                       </div>
                     </TableCell>
                     <TableCell className="text-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleSelectUnit(room)}
-                      >
-                        {actionLabel(room)}
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+                        <RoomShortcuts
+                          calendarHref={calendarHref}
+                          reservationsHref={reservationsHref}
+                          roomName={room.name}
+                          unit={room}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleSelectUnit(room)}
+                        >
+                          {actionLabel(room)}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
