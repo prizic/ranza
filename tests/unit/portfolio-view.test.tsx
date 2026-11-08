@@ -26,7 +26,14 @@ import {
   type SupportedLocale,
 } from "../../packages/i18n/src";
 import type { Portfolio } from "../../apps/operator-workspace/src/server/portfolio";
+import type { PortfolioReach } from "../../apps/operator-workspace/src/features/portfolio/reach";
 import { aPortfolio, aProperty } from "./portfolio-fixtures";
+
+/** A viewer who may open every screen a figure leads to, at every Property. */
+function reachEverywhere(data: Portfolio): PortfolioReach {
+  const ids = data.properties.map((property) => property.propertyId);
+  return { arrivals: ids, departures: ids, maintenance: ids, finance: ids };
+}
 
 const navigation = vi.hoisted(() => ({
   refresh: vi.fn(),
@@ -75,8 +82,10 @@ function show(
     sort?: "name" | "occupancy" | "money" | "maintenance" | "arrivals";
     view?: "cards" | "table";
     peopleHref?: string | null;
+    reach?: PortfolioReach;
   } = {},
 ) {
+  const { reach = reachEverywhere(data), ...rest } = more;
   return render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <div dir={directionFor(locale)}>
@@ -85,7 +94,8 @@ function show(
           data={data}
           locale={locale}
           organizationName="Prizic Demo"
-          {...more}
+          reach={reach}
+          {...rest}
         />
       </div>
     </NextIntlClientProvider>,
@@ -189,6 +199,36 @@ describe("all_properties_states", () => {
     expect(
       screen.getByText("Prizic Demo: every Property side by side."),
     ).toBeVisible();
+  });
+
+  it("C-10: a figure is a link only where the viewer may open the screen behind it", () => {
+    const kadikoy = aProperty({ propertyName: "Kadıköy" });
+    const moda = aProperty({ propertyName: "Moda" });
+    show(aPortfolio([kadikoy, moda]), "en", {
+      reach: {
+        // Arrivals open at Moda only; Finance and the rest nowhere.
+        arrivals: [moda.propertyId],
+        departures: [],
+        maintenance: [],
+        finance: [],
+      },
+    });
+
+    const link = (name: string, property: string) =>
+      within(card(property)).queryByRole("link", {
+        name: messages.en.portfolio.openList
+          .replace("{label}", name)
+          .replace("{property}", property),
+      });
+    expect(link(messages.en.portfolio.arrivals, "Moda")).not.toBeNull();
+    expect(link(messages.en.portfolio.arrivals, "Kadıköy")).toBeNull();
+    expect(link(messages.en.portfolio.departures, "Moda")).toBeNull();
+    expect(link(messages.en.portfolio.moneyOwed, "Moda")).toBeNull();
+    // The number itself stays: it is the figure.
+    expect(
+      within(card("Kadıköy")).getByText(messages.en.portfolio.arrivals)
+        .nextSibling,
+    ).toHaveTextContent("3");
   });
 
   it("a_card_reads_its_own_figures_and_business_date", () => {

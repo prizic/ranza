@@ -22,6 +22,7 @@ export function PropertyLink({
   locale,
   propertyId,
   query = "",
+  reachable = true,
   segment,
 }: {
   children: ReactNode;
@@ -32,9 +33,12 @@ export function PropertyLink({
   propertyId: string;
   /** More of the query: `show=owing`. */
   query?: string;
+  /** Whether the viewer may open that screen at this Property; if not, the figure is plain text. */
+  reachable?: boolean;
   /** The screen, as the rail names its route: `finance`, `arrivals`. */
   segment: string;
 }) {
+  if (!reachable) return <span>{children}</span>;
   const search = `property=${encodeURIComponent(propertyId)}${query ? `&${query}` : ""}`;
   return (
     <a

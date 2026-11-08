@@ -11,6 +11,7 @@ import { StaffScreen } from "../../../../features/staff/components/staff-screen"
 import { rolesWithinViewer } from "../../../../features/staff/acts-on";
 import { shippedRoleOf } from "../../../../features/staff/labels";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 import { readRoles, readRoster } from "../../../../server/staff";
 import {
   employmentOfLogins,
@@ -85,6 +86,11 @@ export default async function PeoplePage({
   const mayAdminister = await holds("staff.administer");
   const mayDefineRoles = await holds("staff.define_roles");
   const mayViewHr = await holds("hr.view");
+  // The pointer is the screen's own gate, which also asks the module and the
+  // staff capability at this Property; the permission alone sent people to a
+  // "not in your Subscription" refusal (audit 2026-11-07, D-05).
+  const hrHref =
+    (await screenLinks(locale, home.propertyId, ["hr"])).hr ?? null;
   // Sequential rather than parallel: both resolve the same session through
   // `currentViewer`, which is cached per request, and issuing them together
   // would only race to be the one that validates it.
@@ -152,12 +158,12 @@ export default async function PeoplePage({
         <p className="mt-1 text-sm text-muted-foreground">
           {home.organizationName}
         </p>
-        {mayViewHr ? (
+        {hrHref ? (
           <p className="mt-1 text-sm text-muted-foreground">
             {t("staff.hrPointer")}{" "}
             <Link
               className="font-medium text-foreground underline underline-offset-2"
-              href={localizeHref(locale, `hr?property=${home.propertyId}`)}
+              href={hrHref}
             >
               {t("staff.hrPointerLink")}
             </Link>

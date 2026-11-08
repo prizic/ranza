@@ -30,6 +30,7 @@ import {
 } from "@ranza/i18n";
 import { expectedArrivalLabel } from "../expected-arrival";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
+import type { FrontDeskReach } from "../reach";
 import { unitLabel } from "../unit-label";
 import { CopyReferenceButton } from "./copy-reference-button";
 import { GuestParticularsFacts } from "./guest-particulars-facts";
@@ -77,6 +78,7 @@ export function ReservationDetailSheet({
   onOpenChange,
   open,
   propertyId,
+  reach,
   reservation,
   today,
 }: {
@@ -86,6 +88,8 @@ export function ReservationDetailSheet({
   onOpenChange: (open: boolean) => void;
   open: boolean;
   propertyId: string;
+  /** The pages the viewer can open from here: the Folio and the room map. */
+  reach: FrontDeskReach;
   reservation: ReservationListRow | null;
   today?: string | null;
 }) {
@@ -129,9 +133,10 @@ export function ReservationDetailSheet({
   const priced = nightlyRateMinor !== null && rateCurrency !== null;
   const roomMapHref = `/${locale}/rooms?property=${encodeURIComponent(propertyId)}&unit=${encodeURIComponent(unitId)}`;
   const historyHref = `${localizeHref(locale, "audit-log")}?property=${encodeURIComponent(propertyId)}&subject=${encodeURIComponent(reservation.reservationId)}`;
-  const folioHref = folioId
-    ? `${localizeHref(locale, "finance")}?property=${encodeURIComponent(propertyId)}&folio=${encodeURIComponent(folioId)}`
-    : null;
+  const folioHref =
+    folioId && reach.folio
+      ? `${localizeHref(locale, "finance")}?property=${encodeURIComponent(propertyId)}&folio=${encodeURIComponent(folioId)}`
+      : null;
 
   return (
     <Sheet onOpenChange={onOpenChange} open={open}>
@@ -326,10 +331,12 @@ export function ReservationDetailSheet({
         <DialogActions
           hint={
             <span className="flex flex-col gap-1.5">
-              <Link className={LINK_CLASS} href={roomMapHref}>
-                <MapPin aria-hidden="true" className="size-4" />
-                {t("showOnRoomMap")}
-              </Link>
+              {reach.rooms ? (
+                <Link className={LINK_CLASS} href={roomMapHref}>
+                  <MapPin aria-hidden="true" className="size-4" />
+                  {t("showOnRoomMap")}
+                </Link>
+              ) : null}
               {mayReadHistory ? (
                 <Link
                   className={LINK_CLASS}
@@ -349,6 +356,7 @@ export function ReservationDetailSheet({
             booking={reservation}
             locale={locale}
             propertyId={propertyId}
+            reach={reach}
             today={today}
           />
           {mayCheckIn ? (

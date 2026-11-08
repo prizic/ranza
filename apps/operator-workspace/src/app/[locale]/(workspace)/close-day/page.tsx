@@ -11,7 +11,11 @@ import {
 } from "../../../../server/viewer";
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
-import { frontDeskProperty } from "../../../../server/front-desk";
+import {
+  frontDeskProperty,
+  frontDeskReach,
+} from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 
 export async function generateMetadata({
   params,
@@ -66,14 +70,21 @@ export default async function CloseDayPage({
     );
   }
 
+  const [reach, links] = await Promise.all([
+    frontDeskReach(property.propertyId),
+    screenLinks(locale, property.propertyId, ["arrivals"]),
+  ]);
+
   return (
     <>
       <p className="text-sm text-muted-foreground">
         {t("closeDay.at")} {property.propertyName}
       </p>
       <CloseDayView
+        arrivalsHref={links.arrivals ?? null}
         day={day}
         locale={locale}
+        reach={reach}
         scope={{
           organizationId: property.organizationId,
           propertyId: property.propertyId,

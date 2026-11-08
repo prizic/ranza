@@ -22,10 +22,13 @@ import { CheckOutDialog } from "./check-out-dialog";
  * by somebody else, and the page is refreshed past it.
  */
 export function CloseDayCheckOut({
+  canOpenFolio,
   locale,
   scope,
   stayId,
 }: {
+  /** Whether the viewer may open Finance, where the bill's Folio is. */
+  canOpenFolio: boolean;
   locale: SupportedLocale;
   scope: Scope;
   stayId: string;
@@ -49,6 +52,7 @@ export function CloseDayCheckOut({
   }
   return (
     <CheckOutDialog
+      canOpenFolio={canOpenFolio}
       departure={departure}
       locale={locale}
       onDone={() => router.refresh()}

@@ -8,8 +8,10 @@
  * under a switcher naming the second. The rendered page is not asked about
  * here, only which Organization it read.
  */
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createTranslator } from "next-intl";
+import { NextIntlClientProvider, createTranslator } from "next-intl";
+import { gateOf } from "../../apps/operator-workspace/src/lib/screens";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
 const ORG_A = "9e000002-0000-4000-8000-00000000000a";
@@ -17,6 +19,8 @@ const ORG_B = "9e000002-0000-4000-8000-00000000000b";
 const PROPERTY_A = "9e000003-0000-4000-8000-00000000000a";
 const PROPERTY_B = "9e000003-0000-4000-8000-00000000000b";
 
+// Whether the HR screen opens at the Property, which its own gate decides.
+let hrOpen = true;
 const readRoster = vi.fn(async (_organizationId: string) => []);
 const readRoles = vi.fn(async (_organizationId: string) => []);
 
@@ -38,23 +42,31 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   requireViewer: async () => ({
     userId: "9e000001-0000-4000-8000-000000000001",
   }),
-  screenProperties: async () => [
-    {
-      propertyId: PROPERTY_A,
-      propertyName: "Ada Kadıköy",
-      timezone: "Europe/Istanbul",
-      organizationId: ORG_A,
-      organizationName: "Ada Otelleri",
-    },
-    {
-      propertyId: PROPERTY_B,
-      propertyName: "Deniz Moda",
-      timezone: "Europe/Istanbul",
-      organizationId: ORG_B,
-      organizationName: "Deniz Otelleri",
-    },
-  ],
-  permittedProperties: async () => [],
+  screenProperties: async (gate: unknown) =>
+    gate === gateOf("hr") && !hrOpen
+      ? []
+      : [
+          {
+            propertyId: PROPERTY_A,
+            propertyName: "Ada Kadıköy",
+            timezone: "Europe/Istanbul",
+            organizationId: ORG_A,
+            organizationName: "Ada Otelleri",
+          },
+          {
+            propertyId: PROPERTY_B,
+            propertyName: "Deniz Moda",
+            timezone: "Europe/Istanbul",
+            organizationId: ORG_B,
+            organizationName: "Deniz Otelleri",
+          },
+        ],
+  // The viewer holds hr.view everywhere, which is all the pointer once asked.
+  permittedProperties: async (permission: string) =>
+    permission === "hr.view"
+      ? [{ propertyId: PROPERTY_A, organizationId: ORG_A }]
+      : [],
+  employmentOfLogins: async () => ({}),
   whyDenied: async () => ({ reason: "not_reachable" as const }),
 }));
 vi.mock("../../apps/operator-workspace/src/server/staff", () => ({
@@ -72,6 +84,8 @@ const open = (search: { property?: string }) =>
   });
 
 afterEach(() => {
+  cleanup();
+  hrOpen = true;
   readRoster.mockClear();
   readRoles.mockClear();
 });
@@ -95,5 +109,33 @@ describe("the People page", () => {
   it("reads no roster for a Property it does not list", async () => {
     await open({ property: "9e000003-0000-4000-8000-0000000000ff" });
     expect(readRoster).not.toHaveBeenCalled();
+  });
+});
+
+describe("the pointer to Human Resources (audit 2026-11-07, D-05)", () => {
+  async function show() {
+    const page = await open({ property: PROPERTY_A });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        {page}
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("leads to HR at this Property where HR opens", async () => {
+    await show();
+
+    expect(
+      screen.getByRole("link", { name: messages.en.staff.hrPointerLink }),
+    ).toHaveAttribute("href", `/en/hr?property=${PROPERTY_A}`);
+  });
+
+  it("is not shown where the HR screen is closed, though the viewer holds hr.view", async () => {
+    hrOpen = false;
+    await show();
+
+    expect(
+      screen.queryByRole("link", { name: messages.en.staff.hrPointerLink }),
+    ).toBeNull();
   });
 });

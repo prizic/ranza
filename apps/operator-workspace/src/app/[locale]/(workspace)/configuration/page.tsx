@@ -22,6 +22,7 @@ import {
   SectionNav,
   type Section,
 } from "../../../../features/configuration/components/section-nav";
+import { screenLinks } from "../../../../server/screen-links";
 import { frontDeskProperty } from "../../../../server/front-desk";
 import { stayoverViewOf } from "../../../../server/stayover";
 import {
@@ -118,21 +119,28 @@ export default async function ConfigurationPage({
       ),
     ]);
 
-  const switchedOn: SwitchedOn[] = GATED_SCREENS.filter((_, index) =>
+  const switched = GATED_SCREENS.filter((_, index) =>
     capabilities[index]?.properties.some(
       (candidate) => candidate.propertyId === property.propertyId,
     ),
-  ).map((screen) => ({ segment: screen.segment, icon: screen.icon }));
-  const isOn = (capability: string) =>
-    GATED_SCREENS.some(
-      (screen, index) =>
-        screen.capability === capability &&
-        capabilities[index]?.properties.some(
-          (candidate) => candidate.propertyId === property.propertyId,
-        ),
-    );
-  const showRooms = isOn("front_desk");
-  const showPeople = isOn("staff_administration");
+  );
+  // A tile is a way in only where the viewer may open that screen here; Rooms
+  // and People are asked the same way, so neither is offered on the strength of
+  // the module being switched on alone (audit 2026-11-07, D-04, D-12).
+  const links = await screenLinks(locale, property.propertyId, [
+    "rooms",
+    "people",
+    ...switched
+      .filter((screen) => !screen.derived)
+      .map((screen) => screen.segment),
+  ]);
+  const roomsHref = links.rooms ?? null;
+  const peopleHref = links.people ?? null;
+  const switchedOn: SwitchedOn[] = switched.map((screen) => ({
+    segment: screen.segment,
+    icon: screen.icon,
+    href: screen.derived ? null : (links[screen.segment] ?? null),
+  }));
 
   const sections: Section[] = [
     { id: "organization", label: t("configuration.organizationTitle") },
@@ -176,7 +184,7 @@ export default async function ConfigurationPage({
     ...(switchedOn.length > 0
       ? [{ id: "modules" as const, label: t("configuration.modulesTitle") }]
       : []),
-    ...(showRooms || showPeople
+    ...(roomsHref || peopleHref
       ? [{ id: "elsewhere" as const, label: t("configuration.elsewhereTitle") }]
       : []),
   ];
@@ -264,12 +272,7 @@ export default async function ConfigurationPage({
           {switchedOn.length > 0 ? (
             <SwitchedOnCard screens={switchedOn} />
           ) : null}
-          <ElsewhereCard
-            locale={locale}
-            propertyId={property.propertyId}
-            showPeople={showPeople}
-            showRooms={showRooms}
-          />
+          <ElsewhereCard peopleHref={peopleHref} roomsHref={roomsHref} />
         </div>
       </div>
     </div>

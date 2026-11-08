@@ -15,6 +15,7 @@ import type { PortfolioProperty } from "../../../server/portfolio";
 import { occupancyPercent } from "../derive";
 import { formatBalance, formatCount, formatShare } from "../format";
 import { OpenProperty } from "./open-property";
+import type { PortfolioReach, PortfolioSegment } from "../reach";
 import { PropertyLink } from "./property-link";
 
 /**
@@ -25,9 +26,11 @@ import { PropertyLink } from "./property-link";
 export function PropertyTable({
   locale,
   properties,
+  reach,
 }: {
   locale: SupportedLocale;
   properties: readonly PortfolioProperty[];
+  reach: PortfolioReach;
 }) {
   const t = useTranslations("portfolio");
 
@@ -35,7 +38,7 @@ export function PropertyTable({
     property: PortfolioProperty,
     label: string,
     value: number | null,
-    segment: string,
+    segment: PortfolioSegment,
   ) =>
     value === null ? (
       <span className="font-normal text-muted-foreground">
@@ -47,6 +50,7 @@ export function PropertyTable({
         label={t("openList", { label, property: property.propertyName })}
         locale={locale}
         propertyId={property.propertyId}
+        reachable={reach[segment].includes(property.propertyId)}
         segment={segment}
       >
         {formatCount(value, locale)}
@@ -150,6 +154,7 @@ export function PropertyTable({
                         locale={locale}
                         propertyId={property.propertyId}
                         query="show=owing"
+                        reachable={reach.finance.includes(property.propertyId)}
                         segment="finance"
                       >
                         {formatBalance(

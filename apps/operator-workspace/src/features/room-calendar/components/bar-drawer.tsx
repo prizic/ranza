@@ -97,6 +97,7 @@ function onward(
 export function BarDrawer({
   barKey,
   calendar,
+  canOpenFolio,
   changed,
   entry,
   locale,
@@ -111,6 +112,8 @@ export function BarDrawer({
   barKey: string | null;
   /** What the calendar knows, which Move… checks a move against (RC-S3-04). */
   calendar: RoomCalendar;
+  /** Whether the viewer may open Finance, where a check-out's Folio is. */
+  canOpenFolio: boolean;
   changed: boolean;
   entry: PlacedEntry | null;
   locale: SupportedLocale;
@@ -160,6 +163,7 @@ export function BarDrawer({
             changed={changed}
             entry={entry}
             locale={locale}
+            canOpenFolio={canOpenFolio}
             mayAmend={mayAmend}
             onChanged={onChanged}
             onClose={onClose}
@@ -174,6 +178,7 @@ export function BarDrawer({
 
 function DrawerBody({
   calendar,
+  canOpenFolio,
   changed,
   entry,
   locale,
@@ -184,6 +189,7 @@ function DrawerBody({
   today,
 }: {
   calendar: RoomCalendar;
+  canOpenFolio: boolean;
   changed: boolean;
   entry: PlacedEntry;
   locale: SupportedLocale;
@@ -579,6 +585,7 @@ function DrawerBody({
         ) : null}
         {checkOut ? (
           <CheckOutDialog
+            canOpenFolio={canOpenFolio}
             departure={checkOut}
             locale={locale}
             onDone={acted}

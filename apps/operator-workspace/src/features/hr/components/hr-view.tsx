@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import type { SupportedLocale } from "@ranza/i18n";
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@ranza/ui";
 import { Banknote, Calendar, Palmtree, Users } from "lucide-react";
 import type { HrViewData } from "../../../server/viewer";
@@ -17,6 +17,8 @@ export type HrTab = "employees" | "rota" | "leave" | "payroll";
 interface HrViewProps {
   data: HrViewData;
   locale: SupportedLocale;
+  /** People, where the viewer may open it at this Property; null where not. */
+  peopleHref: string | null;
   propertyId: string;
   /** The tab the address asks for, so a link opens where it points (HR-05). */
   initialTab: HrTab;
@@ -27,7 +29,13 @@ interface HrViewProps {
  * reached by a link or an arrow opens on the tab it belongs to, and Back from
  * three months ago does not land on Employees (HR-05).
  */
-export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
+export function HrView({
+  data,
+  locale,
+  peopleHref,
+  propertyId,
+  initialTab,
+}: HrViewProps) {
   const t = useTranslations("hr");
   const [activeTab, setActiveTab] = useState<HrTab>(initialTab);
 
@@ -58,15 +66,17 @@ export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
         <h2>{t("heading")}</h2>
       </div>
 
-      <p className="text-step--1 text-muted-foreground">
-        {t("peoplePointer")}{" "}
-        <Link
-          className="font-medium text-foreground underline underline-offset-2"
-          href={localizeHref(locale, `people?property=${propertyId}`)}
-        >
-          {t("peoplePointerLink")}
-        </Link>
-      </p>
+      {peopleHref ? (
+        <p className="text-step--1 text-muted-foreground">
+          {t("peoplePointer")}{" "}
+          <Link
+            className="font-medium text-foreground underline underline-offset-2"
+            href={peopleHref}
+          >
+            {t("peoplePointerLink")}
+          </Link>
+        </p>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={choose} className="space-y-4">
         {/* Scrolls rather than pushing the page sideways (HR-13), and below the
@@ -128,6 +138,7 @@ export function HrView({ data, locale, propertyId, initialTab }: HrViewProps) {
             currency={data.currency}
             today={data.today}
             locale={locale}
+            peopleHref={peopleHref}
             properties={data.properties}
             propertyId={propertyId}
           />

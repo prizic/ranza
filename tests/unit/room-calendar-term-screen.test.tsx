@@ -131,6 +131,7 @@ function renderTerm(
       <QueryProvider scope={scope.userId}>
         <Hydrated client={prefetched}>
           <LiveRoomCalendar
+            canOpenFolio
             booking={null}
             defaultLength={DAYS}
             initialView={{
@@ -259,6 +260,7 @@ describe("block and gender chips (RC-S7-05)", () => {
         <QueryProvider scope={scope.userId}>
           <Hydrated client={prefetched}>
             <LiveRoomCalendar
+              canOpenFolio
               booking={null}
               defaultLength={DAYS}
               initialView={{

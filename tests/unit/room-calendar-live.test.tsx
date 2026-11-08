@@ -128,6 +128,7 @@ function renderCalendar(
       <QueryProvider scope={scope.userId}>
         <Hydrated client={prefetched}>
           <LiveRoomCalendar
+            canOpenFolio
             defaultLength={14}
             initialView={{
               from: null,

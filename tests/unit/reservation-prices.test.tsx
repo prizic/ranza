@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { formatMoney } from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import { REACHES_EVERYTHING } from "../../apps/operator-workspace/src/features/front-office/reach";
 
 const { navigation } = vi.hoisted(() => ({
   navigation: () => ({
@@ -80,6 +81,7 @@ function show(rows: ReservationRow[]) {
         changing={null}
         locale="en"
         propertyId="p1"
+        reach={REACHES_EVERYTHING}
         reservations={rows}
         today="2030-01-10"
       />

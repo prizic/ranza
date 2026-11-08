@@ -1057,11 +1057,14 @@ export function ReservationMenu({
   booking,
   locale,
   propertyId,
+  reach,
   today,
 }: {
   booking: ReservationListRow;
   locale: SupportedLocale;
   propertyId: string;
+  /** The pages the viewer can open from here, so the menu offers no refusal. */
+  reach: FrontDeskReach;
   today?: string | null | undefined;
 }) {
   const label = unitLabel(booking.roomName, booking.unitName);
@@ -1107,6 +1110,7 @@ export function ReservationMenu({
       guestName={booking.guestName}
       locale={locale}
       propertyId={propertyId}
+      reach={reach}
       stay={
         booking.stayId && booking.stayStartsOn && booking.mayChangeStay
           ? {
@@ -1142,13 +1146,14 @@ export function ReservationMenu({
 export function useReservationColumns(
   locale: SupportedLocale,
   propertyId: string,
+  reach: FrontDeskReach,
   today?: string | null,
 ): ColumnDef<ReservationListRow, unknown>[] {
   const t = useTranslations();
   const sort = useSortLabels();
   return useMemo(
-    () => reservationColumns(t, sort, locale, propertyId, today),
-    [t, sort, locale, propertyId, today],
+    () => reservationColumns(t, sort, locale, propertyId, reach, today),
+    [t, sort, locale, propertyId, reach, today],
   );
 }
 
@@ -1157,6 +1162,7 @@ function reservationColumns(
   sort: ColumnHeaderLabels,
   locale: SupportedLocale,
   propertyId: string,
+  reach: FrontDeskReach,
   today: string | null | undefined,
 ): ColumnDef<ReservationListRow, unknown>[] {
   return [
@@ -1421,6 +1427,7 @@ function reservationColumns(
                 key={booking.reservationId}
                 locale={locale}
                 propertyId={propertyId}
+                reach={reach}
                 today={today}
               />
             ) : null}

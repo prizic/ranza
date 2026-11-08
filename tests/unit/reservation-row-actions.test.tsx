@@ -17,6 +17,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import { REACHES_EVERYTHING } from "../../apps/operator-workspace/src/features/front-office/reach";
 
 beforeAll(() => {
   class Observer {
@@ -105,6 +106,7 @@ function show(row: ReservationRow) {
         changing={null}
         locale="en"
         propertyId="p1"
+        reach={REACHES_EVERYTHING}
         reservations={[row]}
         today="2030-01-10"
       />

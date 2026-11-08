@@ -3,12 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import {
-  formatDate,
-  formatMoney,
-  localizeHref,
-  type SupportedLocale,
-} from "@ranza/i18n";
+import { formatDate, formatMoney, type SupportedLocale } from "@ranza/i18n";
 import {
   Avatar,
   AvatarFallback,
@@ -44,6 +39,8 @@ interface EmployeesTableProps {
   /** Logins with no employment record, offered for registration (HR-S1-49). */
   unregisteredStaff: readonly UnregisteredStaffMember[];
   canManage: boolean;
+  /** People, where the viewer may open it at this Property; null where not. */
+  peopleHref: string | null;
   /** The Property's currency, which a new employee is paid in. */
   currency: string;
   /** The Property's own calendar date, `YYYY-MM-DD`. */
@@ -71,6 +68,7 @@ export function EmployeesTable({
   currency,
   today,
   locale,
+  peopleHref,
   properties,
   propertyId,
 }: EmployeesTableProps) {
@@ -304,19 +302,26 @@ export function EmployeesTable({
                               {employee.position}
                             </span>
                             {employee.userId ? (
-                              <Link
-                                className="flex w-fit items-center gap-1 text-step--2 text-muted-foreground underline-offset-2 hover:underline"
-                                href={localizeHref(
-                                  locale,
-                                  `people?property=${propertyId}`,
-                                )}
-                              >
-                                <KeyRound
-                                  aria-hidden="true"
-                                  className="size-3"
-                                />
-                                {t("hasLogin")}
-                              </Link>
+                              peopleHref ? (
+                                <Link
+                                  className="flex w-fit items-center gap-1 text-step--2 text-muted-foreground underline-offset-2 hover:underline"
+                                  href={peopleHref}
+                                >
+                                  <KeyRound
+                                    aria-hidden="true"
+                                    className="size-3"
+                                  />
+                                  {t("hasLogin")}
+                                </Link>
+                              ) : (
+                                <span className="flex w-fit items-center gap-1 text-step--2 text-muted-foreground">
+                                  <KeyRound
+                                    aria-hidden="true"
+                                    className="size-3"
+                                  />
+                                  {t("hasLogin")}
+                                </span>
+                              )
                             ) : null}
                           </span>
                         </span>
@@ -385,6 +390,7 @@ export function EmployeesTable({
                                 employeeName={employee.fullName}
                                 hiredOn={employee.hiredOn}
                                 locale={locale}
+                                peopleHref={peopleHref}
                                 propertyId={propertyId}
                                 today={today}
                               />

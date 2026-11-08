@@ -19,6 +19,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { formatMoney } from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import { REACHES_EVERYTHING } from "../../apps/operator-workspace/src/features/front-office/reach";
 import { inTab } from "../../apps/operator-workspace/src/features/front-office/reservation-tabs";
 
 const { navigation } = vi.hoisted(() => ({
@@ -136,6 +137,7 @@ function show(rows: ReservationRow[], today: string | null = TODAY) {
         locale="en"
         opening={null}
         propertyId="p1"
+        reach={REACHES_EVERYTHING}
         reservations={rows}
         today={today}
       />
@@ -310,6 +312,7 @@ describe("a booking or check-in the desk has just made", () => {
           changing={null}
           locale="en"
           propertyId="p1"
+          reach={REACHES_EVERYTHING}
           reservations={list}
           today={TODAY}
         />

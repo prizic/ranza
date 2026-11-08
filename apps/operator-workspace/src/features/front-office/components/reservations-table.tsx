@@ -25,6 +25,7 @@ import {
   RESERVATION_TABS,
   type ReservationTab,
 } from "../reservation-tabs";
+import type { FrontDeskReach } from "../reach";
 import { unitLabel } from "../unit-label";
 
 /** `2026-10-11` as `11.10.2026`, `11/10/2026`, `11.10` and `11/10`. */
@@ -74,6 +75,7 @@ export function ReservationsTable({
   mayReadHistory,
   opening,
   propertyId,
+  reach,
   reservations,
   today,
 }: {
@@ -92,6 +94,8 @@ export function ReservationsTable({
    * it is on this list.
    */
   opening: string | null;
+  /** The pages the viewer can open from a booking: the Folio and the room map. */
+  reach: FrontDeskReach;
   reservations: readonly ReservationRow[];
   /** The Property the rows belong to, which links out of them name. */
   propertyId: string;
@@ -103,7 +107,7 @@ export function ReservationsTable({
 }) {
   const t = useTranslations();
   const labels = useTableLabels();
-  const columns = useReservationColumns(locale, propertyId, today);
+  const columns = useReservationColumns(locale, propertyId, reach, today);
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -284,6 +288,7 @@ export function ReservationsTable({
       <ReservationDetailSheet
         locale={locale}
         mayReadHistory={mayReadHistory}
+        reach={reach}
         onOpenChange={(open) => {
           if (open) return;
           setSelectedId(null);

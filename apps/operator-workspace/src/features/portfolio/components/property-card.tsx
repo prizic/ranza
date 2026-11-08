@@ -13,6 +13,7 @@ import {
   formatShare,
 } from "../format";
 import { OpenProperty } from "./open-property";
+import type { PortfolioReach, PortfolioSegment } from "../reach";
 import { PropertyLink } from "./property-link";
 
 /**
@@ -32,9 +33,11 @@ import { PropertyLink } from "./property-link";
 export function PropertyCard({
   locale,
   property,
+  reach,
 }: {
   locale: SupportedLocale;
   property: PortfolioProperty;
+  reach: PortfolioReach;
 }) {
   const t = useTranslations("portfolio");
   const {
@@ -48,7 +51,7 @@ export function PropertyCard({
   const figure = (
     label: string,
     value: number | null,
-    segment: string,
+    segment: PortfolioSegment,
     query = "",
   ) => (
     <Row label={label}>
@@ -63,6 +66,7 @@ export function PropertyCard({
           locale={locale}
           propertyId={propertyId}
           query={query}
+          reachable={reach[segment].includes(propertyId)}
           segment={segment}
         >
           {formatCount(value, locale)}
@@ -119,6 +123,7 @@ export function PropertyCard({
                   locale={locale}
                   propertyId={propertyId}
                   query="show=owing"
+                  reachable={reach.finance.includes(propertyId)}
                   segment="finance"
                 >
                   {formatBalance(openFolioBalanceMinor, currency, locale)}

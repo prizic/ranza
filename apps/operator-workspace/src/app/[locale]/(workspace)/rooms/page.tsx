@@ -14,6 +14,7 @@ import {
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 import { knownBlock } from "../../../../features/rooms/narrowing";
 import {
   blockParam,
@@ -63,34 +64,22 @@ export default async function RoomsPage({
     );
   }
 
-  const [
-    data,
-    maintenance,
-    mayConfigure,
-    housekeeping,
-    bookings,
-    calendar,
-    maintenanceScreen,
-    readiness,
-  ] = await Promise.all([
-    rooms(property.propertyId),
-    roomsMaintenance(property.propertyId),
-    mayConfigureRooms(property.propertyId),
-    screenProperties(gateOf("housekeeping")),
-    screenProperties(gateOf("reservations")),
-    screenProperties(gateOf("room-calendar")),
-    screenProperties(gateOf("maintenance")),
-    roomsReadiness(property.propertyId),
-  ]);
-  // A link to another screen is offered only when the viewer may open it at
-  // this Property, so a button never ends in a refusal.
-  const linkTo = (
-    segment: string,
-    screens: readonly { propertyId: string }[],
-  ) =>
-    screens.some((candidate) => candidate.propertyId === property.propertyId)
-      ? `${localizeHref(locale, segment)}?property=${property.propertyId}`
-      : null;
+  const [data, maintenance, mayConfigure, links, readiness] = await Promise.all(
+    [
+      rooms(property.propertyId),
+      roomsMaintenance(property.propertyId),
+      mayConfigureRooms(property.propertyId),
+      // A link to another screen is offered only when the viewer may open it at
+      // this Property, so a button never ends in a refusal.
+      screenLinks(locale, property.propertyId, [
+        "housekeeping",
+        "reservations",
+        "room-calendar",
+        "maintenance",
+      ]),
+      roomsReadiness(property.propertyId),
+    ],
+  );
   // A building no room is in is no narrowing, like an unknown ?show= (TD-S5-04).
   const initialFilter = {
     show: parseUnitStateFilter(search.show),
@@ -104,14 +93,14 @@ export default async function RoomsPage({
       // A new narrowing from a link is a new starting point, not a change to
       // the filters somebody set by hand.
       key={`${initialFilter.show}:${initialFilter.admits}:${initialFilter.block === null ? "" : blockParam(initialFilter.block.block)}`}
-      calendarHref={linkTo("room-calendar", calendar)}
-      housekeepingHref={linkTo("housekeeping", housekeeping)}
+      calendarHref={links["room-calendar"]}
+      housekeepingHref={links.housekeeping}
       initialFilter={initialFilter}
       initialView={search.view === "list" ? "list" : "map"}
       locale={locale}
       maintenance={maintenance}
-      maintenanceHref={linkTo("maintenance", maintenanceScreen)}
-      reservationsHref={linkTo("reservations", bookings)}
+      maintenanceHref={links.maintenance}
+      reservationsHref={links.reservations}
       mayConfigure={mayConfigure}
       offerAdmits={property.operatingModel === "dormitory"}
       propertyId={property.propertyId}

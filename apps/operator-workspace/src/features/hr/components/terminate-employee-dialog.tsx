@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import type { SupportedLocale } from "@ranza/i18n";
 import {
   ArrowButton,
   Button,
@@ -29,6 +29,8 @@ interface TerminateEmployeeDialogProps {
   employeeName: string;
   hiredOn: Date;
   locale: SupportedLocale;
+  /** People, where the viewer may open it at this Property; null where not. */
+  peopleHref: string | null;
   propertyId: string;
   /** The Property's own calendar date, `YYYY-MM-DD`: the default last day. */
   today: string;
@@ -44,6 +46,7 @@ export function TerminateEmployeeDialog({
   employeeName,
   hiredOn,
   locale,
+  peopleHref,
   propertyId,
   today,
 }: TerminateEmployeeDialogProps) {
@@ -104,13 +107,18 @@ export function TerminateEmployeeDialog({
           />
           <DialogBody simple>
             <DialogDescription className="m-0 text-sm">
-              {t("terminateDescription")}{" "}
-              <Link
-                className="font-medium text-primary-text underline underline-offset-4"
-                href={localizeHref(locale, `people?property=${propertyId}`)}
-              >
-                {t("terminatePeople")}
-              </Link>
+              {t("terminateDescription")}
+              {peopleHref ? (
+                <>
+                  {" "}
+                  <Link
+                    className="font-medium text-primary-text underline underline-offset-4"
+                    href={peopleHref}
+                  >
+                    {t("terminatePeople")}
+                  </Link>
+                </>
+              ) : null}
             </DialogDescription>
 
             <DialogSection

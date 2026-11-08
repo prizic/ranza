@@ -102,6 +102,17 @@ export default async function PortfolioPage({
       ? `${localizeHref(locale as SupportedLocale, "people")}?property=${property.propertyId}`
       : null;
 
+  // Analytics shows these figures to a viewer who may not hold the permission
+  // of the screen behind each one, so a figure links only where it opens.
+  const [arrivals, departures, maintenance, finance] = await Promise.all(
+    (["arrivals", "departures", "maintenance", "finance"] as const).map(
+      async (segment) =>
+        (await screenProperties(gateOf(segment))).map(
+          (entry) => entry.propertyId,
+        ),
+    ),
+  );
+
   return (
     <PortfolioView
       asOf={t("portfolio.asOf", {
@@ -118,6 +129,12 @@ export default async function PortfolioPage({
       locale={locale as SupportedLocale}
       organizationName={property.organizationName}
       peopleHref={peopleHref}
+      reach={{
+        arrivals: arrivals ?? [],
+        departures: departures ?? [],
+        maintenance: maintenance ?? [],
+        finance: finance ?? [],
+      }}
       sort={parsePortfolioSort(search.sort)}
       view={parsePortfolioView(search.view)}
     />

@@ -14,6 +14,7 @@ import {
 import { OpenProperty } from "./open-property";
 import { PortfolioControls } from "./portfolio-controls";
 import { PropertyCard } from "./property-card";
+import type { PortfolioReach } from "../reach";
 import { PropertyTable } from "./property-table";
 import { SummaryStats } from "./summary-stats";
 import { TodayLink } from "./today-link";
@@ -33,6 +34,7 @@ export function PortfolioView({
   locale,
   organizationName,
   peopleHref = null,
+  reach,
   sort = "name",
   view = "cards",
 }: {
@@ -47,6 +49,8 @@ export function PortfolioView({
    * ask an Owner has been told to ask themselves (FINANCE-15).
    */
   peopleHref?: string | null;
+  /** Where the viewer may open the screens the figures lead to. */
+  reach: PortfolioReach;
   sort?: PortfolioSort;
   view?: View;
 }) {
@@ -117,7 +121,7 @@ export function PortfolioView({
       <PortfolioControls sort={sort} view={view} />
 
       {view === "table" ? (
-        <PropertyTable locale={locale} properties={ordered} />
+        <PropertyTable locale={locale} properties={ordered} reach={reach} />
       ) : (
         <ul
           aria-label={t("listLabel")}
@@ -128,6 +132,7 @@ export function PortfolioView({
               key={property.propertyId}
               locale={locale}
               property={property}
+              reach={reach}
             />
           ))}
         </ul>

@@ -26,7 +26,10 @@ import {
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { defaultStayTypeFor } from "../../../../lib/booking-defaults";
-import { frontDeskProperty } from "../../../../server/front-desk";
+import {
+  frontDeskProperty,
+  frontDeskReach,
+} from "../../../../server/front-desk";
 
 /**
  * The room calendar (RANZ-25): rooms and beds against days, bookings and
@@ -104,6 +107,8 @@ export default async function RoomCalendarPage({
   const units = mayBook ? await bookableUnits(property.propertyId) : [];
   const today = units.length > 0 ? await bookingDay(property.propertyId) : null;
 
+  const reach = await frontDeskReach(property.propertyId);
+
   // Per request, never module scope: one tenant's calendar must not be
   // dehydrated into another's HTML.
   const client = requestQueryClient();
@@ -125,6 +130,7 @@ export default async function RoomCalendarPage({
               }
             : null
         }
+        canOpenFolio={reach.folio}
         defaultLength={defaultLength}
         initialView={view}
         lengths={[...ROOM_CALENDAR_LENGTHS]}

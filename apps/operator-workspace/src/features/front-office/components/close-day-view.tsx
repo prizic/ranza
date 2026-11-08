@@ -41,6 +41,7 @@ import {
   type ChangeableStay,
 } from "./change-departure-dialog";
 import { CloseDayCheckOut } from "./close-day-check-out";
+import type { FrontDeskReach } from "../reach";
 import { CloseDayDialog } from "./close-day-dialog";
 import { FrontDeskRowMenu } from "./row-menu";
 
@@ -65,19 +66,30 @@ const WAITING_DAYS_SHOWN = 31;
  * control is offered.
  */
 export function CloseDayView({
+  arrivalsHref,
   day,
   locale,
+  reach,
   scope,
 }: {
+  /** Arrivals, where the viewer may open it at this Property; null where not. */
+  arrivalsHref: string | null;
   day: CloseTheDay;
   locale: SupportedLocale;
+  /**
+   * The pages the viewer can open from a line. Closing the day needs one
+   * permission and the pages it links to need others, so none is assumed
+   * (audit 2026-11-07, A-06).
+   */
+  reach: FrontDeskReach;
   /** The viewer's, for reading the Departures list a check-out reviews. */
   scope: Scope;
 }) {
   const t = useTranslations();
   const open = day.notArrived.length + day.notDeparted.length;
-  const arrivalsHref = `${localizeHref(locale, "arrivals")}?property=${day.propertyId}`;
-  const reservationsHref = `${localizeHref(locale, "reservations")}?property=${day.propertyId}`;
+  const reservationsHref = reach.reservations
+    ? `${localizeHref(locale, "reservations")}?property=${day.propertyId}`
+    : null;
   const firstWaiting = day.waitingDays[0];
   const lastWaiting = day.waitingDays.at(-1);
   // Items only accumulate, so the same count on the first and the last waiting
@@ -289,7 +301,7 @@ export function CloseDayView({
                     tone="info"
                   />
                 ) : null}
-                {row.arrivable ? (
+                {row.arrivable && arrivalsHref ? (
                   <Button asChild size="sm" variant="outline">
                     <Link href={arrivalsHref}>
                       {t("closeDay.openArrivals")}
@@ -310,6 +322,7 @@ export function CloseDayView({
                   guestName={row.guestName}
                   locale={locale}
                   propertyId={day.propertyId}
+                  reach={reach}
                 />
               </div>
             </li>
@@ -351,6 +364,7 @@ export function CloseDayView({
               <div className="flex flex-wrap items-center gap-2">
                 {row.mayCheckOut ? (
                   <CloseDayCheckOut
+                    canOpenFolio={reach.folio}
                     locale={locale}
                     scope={scope}
                     stayId={row.stayId}
@@ -457,7 +471,7 @@ export function CloseDayView({
                               </span>
                             ) : null}
                           </span>
-                          {row.reservationId ? (
+                          {row.reservationId && reservationsHref ? (
                             <Link
                               className="text-step--1 underline underline-offset-4"
                               href={`${reservationsHref}&open=${row.reservationId}`}
@@ -516,13 +530,15 @@ export function CloseDayView({
                     <span className="font-semibold tabular-nums">
                       {formatMoney(row.balanceMinor, row.currency, locale)}
                     </span>
-                    <Button asChild size="sm" variant="outline">
-                      <Link
-                        href={`${localizeHref(locale, "finance")}?property=${day.propertyId}&folio=${row.folioId}`}
-                      >
-                        {t("closeDay.openFolio")}
-                      </Link>
-                    </Button>
+                    {reach.folio ? (
+                      <Button asChild size="sm" variant="outline">
+                        <Link
+                          href={`${localizeHref(locale, "finance")}?property=${day.propertyId}&folio=${row.folioId}`}
+                        >
+                          {t("closeDay.openFolio")}
+                        </Link>
+                      </Button>
+                    ) : null}
                   </div>
                 </li>
               ))}

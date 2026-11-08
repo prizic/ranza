@@ -41,7 +41,10 @@ import {
   type SupportedLocale,
 } from "../../packages/i18n/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
-import { screenFor } from "../../apps/operator-workspace/src/lib/screens";
+import {
+  gateOf,
+  screenFor,
+} from "../../apps/operator-workspace/src/lib/screens";
 
 const settingsFor = vi.fn<() => Promise<PropertySettings | null>>();
 const inspectionFor = vi.fn<() => Promise<InspectionSettings | null>>();
@@ -55,6 +58,8 @@ const previewBusinessDate = vi.fn();
 let locale: SupportedLocale = "en";
 let maintenanceShown: MaintenanceSettings | null = null;
 let pricesShown: PriceList | null = null;
+// Screens the viewer's role cannot open here, by segment (audit 2026-11-07, D-04).
+let closedScreens: string[] = [];
 
 vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 // Nothing remembered on this device (OA-S3-05): the page resolves its
@@ -87,15 +92,18 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   requireViewer: async () => ({
     userId: "cf000001-0000-4000-8000-000000000001",
   }),
-  screenProperties: async () => [
-    {
-      propertyId: PROPERTY,
-      propertyName: "Deniz Otel Kadıköy",
-      timezone: "Europe/Istanbul",
-      organizationId: ORGANIZATION,
-      organizationName: "Deniz Otelleri",
-    },
-  ],
+  screenProperties: async (gate: unknown) =>
+    closedScreens.some((segment) => gate === gateOf(segment))
+      ? []
+      : [
+          {
+            propertyId: PROPERTY,
+            propertyName: "Deniz Otel Kadıköy",
+            timezone: "Europe/Istanbul",
+            organizationId: ORGANIZATION,
+            organizationName: "Deniz Otelleri",
+          },
+        ],
   // Every destination is on, so the Rooms and People links are offered.
   entitledPropertiesByCapability: async (
     capabilities: { moduleKey: string; capabilityKey: string }[],
@@ -217,6 +225,11 @@ async function show(
   };
 }
 
+/** The page's own list of sections, apart from the tiles that lead elsewhere. */
+function sectionNav() {
+  return within(screen.getByRole("navigation", { name: "On this page" }));
+}
+
 function card(id: string): HTMLElement {
   const element = document.getElementById(id);
   if (!element) throw new Error(`no ${id} section`);
@@ -240,6 +253,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+  closedScreens = [];
   saveProperty.mockReset();
   renameOrganization.mockReset();
   previewBusinessDate.mockReset();
@@ -328,16 +342,17 @@ describe("what the page holds", () => {
     expect(
       within(card("housekeeping")).getByText("Check rooms after cleaning"),
     ).toBeVisible();
-    expect(screen.getByRole("link", { name: "Housekeeping" })).toHaveAttribute(
-      "href",
-      "#housekeeping",
-    );
+    expect(
+      sectionNav().getByRole("link", { name: "Housekeeping" }),
+    ).toHaveAttribute("href", "#housekeeping");
   });
 
   it("no_housekeeping_section_without_housekeeping", async () => {
     await show(MANAGER);
     expect(document.getElementById("housekeeping")).toBeNull();
-    expect(screen.queryByRole("link", { name: "Housekeeping" })).toBeNull();
+    expect(
+      sectionNav().queryByRole("link", { name: "Housekeeping" }),
+    ).toBeNull();
   });
 
   it("the_maintenance_setting_is_maintenances_own", async () => {
@@ -363,10 +378,9 @@ describe("what the page holds", () => {
     try {
       await show(MANAGER);
       expect(card("maintenance")).toBeVisible();
-      expect(screen.getByRole("link", { name: "Maintenance" })).toHaveAttribute(
-        "href",
-        "#maintenance",
-      );
+      expect(
+        sectionNav().getByRole("link", { name: "Maintenance" }),
+      ).toHaveAttribute("href", "#maintenance");
     } finally {
       maintenanceShown = null;
     }
@@ -384,6 +398,37 @@ describe("what the page holds", () => {
       `/en/rooms?property=${PROPERTY}`,
       `/en/people?property=${PROPERTY}`,
     ]);
+  });
+
+  it("offers People only where the viewer may open it, and Rooms likewise (audit D-04)", async () => {
+    closedScreens = ["people"];
+    await show(MANAGER);
+    const links = within(card("elsewhere")).getAllByRole("link");
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      `/en/rooms?property=${PROPERTY}`,
+    ]);
+  });
+
+  it("drops the whole Elsewhere card, and its place in the section list, when neither opens", async () => {
+    closedScreens = ["people", "rooms"];
+    await show(MANAGER);
+    expect(document.getElementById("elsewhere")).toBeNull();
+    expect(
+      screen.queryByRole("link", { name: "Managed on their own screens" }),
+    ).toBeNull();
+  });
+
+  it("makes a switched-on screen a link where it opens, and plain text where it does not (audit D-12)", async () => {
+    closedScreens = ["housekeeping"];
+    await show(MANAGER);
+    card("modules").querySelector("details")?.setAttribute("open", "");
+    const modules = within(card("modules"));
+    expect(modules.getByRole("link", { name: "Maintenance" })).toHaveAttribute(
+      "href",
+      `/en/maintenance?property=${PROPERTY}`,
+    );
+    expect(modules.getByText("Housekeeping")).toBeVisible();
+    expect(modules.queryByRole("link", { name: "Housekeeping" })).toBeNull();
   });
 
   it.each(supportedLocales)(

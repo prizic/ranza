@@ -20,6 +20,10 @@ import {
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import {
+  REACHES_EVERYTHING,
+  type FrontDeskReach,
+} from "../../apps/operator-workspace/src/features/front-office/reach";
 import type { CloseTheDay } from "../../packages/ranza/business-day/src";
 import {
   supportedLocales,
@@ -82,13 +86,21 @@ const DUE: CloseTheDay = {
   recent: [],
 };
 
-function show(day: CloseTheDay, locale: SupportedLocale = "en") {
+function show(
+  day: CloseTheDay,
+  locale: SupportedLocale = "en",
+  reach: FrontDeskReach = REACHES_EVERYTHING,
+  arrivalsHref:
+    string | null = `/${locale}/arrivals?property=${day.propertyId}`,
+) {
   cleanup();
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <CloseDayView
+        arrivalsHref={arrivalsHref}
         day={day}
         locale={locale}
+        reach={reach}
         scope={{
           organizationId: "org-1",
           propertyId: day.propertyId,
@@ -532,5 +544,63 @@ describe("where the screen lives", () => {
   it("close the day is in the rail where the front desk is, and absent where it is not", () => {
     expect(railLinks(["today", "close-day"])).toContain("/en/close-day");
     expect(railLinks(["today"])).not.toContain("/en/close-day");
+  });
+});
+
+describe("the links out of the checklist follow what the viewer can open (audit 2026-11-07, A-06)", () => {
+  const LEFT_OPEN = {
+    stayId: "d9000005-0000-4000-8000-000000000002",
+    folioId: "d9000005-0000-4000-8000-000000000003",
+    guestName: "Ada Lovelace",
+    departedOn: "2026-09-22",
+    unitName: "101",
+    roomName: null,
+    balanceMinor: 4500,
+    currency: "TRY",
+  };
+  const UNCHARGED = {
+    stayId: "d9000005-0000-4000-8000-000000000030",
+    reservationId: "d9000005-0000-4000-8000-000000000031",
+    reference: "RZ-1",
+    guestName: "Kerem Yılmaz",
+    unitName: "104",
+    roomName: null,
+    reason: "unpriced" as const,
+  };
+
+  it("offers the Folio and the booking where the viewer may open them", () => {
+    show({
+      ...DUE,
+      foliosLeftOpen: [LEFT_OPEN],
+      nightsNotCharged: [UNCHARGED],
+    });
+
+    expect(screen.getByRole("link", { name: "Open Folio" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Open booking/ })).toBeTruthy();
+  });
+
+  it("offers neither to a viewer who holds close_day and nothing else", () => {
+    show(
+      { ...DUE, foliosLeftOpen: [LEFT_OPEN], nightsNotCharged: [UNCHARGED] },
+      "en",
+      {
+        rooms: false,
+        folio: false,
+        housekeeping: false,
+        reservations: false,
+      },
+    );
+
+    expect(screen.queryByRole("link", { name: "Open Folio" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Open booking/ })).toBeNull();
+    // The line itself stays: it is what holds the day open.
+    expect(screen.getByText("Kerem Yılmaz")).toBeTruthy();
+  });
+
+  it("offers no Open arrivals where Arrivals does not open", () => {
+    show({ ...DUE, notArrived: [ARRIVAL] }, "en", REACHES_EVERYTHING, null);
+
+    expect(screen.queryByRole("link", { name: "Open arrivals" })).toBeNull();
+    expect(screen.getByText("Ayşe Yılmaz")).toBeTruthy();
   });
 });

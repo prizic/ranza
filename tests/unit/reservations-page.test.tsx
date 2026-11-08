@@ -61,6 +61,9 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
   }),
   reservations,
   screenProperties,
+  // The links out of a booking, each asked of its own gate (FrontDeskReach).
+  screenPropertiesByGate: async (gates: readonly unknown[]) =>
+    gates.map(() => [PROPERTY]),
   whyDenied: async () => ({ reason: "not_reachable" as const }),
 }));
 // The dialog is tested on its own in new-reservation.test.tsx; here only the

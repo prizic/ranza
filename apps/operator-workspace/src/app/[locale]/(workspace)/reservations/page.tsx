@@ -9,7 +9,6 @@ import {
   bookableUnits,
   bookingDay,
   paymentPlanOffer,
-  permittedProperties,
   requireViewer,
   reservations,
   screenProperties,
@@ -18,7 +17,11 @@ import {
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { defaultStayTypeFor } from "../../../../lib/booking-defaults";
-import { frontDeskProperty } from "../../../../server/front-desk";
+import {
+  frontDeskProperty,
+  frontDeskReach,
+} from "../../../../server/front-desk";
+import { holdsAt, opensAt } from "../../../../server/screen-links";
 
 /** Adding, blocking and splitting rooms (accommodation_units' write policies). */
 const MANAGES_ROOMS = "accommodation.configure";
@@ -98,19 +101,15 @@ export default async function ReservationsPage({
   // Offering the button is the screen's half and refusing the booking stays the
   // policies': a role without the permission is not shown a control it cannot
   // use, as on every other front-desk list (FD-S5-03, RG-S3-05).
-  const mayBook = (await permittedProperties(TAKES_BOOKINGS)).some(
-    (permitted) => permitted.propertyId === property.propertyId,
-  );
+  const mayBook = await holdsAt(TAKES_BOOKINGS, property.propertyId);
   const roomsHref =
-    units.length === 0 &&
-    (await permittedProperties(MANAGES_ROOMS)).some(
-      (permitted) => permitted.propertyId === property.propertyId,
-    )
+    units.length === 0 && (await holdsAt(MANAGES_ROOMS, property.propertyId))
       ? `${localizeHref(locale, "rooms")}?property=${property.propertyId}`
       : null;
 
-  const mayReadHistory = (await screenProperties(gateOf("audit-log"))).some(
-    (permitted) => permitted.propertyId === property.propertyId,
+  const mayReadHistory = opensAt(
+    await screenProperties(gateOf("audit-log")),
+    property.propertyId,
   );
 
   return (
@@ -145,6 +144,7 @@ export default async function ReservationsPage({
         mayReadHistory={mayReadHistory}
         opening={search.open ?? null}
         propertyId={property.propertyId}
+        reach={await frontDeskReach(property.propertyId)}
         reservations={await reservations(property.propertyId)}
         today={today}
       />

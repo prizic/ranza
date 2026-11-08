@@ -106,6 +106,7 @@ const draft: PayrollPeriodSummary = {
 };
 
 const PROPERTIES = [{ propertyId: "prop-1", propertyName: "Galata Hotel" }];
+const PEOPLE_HREF = "/en/people?property=prop-1";
 
 const data: HrViewData = {
   organizationId: "org-1",
@@ -159,6 +160,7 @@ describe("the HR screen is in the reader's language", () => {
           data={data}
           initialTab="employees"
           locale={locale}
+          peopleHref={PEOPLE_HREF}
           propertyId="prop-1"
         />,
       );
@@ -178,6 +180,7 @@ describe("the HR screen is in the reader's language", () => {
         currency="TRY"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -212,6 +215,7 @@ describe("logins offered for registration", () => {
         currency="TRY"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -259,6 +263,7 @@ describe("logins offered for registration", () => {
         currency="TRY"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -323,6 +328,7 @@ describe("logins offered for registration", () => {
           currency="TRY"
           today="2026-10-09"
           locale={locale}
+          peopleHref={PEOPLE_HREF}
           properties={PROPERTIES}
           propertyId="prop-1"
         />,
@@ -384,6 +390,7 @@ describe("an employee card", () => {
         currency="EUR"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -401,6 +408,7 @@ describe("an employee card", () => {
         currency="TRY"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -432,6 +440,7 @@ describe("an employee card", () => {
         currency="TRY"
         today="2026-10-09"
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
       />,
@@ -454,6 +463,63 @@ describe("an employee card", () => {
         "2026-10-05",
       ),
     );
+  });
+});
+
+describe("links to People (audit 2026-11-07, D-06)", () => {
+  // `employee` has a login (userId), so the table offers the key-icon link.
+  function view(peopleHref: string | null) {
+    return inLocale(
+      "en",
+      <HrView
+        data={data}
+        initialTab="employees"
+        locale="en"
+        peopleHref={peopleHref}
+        propertyId="prop-1"
+      />,
+    );
+  }
+
+  it("offers the pointer, the per-employee login link and the dialog link where People opens", async () => {
+    view(PEOPLE_HREF);
+
+    expect(
+      screen
+        .getAllByRole("link")
+        .filter((link) => link.getAttribute("href") === PEOPLE_HREF),
+    ).toHaveLength(2);
+    fireEvent.click(
+      screen.getByRole("button", { name: /End employment: Mert Polat/ }),
+    );
+    expect(
+      await screen.findByRole("link", {
+        name: "Open People to remove their access",
+      }),
+    ).toHaveAttribute("href", PEOPLE_HREF);
+  });
+
+  it("offers none of them to a viewer who may not open People, and keeps the warning", async () => {
+    view(null);
+
+    expect(
+      screen
+        .queryAllByRole("link")
+        .filter((link) => link.getAttribute("href")?.includes("/people")),
+    ).toHaveLength(0);
+    // The fact that somebody can sign in stays; only the way to People goes.
+    expect(screen.getByText("Has a login")).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: /End employment: Mert Polat/ }),
+    );
+    expect(
+      await screen.findByText(/does not remove their access to the system/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", {
+        name: "Open People to remove their access",
+      }),
+    ).toBeNull();
   });
 });
 
@@ -891,6 +957,7 @@ describe("what an empty screen says, and to whom", () => {
         currency="TRY"
         employees={[]}
         locale="en"
+        peopleHref={PEOPLE_HREF}
         properties={PROPERTIES}
         propertyId="prop-1"
         today="2026-10-09"

@@ -19,6 +19,7 @@ import {
   frontDeskProperty,
   frontDeskReach,
 } from "../../../../server/front-desk";
+import { holdsAt, screenLinks } from "../../../../server/screen-links";
 import { parseArrivalFilter } from "../../../../features/today/views";
 
 export async function generateMetadata({
@@ -101,7 +102,11 @@ export default async function ArrivalsPage({
     queryFn: () => arrivals(property.propertyId, { withMissed: true }),
   });
 
-  const reach = await frontDeskReach(property.propertyId);
+  const [reach, links, mayBook] = await Promise.all([
+    frontDeskReach(property.propertyId),
+    screenLinks(locale, property.propertyId, ["reservations"]),
+    holdsAt("front_desk.book", property.propertyId),
+  ]);
 
   return (
     <>
@@ -110,16 +115,18 @@ export default async function ArrivalsPage({
           {t("arrivalsAt")} {property.propertyName}
         </p>
         {/* A walk-in is booked on Reservations and checked in here: the entry
-            point is on this page so nobody has to know that (CI-S1-08). The
-            booking form's own permission still decides each booking. */}
-        <Button asChild size="sm" variant="outline">
-          <Link
-            href={`${localizeHref(locale, "reservations")}?property=${property.propertyId}&new=1`}
-            prefetch={false}
-          >
-            {t("newBooking")}
-          </Link>
-        </Button>
+            point is on this page so nobody has to know that (CI-S1-08). Offered
+            only to a viewer who may book and open Reservations: a Check in
+            permission alone opens this page and not the booking form, and the
+            link would end on a list with no form and no word about why (audit
+            2026-11-07, D-03). */}
+        {mayBook && links.reservations ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href={`${links.reservations}&new=1`} prefetch={false}>
+              {t("newBooking")}
+            </Link>
+          </Button>
+        ) : null}
       </div>
       <Hydrated client={client}>
         <LiveArrivals

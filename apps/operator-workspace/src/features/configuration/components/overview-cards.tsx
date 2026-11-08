@@ -6,12 +6,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
 import { SettingsCard } from "./settings-card";
 
 export interface SwitchedOn {
   segment: string;
   icon: LucideIcon;
+  /** The screen, where the viewer may open it at this Property; null where not. */
+  href: string | null;
 }
 
 /**
@@ -39,20 +40,35 @@ export function SwitchedOnCard({
           {t("configuration.modulesCount", { count: screens.length })}
         </summary>
         <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {screens.map(({ icon: Icon, segment }) => (
-            <li
-              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
-              key={segment}
-            >
-              <Icon
-                aria-hidden="true"
-                className="size-4 shrink-0 text-primary"
-              />
-              <span className="text-step--1 font-medium">
-                {t(`navigation.${segment}`)}
-              </span>
-            </li>
-          ))}
+          {screens.map(({ href, icon: Icon, segment }) => {
+            const tile = (
+              <>
+                <Icon
+                  aria-hidden="true"
+                  className="size-4 shrink-0 text-primary"
+                />
+                <span className="text-step--1 font-medium">
+                  {t(`navigation.${segment}`)}
+                </span>
+              </>
+            );
+            return (
+              <li key={segment}>
+                {href ? (
+                  <Link
+                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                    href={href}
+                  >
+                    {tile}
+                  </Link>
+                ) : (
+                  <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5">
+                    {tile}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </details>
     </SettingsCard>
@@ -64,28 +80,24 @@ export function SwitchedOnCard({
  * home: rooms and beds under Rooms, staff and roles under People.
  */
 export function ElsewhereCard({
-  locale,
-  propertyId,
-  showPeople,
-  showRooms,
+  peopleHref,
+  roomsHref,
 }: {
-  locale: SupportedLocale;
-  propertyId: string;
-  showPeople: boolean;
-  showRooms: boolean;
+  peopleHref: string | null;
+  roomsHref: string | null;
 }) {
   const t = useTranslations();
   const links = [
-    showRooms
+    roomsHref
       ? {
-          href: `${localizeHref(locale, "rooms")}?property=${propertyId}`,
+          href: roomsHref,
           title: t("navigation.rooms"),
           hint: t("configuration.roomsHint"),
         }
       : null,
-    showPeople
+    peopleHref
       ? {
-          href: `${localizeHref(locale, "people")}?property=${propertyId}`,
+          href: peopleHref,
           title: t("navigation.people"),
           hint: t("configuration.peopleHint"),
         }

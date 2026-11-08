@@ -5,6 +5,7 @@ import { gateOf } from "../../../../lib/screens";
 import { ScreenDenied } from "../screen-denied";
 import { HrView, type HrTab } from "../../../../features/hr/components/hr-view";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 import {
   hrViewData,
   requireViewer,
@@ -46,7 +47,12 @@ export default async function HrPage({
   }
 
   const { period, week, tab } = await searchParams;
-  const data = await hrViewData(property.propertyId, { period, week });
+  const [data, links] = await Promise.all([
+    hrViewData(property.propertyId, { period, week }),
+    // People needs staff permissions that HR does not, so a link to it is
+    // offered only to a viewer who may open it (audit 2026-11-07, D-06).
+    screenLinks(locale, property.propertyId, ["people"]),
+  ]);
 
   if (!data) {
     return (
@@ -62,6 +68,7 @@ export default async function HrPage({
       data={data}
       initialTab={openingTab(tab, period, week)}
       locale={locale}
+      peopleHref={links.people ?? null}
       propertyId={property.propertyId}
     />
   );

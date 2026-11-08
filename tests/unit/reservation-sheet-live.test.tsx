@@ -17,6 +17,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
+import {
+  REACHES_EVERYTHING,
+  type FrontDeskReach,
+} from "../../apps/operator-workspace/src/features/front-office/reach";
 
 const { navigation } = vi.hoisted(() => ({
   navigation: () => ({
@@ -85,12 +89,16 @@ const BASE: ReservationRow = {
 
 afterEach(cleanup);
 
-const view = (list: ReservationRow[]) => (
+const view = (
+  list: ReservationRow[],
+  reach: FrontDeskReach = REACHES_EVERYTHING,
+) => (
   <NextIntlClientProvider locale="en" messages={messages.en}>
     <ReservationsTable
       changing={null}
       locale="en"
       propertyId="p1"
+      reach={reach}
       reservations={list}
       today={TODAY}
     />
@@ -139,5 +147,45 @@ describe("the booking sheet opened from a row", () => {
     rerender(view([]));
 
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("the links out of a booking's sheet (audit 2026-11-07, A-06)", () => {
+  const withFolio: ReservationRow = { ...arriving, folioId: "f1" };
+
+  async function openSheet(reach: FrontDeskReach) {
+    render(view([withFolio], reach));
+    fireEvent.click(screen.getByText("RZ-LIVE").closest("tr") as HTMLElement);
+    return within(await screen.findByRole("dialog"));
+  }
+
+  it("offers the Folio and the room map where the viewer may open both", async () => {
+    const sheet = await openSheet(REACHES_EVERYTHING);
+
+    expect(sheet.getByRole("link", { name: /Open folio/ })).toHaveAttribute(
+      "href",
+      expect.stringContaining("/finance?property=p1&folio=f1"),
+    );
+    expect(
+      sheet.getByRole("link", { name: /Show on the room map/ }),
+    ).toBeVisible();
+  });
+
+  it("offers no Folio link to a desk that cannot open Finance", async () => {
+    const sheet = await openSheet({ ...REACHES_EVERYTHING, folio: false });
+
+    expect(sheet.queryByRole("link", { name: /Open folio/ })).toBeNull();
+    expect(
+      sheet.getByRole("link", { name: /Show on the room map/ }),
+    ).toBeVisible();
+  });
+
+  it("offers no room map link to a viewer who cannot open Rooms", async () => {
+    const sheet = await openSheet({ ...REACHES_EVERYTHING, rooms: false });
+
+    expect(
+      sheet.queryByRole("link", { name: /Show on the room map/ }),
+    ).toBeNull();
+    expect(sheet.getByRole("link", { name: /Open folio/ })).toBeVisible();
   });
 });

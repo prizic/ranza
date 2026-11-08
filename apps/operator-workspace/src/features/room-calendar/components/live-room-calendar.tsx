@@ -96,6 +96,7 @@ function calendarDate(day: string, locale: SupportedLocale): string {
  */
 export function LiveRoomCalendar({
   booking,
+  canOpenFolio,
   defaultLength,
   initialView,
   lengths,
@@ -113,6 +114,8 @@ export function LiveRoomCalendar({
     /** The currency a payment plan is in, or null where none is offered. */
     paymentPlan: { currency: string } | null;
   } | null;
+  /** Whether the viewer may open Finance, where a check-out's Folio is. */
+  canOpenFolio: boolean;
   defaultLength: number;
   initialView: RoomCalendarView;
   lengths: number[];
@@ -532,6 +535,7 @@ export function LiveRoomCalendar({
       <BarDrawer
         barKey={opened ? barKey(opened.bar) : (selected?.key ?? null)}
         calendar={calendar}
+        canOpenFolio={canOpenFolio}
         changed={opened !== null && selected?.status !== opened.bar.status}
         entry={opened}
         locale={locale}
