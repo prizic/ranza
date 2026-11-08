@@ -184,6 +184,7 @@ export default async function PeoplePage({
       ) : (
         <StaffScreen
           employment={employment}
+          hrHref={hrHref ? `${hrHref}&tab=employees` : null}
           locale={locale}
           mayAdminister={mayAdminister}
           mayDefineRoles={mayDefineRoles}

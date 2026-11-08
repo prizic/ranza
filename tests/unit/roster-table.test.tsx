@@ -88,12 +88,14 @@ function renderRoster(
       }
     >,
     roleFilter = "all",
+    hrHref = null as string | null,
   } = {},
 ) {
   render(
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
       <RosterTable
         employment={employment}
+        hrHref={hrHref}
         onRoleFilterChange={() => undefined}
         propertyChoices={[]}
         roleFilter={roleFilter}
@@ -418,6 +420,30 @@ describe("the roster identifies people and flags leavers", () => {
     expect(
       screen.getByText("Employment ended Oct 12, 2026, still has access"),
     ).toBeInTheDocument();
+  });
+
+  it("C-14: the cue leads to HR's people list where the viewer may open it, and is plain text where not", () => {
+    const employment = {
+      "u-gone": {
+        name: "Gone Person",
+        status: "terminated" as const,
+        terminatedOn: "2026-10-12",
+      },
+    };
+    const cue = "Employment ended Oct 12, 2026, still has access";
+    renderRoster([member({ userId: "u-gone" })], {
+      employment,
+      hrHref: "/en/hr?property=p&tab=employees",
+    });
+    expect(screen.getByText(cue).closest("a")).toHaveAttribute(
+      "href",
+      "/en/hr?property=p&tab=employees",
+    );
+
+    cleanup();
+    renderRoster([member({ userId: "u-gone" })], { employment });
+    expect(screen.getByText(cue)).toBeInTheDocument();
+    expect(screen.getByText(cue).closest("a")).toBeNull();
   });
 
   it("PEOPLE-08: somebody whose access is already revoked is not flagged", () => {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   CircleCheck,
@@ -82,6 +83,7 @@ import {
  */
 export function RosterTable({
   employment,
+  hrHref,
   locale,
   mayAdminister,
   membersAboveViewer,
@@ -95,6 +97,8 @@ export function RosterTable({
 }: {
   /** HR's name and employment for a login, when the viewer may read HR. */
   employment: Readonly<Record<string, StaffEmployment>>;
+  /** HR's people list; the "left HR" cue links there. Null where HR is closed. */
+  hrHref: string | null;
   locale: SupportedLocale;
   mayAdminister: boolean;
   /** Membership ids the policies would refuse the viewer acting on. */
@@ -417,23 +421,25 @@ export function RosterTable({
                       <StatusBadge {...statusOf(member, t)} />
                       {member.status === "active" &&
                       employment[member.userId]?.terminatedOn ? (
-                        <StatusBadge
-                          icon={UserX}
-                          label={t("staff.leftHr", {
-                            date: formatDate(
-                              new Date(
-                                `${employment[member.userId]?.terminatedOn}T00:00:00Z`,
+                        <LeftHr href={hrHref}>
+                          <StatusBadge
+                            icon={UserX}
+                            label={t("staff.leftHr", {
+                              date: formatDate(
+                                new Date(
+                                  `${employment[member.userId]?.terminatedOn}T00:00:00Z`,
+                                ),
+                                locale,
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  timeZone: "UTC",
+                                },
                               ),
-                              locale,
-                              {
-                                day: "numeric",
-                                month: "short",
-                                timeZone: "UTC",
-                              },
-                            ),
-                          })}
-                          tone="warning"
-                        />
+                            })}
+                            tone="warning"
+                          />
+                        </LeftHr>
                       ) : null}
                     </span>
                   </TableCell>
@@ -808,5 +814,30 @@ function PropertiesButton({
       </span>
       <Pencil aria-hidden="true" className="size-3.5 shrink-0" />
     </Button>
+  );
+}
+
+/**
+ * The cue that somebody's employment ended, as a way to the HR record that says
+ * so where the viewer may open HR (audit 2026-11-07, C-14); the cue alone
+ * elsewhere.
+ */
+function LeftHr({
+  href,
+  children,
+}: {
+  href: string | null;
+  children: ReactNode;
+}) {
+  return href ? (
+    <Link
+      className="underline-offset-2 hover:underline"
+      href={href}
+      prefetch={false}
+    >
+      {children}
+    </Link>
+  ) : (
+    children
   );
 }

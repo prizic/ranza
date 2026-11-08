@@ -27,6 +27,7 @@ import { ALL, RosterTable } from "./roster-table";
  */
 export function StaffScreen({
   employment,
+  hrHref,
   locale,
   mayAdminister,
   mayDefineRoles,
@@ -38,6 +39,8 @@ export function StaffScreen({
 }: {
   /** What HR says about each login, for a viewer who reads it; else empty. */
   employment: Readonly<Record<string, StaffEmployment>>;
+  /** HR's people list at this Property; null where the viewer cannot open HR. */
+  hrHref: string | null;
   locale: SupportedLocale;
   /** Holds staff.administer: may change a role, revoke, or undo a revoke. */
   mayAdminister: boolean;
@@ -88,6 +91,7 @@ export function StaffScreen({
         <TabsContent className="min-w-0" value="people">
           <RosterTable
             employment={employment}
+            hrHref={hrHref}
             locale={locale}
             mayAdminister={mayAdminister}
             membersAboveViewer={membersAboveViewer(roster, viewerUserId)}

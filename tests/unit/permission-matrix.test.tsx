@@ -64,6 +64,7 @@ function screenOf(roles: readonly Role[]) {
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <StaffScreen
         employment={{}}
+        hrHref={null}
         locale="en"
         mayAdminister
         mayDefineRoles

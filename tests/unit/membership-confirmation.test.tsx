@@ -115,6 +115,7 @@ function show(roster: StaffMember[], viewerUserId = "u-viewer") {
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <RosterTable
         employment={{}}
+        hrHref={null}
         onRoleFilterChange={() => undefined}
         propertyChoices={[]}
         roleFilter="all"
