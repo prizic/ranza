@@ -75,6 +75,7 @@ export interface EndableBooking {
 export function FrontDeskRowMenu({
   booking,
   checkOutDue = false,
+  editsAsButtons = false,
   folioId,
   guestName,
   housekeeping = false,
@@ -90,6 +91,12 @@ export function FrontDeskRowMenu({
    * Departures, where the bill is reviewed and the check-out is made.
    */
   checkOutDue?: boolean;
+  /**
+   * Change booking and Change departure as buttons beside the menu rather than
+   * items in it: the booking sheet is where a booking is read and then edited,
+   * and the common edit should not be behind an unlabelled "…" (A-13).
+   */
+  editsAsButtons?: boolean;
   booking?: EndableBooking | undefined;
   /** An in-house Guest whose departure the viewer may change (AB-S2-05). */
   stay?: ChangeableStay | undefined;
@@ -110,8 +117,13 @@ export function FrontDeskRowMenu({
   const [changing, setChanging] = useState(false);
   const [changingDeparture, setChangingDeparture] = useState(false);
   const [moving, setMoving] = useState(false);
-  const bookingActions =
-    booking && (booking.mayCancel || booking.mayMarkNoShow || booking.change);
+  const buttonChange = editsAsButtons && Boolean(booking?.change);
+  const buttonDeparture = editsAsButtons && Boolean(stay);
+  const bookingMenuItems =
+    booking &&
+    (booking.mayCancel ||
+      booking.mayMarkNoShow ||
+      (booking.change && !editsAsButtons));
   const offersReservation = Boolean(reservationId) && reach.reservations;
   const offersFolio = Boolean(folioId) && reach.folio;
   const offersHousekeeping = housekeeping && reach.housekeeping;
@@ -127,6 +139,7 @@ export function FrontDeskRowMenu({
   // to the button that opened the menu instead, once the dialog's own focus
   // handling has run (RESERVATIONS-05).
   const trigger = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const dialogOpen = ending !== null || changing || changingDeparture || moving;
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -136,121 +149,153 @@ export function FrontDeskRowMenu({
     }
     if (!wasOpen.current) return;
     wasOpen.current = false;
-    const timer = setTimeout(() => trigger.current?.focus(), 0);
+    const timer = setTimeout(() => {
+      (opener.current ?? trigger.current)?.focus();
+      opener.current = null;
+    }, 0);
     return () => clearTimeout(timer);
   }, [dialogOpen]);
 
   // Nothing to offer is no menu: an empty one is a button that opens nothing.
-  if (!hasLinks && !bookingActions && !stay) return null;
+  const hasMenuItems = hasLinks || bookingMenuItems || stay;
+  if (!hasMenuItems && !buttonChange) return null;
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            aria-label={t("moreActionsFor", { guest: isolate(guestName) })}
-            className="pointer-coarse:size-11"
-            ref={trigger}
-            size="icon-sm"
-            variant="ghost"
-          >
-            <MoreHorizontal className="size-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          {offersReservation ? (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`${localizeHref(locale, "reservations")}?property=${propertyId}&open=${reservationId}`}
-                prefetch={false}
-              >
-                <FileText className="size-4" />
-                <span>{t("openReservation")}</span>
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {offersFolio ? (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${folioId}`}
-                prefetch={false}
-              >
-                <Receipt className="size-4" />
-                <span>{t("openFolio")}</span>
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {checkOutDue ? (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`${localizeHref(locale, "departures")}?property=${propertyId}`}
-                prefetch={false}
-              >
-                <DoorClosed className="size-4" />
-                <span>{t("checkOutInDepartures")}</span>
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {reach.rooms ? (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`${localizeHref(locale, "rooms")}?property=${propertyId}${unitId ? `&unit=${unitId}` : ""}`}
-                prefetch={false}
-              >
-                <BedDouble className="size-4" />
-                <span>{t("showOnRoomMap")}</span>
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {offersHousekeeping ? (
-            <DropdownMenuItem asChild>
-              <Link
-                href={`${localizeHref(locale, "housekeeping")}?property=${propertyId}`}
-                prefetch={false}
-              >
-                <SprayCan className="size-4" />
-                <span>{t("openInHousekeeping")}</span>
-              </Link>
-            </DropdownMenuItem>
-          ) : null}
-          {hasLinks && (bookingActions || stay) ? (
-            <DropdownMenuSeparator />
-          ) : null}
-          {stay ? (
-            <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
-              <CalendarRange className="size-4" />
-              <span>{t("changeDeparture")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          {stay ? (
-            <DropdownMenuItem onSelect={() => setMoving(true)}>
-              <DoorOpen className="size-4" />
-              <span>{t(stay.resident ? "moveResident" : "moveGuest")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          {booking?.change ? (
-            <DropdownMenuItem onSelect={() => setChanging(true)}>
-              <CalendarClock className="size-4" />
-              <span>{t("changeBooking")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          {booking?.mayMarkNoShow ? (
-            <DropdownMenuItem onSelect={() => setEnding("no_show")}>
-              <UserX className="size-4" />
-              <span>{t("markNoShow")}</span>
-            </DropdownMenuItem>
-          ) : null}
-          {booking?.mayCancel ? (
-            <DropdownMenuItem
-              onSelect={() => setEnding("cancel")}
-              variant="destructive"
+      {buttonChange ? (
+        <Button
+          onClick={(event) => {
+            opener.current = event.currentTarget;
+            setChanging(true);
+          }}
+          size="sm"
+          variant="outline"
+        >
+          <CalendarClock aria-hidden="true" className="size-4" />
+          {t("changeBooking")}
+        </Button>
+      ) : null}
+      {buttonDeparture ? (
+        <Button
+          onClick={(event) => {
+            opener.current = event.currentTarget;
+            setChangingDeparture(true);
+          }}
+          size="sm"
+          variant="outline"
+        >
+          <CalendarRange aria-hidden="true" className="size-4" />
+          {t("changeDeparture")}
+        </Button>
+      ) : null}
+      {hasMenuItems ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              aria-label={t("moreActionsFor", { guest: isolate(guestName) })}
+              className="pointer-coarse:size-11"
+              ref={trigger}
+              size="icon-sm"
+              variant="ghost"
             >
-              <CalendarX className="size-4" />
-              <span>{t("cancelBooking")}</span>
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <MoreHorizontal className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {offersReservation ? (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${localizeHref(locale, "reservations")}?property=${propertyId}&open=${reservationId}`}
+                  prefetch={false}
+                >
+                  <FileText className="size-4" />
+                  <span>{t("openReservation")}</span>
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {offersFolio ? (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${localizeHref(locale, "finance")}?property=${propertyId}&folio=${folioId}`}
+                  prefetch={false}
+                >
+                  <Receipt className="size-4" />
+                  <span>{t("openFolio")}</span>
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {checkOutDue ? (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${localizeHref(locale, "departures")}?property=${propertyId}`}
+                  prefetch={false}
+                >
+                  <DoorClosed className="size-4" />
+                  <span>{t("checkOutInDepartures")}</span>
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {reach.rooms ? (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${localizeHref(locale, "rooms")}?property=${propertyId}${unitId ? `&unit=${unitId}` : ""}`}
+                  prefetch={false}
+                >
+                  <BedDouble className="size-4" />
+                  <span>{t("showOnRoomMap")}</span>
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {offersHousekeeping ? (
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${localizeHref(locale, "housekeeping")}?property=${propertyId}`}
+                  prefetch={false}
+                >
+                  <SprayCan className="size-4" />
+                  <span>{t("openInHousekeeping")}</span>
+                </Link>
+              </DropdownMenuItem>
+            ) : null}
+            {hasLinks && (bookingMenuItems || stay) ? (
+              <DropdownMenuSeparator />
+            ) : null}
+            {stay && !editsAsButtons ? (
+              <DropdownMenuItem onSelect={() => setChangingDeparture(true)}>
+                <CalendarRange className="size-4" />
+                <span>{t("changeDeparture")}</span>
+              </DropdownMenuItem>
+            ) : null}
+            {stay ? (
+              <DropdownMenuItem onSelect={() => setMoving(true)}>
+                <DoorOpen className="size-4" />
+                <span>{t(stay.resident ? "moveResident" : "moveGuest")}</span>
+              </DropdownMenuItem>
+            ) : null}
+            {booking?.change && !editsAsButtons ? (
+              <DropdownMenuItem onSelect={() => setChanging(true)}>
+                <CalendarClock className="size-4" />
+                <span>{t("changeBooking")}</span>
+              </DropdownMenuItem>
+            ) : null}
+            {booking?.mayMarkNoShow ? (
+              <DropdownMenuItem onSelect={() => setEnding("no_show")}>
+                <UserX className="size-4" />
+                <span>{t("markNoShow")}</span>
+              </DropdownMenuItem>
+            ) : null}
+            {booking?.mayCancel ? (
+              <DropdownMenuItem
+                onSelect={() => setEnding("cancel")}
+                variant="destructive"
+              >
+                <CalendarX className="size-4" />
+                <span>{t("cancelBooking")}</span>
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
       {booking && ending ? (
         <EndBookingDialog
           expected={booking.expected}

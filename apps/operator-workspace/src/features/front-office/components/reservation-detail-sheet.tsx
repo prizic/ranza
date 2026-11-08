@@ -364,6 +364,7 @@ export function ReservationDetailSheet({
               change, no-show, cancel, the Folio and the room map. */}
           <ReservationMenu
             booking={reservation}
+            editsAsButtons
             locale={locale}
             propertyId={propertyId}
             reach={reach}

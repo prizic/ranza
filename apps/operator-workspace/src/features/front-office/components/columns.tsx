@@ -1069,12 +1069,15 @@ export type ReservationListRow = ReservationRow & {
  */
 export function ReservationMenu({
   booking,
+  editsAsButtons = false,
   locale,
   propertyId,
   reach,
   today,
 }: {
   booking: ReservationListRow;
+  /** Change booking and Change departure as buttons beside the menu (A-13). */
+  editsAsButtons?: boolean;
   locale: SupportedLocale;
   propertyId: string;
   /** The pages the viewer can open from here, so the menu offers no refusal. */
@@ -1120,6 +1123,7 @@ export function ReservationMenu({
       checkOutDue={
         inHouse && (booking.overdueDays > 0 || booking.endsOn === today)
       }
+      editsAsButtons={editsAsButtons}
       folioId={booking.folioId}
       guestName={booking.guestName}
       locale={locale}

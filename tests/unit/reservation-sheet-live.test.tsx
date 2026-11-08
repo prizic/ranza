@@ -208,3 +208,62 @@ describe("a refused check-in in a booking's sheet (audit 2026-11-07, A-02)", () 
     ).toHaveAttribute("href", "/en/rooms?property=p1&unit=u");
   });
 });
+
+describe("editing a booking from its sheet (audit 2026-11-07, A-13)", () => {
+  async function openSheet(row: ReservationRow) {
+    render(view([row]));
+    fireEvent.click(
+      screen.getByText(row.reference).closest("tr") as HTMLElement,
+    );
+    return within(await screen.findByRole("dialog"));
+  }
+
+  it("A-13: Change booking is a button in the sheet and no longer an item in its menu", async () => {
+    const sheet = await openSheet({
+      ...arriving,
+      mayAmend: true,
+      mayCancel: true,
+    });
+    expect(sheet.getByRole("button", { name: "Change booking" })).toBeVisible();
+
+    fireEvent.pointerDown(
+      sheet.getByRole("button", { name: /More actions for .*Grace Hopper/ }),
+      { button: 0, ctrlKey: false },
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: /Cancel booking/ }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: "Change booking" }),
+    ).toBeNull();
+  });
+
+  it("A-13: Change departure is a button for a guest in house", async () => {
+    const sheet = await openSheet({ ...checkedIn, mayChangeStay: true });
+    expect(
+      sheet.getByRole("button", { name: "Change departure" }),
+    ).toBeVisible();
+  });
+
+  it("A-13: a viewer who may not amend is offered neither", async () => {
+    const sheet = await openSheet(arriving);
+    expect(sheet.queryByRole("button", { name: "Change booking" })).toBeNull();
+    expect(
+      sheet.queryByRole("button", { name: "Change departure" }),
+    ).toBeNull();
+  });
+
+  it("A-13: the list's own row menu still carries Change booking", async () => {
+    render(view([{ ...arriving, mayAmend: true }]));
+    const row = screen.getByText("RZ-LIVE").closest("tr") as HTMLElement;
+    fireEvent.pointerDown(
+      within(row).getByRole("button", {
+        name: /More actions for .*Grace Hopper/,
+      }),
+      { button: 0, ctrlKey: false },
+    );
+    expect(
+      await screen.findByRole("menuitem", { name: "Change booking" }),
+    ).toBeVisible();
+  });
+});
