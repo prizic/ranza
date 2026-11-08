@@ -437,6 +437,7 @@ export interface Messages {
     /** `{permissions}`. */
     confirmRoleGains: string;
     confirmRoleLosses: string;
+    cannotInvite: string;
     hrPointer: string;
     hrPointerLink: string;
     /** What each action on a membership says before it is done (PEOPLE-02). */
@@ -4111,6 +4112,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       startFromPlaceholder: "Boş bir rol",
       confirmRoleGains: "Kazandıkları:",
       confirmRoleLosses: "Kaybettikleri:",
+      cannotInvite:
+        "Verebileceğiniz bir rol yok, bu yüzden kimseyi davet edemezsiniz.",
       hrPointer:
         "Bu liste, kimin oturum açabildiği ve neler yapabildiğidir. Maaş, vardiya ve izinler şurada tutulur:",
       hrPointerLink: "İK ve bordro",
@@ -8229,6 +8232,8 @@ export const messages: Record<SupportedLocale, Messages> = {
       startFromPlaceholder: "A blank role",
       confirmRoleGains: "They gain:",
       confirmRoleLosses: "They lose:",
+      cannotInvite:
+        "No role is within yours to hand out, so you cannot invite anyone.",
       hrPointer:
         "This list is who can sign in and what they may do. Pay, rota and leave are kept in",
       hrPointerLink: "HR & payroll",
@@ -12340,6 +12345,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       startFromPlaceholder: "دور فارغ",
       confirmRoleGains: "يكتسب:",
       confirmRoleLosses: "يفقد:",
+      cannotInvite: "لا يوجد دور ضمن صلاحياتك لمنحه، لذا لا يمكنك دعوة أحد.",
       hrPointer:
         "هذه القائمة هي من يستطيع تسجيل الدخول وما يحق له فعله. الرواتب والمناوبات والإجازات في",
       hrPointerLink: "الموارد البشرية والرواتب",

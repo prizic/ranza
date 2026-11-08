@@ -21,6 +21,8 @@ const PROPERTY_B = "9e000003-0000-4000-8000-00000000000b";
 
 // Whether the HR screen opens at the Property, which its own gate decides.
 let hrOpen = true;
+// What the viewer holds at their Property; the HR pointer once asked only this.
+let held = new Set(["hr.view"]);
 const readRoster = vi.fn(async (_organizationId: string) => []);
 const readRoles = vi.fn(async (_organizationId: string) => []);
 
@@ -63,7 +65,7 @@ vi.mock("../../apps/operator-workspace/src/server/viewer", () => ({
         ],
   // The viewer holds hr.view everywhere, which is all the pointer once asked.
   permittedProperties: async (permission: string) =>
-    permission === "hr.view"
+    held.has(permission)
       ? [{ propertyId: PROPERTY_A, organizationId: ORG_A }]
       : [],
   employmentOfLogins: async () => ({}),
@@ -86,6 +88,7 @@ const open = (search: { property?: string }) =>
 afterEach(() => {
   cleanup();
   hrOpen = true;
+  held = new Set(["hr.view"]);
   readRoster.mockClear();
   readRoles.mockClear();
 });
@@ -137,5 +140,29 @@ describe("the pointer to Human Resources (audit 2026-11-07, D-05)", () => {
     expect(
       screen.queryByRole("link", { name: messages.en.staff.hrPointerLink }),
     ).toBeNull();
+  });
+});
+
+describe("a viewer who may administer and has no role to invite into (C-13)", () => {
+  async function show() {
+    const page = await open({ property: PROPERTY_A });
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        {page}
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("C-13: says why there is no Invite button", async () => {
+    held = new Set(["staff.administer"]);
+    await show();
+    expect(screen.getByText(messages.en.staff.cannotInvite)).toBeVisible();
+    expect(screen.queryByText(messages.en.staff.readOnly)).toBeNull();
+  });
+
+  it("C-13: says the page is read-only, not this, to somebody who may not administer", async () => {
+    await show();
+    expect(screen.queryByText(messages.en.staff.cannotInvite)).toBeNull();
+    expect(screen.getByText(messages.en.staff.readOnly)).toBeVisible();
   });
 });

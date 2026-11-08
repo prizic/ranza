@@ -169,6 +169,11 @@ export default async function PeoplePage({
             </Link>
           </p>
         ) : null}
+        {mayAdminister && invitableRoles.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {t("staff.cannotInvite")}
+          </p>
+        ) : null}
         {mayAdminister || mayDefineRoles ? null : (
           <p className="mt-3 text-sm text-muted-foreground">
             {t("staff.readOnly")}
