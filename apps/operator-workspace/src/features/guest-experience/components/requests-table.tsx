@@ -49,6 +49,8 @@ export interface RequestsTableProps {
   viewerId: string;
   mayManage: boolean;
   urgentOnly: boolean;
+  /** Clears the urgent filter, which the page owns; "Show all" must lift it too. */
+  onClearUrgent: () => void;
 }
 
 type FilterTab = "open" | "closed" | "all";
@@ -98,6 +100,7 @@ export function RequestsTable({
   viewerId,
   mayManage,
   urgentOnly,
+  onClearUrgent,
 }: RequestsTableProps) {
   const t = useTranslations("guestExperience");
   const categories = useTranslations("guestExperience.categories");
@@ -155,6 +158,7 @@ export function RequestsTable({
     setQuery("");
     setAssignee("all");
     setCategory("all");
+    onClearUrgent();
   };
 
   const reportedOn = (req: ServiceRequestItem) =>

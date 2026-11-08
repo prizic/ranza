@@ -15,7 +15,7 @@ import type {
   ServiceRequestUnit,
 } from "@ranza/guest-services";
 import type { SupportedLocale } from "@ranza/i18n";
-import { PageHeader, Stat } from "@ranza/ui";
+import { Button, PageHeader, Stat } from "@ranza/ui";
 import { CreateRequestDialog } from "./create-request-dialog";
 import { RequestsTable } from "./requests-table";
 
@@ -44,6 +44,15 @@ export function GuestExperienceView({
 }: GuestExperienceViewProps) {
   const t = useTranslations("guestExperience");
   const [urgentOnly, setUrgentOnly] = useState(false);
+  const [logged, setLogged] = useState<number | null>(null);
+  // The table keeps its own tab, search and filters; a new key starts it again
+  // on the open requests, which is where a request just logged is.
+  const [tableKey, setTableKey] = useState(0);
+  const showOpenRequests = () => {
+    setUrgentOnly(false);
+    setTableKey((key) => key + 1);
+    setLogged(null);
+  };
 
   const counts = useMemo(() => {
     let open = 0;
@@ -69,6 +78,7 @@ export function GuestExperienceView({
           mayCreate ? (
             <CreateRequestDialog
               locale={locale}
+              onCreated={setLogged}
               propertyId={propertyId}
               units={units}
             />
@@ -81,6 +91,18 @@ export function GuestExperienceView({
           {t("subheading")}
         </h2>
       </PageHeader>
+
+      {logged === null ? null : (
+        <p
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-4 py-3 text-step--1"
+          role="status"
+        >
+          {t("requestLogged", { number: logged })}
+          <Button onClick={showOpenRequests} size="sm" variant="outline">
+            {t("showOpenRequests")}
+          </Button>
+        </p>
+      )}
 
       {mayManage ? null : (
         <p className="flex items-start gap-2 rounded-lg border bg-muted/40 px-4 py-3 text-step--1 text-muted-foreground">
@@ -98,9 +120,9 @@ export function GuestExperienceView({
         <Stat icon={Clock} label={t("openRequests")} value={counts.open} />
         <button
           aria-pressed={urgentOnly}
-          className="rounded-xl text-start focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          className="rounded-xl text-start focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none aria-pressed:ring-2 aria-pressed:ring-primary"
           onClick={() => setUrgentOnly((on) => !on)}
-          title={urgentOnly ? t("urgentFilterOn") : undefined}
+          title={urgentOnly ? t("urgentFilterOn") : t("urgentFilterHint")}
           type="button"
         >
           <Stat
@@ -117,8 +139,10 @@ export function GuestExperienceView({
       </div>
 
       <RequestsTable
+        key={tableKey}
         locale={locale}
         mayManage={mayManage}
+        onClearUrgent={() => setUrgentOnly(false)}
         propertyId={propertyId}
         requests={requests}
         staff={staff}

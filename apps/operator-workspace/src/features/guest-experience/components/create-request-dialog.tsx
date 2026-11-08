@@ -55,12 +55,15 @@ export interface CreateRequestDialogProps {
   locale: string;
   propertyId: string;
   units?: readonly ServiceRequestUnit[];
+  /** Told the number of the request just logged, for the page to confirm it. */
+  onCreated: (number: number) => void;
 }
 
 export function CreateRequestDialog({
   locale,
   propertyId,
   units = [],
+  onCreated,
 }: CreateRequestDialogProps) {
   const t = useTranslations("guestExperience");
   const all = useTranslations();
@@ -82,6 +85,7 @@ export function CreateRequestDialog({
 
   useEffect(() => {
     if (state.status === "done") {
+      if (state.number !== undefined) onCreated(state.number);
       setOpen(false);
       setCategory("other");
       setPriority("normal");
@@ -89,7 +93,7 @@ export function CreateRequestDialog({
       setTitle("");
       setDetails("");
     }
-  }, [state]);
+  }, [state, onCreated]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

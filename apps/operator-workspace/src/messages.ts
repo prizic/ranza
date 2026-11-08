@@ -3006,6 +3006,9 @@ export interface Messages {
     mine: string;
     allCategories: string;
     urgentOpen: string;
+    urgentFilterHint: string;
+    requestLogged: string;
+    showOpenRequests: string;
     urgentFilterOn: string;
     assignTo: string;
     assignToMe: string;
@@ -6968,6 +6971,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mine: "Bana atanan",
       allCategories: "Tüm kategoriler",
       urgentOpen: "Acil, açık",
+      urgentFilterHint: "Yalnızca acil talepleri göster",
+      requestLogged: "#{number} numaralı talep kaydedildi.",
+      showOpenRequests: "Açık talepleri göster",
       urgentFilterOn:
         "Yalnızca acil talepler gösteriliyor. Tümünü görmek için yeniden seçin.",
       assignTo: "Ata",
@@ -11100,6 +11106,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mine: "Assigned to me",
       allCategories: "Any category",
       urgentOpen: "Urgent, open",
+      urgentFilterHint: "Show urgent requests only",
+      requestLogged: "Request #{number} logged.",
+      showOpenRequests: "Show open requests",
       urgentFilterOn: "Showing urgent requests only. Select again to show all.",
       assignTo: "Assign to",
       assignToMe: "Assign to me",
@@ -15142,6 +15151,9 @@ export const messages: Record<SupportedLocale, Messages> = {
       mine: "المُسندة إليّ",
       allCategories: "كل الفئات",
       urgentOpen: "عاجلة ومفتوحة",
+      urgentFilterHint: "عرض الطلبات العاجلة فقط",
+      requestLogged: "تم تسجيل الطلب رقم {number}.",
+      showOpenRequests: "عرض الطلبات المفتوحة",
       urgentFilterOn: "تُعرض الطلبات العاجلة فقط. اخترها مرة أخرى لعرض الكل.",
       assignTo: "إسناد إلى",
       assignToMe: "أسندها إليّ",
