@@ -580,6 +580,22 @@ export function screenFor(segment: string): Screen | undefined {
 }
 
 /**
+ * Whether permissions the viewer holds at a Property open a destination, by the
+ * destination's own list: the permission half of its gate, for a caller that
+ * already knows the capability half (`mayBook` is the same test for one
+ * permission). Absent permission means the destination asks for none.
+ */
+export function permitsScreen(
+  segment: string,
+  held: readonly string[],
+): boolean {
+  const { permission } = gateOf(segment);
+  if (permission === undefined) return true;
+  const wanted = typeof permission === "string" ? [permission] : permission;
+  return wanted.some((one) => held.includes(one));
+}
+
+/**
  * The gate of one destination, by route segment. A segment with no gate — one
  * that is not a destination, or one the shell offers by what the viewer reaches
  * instead (`derived`) — is a mistake in the caller, so it is thrown rather than

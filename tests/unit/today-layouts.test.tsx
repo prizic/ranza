@@ -90,11 +90,12 @@ const arrival = (
   reference: `REF${unit}`,
   guestName: guest,
   stayType: "guest",
-  unit: { unitName: unit, roomName: null },
+  unit: { unitId: `u-${unit}`, unitName: unit, roomName: null },
   startsOn: "2026-10-19",
   endsOn: "2026-10-22",
   state: "ready",
   blocker: null,
+  fixAt: "arrivals",
   expectedArrival: expected,
   expectedArrivalPassed: false,
   mayCheckIn: true,
@@ -109,7 +110,7 @@ const leaving = (
   stayId: `s-${unit}`,
   reference: `S${unit}`,
   guestName: guest,
-  unit: { unitName: unit, roomName: null },
+  unit: { unitId: `u-${unit}`, unitName: unit, roomName: null },
   endsOn: overdue ? "2026-10-17" : "2026-10-19",
   overdue,
   overdueDays: overdue ? 2 : 0,
@@ -130,6 +131,7 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
     },
     focus: "front_desk",
     mayBook: true,
+    mayOpenRooms: true,
     occupancy: {
       status: "ok",
       data: {
@@ -508,14 +510,17 @@ describe("the timeline", () => {
               arrival("Hughes", "306", "18:00", {
                 state: "blocked",
                 blocker: "unit_out_of_service",
+                fixAt: "rooms",
               }),
               arrival("Ivanov", "101", "18:00", {
                 state: "blocked",
                 blocker: "not_confirmed",
+                fixAt: "arrivals",
               }),
               arrival("Jones", "102", "18:00", {
                 state: "blocked",
                 blocker: "unit_occupied",
+                fixAt: "departures",
               }),
             ],
           },
@@ -532,9 +537,12 @@ describe("the timeline", () => {
     ).toBeInTheDocument();
     expect(rows.getByText("A guest is still in the room.")).toBeInTheDocument();
     // Each goes to the page that owns the blocker.
+    // A hold is returned on Rooms, at the room, not on the board that can
+    // only mark it clean (B-01).
     expect(
-      rows.getAllByRole("link", { name: "Open Housekeeping" }),
-    ).toHaveLength(1);
+      rows.getByRole("link", { name: "Open Rooms" }).getAttribute("href"),
+    ).toMatch(/^\/en\/rooms\?.*unit=u-306/);
+    expect(rows.queryByRole("link", { name: "Open Housekeeping" })).toBeNull();
     expect(rows.getAllByRole("link", { name: "Open Arrivals" })).toHaveLength(
       1,
     );
@@ -906,6 +914,7 @@ describe("the house map", () => {
               arrival("Hughes", "306", "18:00", {
                 state: "blocked",
                 blocker: "unit_out_of_service",
+                fixAt: "rooms",
               }),
             ],
           },
@@ -916,6 +925,9 @@ describe("the house map", () => {
     expect(
       screen.getAllByText("The room is out of service.").length,
     ).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("link", { name: "Open Rooms" }).getAttribute("href"),
+    ).toMatch(/\/rooms\?.*unit=u-306/);
     expect(screen.queryByRole("button", { name: /Check in/i })).toBeNull();
   });
 

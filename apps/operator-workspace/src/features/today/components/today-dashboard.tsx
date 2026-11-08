@@ -209,6 +209,7 @@ export function TodayDashboard({
               summary.rooms?.status === "ok" && summary.rooms.data.mayMark
             }
             roomsBoard={summary.rooms !== undefined}
+            mayOpenRooms={summary.mayOpenRooms}
           />
           {/* The four figures answer "how is the day" and sit straight under
               what needs somebody, on a phone as on a desk: the movements list

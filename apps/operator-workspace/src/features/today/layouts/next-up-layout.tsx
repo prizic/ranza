@@ -20,6 +20,7 @@ import {
 import {
   ArrivalCommand,
   blockerScreen,
+  fixHref,
   DepartureCommand,
   FoldToggle,
   Panel,
@@ -414,7 +415,7 @@ function Hero({
         ) : null}
         <Link
           className="inline-flex min-h-10 items-center rounded-full border border-primary-foreground/40 px-5 text-sm font-medium transition-colors hover:bg-primary-foreground/10 focus-visible:ring-2 focus-visible:ring-primary-foreground focus-visible:outline-none"
-          href={todayHref(locale, screen, scope.propertyId)}
+          href={fixHref(locale, scope.propertyId, screen, arrival)}
         >
           {t(`open.${screen}`)}
         </Link>

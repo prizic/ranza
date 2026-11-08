@@ -21,6 +21,7 @@ import { RoomsBar, UnclosedDaysCard } from "./side-cards";
 import {
   ArrivalCommand,
   blockerScreen,
+  fixHref,
   DepartureCommand,
   Eyebrow,
   FoldToggle,
@@ -731,7 +732,7 @@ function ArrivalsToCome({
                 ) : (
                   <Link
                     className={LINK_BUTTON}
-                    href={todayHref(locale, screen, scope.propertyId)}
+                    href={fixHref(locale, scope.propertyId, screen, arrival)}
                   >
                     {t(`open.${screen}`)}
                   </Link>

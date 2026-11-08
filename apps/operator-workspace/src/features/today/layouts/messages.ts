@@ -39,6 +39,7 @@ const en = {
     departures: "Open Departures",
     finance: "Open Finance",
     housekeeping: "Open Housekeeping",
+    rooms: "Open Rooms",
   },
   figure: {
     checkedIn: "Checked in",
@@ -316,6 +317,7 @@ const tr: TodayLayoutsMessages = {
     departures: "Çıkışları aç",
     finance: "Finansı aç",
     housekeeping: "Kat hizmetlerini aç",
+    rooms: "Odaları aç",
   },
   figure: {
     checkedIn: "Giriş yapan",
@@ -582,6 +584,7 @@ const ar: TodayLayoutsMessages = {
     departures: "افتح المغادرة",
     finance: "افتح المالية",
     housekeeping: "افتح التدبير الفندقي",
+    rooms: "افتح الغرف",
   },
   figure: {
     checkedIn: "سجّلوا الدخول",

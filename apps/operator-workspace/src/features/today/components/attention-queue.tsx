@@ -92,6 +92,7 @@ export function AttentionQueue({
   locale,
   propertyId,
   roomsBoard,
+  mayOpenRooms,
   mayMark,
 }: {
   complete: boolean;
@@ -101,6 +102,8 @@ export function AttentionQueue({
   propertyId: string;
   /** Whether the housekeeping board is open to the viewer here. */
   roomsBoard: boolean;
+  /** Whether Rooms is open to the viewer here: where a block or hold is lifted. */
+  mayOpenRooms: boolean;
   /** Whether the viewer may mark rooms there: the one tap that readies one. */
   mayMark: boolean;
 }) {
@@ -226,6 +229,16 @@ export function AttentionQueue({
           label: t("openMaintenance"),
         };
       case "out_of_service":
+        // The board can only mark a room clean or dirty; the hold is returned
+        // on Rooms, at the room itself (audit 2026-11-07, B-01).
+        if (mayOpenRooms && item.unit) {
+          return {
+            href: todayHref(locale, "rooms", propertyId, {
+              unit: item.unit.unitId,
+            }),
+            label: t("openRooms"),
+          };
+        }
         return roomsBoard
           ? {
               href: todayHref(locale, "housekeeping", propertyId),

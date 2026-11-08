@@ -88,7 +88,7 @@ const ROOMS = {
 function item(overrides: Partial<AttentionItem>): AttentionItem {
   return {
     kind: "not_ready",
-    unit: { unitName: "204", roomName: null },
+    unit: { unitId: "u-204", unitName: "204", roomName: null },
     guestName: "Lina Haddad",
     reference: "RZ-1",
     blocker: null,
@@ -102,6 +102,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
     day: DAY,
     focus: "front_desk",
     mayBook: true,
+    mayOpenRooms: true,
     arrivals: {
       status: "ok",
       data: {
@@ -113,11 +114,12 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
             reference: "RZ-1",
             guestName: "Lina Haddad",
             stayType: "guest",
-            unit: { unitName: "204", roomName: null },
+            unit: { unitId: "u-204", unitName: "204", roomName: null },
             startsOn: "2026-09-25",
             endsOn: "2026-09-28",
             state: "not_ready",
             blocker: null,
+            fixAt: "arrivals",
           },
         ],
       },
@@ -134,7 +136,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
             stayId: "s-1",
             reference: "RZ-9",
             guestName: "Ece Koç",
-            unit: { unitName: "118", roomName: null },
+            unit: { unitId: "u-118", unitName: "118", roomName: null },
             endsOn: "2026-09-25",
             overdue: false,
             overdueDays: 0,
@@ -162,7 +164,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
         item({
           kind: "overdue",
           dueOn: "2026-09-24",
-          unit: { unitName: "311", roomName: null },
+          unit: { unitId: "u-311", unitName: "311", roomName: null },
           guestName: "Jonas Weber",
         }),
       ],
@@ -177,6 +179,7 @@ function housekeeping(): TodaySummary {
     day: DAY,
     focus: "housekeeping",
     mayBook: false,
+    mayOpenRooms: false,
     rooms: ROOMS,
     attention: {
       items: [item({ guestName: null, reference: null })],
@@ -326,7 +329,7 @@ describe("the folded attention row", () => {
     item({
       kind: "overdue",
       dueOn: "2026-09-24",
-      unit: { unitName: `3${index}0`, roomName: null },
+      unit: { unitId: `u-3${index}0`, unitName: `3${index}0`, roomName: null },
       guestName: `Guest ${index}`,
     });
 
@@ -415,7 +418,7 @@ describe("where attention leads", () => {
     ).toHaveAttribute("href", `/en/arrivals?property=${PROPERTY}`);
   });
 
-  it("out of service opens the board where there is one, and Rooms where not", () => {
+  it("B-01: an out-of-service room opens at the room on Rooms, where the hold is returned", () => {
     const out = item({
       kind: "out_of_service",
       guestName: null,
@@ -426,10 +429,26 @@ describe("where attention leads", () => {
       within(screen.getByRole("region", { name: /Needs attention/ })).getByRole(
         "link",
       ),
+    ).toHaveAttribute("href", `/en/rooms?property=${PROPERTY}&unit=u-204`);
+  });
+
+  it("B-01: without Rooms it opens the board where there is one, and Rooms where not", () => {
+    const out = item({
+      kind: "out_of_service",
+      guestName: null,
+      reference: null,
+    });
+    const attention = { items: [out], complete: true };
+    view(frontDesk({ attention, mayOpenRooms: false }), "en");
+    expect(
+      within(screen.getByRole("region", { name: /Needs attention/ })).getByRole(
+        "link",
+      ),
     ).toHaveAttribute("href", `/en/housekeeping?property=${PROPERTY}`);
     cleanup();
     const { rooms: _rooms, ...noBoard } = frontDesk({
-      attention: { items: [out], complete: true },
+      attention,
+      mayOpenRooms: false,
     });
     view(noBoard, "en");
     expect(
@@ -477,6 +496,7 @@ describe("states", () => {
       day: DAY,
       focus: "none",
       mayBook: false,
+      mayOpenRooms: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -489,6 +509,7 @@ describe("states", () => {
       day: DAY,
       focus: "finance",
       mayBook: false,
+      mayOpenRooms: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -602,6 +623,7 @@ describe("the finance tiles", () => {
     day: DAY,
     focus: "finance",
     mayBook: false,
+    mayOpenRooms: false,
     money: {
       status: "ok",
       data: {
@@ -662,6 +684,7 @@ describe("the finance card", () => {
       day: DAY,
       focus: "finance",
       mayBook: false,
+      mayOpenRooms: false,
       money: {
         status: "ok",
         data: {
@@ -864,7 +887,7 @@ describe("the day, as the UX audit found it", () => {
                 stayId: "s-late",
                 reference: "RZ-3",
                 guestName: "Jonas Weber",
-                unit: { unitName: "311", roomName: null },
+                unit: { unitId: "u-311", unitName: "311", roomName: null },
                 endsOn: "2026-09-15",
                 overdue: true,
                 overdueDays: 10,
@@ -879,7 +902,7 @@ describe("the day, as the UX audit found it", () => {
               kind: "overdue",
               dueOn: "2026-09-15",
               overdueDays: 10,
-              unit: { unitName: "311", roomName: null },
+              unit: { unitId: "u-311", unitName: "311", roomName: null },
               guestName: "Jonas Weber",
             }),
           ],

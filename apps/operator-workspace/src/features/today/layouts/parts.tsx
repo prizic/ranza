@@ -25,6 +25,7 @@ import { useTranslations } from "next-intl";
 import { StatusBadge, cn, type StatusTone } from "@ranza/ui";
 import type { SupportedLocale } from "@ranza/i18n";
 import type {
+  ArrivalFix,
   ArrivalRow,
   DepartureRow,
   RoomState,
@@ -36,6 +37,7 @@ import { CheckOutDialog } from "../../front-office/components/check-out-dialog";
 import { fetchDepartures } from "../../front-office/queries";
 import { frontOfficeKeys } from "../../front-office/query-keys";
 import type { TodayScope } from "../query-keys";
+import { todayHref } from "../links";
 import { unitLabel } from "../../front-office/unit-label";
 import { minutesAt, type Readiness } from "./model";
 
@@ -184,20 +186,23 @@ export function ArrivalCommand({
   );
 }
 
-/** Where an arrival that cannot be checked in is mended: the page that owns the blocker. */
-export type BlockedScreen = "arrivals" | "housekeeping" | "departures";
+export function blockerScreen(arrival: ArrivalRow): ArrivalFix {
+  return arrival.fixAt;
+}
 
-export function blockerScreen(arrival: ArrivalRow): BlockedScreen {
-  switch (arrival.blocker) {
-    case "unit_blocked":
-    case "unit_out_of_service":
-      return "housekeeping";
-    case "unit_occupied":
-      return "departures";
-    case "not_confirmed":
-    case null:
-      return "arrivals";
-  }
+/** The way to `screen`; the room's own page opens at the room that is in the way. */
+export function fixHref(
+  locale: SupportedLocale,
+  propertyId: string,
+  screen: ArrivalFix | "housekeeping" | "arrivals" | "departures",
+  arrival: ArrivalRow | undefined,
+): string {
+  return todayHref(
+    locale,
+    screen,
+    propertyId,
+    screen === "rooms" && arrival ? { unit: arrival.unit.unitId } : undefined,
+  );
 }
 
 /**

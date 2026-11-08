@@ -20,6 +20,7 @@ function summary(overrides: Partial<TodaySummary>): TodaySummary {
     day: DAY,
     focus: "manager",
     mayBook: true,
+    mayOpenRooms: true,
     attention: { items: [], complete: true },
     ...overrides,
   };

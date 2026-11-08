@@ -29,6 +29,7 @@ import {
 import {
   ArrivalCommand,
   blockerScreen,
+  fixHref,
   DepartureCommand,
   Eyebrow,
   LINK_BUTTON,
@@ -446,12 +447,13 @@ function Detail({
           {readiness !== "ready" ? (
             <Link
               className={LINK_BUTTON}
-              href={todayHref(
+              href={fixHref(
                 locale,
+                propertyId,
                 readiness === "blocked"
                   ? blockerScreen(arrival)
                   : "housekeeping",
-                propertyId,
+                arrival,
               )}
             >
               {t(

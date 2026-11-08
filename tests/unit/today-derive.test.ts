@@ -614,8 +614,8 @@ describe("needs attention", () => {
       input(HOUSEKEEPING, { units: ok(broken) }),
     ).attention.items.filter((item) => item.kind === "out_of_service");
     expect(items.map((item) => item.unit)).toEqual([
-      { unitName: "509", roomName: null },
-      { unitName: "B", roomName: "402" },
+      { unitId: "a", unitName: "509", roomName: null },
+      { unitId: "b-b", unitName: "B", roomName: "402" },
     ]);
     // The front desk sees them without housekeeping switched on.
     expect(
@@ -728,7 +728,7 @@ describe("maintenance", () => {
     // In the order the read gave them: oldest reported first.
     expect(repairs).toEqual([
       expect.objectContaining({
-        unit: { unitName: "101", roomName: null },
+        unit: { unitId: "u-101", unitName: "101", roomName: null },
         request: {
           number: 1,
           title: "Water through the ceiling",
@@ -736,7 +736,7 @@ describe("maintenance", () => {
         },
       }),
       expect.objectContaining({
-        unit: { unitName: "B", roomName: "402" },
+        unit: { unitId: "u-402-b", unitName: "B", roomName: "402" },
         request: expect.objectContaining({ number: 2 }),
       }),
       // Equipment in no room: the item names the equipment instead.
@@ -979,7 +979,7 @@ describe("maintenance", () => {
     ).toEqual([
       {
         kind: "out_of_service",
-        unit: { unitName: "101", roomName: null },
+        unit: { unitId: "u-101", unitName: "101", roomName: null },
         guestName: null,
         reference: null,
         blocker: null,
@@ -2256,5 +2256,65 @@ describe("the Residents' standing on Today (TD-S10-15, TD-S10-16)", () => {
       }
       expect(needsFor(grantsFor(MANAGER), ALL).rollCall).toBe(false);
     });
+  });
+});
+
+describe("where a blocked arrival is mended (audit 2026-11-07, B-01)", () => {
+  const blockedArrivals = () =>
+    ok([
+      arrival({
+        reservationId: "blocked",
+        unitId: "u-204",
+        unitName: "204",
+        checkInBlocker: "unit_blocked",
+      }),
+      arrival({
+        reservationId: "held",
+        unitId: "u-205",
+        unitName: "205",
+        checkInBlocker: "unit_out_of_service",
+      }),
+      arrival({
+        reservationId: "occupied",
+        checkInBlocker: "unit_occupied",
+      }),
+      arrival({
+        reservationId: "unconfirmed",
+        checkInBlocker: "not_confirmed",
+      }),
+    ]);
+  const fixes = (summary: ReturnType<typeof deriveToday>) =>
+    summary.arrivals?.status === "ok"
+      ? summary.arrivals.data.rows.map((row) => [row.reservationId, row.fixAt])
+      : null;
+
+  it("B-01: a block or a hold is lifted on Rooms, which Housekeeping cannot do", () => {
+    const summary = deriveToday(
+      input(FRONT_DESK, { arrivals: blockedArrivals() }),
+    );
+    expect(summary.mayOpenRooms).toBe(true);
+    expect(fixes(summary)).toEqual([
+      ["blocked", "rooms"],
+      ["held", "rooms"],
+      ["occupied", "departures"],
+      ["unconfirmed", "arrivals"],
+    ]);
+    expect(
+      summary.arrivals?.status === "ok" && summary.arrivals.data.rows[0]?.unit,
+    ).toMatchObject({ unitId: "u-204" });
+  });
+
+  it("B-01: a viewer who cannot open Rooms is sent to the board that shows the room", () => {
+    const summary = deriveToday(
+      input(FRONT_DESK, {
+        arrivals: blockedArrivals(),
+        capabilities: { ...ALL, frontDesk: false },
+      }),
+    );
+    expect(summary.mayOpenRooms).toBe(false);
+    expect(fixes(summary)?.slice(0, 2)).toEqual([
+      ["blocked", "housekeeping"],
+      ["held", "housekeeping"],
+    ]);
   });
 });

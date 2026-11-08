@@ -19,6 +19,7 @@ import type {
   RoomCalendar,
 } from "@ranza/reservations";
 import type { UnitCounts, UnitMap } from "@ranza/accommodation";
+import { permitsScreen } from "../lib/screens";
 import { displayName } from "./display-name";
 import {
   availableUnits,
@@ -66,6 +67,8 @@ export type Section<T> =
   { status: "ok"; data: T; stale?: boolean } | { status: "unavailable" };
 
 export interface UnitLabel {
+  /** The Unit, so a line about it can open it on Rooms (audit 2026-11-07, B-01). */
+  unitId: string;
   unitName: string;
   /** The room a bed is in; null for a room. */
   roomName: string | null;
@@ -84,6 +87,8 @@ export interface ArrivalRow {
   endsOn: string | null;
   state: ArrivalState;
   blocker: CheckInBlocker | null;
+  /** The page that mends the blocker, for this viewer (audit 2026-11-07, B-01). */
+  fixAt: ArrivalFix;
   /** `HH:MM` the Guest said they would arrive, at the Property; null when unsaid. */
   expectedArrival: string | null;
   /** The Property's clock is past `expectedArrival` and the Guest is not in. */
@@ -419,6 +424,12 @@ export interface TodaySummary {
   focus: TodayFocus;
   /** Whether "New booking" is offered: front_desk.book, where there is a front desk. */
   mayBook: boolean;
+  /**
+   * Whether Rooms opens for the viewer, asked with the page's own gate: a line
+   * about a blocked or out-of-service room leads there, where the block is
+   * lifted, only for a viewer who can open it (audit 2026-11-07, B-01).
+   */
+  mayOpenRooms: boolean;
   /** Absent means the viewer may not see it here; never shown as zero. */
   arrivals?: Section<ArrivalsCard>;
   departures?: Section<DeparturesCard>;
@@ -614,13 +625,45 @@ export interface TodayInput {
 /** Rows the clean-first queue and the movements list show, at most. */
 export const LIST_LIMIT = 6;
 
-function unitOf(row: { unitName: string; roomName: string | null }): UnitLabel {
-  return { unitName: row.unitName, roomName: row.roomName };
+function unitOf(row: {
+  unitId: string;
+  unitName: string;
+  roomName: string | null;
+}): UnitLabel {
+  return {
+    unitId: row.unitId,
+    unitName: row.unitName,
+    roomName: row.roomName,
+  };
 }
 
 /** The room a Unit is, or is a bed in: what the board lists. */
 export function roomNameOf(row: { unitName: string; roomName: string | null }) {
   return row.roomName ?? row.unitName;
+}
+
+/** Where an arrival that cannot be checked in is mended: the page that owns the blocker. */
+export type ArrivalFix = "arrivals" | "housekeeping" | "departures" | "rooms";
+
+/**
+ * A block or an out-of-service hold is lifted on Rooms, which Housekeeping
+ * cannot do; a viewer without Rooms gets Housekeeping, which at least shows the
+ * room (B-01).
+ */
+export function fixFor(
+  blocker: CheckInBlocker | null,
+  mayOpenRooms: boolean,
+): ArrivalFix {
+  switch (blocker) {
+    case "unit_blocked":
+    case "unit_out_of_service":
+      return mayOpenRooms ? "rooms" : "housekeeping";
+    case "unit_occupied":
+      return "departures";
+    case "not_confirmed":
+    case null:
+      return "arrivals";
+  }
 }
 
 function arrivalState(arrival: Arrival): ArrivalState {
@@ -1068,8 +1111,12 @@ function requestOf(
   return { number: row.number, title: row.title, equipmentName };
 }
 
-function heldUnitOf(unit: { name: string; roomName: string | null }) {
-  return { unitName: unit.name, roomName: unit.roomName };
+function heldUnitOf(unit: {
+  unitId: string;
+  name: string;
+  roomName: string | null;
+}): UnitLabel {
+  return { unitId: unit.unitId, unitName: unit.name, roomName: unit.roomName };
 }
 
 /**
@@ -1292,11 +1339,19 @@ export function attentionFrom(
   if (rooms && units) {
     for (const unit of units.units) {
       if (unit.status === "out_of_service") {
-        outOfService(unit.unitId, { unitName: unit.name, roomName: null });
+        outOfService(unit.unitId, {
+          unitId: unit.unitId,
+          unitName: unit.name,
+          roomName: null,
+        });
       }
       for (const bed of unit.beds) {
         if (bed.status !== "out_of_service") continue;
-        outOfService(bed.unitId, { unitName: bed.name, roomName: unit.name });
+        outOfService(bed.unitId, {
+          unitId: bed.unitId,
+          unitName: bed.name,
+          roomName: unit.name,
+        });
       }
     }
   }
@@ -1328,6 +1383,10 @@ export function deriveToday(input: TodayInput): TodaySummary {
         ? { ok: false }
         : input.departures;
 
+  const mayOpenRooms =
+    input.capabilities.frontDesk &&
+    permitsScreen("rooms", input.day.permissions);
+
   const summary: TodaySummary = {
     day: {
       propertyId: input.day.propertyId,
@@ -1343,6 +1402,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
     mayBook:
       input.day.permissions.includes("front_desk.book") &&
       input.capabilities.frontDesk,
+    mayOpenRooms,
     attention: {
       items: attentionFrom(
         grants,
@@ -1378,6 +1438,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
       endsOn: row.endsOn,
       state: arrivalState(row),
       blocker: row.checkInBlocker,
+      fixAt: fixFor(row.checkInBlocker, mayOpenRooms),
       expectedArrival: row.expectedArrival,
       expectedArrivalPassed: row.expectedArrivalPassed,
       mayCheckIn: row.canCheckIn && row.mayCheckIn,

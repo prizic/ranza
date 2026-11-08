@@ -7,7 +7,6 @@ import { formatNumber, type SupportedLocale } from "@ranza/i18n";
 import { cn } from "@ranza/ui";
 import { unitLabel } from "../../front-office/unit-label";
 import { cutoffTime, duration, money, shortDay } from "../format";
-import { todayHref } from "../links";
 import type { TodayScope } from "../query-keys";
 import {
   readinessOf,
@@ -20,6 +19,7 @@ import {
   ArrivalCommand,
   DepartureCommand,
   blockerScreen,
+  fixHref,
   FoldToggle,
   LINK_BUTTON,
   Panel,
@@ -241,7 +241,10 @@ function DoNowRow({
           />
         ) : null}
         {hasCommand ? null : (
-          <Link className={LINK_BUTTON} href={todayHref(locale, screen, id)}>
+          <Link
+            className={LINK_BUTTON}
+            href={fixHref(locale, id, screen, arrival)}
+          >
             {t(`open.${screen}`)}
           </Link>
         )}
