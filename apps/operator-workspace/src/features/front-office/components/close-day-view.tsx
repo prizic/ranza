@@ -90,6 +90,10 @@ export function CloseDayView({
   const reservationsHref = reach.reservations
     ? `${localizeHref(locale, "reservations")}?property=${day.propertyId}`
     : null;
+  const bookingHref = (reservationId: string | null) =>
+    reservationId && reservationsHref
+      ? `${reservationsHref}&open=${reservationId}`
+      : null;
   const firstWaiting = day.waitingDays[0];
   const lastWaiting = day.waitingDays.at(-1);
   // Items only accumulate, so the same count on the first and the last waiting
@@ -273,7 +277,9 @@ export function CloseDayView({
               key={row.reservationId}
             >
               <div className="grid gap-0.5">
-                <bdi className="font-medium">{row.guestName}</bdi>
+                <NameLink href={bookingHref(row.reservationId)}>
+                  <bdi className="font-medium">{row.guestName}</bdi>
+                </NameLink>
                 <span className="text-step--1 text-muted-foreground">
                   <bdi className="tabular-nums">{row.reference}</bdi>
                   {" · "}
@@ -322,7 +328,10 @@ export function CloseDayView({
                   guestName={row.guestName}
                   locale={locale}
                   propertyId={day.propertyId}
-                  reach={reach}
+                  // The row names no room to select, so the menu must not offer
+                  // a room map it would open unfiltered (A-05).
+                  reach={{ ...reach, rooms: false }}
+                  reservationId={row.reservationId}
                 />
               </div>
             </li>
@@ -352,6 +361,7 @@ export function CloseDayView({
                       : []),
                   ].join(" · ")}
                   guestName={row.guestName}
+                  nameHref={bookingHref(row.reservationId)}
                   unit={unitLabel(row.roomName, row.unitName)}
                   {...(row.reference ? { reference: row.reference } : {})}
                 />
@@ -727,17 +737,22 @@ export function CloseDayView({
 function StayLine({
   detail,
   guestName,
+  nameHref = null,
   reference,
   unit,
 }: {
   detail: string;
   guestName: string | null;
+  /** Where the booking opens, when the viewer may open it. */
+  nameHref?: string | null;
   reference?: string;
   unit: string;
 }) {
   return (
     <div className="grid gap-0.5">
-      <bdi className="font-medium tabular-nums">{guestName ?? unit}</bdi>
+      <NameLink href={nameHref}>
+        <bdi className="font-medium tabular-nums">{guestName ?? unit}</bdi>
+      </NameLink>
       <span className="text-step--1 text-muted-foreground">
         {reference ? (
           <>
@@ -754,6 +769,27 @@ function StayLine({
         {detail}
       </span>
     </div>
+  );
+}
+
+/** A name that opens its booking where the viewer may open it, plain text where not. */
+function NameLink({
+  children,
+  href,
+}: {
+  children: ReactNode;
+  href: string | null;
+}) {
+  return href ? (
+    <Link
+      className="underline-offset-4 hover:underline"
+      href={href}
+      prefetch={false}
+    >
+      {children}
+    </Link>
+  ) : (
+    children
   );
 }
 

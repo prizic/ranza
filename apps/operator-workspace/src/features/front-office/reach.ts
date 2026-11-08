@@ -8,6 +8,7 @@ export interface FrontDeskReach {
   folio: boolean;
   housekeeping: boolean;
   reservations: boolean;
+  departures: boolean;
 }
 
 /** For a screen that has not asked: every link is offered, as it was. */
@@ -16,4 +17,5 @@ export const REACHES_EVERYTHING: FrontDeskReach = {
   folio: true,
   housekeeping: true,
   reservations: true,
+  departures: true,
 };

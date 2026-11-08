@@ -588,6 +588,7 @@ describe("the links out of the checklist follow what the viewer can open (audit 
         folio: false,
         housekeeping: false,
         reservations: false,
+        departures: false,
       },
     );
 
@@ -602,5 +603,59 @@ describe("the links out of the checklist follow what the viewer can open (audit 
 
     expect(screen.queryByRole("link", { name: "Open arrivals" })).toBeNull();
     expect(screen.getByText("Ayşe Yılmaz")).toBeTruthy();
+  });
+});
+
+describe("a line that holds the day open names its booking (audit 2026-11-07, A-05)", () => {
+  const BOOKING = `/en/reservations?property=${DUE.propertyId}&open=${ARRIVAL.reservationId}`;
+  const STAYING = {
+    ...DEPARTURE,
+    reservationId: "d9000005-0000-4000-8000-000000000012",
+    guestName: "Mehmet Demir",
+  };
+
+  it("A-05: the Guest not yet arrived and the Guest not yet gone both open their booking", () => {
+    show({ ...DUE, notArrived: [ARRIVAL], notDeparted: [STAYING] });
+
+    expect(
+      screen.getByRole("link", { name: "Ayşe Yılmaz" }).getAttribute("href"),
+    ).toBe(BOOKING);
+    expect(
+      screen.getByRole("link", { name: "Mehmet Demir" }).getAttribute("href"),
+    ).toBe(
+      `/en/reservations?property=${DUE.propertyId}&open=${STAYING.reservationId}`,
+    );
+  });
+
+  it("A-05: a Guest with no booking behind the Stay stays plain text", () => {
+    show({ ...DUE, notDeparted: [{ ...STAYING, reservationId: null }] });
+
+    expect(screen.getByText("Mehmet Demir")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Mehmet Demir" })).toBeNull();
+  });
+
+  it("A-05: no booking link to a viewer who cannot open Reservations", () => {
+    show({ ...DUE, notArrived: [ARRIVAL], notDeparted: [STAYING] }, "en", {
+      ...REACHES_EVERYTHING,
+      reservations: false,
+    });
+
+    expect(screen.queryByRole("link", { name: "Ayşe Yılmaz" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Mehmet Demir" })).toBeNull();
+  });
+
+  it("A-05: the row's menu opens the reservation and promises no room it cannot select", () => {
+    show({ ...DUE, notArrived: [ARRIVAL] });
+    menuFor("Ayşe");
+
+    // The test's link stand-in drops the menu-item role, so these are found by
+    // their words.
+    expect(
+      screen
+        .getByText(messages.en.openReservation)
+        .closest("a")
+        ?.getAttribute("href"),
+    ).toBe(BOOKING);
+    expect(screen.queryByText(messages.en.showOnRoomMap)).toBeNull();
   });
 });

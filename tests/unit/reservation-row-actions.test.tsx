@@ -17,7 +17,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { ReservationRow } from "../../packages/ranza/reservations/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
-import { REACHES_EVERYTHING } from "../../apps/operator-workspace/src/features/front-office/reach";
+import {
+  REACHES_EVERYTHING,
+  type FrontDeskReach,
+} from "../../apps/operator-workspace/src/features/front-office/reach";
 
 beforeAll(() => {
   class Observer {
@@ -99,14 +102,14 @@ const IN_HOUSE: ReservationRow = {
   mayChangeStay: true,
 };
 
-function show(row: ReservationRow) {
+function show(row: ReservationRow, reach: FrontDeskReach = REACHES_EVERYTHING) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <ReservationsTable
         changing={null}
         locale="en"
         propertyId="p1"
-        reach={REACHES_EVERYTHING}
+        reach={reach}
         reservations={[row]}
         today="2030-01-10"
       />
@@ -208,6 +211,35 @@ describe("a Reservations row's actions", () => {
     const quiet = show({ ...BASE });
     for (const message of Object.values(messages.en.checkInBlocked)) {
       expect(within(quiet).queryByText(message)).toBeNull();
+    }
+  });
+
+  it("A-02: a refusal to check in links to the page where the cause is dealt with", () => {
+    const wayOn = (blocker: ReservationRow["checkInBlocker"]) => {
+      const row = show({ ...BASE, checkInBlocker: blocker });
+      const links = within(row)
+        .queryAllByRole("link")
+        .map((link) => link.getAttribute("href"));
+      cleanup();
+      return links;
+    };
+    expect(wayOn("unit_occupied")).toContain("/en/departures?property=p1");
+    expect(wayOn("unit_blocked")).toContain("/en/rooms?property=p1&unit=u1");
+    expect(wayOn("unit_out_of_service")).toContain(
+      "/en/rooms?property=p1&unit=u1",
+    );
+    // An unconfirmed booking has no other page to go to.
+    expect(
+      wayOn("not_confirmed").filter((href) => href?.includes("/en/")),
+    ).toEqual([]);
+  });
+
+  it("A-02: offers no way on to a page the viewer cannot open", () => {
+    const none = { ...REACHES_EVERYTHING, rooms: false, departures: false };
+    for (const blocker of ["unit_occupied", "unit_blocked"] as const) {
+      const row = show({ ...BASE, checkInBlocker: blocker }, none);
+      expect(within(row).queryAllByRole("link")).toEqual([]);
+      cleanup();
     }
   });
 

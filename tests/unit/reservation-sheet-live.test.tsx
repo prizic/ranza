@@ -189,3 +189,22 @@ describe("the links out of a booking's sheet (audit 2026-11-07, A-06)", () => {
     expect(sheet.getByRole("link", { name: /Open folio/ })).toBeVisible();
   });
 });
+
+describe("a refused check-in in a booking's sheet (audit 2026-11-07, A-02)", () => {
+  it("A-02: links to the room that is in the way, where the viewer may open Rooms", async () => {
+    const blocked: ReservationRow = {
+      ...arriving,
+      mayCheckIn: false,
+      checkInBlocker: "unit_out_of_service",
+    };
+    render(view([blocked]));
+    fireEvent.click(screen.getByText("RZ-LIVE").closest("tr") as HTMLElement);
+    const sheet = within(await screen.findByRole("dialog"));
+    const notice = sheet.getByText(
+      messages.en.checkInBlocked.unit_out_of_service,
+    ).parentElement as HTMLElement;
+    expect(
+      within(notice).getByRole("link", { name: messages.en.showOnRoomMap }),
+    ).toHaveAttribute("href", "/en/rooms?property=p1&unit=u");
+  });
+});

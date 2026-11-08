@@ -34,6 +34,7 @@ import { owedOnFolio } from "../../../lib/owed";
 import type { ArrivalRow } from "../../../server/viewer";
 import { useSortLabels } from "../../../lib/table-labels";
 import { CheckInAction } from "./check-in-action";
+import { CheckInBlockedWay } from "./check-in-blocked-way";
 import { CheckOutDialog } from "./check-out-dialog";
 import { expectedArrivalLabel } from "../expected-arrival";
 import { unitLabel } from "../unit-label";
@@ -42,6 +43,9 @@ import { daysBetween, didNotArrive } from "../reservation-tabs";
 import { FrontDeskRowMenu } from "./row-menu";
 import type { FrontDeskReach } from "../reach";
 import { CopyReferenceButton } from "./copy-reference-button";
+
+const BLOCKED_WAY_CLASS =
+  "font-medium text-primary-text underline-offset-4 hover:underline";
 
 /**
  * `meta.title` is not decoration: the column menu and the search placeholder
@@ -213,14 +217,14 @@ function useActionContext(
   propertyId: string,
   reach: FrontDeskReach,
 ): ActionContext {
-  const { rooms, folio, housekeeping, reservations } = reach;
+  const { rooms, folio, housekeeping, reservations, departures } = reach;
   return useMemo(
     () => ({
       locale,
       propertyId,
-      reach: { rooms, folio, housekeeping, reservations },
+      reach: { rooms, folio, housekeeping, reservations, departures },
     }),
-    [locale, propertyId, rooms, folio, housekeeping, reservations],
+    [locale, propertyId, rooms, folio, housekeeping, reservations, departures],
   );
 }
 
@@ -552,8 +556,16 @@ function arrivalActionColumn(
             // Where the button would be, what stands in its way, so nobody
             // presses a button that is certain to be refused. Shown to
             // anybody reading the row: it is information, not a control.
-            <span className="max-w-48 whitespace-normal text-end text-step--1 text-muted-foreground">
+            <span className="flex max-w-48 flex-col items-end gap-0.5 whitespace-normal text-end text-step--1 text-muted-foreground">
               {t(`checkInBlocked.${arrival.checkInBlocker}`)}
+              <CheckInBlockedWay
+                blocker={arrival.checkInBlocker}
+                className={BLOCKED_WAY_CLASS}
+                locale={locale}
+                propertyId={propertyId}
+                reach={reach}
+                unitId={arrival.unitId}
+              />
             </span>
           ) : null}
           <FrontDeskRowMenu
@@ -1403,12 +1415,22 @@ function reservationColumns(
               // Where the button would be, what stands in its way, so nobody
               // presses a button that is certain to be refused. Shown to
               // anybody reading the row: it is information, not a control.
-              <span
-                className="line-clamp-3 w-36 whitespace-normal text-end text-step--1 text-muted-foreground"
-                title={t(`checkInBlocked.${booking.checkInBlocker}`)}
-              >
-                {t(`checkInBlocked.${booking.checkInBlocker}`)}
-              </span>
+              <div className="flex w-36 flex-col items-end gap-0.5 whitespace-normal text-end text-step--1">
+                <span
+                  className="line-clamp-3 text-muted-foreground"
+                  title={t(`checkInBlocked.${booking.checkInBlocker}`)}
+                >
+                  {t(`checkInBlocked.${booking.checkInBlocker}`)}
+                </span>
+                <CheckInBlockedWay
+                  blocker={booking.checkInBlocker}
+                  className={BLOCKED_WAY_CLASS}
+                  locale={locale}
+                  propertyId={propertyId}
+                  reach={reach}
+                  unitId={booking.unitId}
+                />
+              </div>
             ) : null}
             {booking.mayUndoCheckIn && booking.stayId ? (
               // Where the button that just checked them in was: Check in has no

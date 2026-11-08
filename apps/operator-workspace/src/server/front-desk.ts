@@ -83,12 +83,13 @@ export function withProperty(
 export async function frontDeskReach(
   propertyId: string,
 ): Promise<FrontDeskReach> {
-  const [rooms, folio, housekeeping, reservations] =
+  const [rooms, folio, housekeeping, reservations, departures] =
     await screenPropertiesByGate([
       gateOf("rooms"),
       gateOf("finance"),
       gateOf("housekeeping"),
       gateOf("reservations"),
+      gateOf("departures"),
     ]);
   const reaches = (properties: typeof rooms) =>
     (properties ?? []).some((property) => property.propertyId === propertyId);
@@ -97,5 +98,6 @@ export async function frontDeskReach(
     folio: reaches(folio),
     housekeeping: reaches(housekeeping),
     reservations: reaches(reservations),
+    departures: reaches(departures),
   };
 }

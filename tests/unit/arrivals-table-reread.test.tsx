@@ -134,3 +134,31 @@ describe("the arrivals list read again", () => {
     expect(button).toHaveFocus();
   });
 });
+
+describe("a refused check-in on the Arrivals list (audit 2026-11-07, A-02)", () => {
+  it("A-02: names the room to mend and links to it, or to Departures for a Guest still in it", () => {
+    const blocked: Arrival = {
+      ...arrival("Ayşe"),
+      canCheckIn: false,
+      mayCheckIn: false,
+      checkInBlocker: "unit_blocked",
+    };
+    const occupied: Arrival = {
+      ...arrival("Deniz"),
+      canCheckIn: false,
+      mayCheckIn: false,
+      checkInBlocker: "unit_occupied",
+    };
+    render(table([blocked, occupied]));
+    expect(
+      screen
+        .getByRole("link", { name: messages.en.showOnRoomMap })
+        .getAttribute("href"),
+    ).toBe("/en/rooms?property=p-1&unit=u-Ay%C5%9Fe");
+    expect(
+      screen
+        .getByRole("link", { name: messages.en.checkOutInDepartures })
+        .getAttribute("href"),
+    ).toBe("/en/departures?property=p-1");
+  });
+});

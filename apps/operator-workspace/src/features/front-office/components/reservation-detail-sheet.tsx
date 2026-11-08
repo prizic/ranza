@@ -32,6 +32,7 @@ import { expectedArrivalLabel } from "../expected-arrival";
 import { daysBetween, didNotArrive } from "../reservation-tabs";
 import type { FrontDeskReach } from "../reach";
 import { unitLabel } from "../unit-label";
+import { CheckInBlockedWay } from "./check-in-blocked-way";
 import { CopyReferenceButton } from "./copy-reference-button";
 import { GuestParticularsFacts } from "./guest-particulars-facts";
 import { PaymentPlanSection } from "./payment-plan-section";
@@ -322,7 +323,15 @@ export function ReservationDetailSheet({
           {checkInBlocker && !mayCheckIn ? (
             <DialogSection>
               <DialogNotice>
-                {t(`checkInBlocked.${checkInBlocker}`)}
+                {t(`checkInBlocked.${checkInBlocker}`)}{" "}
+                <CheckInBlockedWay
+                  blocker={checkInBlocker}
+                  className={LINK_CLASS}
+                  locale={locale}
+                  propertyId={propertyId}
+                  reach={reach}
+                  unitId={unitId}
+                />
               </DialogNotice>
             </DialogSection>
           ) : null}
