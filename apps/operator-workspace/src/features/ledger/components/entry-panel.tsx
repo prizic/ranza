@@ -16,6 +16,7 @@ import { formatDate, formatMoney, localizeHref } from "@ranza/i18n";
 import type { SupportedLocale } from "@ranza/i18n";
 import type { EntryView } from "../../../server/ledger";
 import { accountLabel, useAccountNames } from "../account-names";
+import { ledgerHref } from "../query";
 
 /**
  * One entry: when it is for, what it came from and the lines that balance it.
@@ -24,9 +25,13 @@ import { accountLabel, useAccountNames } from "../account-names";
  * keys, ADR 0035), which keeps the filters the reader came from.
  */
 export function EntryPanel({
+  propertyId,
+  route,
   timeZone,
   view,
 }: {
+  propertyId: string;
+  route: string;
   /** The opened Property's zone, which the time of posting is read in. */
   timeZone: string;
   view: EntryView;
@@ -103,13 +108,22 @@ export function EntryPanel({
             {entry.lines.map((line) => (
               <TableRow key={line.id}>
                 <TableCell>
-                  <span className="tabular-nums text-muted-foreground">
-                    {line.accountCode}
-                  </span>{" "}
-                  {accountLabel(
-                    { code: line.accountCode, name: line.accountName },
-                    translatedNames,
-                  )}
+                  <Link
+                    className="underline-offset-2 hover:underline"
+                    href={ledgerHref(route, propertyId, {
+                      account: line.accountId,
+                      currency: entry.currency,
+                    })}
+                    prefetch={false}
+                  >
+                    <span className="tabular-nums text-muted-foreground">
+                      {line.accountCode}
+                    </span>{" "}
+                    {accountLabel(
+                      { code: line.accountCode, name: line.accountName },
+                      translatedNames,
+                    )}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-end tabular-nums">
                   {line.direction === "debit" ? money(line.amountMinor) : null}

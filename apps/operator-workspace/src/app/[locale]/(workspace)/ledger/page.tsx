@@ -92,7 +92,12 @@ export default async function LedgerPage({
       <>
         {heading}
         {view ? (
-          <EntryPanel timeZone={property.timezone} view={view} />
+          <EntryPanel
+            propertyId={property.propertyId}
+            route={route}
+            timeZone={property.timezone}
+            view={view}
+          />
         ) : (
           // Absent, in another Organization, or not one this viewer may read:
           // one answer for all three.
@@ -138,7 +143,13 @@ export default async function LedgerPage({
           values={{ ...search, shownCurrency: shown }}
         />
         {lag}
-        <AccountsTable currency={shown} view={view} />
+        <AccountsTable
+          currency={shown}
+          propertyId={property.propertyId}
+          route={route}
+          search={search}
+          view={view}
+        />
       </>
     );
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
   EmptyState,
@@ -16,19 +17,29 @@ import { formatMoney } from "@ranza/i18n";
 import type { SupportedLocale } from "@ranza/i18n";
 import type { AccountsView } from "../../../server/ledger";
 import { accountLabel, useAccountNames } from "../account-names";
+import { ledgerHref, type LedgerSearch } from "../query";
 
 /**
  * The chart of accounts with what each holds, in one currency.
  *
  * Amounts in different currencies are never added, so a ledger in several is
  * read one at a time and the currency is said above the table (ACC-S3-05).
+ *
+ * An account opens the journal narrowed to it, in the same dates and currency
+ * the balances were read in, so the figure and the entries behind it agree.
  */
 export function AccountsTable({
   currency,
+  propertyId,
+  route,
+  search,
   view,
 }: {
   /** The currency the balances are in. */
   currency: string | undefined;
+  propertyId: string;
+  route: string;
+  search: LedgerSearch;
   view: AccountsView;
 }) {
   const t = useTranslations("ledger");
@@ -72,10 +83,21 @@ export function AccountsTable({
                   {balance.accountCode}
                 </TableCell>
                 <TableCell>
-                  {accountLabel(
-                    { code: balance.accountCode, name: balance.accountName },
-                    translatedNames,
-                  )}
+                  <Link
+                    className="underline-offset-2 hover:underline"
+                    href={ledgerHref(route, propertyId, {
+                      account: balance.accountId,
+                      from: search.from,
+                      to: search.to,
+                      currency,
+                    })}
+                    prefetch={false}
+                  >
+                    {accountLabel(
+                      { code: balance.accountCode, name: balance.accountName },
+                      translatedNames,
+                    )}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {t(`types.${balance.accountType}`)}
