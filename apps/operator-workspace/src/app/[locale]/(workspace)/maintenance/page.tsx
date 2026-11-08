@@ -23,6 +23,7 @@ import {
   whyDenied,
 } from "../../../../server/viewer";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 
 /**
  * Maintenance (RANZ-33, blueprint 5.13 and 6.5): the problems reported at
@@ -70,11 +71,12 @@ export default async function MaintenancePage({
     );
   }
 
-  const [board, options, settings, register] = await Promise.all([
+  const [board, options, settings, register, links] = await Promise.all([
     maintenanceBoard(property.propertyId),
     maintenanceReportOptions(property.propertyId),
     maintenanceSettings(property.propertyId),
     equipmentRegister(property.propertyId),
+    screenLinks(locale, property.propertyId, ["rooms"]),
   ]);
   // Only a Unit the form can offer: a stale link, or one to another
   // Property, opens nothing rather than a form that cannot be sent.
@@ -113,6 +115,7 @@ export default async function MaintenancePage({
       propertyName={property.propertyName}
       register={register}
       reportUnitId={reportUnitId}
+      roomsHref={links.rooms}
       settings={settings}
       timeZone={property.timezone}
       viewerId={viewer.userId}

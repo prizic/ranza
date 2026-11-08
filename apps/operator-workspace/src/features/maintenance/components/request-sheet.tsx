@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { RotateCcw, UserRound, Wrench, X } from "lucide-react";
@@ -83,6 +84,7 @@ export function RequestSheet({
   limits,
   onOpenChange,
   propertyId,
+  roomsHref,
   viewerId,
   whenDone,
 }: {
@@ -97,6 +99,8 @@ export function RequestSheet({
   limits: { cancelReason: number; note: number; vendor: number };
   /** The Property the board is for, which links out of the sheet name. */
   propertyId: string;
+  /** Rooms at this Property, `?property=` on it; null where the viewer cannot open Rooms. */
+  roomsHref: string | null;
   onOpenChange: (open: boolean) => void;
   viewerId: string;
   /** What moving a request to Done does to its room, per the setting. */
@@ -173,9 +177,29 @@ export function RequestSheet({
             bed: request.unit.name,
             room: request.unit.roomName,
           });
-  const where = [room, request.equipment?.name ?? null]
-    .filter((part) => part !== null)
-    .join(" · ");
+  const roomLabel =
+    room !== null && roomsHref !== null && request.unit !== null ? (
+      <Link
+        className="underline-offset-2 hover:underline"
+        href={`${roomsHref}&unit=${request.unit.unitId}`}
+        prefetch={false}
+      >
+        {room}
+      </Link>
+    ) : (
+      room
+    );
+  const equipmentName = request.equipment?.name ?? null;
+  const where =
+    roomLabel === null && equipmentName === null ? (
+      "—"
+    ) : (
+      <>
+        {roomLabel}
+        {roomLabel !== null && equipmentName !== null ? " · " : null}
+        {equipmentName}
+      </>
+    );
   const base = { requestId: request.requestId };
   // A control the viewer cannot use is the value as text, with the reason once
   // at the top of the sheet: a greyed select with a chevron reads as a control
@@ -227,7 +251,7 @@ export function RequestSheet({
           <DialogSection>
             <DialogFacts
               rows={[
-                [t("where"), where || "—"],
+                [t("where"), where],
                 [
                   t("details"),
                   <span className="whitespace-pre-wrap" key="details">

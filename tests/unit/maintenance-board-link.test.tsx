@@ -113,6 +113,7 @@ function show(openRequestId: string | null) {
         options={{ units: [], equipment: [], assignees: [] }}
         propertyId={PROPERTY}
         propertyName="Deniz Otel"
+        roomsHref={null}
         register={{
           today: "2026-10-25",
           items: [],

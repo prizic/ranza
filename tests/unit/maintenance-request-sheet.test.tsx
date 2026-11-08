@@ -6,6 +6,7 @@
  * value as text, with the reason at the top, and the people a room holds are
  * on screen before the button that takes the room out of order is pressed.
  */
+import type { ReactNode } from "react";
 import {
   cleanup,
   fireEvent,
@@ -40,6 +41,11 @@ const server = vi.hoisted(() => ({
 }));
 
 vi.mock("../../apps/operator-workspace/src/server/maintenance", () => server);
+vi.mock("../../apps/operator-workspace/node_modules/next/link", () => ({
+  default: ({ children, href }: { children: ReactNode; href: string }) => (
+    <a href={href}>{children}</a>
+  ),
+}));
 
 const { RequestSheet } =
   await import("../../apps/operator-workspace/src/features/maintenance/components/request-sheet");
@@ -82,6 +88,7 @@ function sheet(
     mayManage: boolean;
     mayTakeOutOfOrder: boolean;
     request: MaintenanceRequestCard;
+    roomsHref: string | null;
   }> = {},
 ) {
   render(
@@ -96,6 +103,7 @@ function sheet(
         onOpenChange={vi.fn()}
         propertyId="d9000003-0000-4000-8000-000000000001"
         request={overrides.request ?? REQUEST}
+        roomsHref={overrides.roomsHref ?? null}
         timeZone="Europe/Istanbul"
         today="2026-10-25"
         viewerId="u-viewer"
@@ -186,5 +194,28 @@ describe("taking a room out of order that somebody is in (HOUSEKEEPING-15)", () 
     await waitFor(() => expect(server.takeRoomOutOfOrder).toHaveBeenCalled());
     const sent = server.takeRoomOutOfOrder.mock.calls[0]![1] as FormData;
     expect(sent.get("acknowledge")).toBe("false");
+  });
+});
+
+describe("the room a request is about opens on Rooms (B-11)", () => {
+  const ROOMS = "/en/rooms?property=d9000003-0000-4000-8000-000000000001";
+
+  it("B-11: names the room as a link to it on the room map, where Rooms opens", () => {
+    sheet({ roomsHref: ROOMS });
+    expect(screen.getByRole("link", { name: "209" })).toHaveAttribute(
+      "href",
+      `${ROOMS}&unit=${REQUEST.unit!.unitId}`,
+    );
+  });
+
+  it("B-11: names the room as text, with no link, where the viewer cannot open Rooms", () => {
+    sheet({ roomsHref: null });
+    expect(screen.getByText("209")).toBeVisible();
+    expect(screen.queryByRole("link", { name: "209" })).toBeNull();
+  });
+
+  it("B-11: a request about no room has nothing to link", () => {
+    sheet({ roomsHref: ROOMS, request: { ...REQUEST, unit: null } });
+    expect(screen.queryByRole("link", { name: "209" })).toBeNull();
   });
 });

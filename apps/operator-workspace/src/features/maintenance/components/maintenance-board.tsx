@@ -133,6 +133,7 @@ export function MaintenanceBoard({
   limits,
   openRequestId = null,
   reportUnitId,
+  roomsHref,
   viewerId,
 }: {
   board: Board;
@@ -152,6 +153,8 @@ export function MaintenanceBoard({
   openRequestId?: string | null;
   /** A Unit to report about, when the reader arrived from Rooms. */
   reportUnitId: string | null;
+  /** Rooms at this Property, `?property=` on it; null where the viewer cannot open Rooms. */
+  roomsHref: string | null;
   viewerId: string;
 }) {
   const t = useTranslations("maintenance");
@@ -572,6 +575,7 @@ export function MaintenanceBoard({
           }}
           propertyId={propertyId}
           request={selected}
+          roomsHref={roomsHref}
           timeZone={timeZone}
           today={board.today}
           viewerId={viewerId}
