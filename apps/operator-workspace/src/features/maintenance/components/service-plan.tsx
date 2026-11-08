@@ -26,9 +26,12 @@ const DAY_MS = 86_400_000;
 export function ServicePlan({
   register,
   locale,
+  onOpenRequest,
 }: {
   register: Register;
   locale: SupportedLocale;
+  /** Opens a request's sheet, from the work order an item shows. */
+  onOpenRequest: (requestId: string) => void;
 }) {
   const t = useTranslations("maintenance");
   const create = useCommand(createWorkOrder, locale);
@@ -92,13 +95,18 @@ export function ServicePlan({
                 </div>
                 <ConditionBadge condition={item.condition} />
                 {item.openWorkOrder ? (
-                  <StatusBadge
-                    icon={ClipboardList}
-                    label={t("workOrderOpen", {
-                      number: item.openWorkOrder.number,
-                    })}
-                    tone="info"
-                  />
+                  <button
+                    onClick={() => onOpenRequest(item.openWorkOrder!.requestId)}
+                    type="button"
+                  >
+                    <StatusBadge
+                      icon={ClipboardList}
+                      label={t("workOrderOpen", {
+                        number: item.openWorkOrder.number,
+                      })}
+                      tone="info"
+                    />
+                  </button>
                 ) : register.mayReport ? (
                   <Button
                     disabled={create.pending}

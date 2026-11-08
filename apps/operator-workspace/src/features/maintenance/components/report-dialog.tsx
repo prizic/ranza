@@ -39,6 +39,7 @@ import {
 } from "../../../server/maintenance";
 import { ImpactNotice } from "./impact-notice";
 import { OutcomeMessage } from "./outcome-message";
+import { RequestLink } from "./request-link";
 import { usePickerLabels } from "../../../lib/picker-labels";
 import { staffName } from "../../../lib/staff-name";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
@@ -71,6 +72,7 @@ export function ReportDialog({
   initialUnitId,
   today,
   openRequests,
+  onOpenRequest,
   onDone,
 }: {
   locale: SupportedLocale;
@@ -85,6 +87,8 @@ export function ReportDialog({
   today: string;
   /** The requests still open, so a room already reported says so. */
   openRequests: readonly MaintenanceRequestCard[];
+  /** Closes this form and opens a request's sheet, from one named as already open. */
+  onOpenRequest: (requestId: string) => void;
   /** What the board says once the dialog has closed on a success. */
   onDone: (outcome: MaintenanceOutcome) => void;
 }) {
@@ -211,8 +215,14 @@ export function ReportDialog({
                     </span>
                     {alreadyOpen.map((request) => (
                       <span key={request.requestId}>
-                        {t("reference", { number: request.number })} ·{" "}
-                        {request.title} · {states(request.status)}
+                        <RequestLink
+                          number={request.number}
+                          onOpen={() => {
+                            onOpenChange(false);
+                            onOpenRequest(request.requestId);
+                          }}
+                        />{" "}
+                        · {request.title} · {states(request.status)}
                       </span>
                     ))}
                   </span>

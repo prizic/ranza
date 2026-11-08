@@ -47,6 +47,7 @@ import {
 } from "../../../server/maintenance";
 import { ConditionBadge, formatDay } from "./look";
 import { OutcomeMessage } from "./outcome-message";
+import { RequestLink } from "./request-link";
 import { submitWithoutReset } from "../../../lib/submit-without-reset";
 import { useCommand } from "./use-command";
 
@@ -72,6 +73,7 @@ export function EquipmentRegisterPanel({
   propertyId,
   propertyName,
   limits,
+  onOpenRequest,
 }: {
   register: Register;
   units: ReportOptions["units"];
@@ -79,6 +81,8 @@ export function EquipmentRegisterPanel({
   propertyId: string;
   propertyName: string;
   limits: EquipmentLimits;
+  /** Opens a request's sheet, from the number an item names. */
+  onOpenRequest: (requestId: string) => void;
 }) {
   const t = useTranslations("maintenance");
   const retire = useCommand(setEquipmentRetired, locale);
@@ -178,9 +182,13 @@ export function EquipmentRegisterPanel({
                         <ConditionBadge condition={item.condition} />
                       )}
                       {item.openFault && !item.retired ? (
-                        <span className="text-step--1 text-muted-foreground">
-                          {t("reference", { number: item.openFault.number })}
-                        </span>
+                        <RequestLink
+                          className="text-step--1 text-muted-foreground"
+                          number={item.openFault.number}
+                          onOpen={() =>
+                            onOpenRequest(item.openFault!.requestId)
+                          }
+                        />
                       ) : null}
                     </div>
                   </TableCell>

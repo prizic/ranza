@@ -19,6 +19,7 @@ import {
 } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { MaintenanceRequestCard } from "../../packages/ranza/maintenance/src";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
 // Radix's Checkbox measures itself; jsdom has nothing to measure with.
@@ -45,7 +46,13 @@ afterEach(() => {
 const ROOM = "d9000003-0000-4000-8000-000000000101";
 const text = messages.en.maintenance;
 
-function openedFromRooms() {
+function openedFromRooms(
+  overrides: Partial<{
+    openRequests: MaintenanceRequestCard[];
+    onOpenChange: (open: boolean) => void;
+    onOpenRequest: (requestId: string) => void;
+  }> = {},
+) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <ReportDialog
@@ -55,9 +62,10 @@ function openedFromRooms() {
         mayManage
         mayTakeOutOfOrder
         onDone={vi.fn()}
-        onOpenChange={vi.fn()}
+        onOpenChange={overrides.onOpenChange ?? vi.fn()}
+        onOpenRequest={overrides.onOpenRequest ?? vi.fn()}
         open
-        openRequests={[]}
+        openRequests={overrides.openRequests ?? []}
         options={{
           units: [
             { unitId: ROOM, name: "101", roomName: null, status: "available" },
@@ -163,5 +171,33 @@ describe("reporting a problem about a room somebody is booked into", () => {
     const sent = reportProblem.mock.calls[1]![1] as FormData;
     expect(sent.get("outOfOrder")).toBeNull();
     expect(sent.get("acknowledge")).toBeNull();
+  });
+});
+
+describe("a room that already has a request open (B-03)", () => {
+  const OPEN_HERE = {
+    requestId: "d9000003-0000-4000-8000-0000000000a1",
+    number: 7,
+    title: "Window will not close",
+    status: "in_progress",
+    unit: { unitId: ROOM, name: "101", roomName: null },
+  } as MaintenanceRequestCard;
+
+  it("B-03: its number opens that request, and the form steps aside", () => {
+    const onOpenChange = vi.fn();
+    const onOpenRequest = vi.fn();
+    openedFromRooms({
+      openRequests: [OPEN_HERE],
+      onOpenChange,
+      onOpenRequest,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "MT-7" }));
+    expect(onOpenRequest).toHaveBeenCalledWith(OPEN_HERE.requestId);
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("B-03: a room with nothing open names no request", () => {
+    openedFromRooms({ openRequests: [] });
+    expect(screen.queryByRole("button", { name: /^MT-/ })).toBeNull();
   });
 });

@@ -95,7 +95,17 @@ const BOARD: Board = {
   mayCharge: false,
 };
 
-function show(openRequestId: string | null) {
+const NO_REGISTER = {
+  today: "2026-10-25",
+  items: [],
+  mayManageEquipment: false,
+  mayReport: false,
+};
+
+function show(
+  openRequestId: string | null,
+  register: Record<string, unknown> = NO_REGISTER,
+) {
   render(
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <MaintenanceBoard
@@ -114,12 +124,7 @@ function show(openRequestId: string | null) {
         propertyId={PROPERTY}
         propertyName="Deniz Otel"
         roomsHref={null}
-        register={{
-          today: "2026-10-25",
-          items: [],
-          mayManageEquipment: false,
-          mayReport: false,
-        }}
+        register={register as never}
         reportUnitId={null}
         settings={null}
         timeZone="Europe/Istanbul"
@@ -165,5 +170,41 @@ describe("a request named by a link (B-02)", () => {
     fireEvent.click(screen.getByText("Window will not close"));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe("a request named on the Equipment and Plan tabs (B-03)", () => {
+  const ITEM = {
+    equipmentId: "d9000003-0000-4000-8000-0000000000e1",
+    name: "Boiler",
+    category: "Plumbing",
+    unit: null,
+    location: "Basement",
+    serviceIntervalMonths: 6,
+    lastServicedOn: "2026-04-01",
+    nextServiceOn: "2026-10-01",
+    condition: "overdue",
+    retired: false,
+    openFault: { requestId: PIPE.requestId, number: 12 },
+    openWorkOrder: { requestId: WINDOW.requestId, number: 7 },
+  };
+  const REGISTER = { ...NO_REGISTER, items: [ITEM] };
+  const openTab = (name: string) =>
+    fireEvent.mouseDown(screen.getByRole("tab", { name }), { button: 0 });
+
+  it("B-03: an equipment item's open fault number opens that request", () => {
+    show(null, REGISTER);
+    openTab("Equipment");
+    fireEvent.click(screen.getByRole("button", { name: "MT-12" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Leaking pipe");
+  });
+
+  it("B-03: the plan's work order opens that request", () => {
+    show(null, REGISTER);
+    openTab("Service plan");
+    fireEvent.click(screen.getByRole("button", { name: /MT-7/ }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Window will not close",
+    );
   });
 });

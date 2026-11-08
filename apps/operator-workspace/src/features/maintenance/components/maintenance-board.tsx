@@ -232,6 +232,11 @@ export function MaintenanceBoard({
     return () => document.removeEventListener("visibilitychange", onReturn);
   }, [router]);
 
+  const openRequest = useCallback(
+    (requestId: string) => setSelectedId(requestId),
+    [],
+  );
+
   const onReported = useCallback((outcome: MaintenanceOutcome) => {
     setReported(outcome);
     setReportKey((key) => key + 1);
@@ -523,12 +528,17 @@ export function MaintenanceBoard({
             locale={locale}
             propertyId={propertyId}
             propertyName={propertyName}
+            onOpenRequest={openRequest}
             register={register}
             units={options.units}
           />
         </TabsContent>
         <TabsContent className="pt-4" value="plan">
-          <ServicePlan locale={locale} register={register} />
+          <ServicePlan
+            locale={locale}
+            onOpenRequest={openRequest}
+            register={register}
+          />
         </TabsContent>
         {settings ? (
           <TabsContent className="pt-4" value="settings">
@@ -551,6 +561,7 @@ export function MaintenanceBoard({
           mayTakeOutOfOrder={board.mayTakeOutOfOrder}
           onDone={onReported}
           onOpenChange={onReportingChange}
+          onOpenRequest={openRequest}
           open={reporting}
           openRequests={board.requests}
           options={options}
