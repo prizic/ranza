@@ -7,6 +7,7 @@ import { brandStyle } from "../../../lib/brand-style";
 import { ownStays, requireViewer, stayBrands } from "../../../server/viewer";
 import { BrandLogo } from "./brand-logo";
 import { PortalBottomNav, PortalRail } from "./portal-rail";
+import { SignOutItem } from "./sign-out-item";
 
 /**
  * The authenticated shell, and the gate that sends a signed-out visitor to sign
@@ -48,6 +49,14 @@ export default async function PortalLayout({
   const t = await getTranslations();
   const viewer = await requireViewer(locale);
   const root = localizeHref(locale, "stay");
+  const signOut = (
+    <SignOutItem
+      failedLabel={t("signOutFailed")}
+      label={t("signOut")}
+      signInHref={localizeHref(locale, "sign-in")}
+      workingLabel={t("signingOut")}
+    />
+  );
 
   const [stays, brands] = await Promise.all([ownStays(), stayBrands()]);
   const lead = stays[0];
@@ -79,7 +88,9 @@ export default async function PortalLayout({
                 locale={locale}
                 name={viewer.name}
                 variant="compact"
-              />
+              >
+                {signOut}
+              </AccountMenu>
             </>
           }
           brand={
@@ -107,7 +118,9 @@ export default async function PortalLayout({
               label={t("account")}
               locale={locale}
               name={viewer.name}
-            />
+            >
+              {signOut}
+            </AccountMenu>
           }
           labels={{
             badge: t("portalBadge"),

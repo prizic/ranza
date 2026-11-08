@@ -216,6 +216,9 @@ export function InviteForm({
         return;
       }
       setAuthenticated(false);
+      // A refusal said about the account just left is no longer true of
+      // whoever signs in next.
+      setRefused(null);
       router.refresh();
     } finally {
       setPending(false);
@@ -236,6 +239,20 @@ export function InviteForm({
         <Link className={buttonVariants({ className: SUBMIT })} href={stayHref}>
           {t("goToStay")}
         </Link>
+        {refused === "another_guest" ? (
+          <Button
+            className="h-11 w-full text-sm"
+            disabled={pending}
+            onClick={() => void useAnotherAccount()}
+            type="button"
+            variant="ghost"
+          >
+            {t("invite.useAnother")}
+          </Button>
+        ) : null}
+        {failure ? (
+          <FormError className={ERROR}>{t(FAILURE[failure])}</FormError>
+        ) : null}
       </div>
     );
   }

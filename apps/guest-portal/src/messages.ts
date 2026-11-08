@@ -25,6 +25,9 @@ export interface Messages {
   collapse: string;
   expand: string;
   account: string;
+  signOut: string;
+  signingOut: string;
+  signOutFailed: string;
   stay: string;
 
   arrival: string;
@@ -139,6 +142,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "Menüyü daralt",
     expand: "Menüyü genişlet",
     account: "Hesap",
+    signOut: "Oturumu kapat",
+    signingOut: "Oturum kapatılıyor",
+    signOutFailed: "Oturum kapatılamadı. Yeniden deneyin.",
     stay: "Konaklamam",
 
     arrival: "Giriş",
@@ -286,6 +292,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
     account: "Account",
+    signOut: "Sign out",
+    signingOut: "Signing out",
+    signOutFailed: "Could not sign out. Try again.",
     stay: "My stay",
 
     arrival: "Arrival",
@@ -432,6 +441,9 @@ export const messages: Record<SupportedLocale, Messages> = {
     collapse: "طي القائمة",
     expand: "توسيع القائمة",
     account: "الحساب",
+    signOut: "تسجيل الخروج",
+    signingOut: "جارٍ تسجيل الخروج",
+    signOutFailed: "تعذّر تسجيل الخروج. حاول مرة أخرى.",
     stay: "إقامتي",
 
     arrival: "الوصول",

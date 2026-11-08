@@ -373,6 +373,60 @@ describe("the form behind a Guest's link", () => {
     ).toBeVisible();
   });
 
+  it("GP-S3-03: offers a different account, and a fresh form, when the link belongs to someone else's account (audit C-06)", async () => {
+    const say = show({ signedInAs: "somebody.else@example.test" });
+    fetchMock
+      .mockResolvedValueOnce(answer(200, { outcome: "another_guest" }))
+      .mockResolvedValueOnce(answer(200, { success: true }));
+    fireEvent.click(screen.getByRole("button", { name: say.invite.connect }));
+    await screen.findByText(say.invite.refused.another_guest.title);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: say.invite.useAnother }),
+    );
+
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(paths()).toEqual([
+      "/api/portal-invitation/accept",
+      "/api/auth/sign-out",
+    ]);
+    expect(
+      screen.queryByText(say.invite.refused.another_guest.title),
+    ).toBeNull();
+    expect(
+      screen.getByRole("button", { name: say.invite.createSubmit }),
+    ).toBeVisible();
+  });
+
+  it("GP-S3-03: says so, and keeps the refusal, when switching account did not work", async () => {
+    const say = show({ signedInAs: "somebody.else@example.test" });
+    fetchMock
+      .mockResolvedValueOnce(answer(200, { outcome: "another_guest" }))
+      .mockResolvedValueOnce(answer(500));
+    fireEvent.click(screen.getByRole("button", { name: say.invite.connect }));
+    await screen.findByText(say.invite.refused.another_guest.title);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: say.invite.useAnother }),
+    );
+
+    expect(await screen.findByText(say.signInUnavailable)).toBeVisible();
+    expect(
+      screen.getByText(say.invite.refused.another_guest.title),
+    ).toBeVisible();
+  });
+
+  it("GP-S3-03: offers no account switch for a link that is simply expired", async () => {
+    const say = show({ signedInAs: "deniz@example.test" });
+    fetchMock.mockResolvedValueOnce(answer(200, { outcome: "expired" }));
+    fireEvent.click(screen.getByRole("button", { name: say.invite.connect }));
+    await screen.findByText(say.invite.refused.expired.title);
+
+    expect(
+      screen.queryByRole("button", { name: say.invite.useAnother }),
+    ).toBeNull();
+  });
+
   for (const locale of supportedLocales) {
     for (const outcome of [
       "unknown",
