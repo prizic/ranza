@@ -33,6 +33,7 @@ const { navigation } = vi.hoisted(() => ({
       throw new Error(`redirect ${to}`);
     },
     usePathname: () => "/en/finance",
+    useSearchParams: () => new URLSearchParams(),
   }),
 }));
 vi.mock("next/navigation", navigation);
@@ -247,6 +248,57 @@ describe("a folio's history (AUDIT-03)", () => {
     permittedProperties.mockResolvedValue([]);
     await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
     expect(history()).toBeNull();
+  });
+});
+
+describe("a folio of another Property than the one named (D-10)", () => {
+  const OTHER = {
+    ...PROPERTY,
+    propertyId: "d9100004-0000-4000-8000-000000000003",
+    propertyName: "Deniz Otel Moda",
+  };
+  const FOLIO = {
+    folioId: "d9100005-0000-4000-8000-0000000000bb",
+    propertyId: OTHER.propertyId,
+  };
+
+  it("D-10: follows the folio to its own Property when the viewer reaches Finance there", async () => {
+    screenProperties.mockResolvedValue([PROPERTY, OTHER]);
+    folio.mockResolvedValue(FOLIO);
+    await expect(
+      show({ property: PROPERTY.propertyId, folio: FOLIO.folioId }),
+    ).rejects.toThrow(
+      `redirect /en/finance?folio=${FOLIO.folioId}&property=${OTHER.propertyId}`,
+    );
+  });
+
+  it("D-10: keeps the tab it was opened from when it follows", async () => {
+    screenProperties.mockResolvedValue([PROPERTY, OTHER]);
+    folio.mockResolvedValue(FOLIO);
+    await expect(
+      show({
+        property: PROPERTY.propertyId,
+        folio: FOLIO.folioId,
+        show: "owing",
+      }),
+    ).rejects.toThrow(
+      `redirect /en/finance?folio=${FOLIO.folioId}&show=owing&property=${OTHER.propertyId}`,
+    );
+  });
+
+  it("D-10: reads as a folio that is not there when Finance is not open at its Property", async () => {
+    folio.mockResolvedValue(FOLIO);
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(screen.queryByTestId("folio-panel")).toBeNull();
+    expect(screen.getByTestId("folio-not-found")).toBeInTheDocument();
+    expect(screen.getByTestId("folios-table")).toBeInTheDocument();
+  });
+
+  it("D-10: a folio of the named Property is drawn as before", async () => {
+    screenProperties.mockResolvedValue([PROPERTY, OTHER]);
+    folio.mockResolvedValue({ ...FOLIO, propertyId: PROPERTY.propertyId });
+    await show({ property: PROPERTY.propertyId, folio: FOLIO.folioId });
+    expect(screen.getByTestId("folio-panel")).toBeInTheDocument();
   });
 });
 

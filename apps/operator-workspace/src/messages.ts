@@ -3475,6 +3475,8 @@ export interface Messages {
     notOrganizationWideTitle: string;
     notOrganizationWideDescription: string;
     goToToday: string;
+    /** `{page}`: where "home" is for a Property that has Today switched off. */
+    goToPage: string;
     /** Names the page in a refusal when the route does not. */
     thisPage: string;
   };
@@ -7621,6 +7623,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notOrganizationWideDescription:
         "Defter kayıtları bir tesise değil Organizasyona aittir; bu yüzden yalnızca deftere okuma yetkisi taşıyan ve tüm tesislere erişimi olan bir rolde açılır. Sizin erişiminiz bazı tesislerle sınırlı. Organizasyonunuzda personeli yöneten kişiye danışın.",
       goToToday: "Bugün'e git",
+      goToPage: "{page} sayfasına git",
       thisPage: "Bu sayfa",
     },
     ledger: {
@@ -11745,6 +11748,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notOrganizationWideDescription:
         "Ledger entries belong to the Organization, not to a Property, so it opens only for a role that can read the ledger and reaches every Property. Yours reaches some of them. Ask whoever manages staff in your Organization.",
       goToToday: "Go to Today",
+      goToPage: "Go to {page}",
       thisPage: "This page",
     },
     ledger: {
@@ -15784,6 +15788,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       notOrganizationWideDescription:
         "قيود الدفتر تخص المؤسسة لا منشأة بعينها، لذلك لا تُفتح إلا لدور يملك صلاحية قراءة الدفتر ويصل إلى كل المنشآت. وصولك يقتصر على بعض المنشآت. اسأل من يدير الموظفين في مؤسستك.",
       goToToday: "الانتقال إلى اليوم",
+      goToPage: "الانتقال إلى {page}",
       thisPage: "هذه الصفحة",
     },
     ledger: {

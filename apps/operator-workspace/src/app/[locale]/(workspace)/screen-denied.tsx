@@ -1,14 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
-import { Button, EmptyState } from "@ranza/ui";
+import type { SupportedLocale } from "@ranza/i18n";
+import { EmptyState } from "@ranza/ui";
 import { useTranslations } from "next-intl";
 import type { Denial } from "@ranza/core";
 import { asPermission } from "../../../features/staff/labels";
 import { pageTitleFor, useWorkspacePageTitles } from "../../../lib/page-titles";
+import { HomeButton } from "./workspace-home";
 
 /**
  * Every way a destination says no has one shape: a title, one reason in plain
@@ -26,18 +26,9 @@ export function ScreenRefusal({
   locale: SupportedLocale;
   title: string;
 }) {
-  const t = useTranslations();
   return (
     <EmptyState
-      action={
-        action ?? (
-          <Button asChild>
-            <Link href={localizeHref(locale, "today")}>
-              {t("denied.goToToday")}
-            </Link>
-          </Button>
-        )
-      }
+      action={action ?? <HomeButton locale={locale} />}
       description={description}
       title={title}
     />

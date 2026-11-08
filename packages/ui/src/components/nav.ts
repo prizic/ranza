@@ -56,16 +56,33 @@ export function navGroupFor(
   );
 }
 
+/** A tile on a phone: a page, or the category that stands for several. */
+export interface MobileNavItem extends NavLeaf {
+  /**
+   * Every page the tile stands for, so it reads as the current one on any of
+   * them and not only on the first (audit 2026-11-07, D-08).
+   */
+  hrefs: readonly string[];
+}
+
 /**
  * One entry per tile on a phone, where there is no room to drill in: a category
  * stands for its first page rather than opening anything.
  */
-export function toMobileNav(entries: readonly NavEntry[]): NavLeaf[] {
-  return entries.flatMap((entry) => {
-    if (!isNavGroup(entry)) return [entry];
+export function toMobileNav(entries: readonly NavEntry[]): MobileNavItem[] {
+  return entries.flatMap((entry): MobileNavItem[] => {
+    if (!isNavGroup(entry)) return [{ ...entry, hrefs: [entry.href] }];
     const [first] = entry.children;
     return first
-      ? [{ href: first.href, label: entry.label, icon: entry.icon }]
+      ? [
+          {
+            href: first.href,
+            hrefs: entry.children.map((child) => child.href),
+            label: entry.label,
+            icon: entry.icon,
+            badge: entry.badge,
+          },
+        ]
       : [];
   });
 }

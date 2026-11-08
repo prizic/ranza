@@ -14,5 +14,7 @@ export default function LocaleError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  return <RouteError error={error} event="app.render_failed" reset={reset} />;
+  return (
+    <RouteError error={error} event="app.render_failed" exit reset={reset} />
+  );
 }

@@ -2,6 +2,7 @@ import { useSearchParams } from "next/navigation";
 import type { NavEntry } from "@ranza/ui";
 import { useTranslations } from "next-intl";
 import { localizeHref, type SupportedLocale } from "@ranza/i18n";
+import { homeSegment } from "./property-choice";
 import { screensFor } from "./screens";
 
 /**
@@ -70,6 +71,29 @@ export function useWithProperty(
   const property = usePropertyInUse(defaultProperty, known);
   return (href) =>
     property ? `${href}?property=${encodeURIComponent(property)}` : href;
+}
+
+/**
+ * Where "up" and "Go to Today" lead from the Property in use: its home page,
+ * with the Property kept (`homeSegment`).
+ */
+export function useHome(
+  locale: SupportedLocale,
+  defaultProperty: string | undefined,
+  segmentsByProperty: Readonly<Record<string, readonly string[]>>,
+): { segment: string; href: string } {
+  const property = usePropertyInUse(
+    defaultProperty,
+    Object.keys(segmentsByProperty),
+  );
+  const withProperty = useWithProperty(
+    defaultProperty,
+    Object.keys(segmentsByProperty),
+  );
+  const segment = homeSegment(
+    property ? segmentsByProperty[property] : undefined,
+  );
+  return { segment, href: withProperty(localizeHref(locale, segment)) };
 }
 
 export function useWorkspaceNav(

@@ -26,6 +26,8 @@ import type {
   RoomCalendarUnit,
 } from "../../packages/ranza/reservations/src";
 
+const { routerRefresh } = vi.hoisted(() => ({ routerRefresh: vi.fn() }));
+
 // The rail carries the Property onto every link from the URL's query, which
 // outside Next's router has no search params to read. Mocked at the path the
 // application resolves it from: the root package has no Next of its own.
@@ -34,6 +36,7 @@ vi.mock(
   async (original) => ({
     ...(await original<Record<string, unknown>>()),
     useSearchParams: () => new URLSearchParams({ property: "p-1" }),
+    useRouter: () => ({ refresh: routerRefresh }),
   }),
 );
 
@@ -450,6 +453,7 @@ describe("when the page itself fails", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(reset).toHaveBeenCalled();
+    expect(routerRefresh).toHaveBeenCalled();
     logged.mockRestore();
   });
 });

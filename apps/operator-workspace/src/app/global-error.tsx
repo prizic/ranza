@@ -38,7 +38,12 @@ export default function GlobalError({
           <h1 className="text-step-1 font-normal">{say.title}</h1>
           <p className="text-muted-foreground">{say.description}</p>
           <div className="grid justify-items-start gap-3">
-            <Button onClick={reset}>{say.retry}</Button>
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={reset}>{say.retry}</Button>
+              <Button asChild variant="outline">
+                <a href={`/${locale}/today`}>{say.exit}</a>
+              </Button>
+            </div>
             {error.digest ? (
               <p className="text-step--1 text-muted-foreground">
                 <bdi dir="ltr">

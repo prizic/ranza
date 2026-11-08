@@ -157,3 +157,14 @@ export function switchTarget(
   if (segments.includes("today")) return "today";
   return segments[0];
 }
+
+/**
+ * The page "up" and "home" lead to at a Property: Today, or — where Today is
+ * switched off there — the page a switch to that Property lands on. Today sends
+ * a Property it does not list to another Property's day, which is a switch
+ * nobody asked for (audit 2026-11-07, D-01). Unknown segments mean Today, as
+ * before.
+ */
+export function homeSegment(segments: readonly string[] | undefined): string {
+  return switchTarget(undefined, segments ?? []) ?? "today";
+}

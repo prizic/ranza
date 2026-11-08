@@ -34,7 +34,7 @@ vi.mock("../../apps/operator-workspace/node_modules/server-only", () => ({}));
 vi.mock("../../apps/operator-workspace/node_modules/next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
 }));
-vi.mock("next/navigation", () => ({
+const navigation = vi.hoisted(() => () => ({
   notFound: () => {
     throw new Error("notFound");
   },
@@ -42,6 +42,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("next/navigation", navigation);
+vi.mock(
+  "../../apps/operator-workspace/node_modules/next/navigation",
+  navigation,
+);
 vi.mock("next-intl/server", () => ({
   getTranslations: async () =>
     createTranslator({ locale, messages: messages[locale] as never }),

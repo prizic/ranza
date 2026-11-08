@@ -11,8 +11,8 @@ import {
   SectionTabs,
   toChips,
 } from "@ranza/ui";
-import { localizeHref, type SupportedLocale } from "@ranza/i18n";
-import { useWithProperty, useWorkspaceNav } from "../../../lib/nav";
+import type { SupportedLocale } from "@ranza/i18n";
+import { useHome, useWorkspaceNav } from "../../../lib/nav";
 import type { NavMode } from "../../../lib/nav-mode";
 import {
   pageTitleFor,
@@ -63,10 +63,7 @@ export function WorkspacePageBar({
     dormitoryIds,
   );
   const t = useTranslations();
-  const withProperty = useWithProperty(
-    defaultProperty,
-    Object.keys(segmentsByProperty),
-  );
+  const home = useHome(locale, defaultProperty, segmentsByProperty);
   // An address that is no page still gets the bar, and with it the way up
   // (ADR 0035): the not-found screen is drawn under it (SHELL-03).
   const match = pageTitleFor(pathname, titles) ?? {
@@ -78,12 +75,16 @@ export function WorkspacePageBar({
   // A nav group has no page of its own, so it is named without a link.
   const group = navGroupFor(pathname, entries);
 
-  const rootHref = withProperty(localizeHref(locale, "today"));
+  // Today, or the page that stands in for it at a Property with Today switched
+  // off: the root of the Property being worked in, and the one page with no way
+  // up (audit 2026-11-07, D-01).
+  const rootHref = home.href;
   const route = withoutLocale(pathname);
-  const isToday = route === "/today" || route === "/";
+  const isRoot =
+    route === `/${home.segment}` || (home.segment === "today" && route === "/");
   // A detail view's way up is its own list, with the rest of the query kept.
   const detailKey = DETAIL_KEYS.find((key) => searchParams.has(key));
-  const isInnerPage = !isToday || detailKey !== undefined;
+  const isInnerPage = !isRoot || detailKey !== undefined;
 
   let upHref = rootHref;
   if (detailKey) {

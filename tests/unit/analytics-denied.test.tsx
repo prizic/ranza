@@ -10,11 +10,16 @@ import { NextIntlClientProvider } from "next-intl";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { messages } from "../../apps/operator-workspace/src/messages";
 
-vi.mock("next/navigation", () => ({
+const navigation = vi.hoisted(() => () => ({
   usePathname: () => "/en/analytics",
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("next/navigation", navigation);
+vi.mock(
+  "../../apps/operator-workspace/node_modules/next/navigation",
+  navigation,
+);
 
 const { ScreenDenied } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/screen-denied");

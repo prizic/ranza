@@ -37,6 +37,18 @@ vi.mock("../../apps/operator-workspace/src/app/globals.css", () => ({}));
 
 const { RouteError } =
   await import("../../apps/operator-workspace/src/app/[locale]/route-error");
+const { default: LocaleError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/error");
+const { default: WorkspaceError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/error");
+const { default: BrandingError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/branding/error");
+const { default: DataExportError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/data-export/error");
+const { default: PortfolioError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/portfolio/error");
+const { default: RoomCalendarError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/room-calendar/error");
 const { default: GlobalError } =
   await import("../../apps/operator-workspace/src/app/global-error");
 
@@ -116,6 +128,90 @@ describe("a route that failed to render", () => {
     expect(screen.queryByText(/Reference:/)).not.toBeInTheDocument();
     logged.mockRestore();
   });
+});
+
+describe("the way out of a failed shell (D-13)", () => {
+  for (const locale of ["en", "tr", "ar"] as const) {
+    it(`D-13: ${locale} the shell's own boundary leads to Today, and not by trying again`, () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(
+        <NextIntlClientProvider locale={locale} messages={messages[locale]}>
+          <LocaleError error={failure} reset={vi.fn()} />
+        </NextIntlClientProvider>,
+      );
+      expect(
+        screen.getByRole("link", { name: errorBoundary[locale].exit }),
+      ).toHaveAttribute("href", `/${locale}/today`);
+      logged.mockRestore();
+    });
+  }
+
+  it("D-13: a page boundary inside the shell adds none, the rail is still there", () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <NextIntlClientProvider locale="en" messages={messages.en}>
+        <WorkspaceError error={failure} reset={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("link")).toBeNull();
+    logged.mockRestore();
+  });
+
+  it("D-13: the last boundary leads to Today in the page's language", () => {
+    pathname.current = "/ar/today";
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const container = document.createElement("div");
+    document.body.append(container);
+    render(<GlobalError error={failure} reset={vi.fn()} />, {
+      container,
+      baseElement: document.documentElement,
+    });
+    expect(
+      screen.getByRole("link", { name: errorBoundary.ar.exit }),
+    ).toHaveAttribute("href", "/ar/today");
+    logged.mockRestore();
+    container.remove();
+  });
+});
+
+describe("a screen with a boundary of its own (D-02)", () => {
+  const SCREENS = [
+    ["branding", BrandingError, "branding.render_failed"],
+    ["data export", DataExportError, "data_export.render_failed"],
+    ["portfolio", PortfolioError, "portfolio.render_failed"],
+    ["room calendar", RoomCalendarError, "room_calendar.render_failed"],
+  ] as const;
+
+  for (const [name, Boundary, event] of SCREENS) {
+    it(`D-02: ${name} says so in its own words, and Try again fetches the route afresh`, () => {
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      const reset = vi.fn();
+      render(
+        <NextIntlClientProvider locale="en" messages={messages.en}>
+          <Boundary error={failure} reset={reset} />
+        </NextIntlClientProvider>,
+      );
+      expect(
+        screen.queryByRole("heading", { name: errorBoundary.en.title }),
+        "its own title, not the generic one",
+      ).toBeNull();
+      act(() => {
+        fireEvent.click(
+          screen.getByRole("button", { name: /try again|retry/i }),
+        );
+      });
+      expect(
+        refresh,
+        "a server failure is not undone by reset alone",
+      ).toHaveBeenCalledTimes(1);
+      expect(reset).toHaveBeenCalledTimes(1);
+      expect(logged).toHaveBeenCalledWith(event, {
+        digest: "4821937",
+        error: failure,
+      });
+      logged.mockRestore();
+    });
+  }
 });
 
 describe("the last boundary", () => {

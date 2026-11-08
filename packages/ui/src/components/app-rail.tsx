@@ -672,8 +672,8 @@ export function AppBottomNav({
         className="flex items-center justify-around overflow-x-auto px-1 py-1 scrollbar-none"
         ref={dock}
       >
-        {items.map(({ href, icon: Icon, label: itemLabel }) => {
-          const active = isActive(href);
+        {items.map(({ badge, href, hrefs, icon: Icon, label: itemLabel }) => {
+          const active = hrefs.some(isActive);
           return (
             <li className="flex min-w-[5rem] flex-1 justify-center" key={href}>
               <Link
@@ -697,6 +697,13 @@ export function AppBottomNav({
                 <span className="line-clamp-2 max-w-full text-center leading-tight">
                   {itemLabel}
                 </span>
+                {/* What the sidebar and the chips say beside the name: a tile
+                    that opens "not available yet" must not look built (D-09). */}
+                {badge !== undefined ? (
+                  <span className="bg-frame-hover text-on-frame-muted absolute end-1 top-1 rounded-full px-1.5 py-px text-[9px] leading-none font-semibold">
+                    {badge}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );

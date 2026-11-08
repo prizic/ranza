@@ -1,15 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { Button, EmptyState } from "@ranza/ui";
+import { RouteError } from "../../route-error";
 
 /**
- * All Properties failed to read or render. A retry in place of a blank
- * workspace, and the error logged rather than swallowed; the read has already
- * recorded `portfolio.viewed` with outcome `failed` on the server. Where client
- * errors are sent beyond the console is the workspace's decision, not this
- * screen's.
+ * All Properties failed to read or render. The read has already recorded
+ * `portfolio.viewed` with outcome `failed` on the server.
+ * Says so in the screen's own words, and tries again by fetching the route
+ * afresh, which `reset` alone does not do for a server failure (audit
+ * 2026-11-07, D-02).
  */
 export default function PortfolioError({
   error,
@@ -19,19 +18,16 @@ export default function PortfolioError({
   reset: () => void;
 }) {
   const t = useTranslations("portfolio");
-
-  useEffect(() => {
-    console.error("portfolio.render_failed", {
-      digest: error.digest,
-      error,
-    });
-  }, [error]);
-
   return (
-    <EmptyState
-      action={<Button onClick={reset}>{t("retry")}</Button>}
-      description={t("failedDescription")}
-      title={t("failedTitle")}
+    <RouteError
+      copy={{
+        title: t("failedTitle"),
+        description: t("failedDescription"),
+        retry: t("retry"),
+      }}
+      error={error}
+      event="portfolio.render_failed"
+      reset={reset}
     />
   );
 }

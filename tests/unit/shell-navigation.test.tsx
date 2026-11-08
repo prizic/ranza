@@ -10,6 +10,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 // The workspace is the only package that depends on TanStack Query, and the
 // provider under test reaches it through that package. Named by file so this
@@ -238,6 +239,56 @@ describe("the page you are on is in view (SHELL-02, SHELL-15)", () => {
     );
     expect(scrollBy).toHaveBeenCalledTimes(1);
     expect(scrollIntoView).not.toHaveBeenCalled();
+  });
+});
+
+describe("the phone dock says where you are and what is built (D-08, D-09)", () => {
+  const dock = () =>
+    screen.getByRole("navigation", { name: "Main navigation" });
+  const showDock = (dockEntries: NavEntry[]) =>
+    render(
+      <AppBottomNav
+        entries={dockEntries}
+        label="Main navigation"
+        root="/en/today"
+      />,
+    );
+
+  it("D-08: a category's tile is the current one on any of its pages, not only its first", () => {
+    route.pathname = "/en/arrivals";
+    showDock(entries);
+    expect(
+      within(dock()).getByRole("link", { name: "Front Office" }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(
+      within(dock()).getByRole("link", { name: "Today" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("D-08: and not on a page it does not hold", () => {
+    route.pathname = "/en/today";
+    showDock(entries);
+    expect(
+      within(dock()).getByRole("link", { name: "Front Office" }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("D-09: a destination that is not built yet says so on its tile, as the sidebar does", () => {
+    route.pathname = "/en/today";
+    showDock([
+      ...entries,
+      { badge: "Soon", href: "/en/inventory", icon: Icon, label: "Inventory" },
+    ]);
+    expect(
+      within(within(dock()).getByRole("link", { name: /Inventory/ })).getByText(
+        "Soon",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(within(dock()).getByRole("link", { name: "Today" })).queryByText(
+        "Soon",
+      ),
+    ).toBeNull();
   });
 });
 

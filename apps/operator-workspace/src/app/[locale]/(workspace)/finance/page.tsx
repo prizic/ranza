@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   formatMoney,
   isSupportedLocale,
@@ -26,7 +26,7 @@ import {
 } from "../../../../server/viewer";
 import { gateOf } from "../../../../lib/screens";
 import { ScreenDenied, ScreenRefusal } from "../screen-denied";
-import { frontDeskProperty } from "../../../../server/front-desk";
+import { frontDeskProperty, withProperty } from "../../../../server/front-desk";
 import { FolioTabs } from "../../../../features/finance/components/folio-tabs";
 import { FOLIO_TABS, parseFolioTab } from "../../../../features/finance/derive";
 import { owedAcrossFolios } from "../../../../lib/owed";
@@ -96,8 +96,25 @@ export default async function FinancePage({
   // does not tell them apart. What a viewer cannot see should not be
   // distinguishable from what is not there.
   const selected = search.folio ? await folio(search.folio) : null;
-
-  if (selected) {
+  // The page names one Property and the switcher shows it, so a folio of
+  // another is not drawn under this one's name (audit 2026-11-07, D-10): where
+  // the viewer reaches Finance at the folio's own Property the link is followed
+  // there, and where they do not it reads as a folio that is not there.
+  const folioProperty = selected
+    ? properties.find(
+        (candidate) => candidate.propertyId === selected.propertyId,
+      )
+    : undefined;
+  if (folioProperty && folioProperty.propertyId !== property.propertyId) {
+    redirect(
+      withProperty(
+        localizeHref(locale, "finance"),
+        search,
+        folioProperty.propertyId,
+      ),
+    );
+  }
+  if (selected && folioProperty) {
     // Asked about the Folio's own Property, as the insert policy asks it.
     const [canCharge, canReverseCharge, canPayment, canReversePayment] =
       await Promise.all([
@@ -118,10 +135,6 @@ export default async function FinancePage({
     const mayReversePayment = canReversePayment.some(
       (reachable) => reachable.propertyId === selected.propertyId,
     );
-    const folioProperty =
-      properties.find(
-        (candidate) => candidate.propertyId === selected.propertyId,
-      ) ?? property;
     // The folio's own history, where the Audit log narrows to it: offered to a
     // viewer who may read the log at its Property and to nobody else.
     const mayReadHistory = (

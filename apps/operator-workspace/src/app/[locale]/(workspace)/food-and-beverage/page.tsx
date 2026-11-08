@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { isSupportedLocale, localizeHref } from "@ranza/i18n";
-import { Button, PlannedScreen } from "@ranza/ui";
+import { PlannedScreen } from "@ranza/ui";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { gateOf, screenFor } from "../../../../lib/screens";
+import { frontDeskProperty } from "../../../../server/front-desk";
 import { ScreenDenied } from "../screen-denied";
+import { HomeButton } from "../workspace-home";
 import {
   requireViewer,
   screenProperties,
@@ -40,16 +41,22 @@ export default async function Page({
   const screen = screenFor(SEGMENT);
   if (!screen) notFound();
 
-  // Same gate as every built screen. Entitlement is not waived because the
-  // workflow is unfinished — a Property that has not bought this reaches
-  // nothing, and that is what the empty state says.
-  const { property } = await searchParams;
-  const properties = await screenProperties(gateOf("food-and-beverage"));
+  // Same gate as every built screen, asked about the Property named in the
+  // address when one is: entitlement is not waived because the workflow is
+  // unfinished, and a Property that has not bought this says so, not "soon"
+  // (audit 2026-11-07, D-11). The Property is written into the address, as it
+  // is on built screens, so the Go to Today button carries one that was checked.
+  const search = await searchParams;
+  const property = await frontDeskProperty(
+    await screenProperties(gateOf("food-and-beverage")),
+    search,
+    localizeHref(locale, SEGMENT),
+  );
 
-  if (properties.length === 0) {
+  if (!property) {
     return (
       <ScreenDenied
-        denial={await whyDenied(gateOf("food-and-beverage"), property)}
+        denial={await whyDenied(gateOf("food-and-beverage"), search.property)}
         locale={locale}
       />
     );
@@ -57,15 +64,7 @@ export default async function Page({
 
   return (
     <PlannedScreen
-      action={
-        <Button asChild>
-          <Link
-            href={`${localizeHref(locale, "today")}${property ? `?property=${encodeURIComponent(property)}` : ""}`}
-          >
-            {t("denied.goToToday")}
-          </Link>
-        </Button>
-      }
+      action={<HomeButton locale={locale} />}
       heading={t("planned")}
       lead={t("plannedLead")}
       summary={
