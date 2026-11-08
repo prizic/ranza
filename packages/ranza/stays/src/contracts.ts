@@ -1,5 +1,5 @@
 import type { AccommodationUnitType } from "@ranza/accommodation";
-import type { CapabilityRef } from "@ranza/core";
+import type { CapabilityRef, OperatingModel } from "@ranza/core";
 
 /**
  * The public vocabulary of Stays.
@@ -49,6 +49,12 @@ export interface OwnStay {
   endsOn: string | null;
   propertyId: string;
   propertyName: string;
+  /**
+   * What the Property calls things (ADR 0057): words only, never a rule. The
+   * Portal reads it to call a dormitory's Resident a student; it is the
+   * viewer's own Property's, so it tells them nothing about the Organization.
+   */
+  operatingModel: OperatingModel;
   timezone: string;
   unitId: string;
   unitName: string;

@@ -128,6 +128,8 @@ export interface Messages {
   };
 
   stayType: Record<OwnStay["stayType"], string>;
+  /** What a dormitory calls its Resident (ADR 0057); a Guest there keeps `stayType.guest`. */
+  stayTypeStudent: string;
   stayStatus: Record<OwnStay["status"], string>;
   unitType: Record<OwnStay["unitType"], string>;
 }
@@ -270,6 +272,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     stayType: { guest: "Misafir", resident: "Sakin" },
+    stayTypeStudent: "Öğrenci",
     stayStatus: {
       reserved: "Rezerve",
       in_house: "Konaklıyor",
@@ -419,6 +422,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     stayType: { guest: "Guest", resident: "Resident" },
+    stayTypeStudent: "Student",
     stayStatus: {
       reserved: "Reserved",
       in_house: "Staying now",
@@ -568,6 +572,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     stayType: { guest: "ضيف", resident: "مقيم" },
+    stayTypeStudent: "طالب",
     stayStatus: {
       reserved: "محجوزة",
       in_house: "قيد الإقامة",

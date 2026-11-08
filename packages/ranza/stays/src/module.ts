@@ -69,6 +69,7 @@ export function createStaysModule(deps: StaysDeps) {
           to_char(stay.ends_on, 'YYYY-MM-DD')    as "endsOn",
           property.id                            as "propertyId",
           property.name                          as "propertyName",
+          property.operating_model               as "operatingModel",
           property.timezone                      as "timezone",
           unit.id                                as "unitId",
           unit.name                              as "unitName",

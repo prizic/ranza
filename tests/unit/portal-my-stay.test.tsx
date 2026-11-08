@@ -68,6 +68,7 @@ const BED_IN_A_ROOM = {
   endsOn: "2027-06-30",
   propertyId: "d9400003-0000-4000-8000-000000000001",
   propertyName: "Deniz Yurdu",
+  operatingModel: "dormitory",
   timezone: "Europe/Istanbul",
   unitId: "d9400004-0000-4000-8000-000000000001",
   unitName: "B",
@@ -135,6 +136,24 @@ describe("My stay", () => {
       expect(
         screen.getByText(new RegExp(say.myStay.floor.replace("{floor}", "3"))),
       ).toBeInTheDocument();
+    });
+
+    it(`a dormitory's Resident is called a student, not a Resident, in ${locale}`, async () => {
+      const say = await show({}, locale);
+
+      expect(screen.getByText(say.stayTypeStudent)).toBeInTheDocument();
+      expect(screen.queryByText(say.stayType.resident)).not.toBeInTheDocument();
+    });
+
+    it(`a dormitory's Guest is still a Guest, and a hotel's Resident still a Resident, in ${locale}`, async () => {
+      let say = await show({ stayType: "guest" }, locale);
+      expect(screen.getByText(say.stayType.guest)).toBeInTheDocument();
+      expect(screen.queryByText(say.stayTypeStudent)).not.toBeInTheDocument();
+      cleanup();
+
+      say = await show({ operatingModel: "hotel" }, locale);
+      expect(screen.getByText(say.stayType.resident)).toBeInTheDocument();
+      expect(screen.queryByText(say.stayTypeStudent)).not.toBeInTheDocument();
     });
 
     it(`GP-S4-08: shows arrival and departure as dates, not an open end, in ${locale}`, async () => {

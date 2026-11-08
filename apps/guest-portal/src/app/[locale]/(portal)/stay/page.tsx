@@ -266,7 +266,10 @@ export default async function StayPage({
                 )}
               </Fact>
               <Fact label={t("stayKind")}>
-                {t(`stayType.${stay.stayType}`)}
+                {stay.stayType === "resident" &&
+                stay.operatingModel === "dormitory"
+                  ? t("stayTypeStudent")
+                  : t(`stayType.${stay.stayType}`)}
               </Fact>
             </FactList>
 

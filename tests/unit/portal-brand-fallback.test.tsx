@@ -56,6 +56,7 @@ const STAY = {
   endsOn: null,
   propertyId: "d9200003-0000-4000-8000-000000000001",
   propertyName: "Residence Hall",
+  operatingModel: "hotel",
   timezone: "Europe/Istanbul",
   unitId: "d9200004-0000-4000-8000-000000000001",
   unitName: "Room 101",

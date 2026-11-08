@@ -205,10 +205,27 @@ describe("the Portal shows a Guest or Resident their own Stay", () => {
       startsOn: "2026-09-01",
       endsOn: null,
       propertyName: "Residence Hall",
+      operatingModel: "hotel",
       unitName: "Room 101",
       unitType: "room",
       unitCapacity: 2,
     });
+  });
+
+  it("tells a Resident their own Property's operating model, and a change of it", async () => {
+    await owner.$executeRawUnsafe(
+      "update public.properties set operating_model = 'dormitory' where id = $1",
+      PROPERTY,
+    );
+    try {
+      const [stay] = await stays.listOwnStays(RESIDENT);
+      expect(stay?.operatingModel).toBe("dormitory");
+    } finally {
+      await owner.$executeRawUnsafe(
+        "update public.properties set operating_model = 'hotel' where id = $1",
+        PROPERTY,
+      );
+    }
   });
 
   it("shows nothing belonging to another Resident in the same Property", async () => {
