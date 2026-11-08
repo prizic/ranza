@@ -683,6 +683,8 @@ function MainRow({
         currency={currency}
         departures={summary.departures}
         locale={locale}
+        mayOpenFinance={summary.mayOpenFinance}
+        mayOpenReservations={summary.mayOpenReservations}
         onChanged={onChanged}
         onRetry={onRetry}
         scope={scope}

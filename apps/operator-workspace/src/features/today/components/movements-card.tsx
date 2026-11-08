@@ -39,14 +39,18 @@ type Tab = "arrivals" | "departures";
  *
  * The switch between the two is this card's own state rather than a link: the
  * page is one read, and swapping which half of it is shown is not a
- * navigation. Each row is a way into the list it came from, where the command
- * that acts on it lives.
+ * navigation. A row that names a Guest opens that Guest's booking or Folio
+ * where the viewer may open it, and otherwise the list it came from; the
+ * card's "All" link is always the list, where the command that acts on every
+ * row lives (TD-S1-32).
  */
 export function MovementsCard({
   arrivals,
   currency,
   departures,
   locale,
+  mayOpenFinance,
+  mayOpenReservations,
   onChanged,
   onRetry,
   scope,
@@ -55,6 +59,10 @@ export function MovementsCard({
   currency: string;
   departures: Section<DeparturesCard> | undefined;
   locale: SupportedLocale;
+  /** Finance opens for the viewer, so a leaving Guest's name leads to the Folio. */
+  mayOpenFinance: boolean;
+  /** Reservations opens for the viewer, so an arriving Guest's name leads to the booking. */
+  mayOpenReservations: boolean;
   /** Somebody was checked in or out from a row: read the day again. */
   onChanged: () => void;
   onRetry: () => void;
@@ -159,6 +167,7 @@ export function MovementsCard({
           ) : (
             <ArrivalRows
               locale={locale}
+              mayOpenReservations={mayOpenReservations}
               onChanged={changed}
               propertyId={propertyId}
               remaining={toCome ?? 0}
@@ -174,6 +183,7 @@ export function MovementsCard({
               currency={currency}
               full={full.data ?? []}
               locale={locale}
+              mayOpenFinance={mayOpenFinance}
               onChanged={changed}
               propertyId={propertyId}
               rows={departures.data.rows}
@@ -230,12 +240,14 @@ const ROW_LINK =
 
 function ArrivalRows({
   locale,
+  mayOpenReservations,
   onChanged,
   propertyId,
   remaining,
   rows,
 }: {
   locale: SupportedLocale;
+  mayOpenReservations: boolean;
   onChanged: () => void;
   propertyId: string;
   remaining: number;
@@ -270,7 +282,17 @@ function ArrivalRows({
           const length = nights(row.startsOn, row.endsOn);
           return (
             <li className={ROW} key={row.reservationId}>
-              <Link className={ROW_LINK} href={href} prefetch={false}>
+              <Link
+                className={ROW_LINK}
+                href={
+                  mayOpenReservations
+                    ? todayHref(locale, "reservations", propertyId, {
+                        open: row.reservationId,
+                      })
+                    : href
+                }
+                prefetch={false}
+              >
                 <span className="min-w-40 flex-1">
                   <span className="block font-semibold">
                     <bdi>{row.guestName ?? row.reference}</bdi>
@@ -334,6 +356,7 @@ function DepartureRows({
   currency,
   full,
   locale,
+  mayOpenFinance,
   onChanged,
   propertyId,
   rows,
@@ -343,6 +366,7 @@ function DepartureRows({
   /** The Departures screen's own rows, which the check-out dialog reviews. */
   full: readonly Departure[];
   locale: SupportedLocale;
+  mayOpenFinance: boolean;
   onChanged: () => void;
   propertyId: string;
   rows: readonly DepartureRow[];
@@ -377,7 +401,17 @@ function DepartureRows({
             : undefined;
           return (
             <li className={ROW} key={row.stayId}>
-              <Link className={ROW_LINK} href={href} prefetch={false}>
+              <Link
+                className={ROW_LINK}
+                href={
+                  mayOpenFinance && row.folioId
+                    ? todayHref(locale, "finance", propertyId, {
+                        folio: row.folioId,
+                      })
+                    : href
+                }
+                prefetch={false}
+              >
                 <span className="min-w-40 flex-1">
                   <span className="block font-semibold">
                     <bdi>{row.guestName}</bdi>

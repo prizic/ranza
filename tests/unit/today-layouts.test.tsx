@@ -135,6 +135,7 @@ function summary(overrides: Partial<TodaySummary> = {}): TodaySummary {
     mayBook: true,
     mayOpenRooms: true,
     mayOpenReservations: true,
+    mayOpenFinance: true,
     occupancy: {
       status: "ok",
       data: {

@@ -104,6 +104,7 @@ function frontDesk(overrides: Partial<TodaySummary> = {}): TodaySummary {
     mayBook: true,
     mayOpenRooms: true,
     mayOpenReservations: true,
+    mayOpenFinance: true,
     arrivals: {
       status: "ok",
       data: {
@@ -182,6 +183,7 @@ function housekeeping(): TodaySummary {
     mayBook: false,
     mayOpenRooms: false,
     mayOpenReservations: false,
+    mayOpenFinance: false,
     rooms: ROOMS,
     attention: {
       items: [item({ guestName: null, reference: null })],
@@ -501,6 +503,7 @@ describe("states", () => {
       mayBook: false,
       mayOpenRooms: false,
       mayOpenReservations: false,
+      mayOpenFinance: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -515,6 +518,7 @@ describe("states", () => {
       mayBook: false,
       mayOpenRooms: false,
       mayOpenReservations: false,
+      mayOpenFinance: false,
       attention: { items: [], complete: true },
     });
     expect(screen.getByText(/rolünüz için/)).toBeInTheDocument();
@@ -630,6 +634,7 @@ describe("the finance tiles", () => {
     mayBook: false,
     mayOpenRooms: false,
     mayOpenReservations: false,
+    mayOpenFinance: true,
     money: {
       status: "ok",
       data: {
@@ -998,5 +1003,79 @@ describe("the day, as the UX audit found it", () => {
     cleanup();
     view(housekeeping(), "en");
     expect(screen.getAllByText("Arrival rooms")).toHaveLength(1);
+  });
+});
+
+describe("a movements row that names a Guest opens that Guest (TD-S1-32)", () => {
+  const withoutFolio = () => {
+    const base = frontDesk();
+    if (base.departures?.status !== "ok") throw new Error("fixture");
+    const [row] = base.departures.data.rows;
+    const { folioId: _folioId, ...rest } = row!;
+    return frontDesk({
+      departures: {
+        status: "ok",
+        data: { ...base.departures.data, rows: [rest] },
+      },
+    });
+  };
+  const movements = () =>
+    within(document.getElementById("today-movements")!.closest("section")!);
+  const rowLink = (name: RegExp) => movements().getByRole("link", { name });
+  const openDepartures = () =>
+    fireEvent.click(movements().getByRole("tab", { name: /Departures/ }));
+
+  it("TD-S1-32: an arriving Guest's row opens their booking where Reservations opens", () => {
+    view(frontDesk(), "en");
+    expect(rowLink(/Lina Haddad/)).toHaveAttribute(
+      "href",
+      `/en/reservations?property=${PROPERTY}&open=r-1`,
+    );
+  });
+
+  it("TD-S1-32: it leads to the Arrivals list where Reservations does not open", () => {
+    view(frontDesk({ mayOpenReservations: false }), "en");
+    expect(rowLink(/Lina Haddad/)).toHaveAttribute(
+      "href",
+      `/en/arrivals?property=${PROPERTY}`,
+    );
+  });
+
+  it("TD-S1-32: a leaving Guest's row opens their Folio where Finance opens", () => {
+    view(frontDesk(), "en");
+    openDepartures();
+    expect(rowLink(/Ece Koç/)).toHaveAttribute(
+      "href",
+      `/en/finance?property=${PROPERTY}&folio=f-1`,
+    );
+  });
+
+  it("TD-S1-32: it leads to the Departures list where Finance is closed", () => {
+    view(frontDesk({ mayOpenFinance: false }), "en");
+    openDepartures();
+    expect(rowLink(/Ece Koç/)).toHaveAttribute(
+      "href",
+      `/en/departures?property=${PROPERTY}`,
+    );
+  });
+
+  it("TD-S1-32: and where the row carries no Folio, however open Finance is", () => {
+    view(withoutFolio(), "en");
+    openDepartures();
+    expect(rowLink(/Ece Koç/)).toHaveAttribute(
+      "href",
+      `/en/departures?property=${PROPERTY}`,
+    );
+  });
+
+  it("TD-S1-32: the card's All link stays the way to the whole list", () => {
+    view(frontDesk(), "en");
+    expect(
+      movements().getByRole("link", { name: /All 11 arrivals/ }),
+    ).toHaveAttribute("href", `/en/arrivals?property=${PROPERTY}&show=to_come`);
+    openDepartures();
+    expect(
+      movements().getByRole("link", { name: /All 4 departures/ }),
+    ).toHaveAttribute("href", `/en/departures?property=${PROPERTY}`);
   });
 });

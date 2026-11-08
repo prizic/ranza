@@ -432,6 +432,8 @@ export interface TodaySummary {
   mayOpenRooms: boolean;
   /** Whether Reservations opens for the viewer, where a Stay's booking is read. */
   mayOpenReservations: boolean;
+  /** Whether Finance opens for the viewer, where a leaving Guest's Folio is read. */
+  mayOpenFinance: boolean;
   /** Absent means the viewer may not see it here; never shown as zero. */
   arrivals?: Section<ArrivalsCard>;
   departures?: Section<DeparturesCard>;
@@ -1393,6 +1395,10 @@ export function deriveToday(input: TodayInput): TodaySummary {
     input.capabilities.frontDesk &&
     permitsScreen("reservations", input.day.permissions);
 
+  const mayOpenFinance =
+    input.capabilities.billing &&
+    permitsScreen("finance", input.day.permissions);
+
   const summary: TodaySummary = {
     day: {
       propertyId: input.day.propertyId,
@@ -1410,6 +1416,7 @@ export function deriveToday(input: TodayInput): TodaySummary {
       input.capabilities.frontDesk,
     mayOpenRooms,
     mayOpenReservations,
+    mayOpenFinance,
     attention: {
       items: attentionFrom(
         grants,
