@@ -77,6 +77,7 @@ function screenOf(
   locale: SupportedLocale,
   days: Record<string, RoomDay> = {},
   reportHref: string | null = null,
+  roomsHref: string | null = null,
 ) {
   return (
     <NextIntlClientProvider locale={locale} messages={messages[locale]}>
@@ -89,6 +90,7 @@ function screenOf(
         narrowed={null}
         propertyName="Deniz Otel"
         reportHref={reportHref}
+        roomsHref={roomsHref}
         timeZone="Europe/Istanbul"
       />
     </NextIntlClientProvider>
@@ -102,9 +104,12 @@ function show(
   locale: SupportedLocale = "en",
   days: Record<string, RoomDay> = {},
   reportHref: string | null = null,
+  roomsHref: string | null = null,
 ) {
   cleanup();
-  rerenderScreen = render(screenOf(board, locale, days, reportHref)).rerender;
+  rerenderScreen = render(
+    screenOf(board, locale, days, reportHref, roomsHref),
+  ).rerender;
 }
 
 /** The same mounted board, handed new props — what a revalidation does. */
@@ -484,6 +489,51 @@ describe("the housekeeping board", () => {
     );
   });
 
+  it("B-10: names the room's place on the room map as a link where Rooms opens, and as nothing where it does not", () => {
+    show(
+      boardOf([room({})], false),
+      "en",
+      {},
+      null,
+      "/en/rooms?property=p&unit=",
+    );
+    expect(
+      screen.getByRole("link", { name: "Show on the room map" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/rooms?property=p&unit=dd000004-0000-4000-8000-000000000001",
+    );
+
+    show(boardOf([room({})], false));
+    expect(
+      screen.queryByRole("link", { name: "Show on the room map" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("B-10: reaches the room map from the row menu on a phone, leaving the inline link to a desktop", async () => {
+    show(
+      boardOf([room({})], true),
+      "en",
+      {},
+      null,
+      "/en/rooms?property=p&unit=",
+    );
+    expect(
+      screen.getByRole("link", { name: "Show on the room map" }),
+    ).toHaveClass("max-md:hidden");
+
+    fireEvent.pointerDown(
+      screen.getByRole("button", { name: "Actions for 101" }),
+      { button: 0, ctrlKey: false },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Show on the room map" }),
+    );
+    expect(push).toHaveBeenCalledWith(
+      "/en/rooms?property=p&unit=dd000004-0000-4000-8000-000000000001",
+    );
+  });
+
   it("keeps the link on a phone for somebody with no menu to find it in (HOUSEKEEPING-06)", () => {
     show(boardOf([room({})], false), "en", {}, "/en/maintenance?report=");
     const link = screen.getByRole("link", { name: "Report a problem" });
@@ -507,6 +557,7 @@ describe("the housekeeping board", () => {
           narrowed={null}
           propertyName="Deniz Otel"
           reportHref={null}
+          roomsHref={null}
           timeZone="Europe/Istanbul"
         />
       </NextIntlClientProvider>,
@@ -523,6 +574,7 @@ describe("the housekeeping board", () => {
           narrowed={null}
           propertyName="Deniz Otel"
           reportHref={null}
+          roomsHref={null}
           timeZone="Europe/Istanbul"
         />
       </NextIntlClientProvider>,

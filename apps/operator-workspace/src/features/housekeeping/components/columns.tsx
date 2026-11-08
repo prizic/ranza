@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   Ban,
+  DoorOpen,
   LogIn,
   LogOut,
   Sparkles,
@@ -129,6 +130,7 @@ export function useHousekeepingColumns({
   mayMark,
   pending,
   reportHref,
+  roomsHref,
   onMark,
 }: {
   locale: SupportedLocale;
@@ -139,9 +141,12 @@ export function useHousekeepingColumns({
   pending: boolean;
   /** Where to report a problem in a room, up to its id; null if not allowed. */
   reportHref: string | null;
+  /** Where Rooms shows a room, up to its id; null where the viewer cannot open Rooms. */
+  roomsHref: string | null;
   onMark: (unitIds: string[], status: HousekeepingStatus) => void;
 }): ColumnDef<HousekeepingRoom>[] {
   const t = useTranslations("housekeeping");
+  const common = useTranslations();
   const sort = useSortLabels();
   const router = useRouter();
 
@@ -171,6 +176,18 @@ export function useHousekeepingColumns({
             {/* With a menu on the row, a phone reaches this from there: a grey
               line set against the tick and the room number was a target a
               thumb aiming at either could open instead (HOUSEKEEPING-06). */}
+            {roomsHref ? (
+              <Link
+                className={cn(
+                  "mt-1 block text-step--1 text-muted-foreground underline-offset-4 hover:text-foreground hover:underline pointer-coarse:py-3",
+                  mayMark && "max-md:hidden",
+                )}
+                href={`${roomsHref}${row.original.unitId}`}
+                prefetch={false}
+              >
+                {common("showOnRoomMap")}
+              </Link>
+            ) : null}
             {reportHref ? (
               <Link
                 className={cn(
@@ -332,6 +349,16 @@ export function useHousekeepingColumns({
                     onSelect: () => onMark([row.original.unitId], status),
                   }),
                 ),
+                ...(roomsHref
+                  ? [
+                      {
+                        label: common("showOnRoomMap"),
+                        icon: DoorOpen,
+                        onSelect: () =>
+                          router.push(`${roomsHref}${row.original.unitId}`),
+                      },
+                    ]
+                  : []),
                 ...(reportHref
                   ? [
                       {
@@ -355,9 +382,11 @@ export function useHousekeepingColumns({
     onMark,
     pending,
     reportHref,
+    roomsHref,
     router,
     sort,
     t,
+    common,
     timeZone,
   ]);
 }

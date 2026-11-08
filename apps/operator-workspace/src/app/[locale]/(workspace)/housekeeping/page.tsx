@@ -17,6 +17,7 @@ import {
 import { ScreenDenied } from "../screen-denied";
 import { gateOf } from "../../../../lib/screens";
 import { frontDeskProperty } from "../../../../server/front-desk";
+import { screenLinks } from "../../../../server/screen-links";
 import { boardByUrgency } from "../../../../server/housekeeping-day";
 import { stayoverBoardOf } from "../../../../server/stayover";
 import { roomsInFilter } from "../../../../server/today-derive";
@@ -90,6 +91,7 @@ export default async function HousekeepingPage({
     roomsMaintenance(property.propertyId),
     stayoverBoardOf(property.propertyId),
   ]);
+  const links = await screenLinks(locale, property.propertyId, ["rooms"]);
   const { rooms: roomsByUrgency, days } = boardByUrgency(
     fullBoard,
     arrivalRows,
@@ -147,6 +149,7 @@ export default async function HousekeepingPage({
             : null
         }
         propertyName={property.propertyName}
+        roomsHref={links.rooms ? `${links.rooms}&unit=` : null}
         stayover={stayover}
         timeZone={property.timezone}
         view={search.view === "stayover" ? "stayover" : "turnover"}

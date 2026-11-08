@@ -70,6 +70,7 @@ export function HousekeepingBoard({
   narrowed,
   propertyName,
   reportHref,
+  roomsHref,
   stayover = null,
   timeZone,
   view = "turnover",
@@ -99,6 +100,8 @@ export function HousekeepingBoard({
    * report; a string because a function cannot cross to the browser.
    */
   reportHref: string | null;
+  /** Rooms up to a room's id, for somebody who may open it; null otherwise. */
+  roomsHref: string | null;
   /**
    * The occupied rooms due a clean (RANZ-83), beside turnover. Null, or a
    * schedule of never, leaves the board exactly as it was.
@@ -144,6 +147,7 @@ export function HousekeepingBoard({
     mayMark: board.mayMark,
     pending,
     reportHref,
+    roomsHref,
     onMark: mark,
   });
 
