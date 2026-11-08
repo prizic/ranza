@@ -1,7 +1,12 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { isSupportedLocale } from "@ranza/i18n";
 import type { UnchargedNights } from "../../../server/analytics";
+import { formatShortDate } from "../format";
+import { analyticsHref } from "../href";
 import { UNCHARGED_ANCHOR } from "../problem";
 import { MonthSection } from "./month-section";
 
@@ -18,7 +23,8 @@ export const REASON = {
 /**
  * The occupied nights that earned no room night charge, and why — the close's
  * own reasons, in the close's own words. Operational: every reader sees it, and
- * it is counts and never amounts (AN-S3-01).
+ * it is counts and never amounts (AN-S3-01). Each reason leads to the first day
+ * that holds one of its nights, where the bookings are listed (AN-S6-06).
  */
 export function UnchargedSection({
   rows,
@@ -26,6 +32,9 @@ export function UnchargedSection({
   rows: readonly UnchargedNights[];
 }) {
   const t = useTranslations("analytics.month");
+  const locale = useLocale();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   return (
     <MonthSection id={UNCHARGED_ANCHOR} title={t("uncharged")}>
@@ -39,7 +48,7 @@ export function UnchargedSection({
       )}
       {rows.length === 0 ? null : (
         <dl>
-          {rows.map(({ nights, reason }) => (
+          {rows.map(({ firstDay, nights, reason }) => (
             <div
               className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 border-b border-border py-3 last:border-b-0"
               data-reason={reason}
@@ -49,6 +58,20 @@ export function UnchargedSection({
               <dt className="text-sm">{t(REASON[reason].labelKey)}</dt>
               <dd className="text-end tabular-nums">
                 {t("unchargedNights", { n: nights })}
+                {isSupportedLocale(locale) ? (
+                  <Link
+                    className="block text-xs font-medium text-primary underline-offset-4 hover:underline"
+                    href={analyticsHref(pathname, searchParams, {
+                      month: firstDay.slice(0, 7),
+                      day: firstDay,
+                    })}
+                    prefetch={false}
+                  >
+                    {t("unchargedFirstDay", {
+                      date: formatShortDate(firstDay, locale),
+                    })}
+                  </Link>
+                ) : null}
               </dd>
             </div>
           ))}

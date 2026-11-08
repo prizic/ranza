@@ -2782,6 +2782,8 @@ export interface Messages {
       openBooking: string;
       openFolio: string;
       unchargedAction: string;
+      /** `{date}`: the first closed day that holds one of the nights, already written for the reader. */
+      unchargedFirstDay: string;
       /** `{date}`: the Property's business date today. */
       asOf: string;
       /** `{month}`: the month's name. */
@@ -6827,7 +6829,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         openBooking: "{reference} rezervasyonunu aç",
         openFolio: "Folyoyu aç",
         unchargedAction:
-          "Hangi rezervasyonlar olduğunu görmek için tablodan bir gün açın, sonra fiyatını eklemek için rezervasyonu açın.",
+          "Hangi rezervasyonlar olduğunu görmek için ilk günü açın, sonra fiyatını eklemek için rezervasyonu açın.",
+        unchargedFirstDay: "İlk gün: {date}",
       },
       window: {
         today: "Bugün",
@@ -10970,7 +10973,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         openBooking: "Open booking {reference}",
         openFolio: "Open Folio",
         unchargedAction:
-          "Open a day from the table to see which bookings, then open a booking to add its price.",
+          "Open the first day to see which bookings, then open a booking to add its price.",
+        unchargedFirstDay: "First on {date}",
       },
       window: {
         today: "Today",
@@ -15024,7 +15028,8 @@ export const messages: Record<SupportedLocale, Messages> = {
         openBooking: "افتح الحجز {reference}",
         openFolio: "افتح الفاتورة",
         unchargedAction:
-          "افتح يومًا من الجدول لترى أي الحجوزات، ثم افتح حجزًا لإضافة سعره.",
+          "افتح أول يوم لترى أي الحجوزات، ثم افتح حجزًا لإضافة سعره.",
+        unchargedFirstDay: "أول يوم: {date}",
       },
       window: {
         today: "اليوم",

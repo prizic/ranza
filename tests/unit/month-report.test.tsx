@@ -236,8 +236,8 @@ const OPEN: MonthReport = {
   days: days("2026-09", 10, 30),
   byUnitType: UNIT_TYPES,
   unchargedNights: [
-    { reason: "resident", nights: 30 },
-    { reason: "unpriced", nights: 2 },
+    { reason: "resident", nights: 30, firstDay: "2026-09-01" },
+    { reason: "unpriced", nights: 2, firstDay: "2026-09-04" },
   ],
   previousMonth: "2026-08",
   nextMonth: null,
@@ -246,6 +246,10 @@ const OPEN: MonthReport = {
 const CLOSED: MonthReport = {
   ...OPEN,
   month: "2026-08",
+  unchargedNights: [
+    { reason: "resident", nights: 30, firstDay: "2026-08-01" },
+    { reason: "unpriced", nights: 2, firstDay: "2026-08-04" },
+  ],
   state: "closed",
   daysInMonth: 31,
   daysCounted: 31,
@@ -910,6 +914,77 @@ describe("a month explained (docs/features/analytics, slice 3)", () => {
       expect(reasons.folio_closed).toBe(close.folio_closed);
       expect(reasons.currency).toBe(close.currency);
     }
+  });
+
+  describe("each reason leads to the first day that holds one of its nights (AN-S6-06)", () => {
+    const reasonRow = (label: string) =>
+      within(section("Nights with no charge"))
+        .getByText(label)
+        .closest("[data-row]") as HTMLElement;
+
+    it("AN-S6-06: opens that day's sheet in its own month", () => {
+      show(CLOSED);
+      expect(
+        within(reasonRow("No price on the booking")).getByRole("link", {
+          name: /First on/,
+        }),
+      ).toHaveAttribute(
+        "href",
+        `/en/analytics?property=${PROPERTY}&month=2026-08&day=2026-08-04`,
+      );
+      expect(
+        within(reasonRow("Resident Stay, not charged by the night")).getByRole(
+          "link",
+          { name: /First on/ },
+        ),
+      ).toHaveAttribute(
+        "href",
+        `/en/analytics?property=${PROPERTY}&month=2026-08&day=2026-08-01`,
+      );
+    });
+
+    it("AN-S6-06: names the day in words, not a bare date", () => {
+      show(CLOSED);
+      expect(
+        within(reasonRow("No price on the booking")).getByRole("link", {
+          name: "First on Tuesday, Aug 4, 2026",
+        }),
+      ).toBeVisible();
+    });
+
+    it("AN-S6-06: leads from the trailing-window view to the month the day belongs to", () => {
+      navigation.search = `property=${PROPERTY}&range=7d`;
+      show(CLOSED);
+      expect(
+        within(reasonRow("No price on the booking")).getByRole("link", {
+          name: /First on/,
+        }),
+      ).toHaveAttribute(
+        "href",
+        `/en/analytics?property=${PROPERTY}&month=2026-08&day=2026-08-04`,
+      );
+    });
+
+    it("AN-S6-06: offers nothing when every night was charged", () => {
+      show({ ...CLOSED, unchargedNights: [] });
+      expect(
+        within(section("Nights with no charge")).queryByRole("link"),
+      ).toBeNull();
+    });
+
+    it.each(supportedLocales)("AN-S6-06: has its own words in %s", (locale) => {
+      show(CLOSED, locale);
+      const links = within(section(messages[locale].analytics.month.uncharged))
+        .getAllByRole("link")
+        .map((link) => link.textContent);
+      expect(links).toHaveLength(2);
+      for (const text of links) {
+        expect(text).not.toMatch(/[{}]/);
+        expect(text).toContain(
+          messages[locale].analytics.month.unchargedFirstDay.split("{date}")[0],
+        );
+      }
+    });
   });
 
   it("shows the same nights to a viewer without money, and never an amount", () => {
@@ -1624,7 +1699,7 @@ describe("a day can be opened where it is read (ANALYTICS-11, 12, 14)", () => {
   it("says what to do about a night with no charge", () => {
     show(OPEN);
     expect(
-      screen.getByText(/Open a day from the table to see which bookings/),
+      screen.getByText(/Open the first day to see which bookings/),
     ).toBeVisible();
   });
 });

@@ -2109,6 +2109,40 @@ async function dayOf(
   return detail!;
 }
 
+/**
+ * The first day of the month whose own sheet shows a night uncharged for this
+ * reason (AN-S6-06): read from the days one at a time, so it does not share a
+ * query with the month's totals it is checked against.
+ */
+async function firstDayShowing(
+  userId: string,
+  property: Property,
+  report: MonthReport,
+  reason: string,
+): Promise<string> {
+  for (const day of report.days) {
+    if (day.state === "future") continue;
+    const detail = await dayOf(userId, property, day.date);
+    if (detail.stays.some((stay) => stay.night === reason)) return day.date;
+  }
+  throw new Error(`no day of ${report.month} shows ${reason}`);
+}
+
+/** The month's uncharged rows with the first day each reason's own sheets show. */
+async function withFirstDays(
+  userId: string,
+  property: Property,
+  report: MonthReport,
+  rows: readonly { reason: string; nights: number }[],
+) {
+  return Promise.all(
+    rows.map(async (row) => ({
+      ...row,
+      firstDay: await firstDayShowing(userId, property, report, row.reason),
+    })),
+  );
+}
+
 const stayAt = (detail: DayDetail, unitName: string) =>
   detail.stays.find((stay) => stay.unitName === unitName);
 
@@ -2119,11 +2153,13 @@ describe("occupied nights that earned no charge", () => {
       // EXPL: a Resident (3), an unpriced booking and a Stay with no booking
       // (2 + 2), a priced booking at a Property that cannot bill (2).
       const report = await month(FINANCE_USER, expl, M1);
-      expect(report.unchargedNights).toEqual([
-        { reason: "resident", nights: 3 },
-        { reason: "unpriced", nights: 4 },
-        { reason: "billing_unavailable", nights: 2 },
-      ]);
+      expect(report.unchargedNights).toEqual(
+        await withFirstDays(FINANCE_USER, expl, report, [
+          { reason: "resident", nights: 3 },
+          { reason: "unpriced", nights: 4 },
+          { reason: "billing_unavailable", nights: 2 },
+        ]),
+      );
 
       // The reasons are the close's own: app.room_nights_due says the same
       // for every Guest night of the month, so the screen cannot invent one.
@@ -2159,9 +2195,12 @@ describe("occupied nights that earned no charge", () => {
       expect(moneyKeys(report.unchargedNights)).toEqual([]);
 
       // The Resident of the main Property, and nothing else uncharged there.
-      expect((await month(FINANCE_USER, main, M1)).unchargedNights).toEqual([
-        { reason: "resident", nights: 3 },
-      ]);
+      const mainMonth = await month(FINANCE_USER, main, M1);
+      expect(mainMonth.unchargedNights).toEqual(
+        await withFirstDays(FINANCE_USER, main, mainMonth, [
+          { reason: "resident", nights: 3 },
+        ]),
+      );
     },
     BUDGET_MS,
   );
@@ -2173,12 +2212,14 @@ describe("occupied nights that earned no charge", () => {
       // priced in another currency; and a chargeable night with no line is one
       // the close has not charged.
       const report = await month(FINANCE_USER, bill, M1);
-      expect(report.unchargedNights).toEqual([
-        { reason: "no_folio", nights: 1 },
-        { reason: "folio_closed", nights: 1 },
-        { reason: "currency", nights: 1 },
-        { reason: "not_yet_charged", nights: 1 },
-      ]);
+      expect(report.unchargedNights).toEqual(
+        await withFirstDays(FINANCE_USER, bill, report, [
+          { reason: "no_folio", nights: 1 },
+          { reason: "folio_closed", nights: 1 },
+          { reason: "currency", nights: 1 },
+          { reason: "not_yet_charged", nights: 1 },
+        ]),
+      );
       const order = report.unchargedNights.map((row) => row.reason);
       expect(order).toEqual(
         REASON_ORDER.filter((reason) => order.includes(reason)),

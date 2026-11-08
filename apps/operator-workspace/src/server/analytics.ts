@@ -206,6 +206,8 @@ export interface UnitTypeRow {
 export interface UnchargedNights {
   reason: UnchargedReason;
   nights: number;
+  /** The earliest closed day holding one of these nights: where to start looking into them. */
+  firstDay: string;
 }
 
 /** What a month and a trailing window say alike: the same figures, the same rules. */

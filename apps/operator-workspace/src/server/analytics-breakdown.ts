@@ -417,20 +417,28 @@ export async function readUnchargedNights(
 
 /**
  * The reasons over the closed days among `closedDates`, in the order reasons
- * are listed, each with its nights. A reason with none is absent.
+ * are listed, each with its nights and the first day that holds one, which is
+ * where a reader starts looking into it. A reason with none is absent.
  */
 export function unchargedTotalsOf(
   closedDates: ReadonlySet<string>,
   rows: readonly UnchargedRow[],
-): { reason: UnchargedReason; nights: number }[] {
-  const nights = new Map<UnchargedReason, number>();
+): { reason: UnchargedReason; nights: number; firstDay: string }[] {
+  const found = new Map<
+    UnchargedReason,
+    { nights: number; firstDay: string }
+  >();
   for (const row of rows) {
     if (!closedDates.has(row.date)) continue;
-    nights.set(row.reason, (nights.get(row.reason) ?? 0) + row.nights);
+    const soFar = found.get(row.reason);
+    found.set(row.reason, {
+      nights: (soFar?.nights ?? 0) + row.nights,
+      firstDay: soFar && soFar.firstDay < row.date ? soFar.firstDay : row.date,
+    });
   }
   return UNCHARGED_REASONS.flatMap((reason) => {
-    const count = nights.get(reason);
-    return count ? [{ reason, nights: count }] : [];
+    const entry = found.get(reason);
+    return entry?.nights ? [{ reason, ...entry }] : [];
   });
 }
 
