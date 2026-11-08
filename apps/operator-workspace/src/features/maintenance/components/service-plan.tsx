@@ -12,6 +12,7 @@ import { createWorkOrder } from "../../../server/maintenance";
 import { EquipmentWhere } from "./equipment-register";
 import { ConditionBadge, formatDay } from "./look";
 import { OutcomeMessage } from "./outcome-message";
+import { RequestLink } from "./request-link";
 import { useCommand } from "./use-command";
 
 const DAY_MS = 86_400_000;
@@ -95,9 +96,9 @@ export function ServicePlan({
                 </div>
                 <ConditionBadge condition={item.condition} />
                 {item.openWorkOrder ? (
-                  <button
-                    onClick={() => onOpenRequest(item.openWorkOrder!.requestId)}
-                    type="button"
+                  <RequestLink
+                    onOpen={onOpenRequest}
+                    request={item.openWorkOrder}
                   >
                     <StatusBadge
                       icon={ClipboardList}
@@ -106,7 +107,7 @@ export function ServicePlan({
                       })}
                       tone="info"
                     />
-                  </button>
+                  </RequestLink>
                 ) : register.mayReport ? (
                   <Button
                     disabled={create.pending}

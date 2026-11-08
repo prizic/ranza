@@ -588,7 +588,6 @@ export function MaintenanceBoard({
             setSelectedId(null);
             dropRequestParameter();
           }}
-          propertyId={propertyId}
           request={selected}
           reservationsHref={reservationsHref}
           roomsHref={roomsHref}

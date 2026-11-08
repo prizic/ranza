@@ -83,7 +83,6 @@ export function RequestSheet({
   mayCharge,
   limits,
   onOpenChange,
-  propertyId,
   reservationsHref,
   roomsHref,
   viewerId,
@@ -98,8 +97,6 @@ export function RequestSheet({
   mayTakeOutOfOrder: boolean;
   mayCharge: boolean;
   limits: { cancelReason: number; note: number; vendor: number };
-  /** The Property the board is for, which links out of the sheet name. */
-  propertyId: string;
   /** Reservations at this Property, `?property=` on it; null if closed to the viewer. */
   reservationsHref: string | null;
   /** Rooms at this Property, `?property=` on it; null where the viewer cannot open Rooms. */

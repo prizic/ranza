@@ -219,11 +219,11 @@ export function ReportDialog({
                     {alreadyOpen.map((request) => (
                       <span key={request.requestId}>
                         <RequestLink
-                          number={request.number}
-                          onOpen={() => {
+                          onOpen={(requestId) => {
                             onOpenChange(false);
-                            onOpenRequest(request.requestId);
+                            onOpenRequest(requestId);
                           }}
+                          request={request}
                         />{" "}
                         · {request.title} · {states(request.status)}
                       </span>

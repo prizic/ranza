@@ -184,10 +184,8 @@ export function EquipmentRegisterPanel({
                       {item.openFault && !item.retired ? (
                         <RequestLink
                           className="text-step--1 text-muted-foreground"
-                          number={item.openFault.number}
-                          onOpen={() =>
-                            onOpenRequest(item.openFault!.requestId)
-                          }
+                          onOpen={onOpenRequest}
+                          request={item.openFault}
                         />
                       ) : null}
                     </div>

@@ -1,21 +1,25 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@ranza/ui";
 
 /**
- * A request's number (MT-12) as the way into the request, wherever a screen
- * names one (audit 2026-11-07, B-03). A button, not a link: the sheet it opens
- * belongs to the board, not to an address.
+ * A request, named wherever a screen names one (MT-12), as the way into it
+ * (audit 2026-11-07, B-03). A button, not a link: the sheet it opens belongs to
+ * the board, not to an address. It reads as the request's number unless it is
+ * given something else to wrap, such as the plan's work-order badge.
  */
 export function RequestLink({
+  children,
   className,
-  number,
   onOpen,
+  request,
 }: {
+  children?: ReactNode;
   className?: string;
-  number: number;
-  onOpen: () => void;
+  onOpen: (requestId: string) => void;
+  request: { requestId: string; number: number };
 }) {
   const t = useTranslations("maintenance");
   return (
@@ -24,10 +28,10 @@ export function RequestLink({
         "underline-offset-2 hover:underline focus-visible:underline",
         className,
       )}
-      onClick={onOpen}
+      onClick={() => onOpen(request.requestId)}
       type="button"
     >
-      {t("reference", { number })}
+      {children ?? t("reference", { number: request.number })}
     </button>
   );
 }
