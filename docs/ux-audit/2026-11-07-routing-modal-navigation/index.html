@@ -241,14 +241,14 @@
       </p>
 
       <div class="callout ok">
-        <strong>Already fixed.</strong> (1) <em>Open stay</em> in an occupied
-        room's dialog, commit <code>49ae2cc4</code>, rows RB-S6-04 and
-        RB-DEF-06. (2) D-07: that same dialog's Maintenance and calendar links,
-        and the report link that leads to Maintenance, now appear only when the
-        viewer may open the screen, row RB-S6-05. (3) The two real bugs the
-        sweep confirmed, B-17 and A-01, each with a test that fails on the old
-        code. The other 57 are <strong>not</strong> fixed; this document is
-        their ranked backlog.
+        <strong>Status after the backlog pass, 2026-11-08.</strong> Of the 60
+        findings, <strong>47 are fixed</strong>,
+        <strong>7 are partly fixed</strong> (what is left is named on each),
+        <strong>4 are proposed rows</strong> for the owner and were deliberately
+        not built, and <strong>2 are open</strong> (A-14 and B-13, with the
+        reason on each). Each fix ships with a test and a sabotage run in which
+        the test was seen to fail. The first fixes, Open stay
+        (<code>49ae2cc4</code>), D-07, B-17 and A-01, came before this pass.
       </div>
 
       <h2>What is wrong, by root cause</h2>
@@ -353,60 +353,39 @@
         itself is correct everywhere checked.
       </p>
 
-      <h2>Fix order</h2>
-      <ol class="rank">
-        <li>
-          <strong>B-17</strong>, then <strong>A-01</strong>. <em>Done.</em> Real
-          bugs, small, local.
-        </li>
-        <li>
-          <strong>C-01</strong> portal sign-out. A shared-device session you
-          cannot end. The action already exists
-          (<code>sign-out-item.tsx</code>). The owner may prefer to treat it as
-          a proposal.
-        </li>
-        <li>
-          <strong>B-01 and A-02</strong>. They need the
-          <code>unitId</code> contract change first, then route
-          <code>unit_blocked</code> to Rooms <code>?unit=</code> and
-          out-of-service to Maintenance.
-        </li>
-        <li>
-          <strong>The GATE batch</strong> (D-03, D-04, D-05, D-06 and their
-          lane-A and lane-C twins, plus A-06, A-08, C-10, B-13) behind one
-          shared helper. One decision, one test pattern.
-        </li>
-        <li>
-          <strong>D-01, D-02, D-13</strong>. Back target when Today is off, the
-          four error screens, the exit from the shell error. Delete the four
-          bespoke error files in favour of <code>RouteError</code>.
-        </li>
-        <li>
-          <strong>The DEEPLINK batch</strong> (A-03, B-02, B-05, B-06, C-16,
-          D-10, D-11).
-        </li>
-        <li>
-          <strong>The NO-HOME batch</strong>, once the link registry exists.
-        </li>
-        <li>
-          LABEL, STEPS and the remaining low items: D-08 and D-09 (phone dock),
-          B-09 (the link omits <code>?new=1</code>), B-04, and the rest in the
-          appendix.
-        </li>
-      </ol>
+      <h2>What remains</h2>
       <p>
-        <strong>Needs the owner, not code:</strong> A-11 (the reserved-room half
-        is already proposed as RB-S2-23), C-15, C-19, D-14 (a past-due notice
-        with no way to pay, which depends on where payment happens) and a
-        one-line "this room is filtered out" notice when
-        <code>?unit=</code> names a hidden room.
+        <strong>Needs the owner, not code.</strong> Five proposed rows were
+        written and not built: <code>AN-S6-06</code> (C-15, uncharged nights to
+        their days), <code>INT-S1-82</code> (C-19, an endpoint's failures),
+        <code>OA-S5-30</code> (D-14, a past-due notice with no way to pay;
+        depends on where payment happens), <code>TD-S1-32</code> (B-07, a named
+        row on Today opens the booking; it conflicts with the wording of
+        <code>TD-S1-22</code>, so that row needs an amendment first) and
+        <code>RB-S6-06</code> (a room hidden by the filters says so). A-11's
+        reserved half was already the proposed row <code>RB-S2-23</code>, and
+        the peek panel is the deferred <code>RB-DEF-06</code>.
       </p>
       <p>
-        <strong>Rules for any fix in this list.</strong> A tweak to existing
-        behaviour ships with its own test and a sabotage run that goes red; a
-        new interaction is a <code>proposed</code> row first. Every link a fix
-        adds must be gated like D-07. Turkish, English and Arabic ship together.
-        The two fixes already landed are the worked example.
+        <strong>Open.</strong> A-14 (the blocking booking is named by a
+        reference string in three dialogs, with no id to link) and B-13 (Today's
+        manager focus; shipped roles are unaffected, a custom role can be sent
+        to a screen it cannot open). Both are written up on their findings
+        below.
+      </p>
+      <p>
+        <strong>Left inside partly fixed findings:</strong> the departed bar's
+        drawer link (A-03), the calendar row-header lock label (A-12), the
+        "Reported MT-n" message (B-03), the Housekeeping arrival and leaving
+        badges (B-10), the maintenance charge lines' Folio link (B-11) and the
+        audit log's property anchors (C-16).
+      </p>
+      <p>
+        <strong>Rules for any further fix in this list.</strong> A tweak to
+        existing behaviour ships with its own test and a sabotage run that goes
+        red; a new interaction is a <code>proposed</code> row first. Every link
+        a fix adds must be gated like D-07, by <code>screenLinks</code> or the
+        screen's reach. Turkish, English and Arabic ship together.
       </p>
 
       <h2>By class and lane</h2>
@@ -519,6 +498,16 @@
         code. No screen was opened in a browser, so layout, RTL and focus
         behaviour are untested, and a "verified" tag means the agent read the
         lines it cites, not that it saw the outcome.
+      </div>
+      <div class="callout warn">
+        <strong>The fixes are unit-tested, not browser-tested.</strong> Each was
+        proved by a vitest test that fails when the fix is broken. No fix was
+        seen in a browser, so layout, RTL and focus are unchecked; the A-13
+        buttons in the booking sheet and the B-10 link under a room name are the
+        two most likely to need a visual pass. Two fixes add one selected column
+        to a SQL query (B-12 in the maintenance module and A-09 in the
+        reservations module); no database was running, so neither query, nor the
+        integration assertion added for B-12, has been executed.
       </div>
       <ul>
         <li>
@@ -655,11 +644,9 @@
           </dd>
           <dt>Status</dt>
           <dd>
-            <strong
-              >fixed (the sheet keeps the booking&#x27;s id and reads the
-              list&#x27;s live row;
-              tests/unit/reservation-sheet-live.test.tsx)</strong
-            >
+            <strong>Fixed:</strong> the sheet keeps the booking&#x27;s id and
+            reads the list&#x27;s live row;
+            tests/unit/reservation-sheet-live.test.tsx
           </dd>
         </dl>
       </details>
@@ -709,6 +696,11 @@
             (<code>row-menu.tsx:194-203</code>, <code>reach.rooms</code>), each
             gated by <code>reach</code> as the menu already is; on Reservations
             (which passes no <code>reach</code>, see A-06) reuse the same gate.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a refused check-in links to Departures, or
+            to the room on Rooms; both gated by reach
           </dd>
         </dl>
       </details>
@@ -772,6 +764,12 @@
             CALENDAR-07 added the link; the departed case was not considered
             there.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> a notice now says when ?open= or
+            ?change= names a booking the list lacks. Not built: the departed
+            bar&#x27;s drawer link
+          </dd>
         </dl>
       </details>
       <details id="A-04">
@@ -822,6 +820,11 @@
           </dd>
           <dt>Duplicate of</dt>
           <dd>D-03 (same defect, found from another lane)</dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> with D-03: the New booking link is gated,
+            and the dialog spends ?new on close
+          </dd>
         </dl>
       </details>
       <details id="A-05">
@@ -873,6 +876,11 @@
             the guest name as the same <code>?open=</code> link
             <code>GuestName</code> uses (<code>columns.tsx:238-271</code>),
             gated by the reservations gate.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Close the day names link to the booking; the
+            not-arrived menu gets the booking id
           </dd>
         </dl>
       </details>
@@ -936,6 +944,11 @@
             I did not read the seeded role permission sets, so whether Front
             Desk lacks finance is not verified; the code path is.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Folio links follow the Finance gate on the
+            list, the sheet, Close the day and the calendar drawer
+          </dd>
         </dl>
       </details>
       <details id="A-07">
@@ -975,6 +988,11 @@
             <code>columns.tsx:1105</code>), and show a Folio link (gated by
             <code>reach.folio</code>) for <code>charges</code> and a Departures
             link for <code>dayClosed</code>/<code>moved</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a refused Undo check-in leads to the Folio
+            or to Departures, by reach
           </dd>
         </dl>
       </details>
@@ -1024,6 +1042,8 @@
             <code>gateOf(&quot;maintenance&quot;)</code>, null when not
             reachable, and have the dialog omit them.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> covered by D-07</dd>
         </dl>
       </details>
       <details id="A-09">
@@ -1069,6 +1089,12 @@
             <code>docs/ux-audit/2026-10-11/departures/report.html</code> (asked
             for a room-status chip, which exists; the links were not raised).
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Left today: the name opens the booking, the
+            cleaning badge opens Housekeeping, each by reach. DepartedStay
+            gained reservationId; the SQL was not run against a database
+          </dd>
         </dl>
       </details>
       <details id="A-10">
@@ -1101,6 +1127,11 @@
             <code>calendarHref</code> + <code>&amp;q=&lt;room&gt;</code>) under
             the refusal, and <code>departures</code> for the occupied block
             case.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the blocked-occupied and still-held refusals
+            lead to Departures and to the room calendar
           </dd>
         </dl>
       </details>
@@ -1150,6 +1181,12 @@
             (CALENDAR-10 splits the guest-name link into proposal
             <code>RB-S2-23</code>).
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> the walk-in half is fixed (Room
+            details leads to Departures). The reserved half is the
+            already-proposed row RB-S2-23
+          </dd>
         </dl>
       </details>
       <details id="A-12">
@@ -1196,6 +1233,11 @@
             Naming the clashing booking in <code>overlapNote</code> needs the
             other bar&#x27;s id in the read; leave that.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> the calendar drawer links the room on
+            Rooms. Not built: the row-header lock label
+          </dd>
         </dl>
       </details>
       <details id="A-13">
@@ -1232,6 +1274,11 @@
             show Change booking (and Change departure for a stay) as an outline
             button beside Check in, keep Cancel and No-show in the menu
             (consequential, stays one step further).
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Change booking and Change departure are
+            buttons in the booking sheet; the menu keeps the rest
           </dd>
         </dl>
       </details>
@@ -1273,6 +1320,13 @@
             render the reference as a <code>target=_blank</code> link to
             <code>reservations?open=</code> (the booking is on the list by
             construction: it overlaps future nights).
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Open:</strong> not built: the dialogs hold a booking
+            reference string, not its id, and the sentence is translated copy,
+            so it needs a contract change and rich-text links across three
+            dialogs
           </dd>
         </dl>
       </details>
@@ -1331,6 +1385,11 @@
             carries no <code>unitId</code>, so add it to
             <code>ArrivalRow.unit</code> and <code>AttentionItem.unit</code>.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a blocked arrival and an out-of-service room
+            open Rooms at the room, where the block is lifted
+          </dd>
         </dl>
       </details>
       <details id="B-02">
@@ -1377,6 +1436,11 @@
             <code>report</code> (<code>maintenance-board.tsx:226-237</code>),
             and keep it across a refresh.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> ?request=&lt;number&gt; opens the request;
+            Today&#x27;s lines carry it
+          </dd>
         </dl>
       </details>
       <details id="B-03">
@@ -1421,6 +1485,14 @@
             <code>openRequests</code> prop). The work-order badge and
             <code>item.openFault</code> need the id exposed; check
             <code>EquipmentItem</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> the Equipment tab, the Plan tab and
+            the report form&#x27;s Already-open line open the request. Not
+            built: &#x27;Reported MT-n&#x27; (the outcome carries only a
+            number). The sheet sits outside the tabs, so no controlled Tabs was
+            needed
           </dd>
         </dl>
       </details>
@@ -1469,6 +1541,12 @@
             beside the tabs, as the other filters are, and add a pressed style
             or hint on the tile.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Show all lifts the urgent filter too; the
+            Urgent tile shows a pressed ring and a hint. The removable chip was
+            not built
+          </dd>
         </dl>
       </details>
       <details id="B-05">
@@ -1505,6 +1583,10 @@
             <code>{ ...search, cursor: search.cursor, entry }</code>. Keep
             <code>withoutCursor</code> only for <code>olderHref</code> and
             <code>newestHref</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a ledger entry&#x27;s link keeps the cursor
           </dd>
         </dl>
       </details>
@@ -1547,6 +1629,11 @@
             <code>filter</code> to <code>RollCallView</code>. Add
             <code>show</code> to <code>todayHref</code> calls in
             <code>roll-call-card.tsx</code>. Fix the stale comment.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> ?show= narrows the roll call; the card
+            figures carry it
           </dd>
         </dl>
       </details>
@@ -1596,6 +1683,11 @@
             nod because it reverses TD-S1-22&#x27;s wording; still a link-target
             tweak.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Proposed, not built:</strong> row TD-S1-32; it conflicts
+            with TD-S1-22 as written, so it needs an amendment
+          </dd>
         </dl>
       </details>
       <details id="B-08">
@@ -1631,6 +1723,12 @@
             the reservation id) and to Departures for the folio. For out of
             service link to Maintenance <code>?outOfOrder=1</code>.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the House layout&#x27;s occupied tile opens
+            the booking and Departures; an out-of-service tile opens the room on
+            Rooms
+          </dd>
         </dl>
       </details>
       <details id="B-09">
@@ -1662,6 +1760,10 @@
               >todayHref</code
             >
             takes <code>extra</code>, <code>features/today/links.ts</code>).
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Today&#x27;s New booking links carry new=1
           </dd>
         </dl>
       </details>
@@ -1702,6 +1804,13 @@
             <code>days</code>/arrival rows read at
             <code>housekeeping/page.tsx:79-84</code>).
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> Housekeeping: the room opens on the
+            room map from a visible link and the row menu. Not built: the
+            arrival/leaving badges (RoomDay has no reservation id) and an
+            out-of-order Maintenance filter that does not exist
+          </dd>
         </dl>
       </details>
       <details id="B-11">
@@ -1736,6 +1845,12 @@
             <code>block-unit-dialog.tsx</code> does. Charge lines need
             <code>folioId</code> added to the line to link to
             <code>finance?folio=</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> the room in a request opens on Rooms.
+            Not built: the charge lines&#x27; Folio link (a charge carries no
+            folioId)
           </dd>
         </dl>
       </details>
@@ -1772,6 +1887,12 @@
             <code>inHouse</code> entries as <code>reservations</code> already
             has, and offer the same new-tab link
             (<code>reservations?open=</code>).
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a Guest in house in the out-of-order warning
+            opens their booking, and the existing Change booking link is now
+            gated too. The SQL was not run against a database
           </dd>
         </dl>
       </details>
@@ -1816,6 +1937,14 @@
             unlinked. I did not read the permission set of any real composed
             role.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Open:</strong> deferred: Today&#x27;s manager focus reads
+            front-desk data and links tiles to screens a custom role cannot
+            open; fixing it means threading reach through about twelve Today
+            components or a product decision on who reads what. Shipped roles
+            are unaffected
+          </dd>
         </dl>
       </details>
       <details id="B-14">
@@ -1850,6 +1979,11 @@
             status with an &quot;Open requests&quot; action that sets tab to
             Open and clears the filters (<code>showAll</code>-style).
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a logged request is confirmed with its
+            number and a Show open requests button
+          </dd>
         </dl>
       </details>
       <details id="B-15">
@@ -1876,6 +2010,11 @@
             fall back to the room/bed (<code>placeOf</code>) as
             <code>roll-call-row.tsx:61</code> does, via a lookup in
             <code>rows</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a leave never shows a stay&#x27;s id: the
+            room and bed, else &#x27;A Resident&#x27;
           </dd>
         </dl>
       </details>
@@ -1911,6 +2050,11 @@
               to, currency })</code
             >; entry lines the same.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> an account opens the journal narrowed to it,
+            in the same dates and currency
+          </dd>
         </dl>
       </details>
       <details id="B-17">
@@ -1942,11 +2086,9 @@
           <dd>move the <code>useState</code> above the early return.</dd>
           <dt>Status</dt>
           <dd>
-            <strong
-              >fixed (the hook runs before the early return;
-              tests/unit/booked-ahead-card.test.tsx reproduces the crash on the
-              old code)</strong
-            >
+            <strong>Fixed:</strong> the hook runs before the early return;
+            tests/unit/booked-ahead-card.test.tsx reproduces the crash on the
+            old code
           </dd>
         </dl>
       </details>
@@ -1992,6 +2134,8 @@
             may treat adding it to the portal as a PROPOSAL; the action itself
             already exists.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> the portal has a sign-out</dd>
         </dl>
       </details>
       <details id="C-02">
@@ -2037,6 +2181,11 @@
             history link as the second link. A <code>stay</code> subject has no
             booking id on the entry, so it keeps the history fallback.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a reservation subject in the audit log opens
+            the booking, with the history link kept
+          </dd>
         </dl>
       </details>
       <details id="C-03">
@@ -2078,6 +2227,11 @@
             <code>screenProperties(gateOf(..))</code> as
             <code>subjectReach()</code> already does. Screen-level links only;
             do not invent deep links the targets lack.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> more audit-log subjects open the screen they
+            live on, each by reach
           </dd>
         </dl>
       </details>
@@ -2124,6 +2278,11 @@
             <code>subjectHref</code> result as C-02/C-03. Guest and stay ids
             stay text (no screen shows them alone).
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the ids in a record&#x27;s details link to
+            their screens
+          </dd>
         </dl>
       </details>
       <details id="C-05">
@@ -2163,6 +2322,11 @@
             <code>${reservationsHref}&amp;open=${reservationId}</code>; render
             plain text when null.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> was already built (bookingHrefs on the
+            overdue list); a component test was added
+          </dd>
         </dl>
       </details>
       <details id="C-06">
@@ -2199,6 +2363,11 @@
             existing <code>useAnotherAccount</code> button, and have it clear
             <code>refused</code> (<code>setRefused(null)</code>) so the form
             reappears in sign-in/create mode.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a refused portal invite offers to switch
+            account
           </dd>
         </dl>
       </details>
@@ -2246,6 +2415,8 @@
           </dd>
           <dt>Duplicate of</dt>
           <dd>D-04 (same defect, found from another lane)</dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> with D-04</dd>
         </dl>
       </details>
       <details id="C-08">
@@ -2291,6 +2462,8 @@
           </dd>
           <dt>Duplicate of</dt>
           <dd>D-06 (same defect, found from another lane)</dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> with D-06</dd>
         </dl>
       </details>
       <details id="C-09">
@@ -2333,6 +2506,8 @@
           </dd>
           <dt>Duplicate of</dt>
           <dd>D-05 (same defect, found from another lane)</dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> with D-05</dd>
         </dl>
       </details>
       <details id="C-10">
@@ -2373,6 +2548,11 @@
             (<code>screenProperties(gateOf(segment))</code>) and render the
             figure as plain text when it does not.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Portfolio links follow the screen&#x27;s
+            reach
+          </dd>
         </dl>
       </details>
       <details id="C-11">
@@ -2405,6 +2585,12 @@
           <dt>Fix</dt>
           <dd>
             print <code>folioProperty.propertyName</code> at <code>:128</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> resolved by D-10: a folio at another
+            Property redirects to its own Property before the heading is drawn.
+            No separate change
           </dd>
         </dl>
       </details>
@@ -2444,6 +2630,11 @@
             built from <code>folio.reservationId</code>, not the reference) when
             <code>mayOpenReservation</code>.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the unpriced-booking note links to the
+            booking when Reservations opens
+          </dd>
         </dl>
       </details>
       <details id="C-13">
@@ -2479,6 +2670,11 @@
             level or above&quot; in the same place, as the
             disabled-button-reason pattern from DATA-12.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a viewer who may administer and has no role
+            to hand out is told why there is no Invite button
+          </dd>
         </dl>
       </details>
       <details id="C-14">
@@ -2509,6 +2705,11 @@
           <dd>
             when HR is reachable (see C-09 fix), make the badge a link to
             <code>hr?property=…&amp;tab=employees</code>.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the employment-ended cue opens HR&#x27;s
+            employees tab where the viewer may open HR
           </dd>
         </dl>
       </details>
@@ -2545,6 +2746,8 @@
             <code>?day=</code> (Mews and Opera Cloud reconcile revenue
             exceptions this way). Needs a read change, so owner approval.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Proposed, not built:</strong> row AN-S6-06</dd>
         </dl>
       </details>
       <details id="C-16">
@@ -2581,6 +2784,11 @@
             <code>shownRun</code>/<code>panel</code>; for <code>property</code>,
             append <code>#property</code>. Low value, listed for completeness.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Partly fixed:</strong> the audit log opens a data export at
+            ?show=. Not built: the #property anchors
+          </dd>
         </dl>
       </details>
       <details id="C-17">
@@ -2611,6 +2819,11 @@
             link &quot;check-out&quot; to
             <code>departures?property=…</code> when the viewer reaches it
             (<code>gateOf(&quot;departures&quot;)</code>), plain text otherwise.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the in-house note links to Departures when
+            it opens
           </dd>
         </dl>
       </details>
@@ -2643,6 +2856,8 @@
             link the tiles the viewer reaches (same gate as C-07) or drop the
             tile styling; low priority.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> with D-04 and D-12</dd>
         </dl>
       </details>
       <details id="C-19">
@@ -2676,6 +2891,8 @@
             card&#x27;s count linking to it (Stripe and Mews webhook consoles do
             this). New behaviour, so a proposal.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Proposed, not built:</strong> row INT-S1-82</dd>
         </dl>
       </details>
       <h3>
@@ -2734,6 +2951,11 @@
             inside <code>ScreenRefusal</code> by passing the Property and the
             open segments, so the button reads the same as the rail.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Back, the crumb and Go to Today lead to the
+            Property&#x27;s own first open page where Today is off
+          </dd>
         </dl>
       </details>
       <details id="D-02">
@@ -2779,6 +3001,11 @@
             etc.) and its own title/description keys;
             <code>(ws)/error.tsx</code> already shows the pattern.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the four bespoke error screens are
+            RouteError; Try again refetches
+          </dd>
         </dl>
       </details>
       <details id="D-03">
@@ -2819,6 +3046,8 @@
             <code>reservations/page.tsx:99-101</code>) and render the button
             only when it holds.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> Arrivals&#x27; New booking is gated</dd>
         </dl>
       </details>
       <details id="D-04">
@@ -2868,6 +3097,8 @@
             to the Property, exactly as <code>rooms/page.tsx:86-91</code> does
             for <code>hasHousekeeping</code>.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> Configuration&#x27;s tiles are gated</dd>
         </dl>
       </details>
       <details id="D-05">
@@ -2908,6 +3139,11 @@
               p.propertyId === home.propertyId)</code
             >. Keep <code>employmentOfLogins</code> on the same boolean.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> People&#x27;s pointer to HR is the HR
+            screen&#x27;s own gate
+          </dd>
         </dl>
       </details>
       <details id="D-06">
@@ -2945,6 +3181,8 @@
             <code>screenProperties(gateOf(&quot;people&quot;))</code> (null when
             closed) and pass it down; render the three links only when non-null.
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> HR&#x27;s pointer to People is gated</dd>
         </dl>
       </details>
       <details id="D-07">
@@ -2992,10 +3230,8 @@
           </dd>
           <dt>Status</dt>
           <dd>
-            <strong
-              >fixed (Rooms dialog links follow the viewer&#x27;s gates,
-              RB-S6-05)</strong
-            >
+            <strong>Fixed:</strong> Rooms dialog links follow the viewer&#x27;s
+            gates, RB-S6-05
           </dd>
         </dl>
       </details>
@@ -3035,6 +3271,11 @@
             item and have <code>AppBottomNav</code> mark the tile active when
             any child matches.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the phone dock marks the group tile active
+            on any child page
+          </dd>
         </dl>
       </details>
       <details id="D-09">
@@ -3070,6 +3311,8 @@
             two surfaces do (a small dot or the word, per the dock&#x27;s
             width).
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> the dock&#x27;s Soon badge</dd>
         </dl>
       </details>
       <details id="D-10">
@@ -3111,6 +3354,11 @@
             >
             using <code>server/front-desk.ts:62</code>, or show the folio as not
             found.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> a folio of another Property redirects if
+            reachable, else not found
           </dd>
         </dl>
       </details>
@@ -3155,6 +3403,11 @@
             <code>screensFor(model)</code> order; in the Soon pages use
             <code>frontDeskProperty</code> like built screens.
           </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> Front Office and the Soon pages respect the
+            Property named, and a dormitory&#x27;s order
+          </dd>
         </dl>
       </details>
       <details id="D-12">
@@ -3190,6 +3443,8 @@
             Property, else plain text (the card already receives the filtered
             list from the page).
           </dd>
+          <dt>Status</dt>
+          <dd><strong>Fixed:</strong> with D-04</dd>
         </dl>
       </details>
       <details id="D-13">
@@ -3220,6 +3475,11 @@
             add a &quot;Go to sign-in&quot; or &quot;Go to Today&quot; link
             beside the retry in <code>RouteError</code> when rendered at
             <code>[locale]</code> level.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Fixed:</strong> the shell error screens have an exit to
+            Today
           </dd>
         </dl>
       </details>
@@ -3253,6 +3513,11 @@
             nothing without an owner decision on where payment is made;
             comparable systems (Mews, Cloudbeds) link to a billing page.
             Recommend recording it as a <code>proposed</code> row.
+          </dd>
+          <dt>Status</dt>
+          <dd>
+            <strong>Proposed, not built:</strong> row OA-S5-30; it depends on
+            where payment is made
           </dd>
         </dl>
       </details>
