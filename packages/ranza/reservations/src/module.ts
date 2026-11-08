@@ -1020,6 +1020,7 @@ export function createReservationsModule(deps: ReservationsDeps) {
         tx.$queryRaw<DepartedStay[]>`
         select
           stay.id                                   as "stayId",
+          stay.reservation_id                       as "reservationId",
           reservation.reference                     as "reference",
           coalesce(guest.full_name, '')             as "guestName",
           stay.stay_type                            as "stayType",

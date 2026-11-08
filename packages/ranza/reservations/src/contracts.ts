@@ -199,6 +199,8 @@ export type DepartureView = "due" | "in_house";
 export interface DepartedStay {
   stayId: string;
   /** Null for a Stay that began without a Reservation. */
+  reservationId: string | null;
+  /** Null for a Stay that began without a Reservation. */
   reference: string | null;
   /** Empty when the Stay began without a Reservation. */
   guestName: string;

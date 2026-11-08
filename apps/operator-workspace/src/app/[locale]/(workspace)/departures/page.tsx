@@ -130,6 +130,7 @@ export default async function DeparturesPage({
         {view === "due" ? (
           <LiveLeftToday
             locale={locale}
+            reach={reach}
             scope={scope}
             timeZone={property.timezone}
           />

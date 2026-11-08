@@ -1,10 +1,16 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CircleCheck, SprayCan } from "lucide-react";
 import type { DepartedStay } from "@ranza/reservations";
-import { formatDate, formatNumber, type SupportedLocale } from "@ranza/i18n";
+import {
+  formatDate,
+  formatNumber,
+  localizeHref,
+  type SupportedLocale,
+} from "@ranza/i18n";
 import {
   StatusBadge,
   Table,
@@ -16,6 +22,7 @@ import {
   TableRow,
 } from "@ranza/ui";
 import { frontOfficeKeys, type Scope } from "../query-keys";
+import type { FrontDeskReach } from "../reach";
 import { unitLabel } from "../unit-label";
 
 async function fetchDepartedToday(
@@ -44,10 +51,13 @@ async function fetchDepartedToday(
  */
 export function LiveLeftToday({
   locale,
+  reach,
   scope,
   timeZone,
 }: {
   locale: SupportedLocale;
+  /** Which pages the name and the room's state may lead to (audit 2026-11-07, A-09). */
+  reach: FrontDeskReach;
   scope: Scope;
   /** The Property's own clock: a desk reads 14:05 whatever its laptop says. */
   timeZone: string;
@@ -92,7 +102,17 @@ export function LiveLeftToday({
               {rows.map((row) => (
                 <TableRow key={row.stayId}>
                   <TableCell className="font-medium">
-                    <bdi>{row.guestName || t("noGuestRecorded")}</bdi>
+                    {reach.reservations && row.reservationId ? (
+                      <Link
+                        className="underline-offset-2 hover:underline"
+                        href={`${localizeHref(locale, "reservations")}?property=${scope.propertyId}&open=${row.reservationId}`}
+                        prefetch={false}
+                      >
+                        <bdi>{row.guestName || t("noGuestRecorded")}</bdi>
+                      </Link>
+                    ) : (
+                      <bdi>{row.guestName || t("noGuestRecorded")}</bdi>
+                    )}
                   </TableCell>
                   <TableCell className="font-mono tabular-nums">
                     {row.reference ?? (
@@ -122,6 +142,17 @@ export function LiveLeftToday({
                         label={t("ready")}
                         tone="success"
                       />
+                    ) : reach.housekeeping ? (
+                      <Link
+                        href={`${localizeHref(locale, "housekeeping")}?property=${scope.propertyId}`}
+                        prefetch={false}
+                      >
+                        <StatusBadge
+                          icon={SprayCan}
+                          label={t("roomNeedsCleaning")}
+                          tone="warning"
+                        />
+                      </Link>
                     ) : (
                       <StatusBadge
                         icon={SprayCan}
