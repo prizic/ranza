@@ -140,6 +140,18 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       "guest-experience":
         "Öğrenci ve misafir talepleri, duyurular ve hizmet takibi.",
     },
+    imports: {
+      upload: {
+        peopleLead:
+          "Her satır bir kişiyi bir odaya ya da yatağa kaydeder. Zaten burada kalan biri bugünden itibaren kaydedilir ve girişi yapılır. Aynı e-postayla kayıtlı bir kişi yeniden eklenmez, onun için kayıt oluşturulur.",
+        peopleNotPermitted:
+          "Kişileri aktarmak onları kaydeder; bu yüzden bu tesiste kayıt oluşturma yetkisi gerekir. Sahip bunu rolünüze ekleyebilir.",
+      },
+      problems: {
+        people: { unknown_stay_type: "Öğrenci ya da Misafir yazın." },
+      },
+      detail: { openReservations: "Kayıtlar'ı aç" },
+    },
   },
   en: {
     attendance: { leaveResidentUnknown: "A student" },
@@ -250,6 +262,16 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
       "guest-experience":
         "Student and guest requests, announcements and service tracking.",
     },
+    imports: {
+      upload: {
+        peopleLead:
+          "Each row registers one person into a room or bed. Somebody who already lives here is registered from today and checked in. A person on file with the same email is registered, not added twice.",
+        peopleNotPermitted:
+          "Importing people registers them, so it needs the permission to take registrations at this Property. An owner can add it to your role.",
+      },
+      problems: { people: { unknown_stay_type: "Use Student or Guest." } },
+      detail: { openReservations: "Open Registrations" },
+    },
   },
   ar: {
     attendance: { leaveResidentUnknown: "أحد الطلاب" },
@@ -352,6 +374,16 @@ export const dormitoryWords: Record<SupportedLocale, WordsOverlay<Messages>> = {
     },
     screenSummary: {
       "guest-experience": "طلبات الطلاب والضيوف والإعلانات ومتابعة الخدمة.",
+    },
+    imports: {
+      upload: {
+        peopleLead:
+          "يسجّل كل صف شخصًا واحدًا في غرفة أو سرير. من يقيم هنا من قبل يُسجَّل من اليوم ويُسجَّل دخوله. ومن له سجل بالبريد الإلكتروني نفسه يُسجَّل ولا يُضاف مرة ثانية.",
+        peopleNotPermitted:
+          "استيراد الأشخاص يسجّلهم، لذا يحتاج إلى صلاحية التسجيل في هذه المنشأة. يستطيع المالك إضافتها إلى دورك.",
+      },
+      problems: { people: { unknown_stay_type: "اكتب طالب أو ضيف." } },
+      detail: { openReservations: "فتح التسجيلات" },
     },
   },
 };

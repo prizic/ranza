@@ -1,6 +1,7 @@
 /**
  * What one import's page offers in each of its states (IMP-S1-11, IMP-S1-12,
- * IMP-S1-23, IMP-S1-25, IMP-S1-28 in docs/features/guided-import/edge-cases.csv).
+ * IMP-S1-23, IMP-S1-25, IMP-S1-28 and IMP-S2-09 in
+ * docs/features/guided-import/edge-cases.csv).
  *
  * The database decides who may move an import; what is proved here is that the
  * page offers each person only the moves that are theirs, asks for batch after
@@ -32,6 +33,11 @@ const { ImportDetailView } =
 const COLUMNS = [
   { key: "room", label: "Room", required: true },
   { key: "sleeps", label: "Sleeps", required: true },
+];
+
+const PEOPLE_COLUMNS = [
+  { key: "fullName", label: "Full name", required: true },
+  { key: "email", label: "Email", required: false },
 ];
 
 function detail(overrides: Partial<ImportDetail>): ImportDetail {
@@ -87,15 +93,16 @@ function detail(overrides: Partial<ImportDetail>): ImportDetail {
 
 function page(
   shown: ImportDetail,
-  roomsHref: string | null = "/en/rooms?property=p",
+  madeHref: string | null = "/en/rooms?property=p",
+  columns = COLUMNS,
 ) {
   return (
     <NextIntlClientProvider locale="en" messages={messages.en}>
       <ImportDetailView
-        columns={COLUMNS}
+        columns={columns}
         detail={shown}
         locale="en"
-        roomsHref={roomsHref}
+        madeHref={madeHref}
         sheetsIgnored={0}
       />
     </NextIntlClientProvider>
@@ -287,6 +294,61 @@ describe("one import's page", () => {
     cleanup();
     render(page(finished, null));
     expect(screen.queryByRole("link", { name: "Open Rooms" })).toBeNull();
+  });
+
+  it("IMP-S2-01: a finished import of people names them and leads to Reservations", () => {
+    const people = detail({
+      kind: "people",
+      status: "staged",
+      counts: {
+        ready: 1,
+        wrong: 0,
+        skipped: 0,
+        imported: 0,
+        refused: 0,
+        left: 0,
+      },
+      rows: [
+        {
+          rowNumber: 2,
+          state: "ready",
+          cells: { fullName: "Elif Yılmaz", email: "" },
+          problems: [],
+          outcome: null,
+        },
+      ],
+    });
+    render(page(people, "/en/reservations?property=p", PEOPLE_COLUMNS));
+    expect(
+      screen.getByRole("button", { name: "Import 1 person" }),
+    ).toBeInTheDocument();
+    // A column nobody filled is left off the table (IMP-S2-09).
+    expect(
+      screen.getByRole("columnheader", { name: "Full name" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Email" })).toBeNull();
+
+    cleanup();
+    render(
+      page(
+        {
+          ...people,
+          status: "finished",
+          counts: { ...people.counts, ready: 0, imported: 1 },
+        },
+        "/en/reservations?property=p",
+      ),
+    );
+    expect(
+      screen.getByRole("link", { name: "Open Reservations" }),
+    ).toHaveAttribute("href", "/en/reservations?property=p");
+  });
+
+  it("IMP-S2-09: a row's outcome and reason come before its cells", () => {
+    render(page(detail({})));
+    expect(
+      screen.getAllByRole("columnheader").map((cell) => cell.textContent),
+    ).toEqual(["Row", "Outcome", "What to fix", "Room", "Sleeps"]);
   });
 
   it("IMP-S1-25: once the rows are forgotten the page says so and offers no file", () => {

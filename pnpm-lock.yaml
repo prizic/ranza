@@ -463,6 +463,9 @@ importers:
       '@ranza/db':
         specifier: workspace:*
         version: link:../../db
+      '@ranza/guests':
+        specifier: workspace:*
+        version: link:../guests
       '@ranza/platform-audit':
         specifier: workspace:*
         version: link:../../platform/audit

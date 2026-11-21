@@ -1019,6 +1019,29 @@ describe("reach and the commercial gates", () => {
     expect(assigned.reservationId).toBeTruthy();
   });
 
+  it("refuses a booking by a role that reaches the room and may not book, with the booking's own refusal", async () => {
+    // The housekeeper reads the Unit, so the refusal comes from the policy on
+    // the Guest the booking would write: named here, as every other refusal.
+    const unitId = await aUnit();
+    await expect(
+      reservations.createReservation(
+        HOUSEKEEPER,
+        booking(unitId, await day(PROPERTY, 12), await day(PROPERTY, 13), {
+          guestName: "Not Booked By Housekeeping",
+        }),
+      ),
+    ).rejects.toThrow(
+      new ReservationRefusedError("that booking cannot be taken"),
+    );
+    expect(
+      await owner.$queryRawUnsafe(
+        `select count(*)::int as "count" from public.reservations
+          where accommodation_unit_id = $1::uuid`,
+        unitId,
+      ),
+    ).toEqual([{ count: 0 }]);
+  });
+
   it("CI-S1-14: refuses a check-in at a Property of their Organization they are not assigned to", async () => {
     const { reservationId } = await reservations.createReservation(
       MANAGER,

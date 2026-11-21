@@ -71,7 +71,8 @@ function isRefusal(status: ImportMoveOutcome["status"]): status is Refusal {
 
 /**
  * One import: its preview before anything is written, its progress while the
- * rows go in, and what it came to afterwards (IMP-S1-05..14, 23..25).
+ * rows go in, and what it came to afterwards (IMP-S1-05..14, 23..25,
+ * IMP-S2-*).
  *
  * The rows are imported by this page asking for the next batch until none is
  * left, each batch under the uploader's own session. Closing the page pauses
@@ -81,14 +82,17 @@ export function ImportDetailView({
   columns,
   detail,
   locale,
-  roomsHref,
+  madeHref,
   sheetsIgnored,
 }: {
   columns: readonly ImportColumn[];
   detail: ImportDetail;
   locale: SupportedLocale;
-  /** Rooms at this Property, or null where the viewer may not open it. */
-  roomsHref: string | null;
+  /**
+   * Where what the import made lives: Rooms for rooms, Reservations for
+   * people. Null where the viewer may not open it at this Property.
+   */
+  madeHref: string | null;
   sheetsIgnored: number;
 }) {
   const t = useTranslations("imports");
@@ -156,13 +160,24 @@ export function ImportDetailView({
   // A code a newer writer knew and this page does not is shown as it is,
   // which is ugly and still better than a row with no reason at all.
   const worded = (key: string, code: string) => {
-    const known = key as "problems.required";
+    const known = key as "problems.rooms.required";
     return t.has(known) ? t(known) : code;
   };
   const done = Math.max(0, startedWith - counts.ready);
   const heading = (column: string) =>
     columns.find((spec) => spec.key === column)?.label ?? column;
   const rows = inReadingOrder(detail.rows);
+  // A people file has sixteen columns and most files fill a few: a column
+  // nobody filled and no row is wrong in is left off the table, not the file.
+  const shownColumns = columns.filter(
+    (spec) =>
+      spec.required ||
+      detail.rows.some(
+        (row) =>
+          (row.cells[spec.key] ?? "") !== "" ||
+          row.problems.some((problem) => problem.column === spec.key),
+      ),
+  );
 
   return (
     <div className="grid gap-4">
@@ -256,7 +271,9 @@ export function ImportDetailView({
                     onClick={() => run(() => startImport(detail.id, locale))}
                     type="button"
                   >
-                    {t("detail.importRooms", { count: counts.ready })}
+                    {detail.kind === "people"
+                      ? t("detail.importPeople", { count: counts.ready })
+                      : t("detail.importRooms", { count: counts.ready })}
                   </Button>
                 ) : null}
                 <Button
@@ -298,9 +315,13 @@ export function ImportDetailView({
               </Button>
             ) : null}
 
-            {status === "finished" && roomsHref ? (
+            {status === "finished" && madeHref ? (
               <Button asChild>
-                <Link href={roomsHref}>{t("detail.openRooms")}</Link>
+                <Link href={madeHref}>
+                  {detail.kind === "people"
+                    ? t("detail.openReservations")
+                    : t("detail.openRooms")}
+                </Link>
               </Button>
             ) : null}
 
@@ -335,14 +356,16 @@ export function ImportDetailView({
         <Card>
           <CardContent>
             <Table>
+              {/* What became of a row comes before its cells: on a phone the
+                  cells scroll away sideways and the reason must not. */}
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("detail.row")}</TableHead>
-                  {columns.map((spec) => (
-                    <TableHead key={spec.key}>{spec.label}</TableHead>
-                  ))}
                   <TableHead>{t("detail.outcome")}</TableHead>
                   <TableHead>{t("detail.reason")}</TableHead>
+                  {shownColumns.map((spec) => (
+                    <TableHead key={spec.key}>{spec.label}</TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -351,7 +374,25 @@ export function ImportDetailView({
                     <TableCell className="tabular-nums">
                       {row.rowNumber}
                     </TableCell>
-                    {columns.map((spec) => (
+                    <TableCell>
+                      <StatusBadge
+                        icon={ROW_STATE[row.state].icon}
+                        label={t(`rowStates.${row.state}`)}
+                        tone={ROW_STATE[row.state].tone}
+                      />
+                    </TableCell>
+                    <TableCell className="min-w-56 whitespace-normal">
+                      {reasonsOf(row, {
+                        heading,
+                        problem: (code) =>
+                          worded(`problems.${detail.kind}.${code}`, code),
+                        outcome: (code) =>
+                          worded(`outcomes.${detail.kind}.${code}`, code),
+                      }).map((reason) => (
+                        <p key={reason}>{reason}</p>
+                      ))}
+                    </TableCell>
+                    {shownColumns.map((spec) => (
                       <TableCell
                         className={
                           row.problems.some(
@@ -365,22 +406,6 @@ export function ImportDetailView({
                         {row.cells[spec.key] ?? ""}
                       </TableCell>
                     ))}
-                    <TableCell>
-                      <StatusBadge
-                        icon={ROW_STATE[row.state].icon}
-                        label={t(`rowStates.${row.state}`)}
-                        tone={ROW_STATE[row.state].tone}
-                      />
-                    </TableCell>
-                    <TableCell className="min-w-56 whitespace-normal">
-                      {reasonsOf(row, {
-                        heading,
-                        problem: (code) => worded(`problems.${code}`, code),
-                        outcome: (code) => worded(`outcomes.${code}`, code),
-                      }).map((reason) => (
-                        <p key={reason}>{reason}</p>
-                      ))}
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -8,8 +8,8 @@ import { test } from "./hydration";
 import { psql } from "./local-database";
 
 /**
- * Guided import of rooms, through the screen an owner uses on their first day
- * (blueprint 19.1, ADR 0065).
+ * Guided import of rooms and of the people in them, through the screen an
+ * owner uses on their first day (blueprint 19.1, ADR 0065).
  *
  * The pgTAP suite proves who may stage, start and settle an import, and the
  * integration suite proves each room is added by accommodation's own command.
@@ -17,7 +17,7 @@ import { psql } from "./local-database";
  * the preview, that the preview says what will happen before anything is
  * written, that pressing Import adds the rooms and says so, that the file of
  * rows to fix goes back in as it came out, and what somebody who may not
- * import finds.
+ * import, or may import and not book, finds.
  *
  * Each run brings its own Organization, so it needs nothing the seed makes.
  * An import is a record and is never deleted, so these accumulate, as every
@@ -26,9 +26,11 @@ import { psql } from "./local-database";
 const SUFFIX = randomUUID().slice(0, 8);
 const OWNER_EMAIL = `e2e-import-owner-${SUFFIX}@example.test`;
 const DESK_EMAIL = `e2e-import-desk-${SUFFIX}@example.test`;
+const IMPORT_ONLY_EMAIL = `e2e-import-only-${SUFFIX}@example.test`;
 const ORGANIZATION = randomUUID();
 const PROPERTY = randomUUID();
 const SECOND_PROPERTY = randomUUID();
+const PEOPLE_PROPERTY = randomUUID();
 
 const HEADINGS = "Building,Floor,Room,Type,Sleeps,Let by the bed,Admits";
 
@@ -62,7 +64,7 @@ test.beforeAll(async ({ playwright, baseURL }) => {
   // Made the way `db:seed:dev` makes a Staff Member: through the application's
   // own sign-up route, because the provider-subject mapping belongs to it
   // (ADR 0005).
-  for (const email of [OWNER_EMAIL, DESK_EMAIL]) {
+  for (const email of [OWNER_EMAIL, DESK_EMAIL, IMPORT_ONLY_EMAIL]) {
     const request = await playwright.request.newContext({ baseURL });
     const signedUp = await request.post("/api/auth/sign-up/email", {
       headers: { origin: new URL("/", baseURL).origin },
@@ -96,19 +98,50 @@ test.beforeAll(async ({ playwright, baseURL }) => {
          from org, (values ('${PROPERTY}'::uuid), ('${SECOND_PROPERTY}'::uuid)) as property (id)
      ), made_role as (
        insert into public.staff_roles (scope_id, key, organization_id, name, permissions)
-       select id, 'desk_only', id, 'Desk only',
-              array['front_desk.book', 'accommodation.configure']
-         from org
+       select org.id, role.key, org.id, role.name, role.permissions
+         from org, (values
+           ('desk_only', 'Desk only',
+            array['front_desk.book', 'accommodation.configure']),
+           ('import_only', 'Import only', array['import.run'])
+         ) as role (key, name, permissions)
      )
      insert into public.organization_memberships
        (organization_id, user_id, role, role_scope_id, access_scope)
      select org.id, person.id,
-            case when person.email = '${OWNER_EMAIL}' then 'owner' else 'desk_only' end,
+            case person.email when '${OWNER_EMAIL}' then 'owner'
+                              when '${DESK_EMAIL}' then 'desk_only'
+                              else 'import_only' end,
             case when person.email = '${OWNER_EMAIL}'
                  then '00000000-0000-0000-0000-000000000000'::uuid else org.id end,
             'organization_wide'
        from org, public.users as person
-      where person.email in ('${OWNER_EMAIL}', '${DESK_EMAIL}')`,
+      where person.email in ('${OWNER_EMAIL}', '${DESK_EMAIL}', '${IMPORT_ONLY_EMAIL}')`,
+  );
+  // A dormitory whose rooms are already in: a women's room let by the bed
+  // and a room let whole, the way the rooms import leaves them.
+  psql(
+    `with prop as (
+       insert into public.properties (id, organization_id, name, operating_model)
+       values ('${PEOPLE_PROPERTY}', '${ORGANIZATION}',
+               'E2E Import People ${SUFFIX}', 'dormitory')
+       returning id, organization_id
+     ), caps as (
+       insert into public.property_capabilities (property_id, organization_id, capability_key, enabled)
+       select id, organization_id, 'front_desk', true from prop
+     ), room as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity, admits)
+       select id, organization_id, '101', 'room', 2, 'female' from prop
+       returning id, property_id, organization_id
+     ), whole as (
+       insert into public.accommodation_units
+         (property_id, organization_id, name, unit_type, capacity)
+       select id, organization_id, '102', 'room', 2 from prop
+     )
+     insert into public.accommodation_units
+       (property_id, organization_id, name, unit_type, capacity, parent_id)
+     select property_id, organization_id, bed, 'bed', 1, room.id
+       from room cross join unnest(array['A', 'B']) as bed`,
   );
 });
 
@@ -330,4 +363,97 @@ test("IMP-S1-27: the import page reads in Arabic and mirrors, and in Turkish", a
   await expect(page.getByRole("main")).not.toContainText(
     /Upload a file|Preview/,
   );
+});
+
+/** The People Property's today moved by `days`, as a person types it. */
+function typedDay(days: number): string {
+  return psql(
+    `select to_char(app.property_today('${PEOPLE_PROPERTY}') + ${days}, 'DD.MM.YYYY')`,
+  );
+}
+
+function bookingsOn(room: string, bed: string | null): string {
+  return psql(
+    `select count(*)::text
+       from public.reservations as reservation
+       join public.accommodation_units as unit
+         on unit.id = reservation.accommodation_unit_id
+       left join public.accommodation_units as room on room.id = unit.parent_id
+      where unit.property_id = '${PEOPLE_PROPERTY}'
+        and coalesce(room.name, unit.name) = '${room}'
+        and ${bed === null ? "unit.parent_id is null" : `unit.name = '${bed}'`}`,
+  );
+}
+
+test("IMP-S2-01: an owner imports people into the rooms already there, and is led to Registrations", async ({
+  page,
+}) => {
+  await signIn(page, OWNER_EMAIL, null);
+  await page.goto(`/en/import?property=${PEOPLE_PROPERTY}&kind=people`);
+
+  // The kind named in the link is the one open, and says what it will do.
+  await expect(page.getByRole("tab", { name: "People" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(
+    page.getByText("Each row registers one person into a room or bed."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Download the template" }),
+  ).toHaveAttribute("href", /kind=people/);
+
+  await page
+    .getByLabel("File")
+    .setInputFiles(
+      csv(`people-${SUFFIX}.csv`, [
+        "Full name,Gender,Room,Bed,First night,Leaving",
+        `Elif Yılmaz,Woman,101,A,${typedDay(1)},`,
+        `Ali Demir,Man,101,B,${typedDay(1)},`,
+      ]),
+    );
+  await page.getByRole("button", { name: "Preview" }).click();
+
+  await expect(page).toHaveURL(/record=[0-9a-f-]{36}/);
+  await expect(page.getByText("1 row ready")).toBeVisible();
+  await expect(page.getByText("1 row to fix")).toBeVisible();
+  // IMP-S2-04: the reason names the cell and what to do.
+  await expect(page.getByRole("row").nth(1)).toContainText(
+    "Gender: This room admits the other gender. Choose another room or bed.",
+  );
+  expect(bookingsOn("101", "A"), "a preview booked somebody").toBe("0");
+
+  // On a phone the cells scroll sideways; why a row is wrong stays in view.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page.getByText("Gender: This room admits the other gender."),
+  ).toBeInViewport();
+  await page.setViewportSize({ width: 1280, height: 800 });
+
+  await page.getByRole("button", { name: "Import 1 person" }).click();
+  await expect(page.getByText("This import is finished.")).toBeVisible();
+  await expect(page.getByText("1 imported")).toBeVisible();
+  expect(bookingsOn("101", "A")).toBe("1");
+  expect(bookingsOn("101", "B")).toBe("0");
+
+  // What an import of people made lives in Reservations, which a dormitory
+  // calls Registrations, as its rail does (ADR 0057).
+  await page.getByRole("link", { name: "Open Registrations" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/en/reservations\\?property=${PEOPLE_PROPERTY}`),
+  );
+});
+
+test("IMP-S2-07: somebody who may import and may not book finds why, and rooms still open", async ({
+  page,
+}) => {
+  await signIn(page, IMPORT_ONLY_EMAIL, null);
+  await page.goto(`/en/import?property=${PEOPLE_PROPERTY}&kind=people`);
+  await expect(page.getByRole("main")).toContainText(
+    "Importing people registers them, so it needs the permission to take registrations at this Property.",
+  );
+  await expect(page.getByLabel("File")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Rooms and beds" }).click();
+  await expect(page.getByLabel("File")).toBeVisible();
 });

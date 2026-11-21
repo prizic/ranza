@@ -12,15 +12,16 @@ import {
   type ImportSummary,
 } from "@ranza/imports";
 import { getComposition } from "./composition";
+import { isImportKind } from "./import-files";
 import { createImportRun } from "./import-run";
 import { currentViewer } from "./viewer";
 
 /**
- * Server actions and reads for guided import (IMP-S1-*, ADR 0065).
+ * Server actions and reads for guided import (IMP-S1-*, IMP-S2-*, ADR 0065).
  *
  * Every one runs as the signed-in Staff Member. What they may import, and
- * every room an import adds, is decided by the database under that session;
- * nothing here holds a permission of its own.
+ * every room or booking an import makes, is decided by the database under
+ * that session; nothing here holds a permission of its own.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -53,6 +54,7 @@ function importRun() {
   return createImportRun({
     imports: composition.imports,
     accommodation: composition.accommodation,
+    reservations: composition.reservations,
     operatingModel: (userId, propertyId) =>
       composition.core.operatingModel(userId, propertyId),
     report: (event, context, error) => console.error(event, context, error),
@@ -62,6 +64,7 @@ function importRun() {
 function revalidate(locale: string): void {
   revalidatePath(`/${locale}/import`);
   revalidatePath(`/${locale}/rooms`);
+  revalidatePath(`/${locale}/reservations`);
 }
 
 /**
@@ -91,9 +94,11 @@ export async function previewImport(
   const viewer = await currentViewer();
   const locale = form.get("locale");
   const propertyId = form.get("propertyId");
+  const kind = form.get("kind");
   const file = form.get("file");
   if (
     !viewer ||
+    !isImportKind(kind) ||
     typeof locale !== "string" ||
     !isSupportedLocale(locale) ||
     typeof propertyId !== "string" ||
@@ -111,7 +116,10 @@ export async function previewImport(
   let importId: string;
   let sheetsIgnored: number;
   try {
-    const preview = await importRun().previewRooms(viewer.userId, {
+    const run = importRun();
+    const preview = await (
+      kind === "people" ? run.previewPeople : run.previewRooms
+    )(viewer.userId, {
       propertyId,
       fileName: file.name,
       bytes: new Uint8Array(await file.arrayBuffer()),
@@ -130,7 +138,7 @@ export async function previewImport(
     if (isNamed(error, "ImportRefusedError")) return { status: "notPermitted" };
     console.error(
       "import.preview_failed",
-      { propertyId, userId: viewer.userId },
+      { propertyId, kind, userId: viewer.userId },
       error,
     );
     return { status: "error" };

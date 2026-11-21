@@ -1,5 +1,6 @@
 /**
- * Guided import, through the runner the application uses (IMP-S1-*, ADR 0065).
+ * Guided import, through the runner the application uses (IMP-S1-*,
+ * IMP-S2-*, ADR 0065).
  *
  * tests/database/guided_import.test.sql proves each policy and trigger one
  * statement at a time, and tests/unit/import-*.test.ts the reading of a file.
@@ -7,7 +8,9 @@
  * accommodation's own command under the uploader's session, so an importer who
  * may not add rooms adds none; a room already there is skipped and left as it
  * was; a closed tab pauses and never doubles; each move is audited with counts
- * and no cell of the file; and the worker forgets the rows.
+ * and no cell of the file; and the worker forgets the rows. A file of people
+ * books each through reservations' own command, so an importer who may not
+ * book books nobody and records no identity document.
  *
  * A Property of each run's own; the Organization and its people are shared and
  * idempotent.
@@ -17,6 +20,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createImportRun } from "../../apps/operator-workspace/src/server/import-run";
 import { createAccommodationModule } from "../../packages/ranza/accommodation/src";
 import { createCoreModule } from "../../packages/ranza/core/src";
+import { createReservationsModule } from "../../packages/ranza/reservations/src";
 import { createPrismaClient } from "../../packages/db/src";
 import {
   IMPORT_BATCH,
@@ -41,12 +45,14 @@ const owner = createPrismaClient(process.env.DIRECT_URL!);
 const imports = createImportsModule({ db: prisma });
 const accommodation = createAccommodationModule({ db: prisma });
 const core = createCoreModule({ db: prisma });
+const reservations = createReservationsModule({ db: prisma });
 const sweeper = createImportSweeper({ db: worker });
 
 const unreported: unknown[] = [];
 const run = createImportRun({
   imports,
   accommodation,
+  reservations,
   operatingModel: (userId, propertyId) =>
     core.operatingModel(userId, propertyId),
   report: (_event, _context, error) => unreported.push(error),
@@ -495,5 +501,333 @@ describe("an import in progress", () => {
       (item) => item.id !== long,
     );
     expect(young.every((item) => !item.rowsForgotten)).toBe(true);
+  });
+});
+
+describe("a file of people", () => {
+  const property = randomUUID();
+  let today: string;
+  const unit: Record<string, string> = {};
+  // Guests are the Organization's and outlive a run: each run its own emails.
+  const zeynep = `zeynep.${property.slice(0, 8)}@example.test`;
+  const burak = `burak.${property.slice(0, 8)}@example.test`;
+
+  /** The Property's today moved by `days`, as a person types it. */
+  const typed = (days: number) => {
+    const [year, month, day] = shifted(days).split("-");
+    return `${day}.${month}.${year}`;
+  };
+  const shifted = (days: number) => {
+    const date = new Date(`${today}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  };
+  const people = (...lines: string[]) =>
+    new TextEncoder().encode(
+      [
+        "Ad Soyad;E-posta;Cinsiyet;Kimlik No;Oda No;Yatak;Giriş tarihi;Çıkış tarihi;Konaklama türü",
+        ...lines,
+      ].join("\n"),
+    );
+
+  async function stagedPeople(
+    userId: string,
+    bytes: Uint8Array,
+    runner = run,
+  ): Promise<string> {
+    const preview = await runner.previewPeople(userId, {
+      propertyId: property,
+      fileName: "kisiler.csv",
+      bytes,
+    });
+    if (preview.status !== "staged")
+      throw new Error(`not staged: ${preview.status}`);
+    return preview.importId;
+  }
+
+  async function imported(
+    userId: string,
+    bytes: Uint8Array,
+    runner = run,
+  ): Promise<string> {
+    const importId = await stagedPeople(userId, bytes, runner);
+    await imports.startImport(userId, importId);
+    while ((await runner.importNext(userId, importId)) === "importing");
+    return importId;
+  }
+
+  const bookingsOn = (unitId: string) =>
+    owner.$queryRawUnsafe<
+      {
+        id: string;
+        guestId: string;
+        stayType: string;
+        startsOn: string;
+        endsOn: string | null;
+        nightlyRateMinor: number | null;
+        stays: number;
+      }[]
+    >(
+      `select reservation.id, reservation.guest_id as "guestId",
+              reservation.stay_type as "stayType",
+              to_char(reservation.starts_on, 'YYYY-MM-DD') as "startsOn",
+              to_char(reservation.ends_on, 'YYYY-MM-DD') as "endsOn",
+              reservation.nightly_rate_minor::int as "nightlyRateMinor",
+              (select count(*)::int from public.stays as stay
+                where stay.reservation_id = reservation.id
+                  and stay.status = 'in_house') as "stays"
+         from public.reservations as reservation
+        where reservation.accommodation_unit_id = $1::uuid
+        order by reservation.starts_on`,
+      unitId,
+    );
+
+  beforeAll(async () => {
+    await owner.$executeRawUnsafe(
+      `insert into public.properties (id, organization_id, name, operating_model)
+       values ($1, $2, $3, 'dormitory')`,
+      property,
+      ORG,
+      `Import People ${property.slice(0, 8)}`,
+    );
+    await owner.$executeRawUnsafe(
+      `insert into public.property_capabilities
+         (property_id, organization_id, capability_key, enabled)
+       values ($1, $2, 'front_desk', true)`,
+      property,
+      ORG,
+    );
+    // A room let whole has a price; a bed has none (IMP-S2-08).
+    await owner.$executeRawUnsafe(
+      `insert into public.property_rates
+         (organization_id, property_id, unit_type, amount_minor)
+       values ($1, $2, 'room', 150000)`,
+      ORG,
+      property,
+    );
+    // The rooms come in the way a dormitory brings them: by the rooms import.
+    const preview = await run.previewRooms(MANAGER, {
+      propertyId: property,
+      fileName: "odalar.csv",
+      bytes: csv(
+        ";1;101;2;Evet;Kadın",
+        ";1;103;1;Evet;Kadın",
+        ...[102, 104, 105, 106, 107, 108, 109, 110].map(
+          (room) => `;1;${room};2;Hayır;`,
+        ),
+      ),
+    });
+    if (preview.status !== "staged") throw new Error(preview.status);
+    await imports.startImport(MANAGER, preview.importId);
+    await runToTheEnd(MANAGER, preview.importId);
+    for (const row of await reservations.listBookableUnits(MANAGER, property)) {
+      unit[row.roomName ? `${row.roomName}/${row.unitName}` : row.unitName] =
+        row.unitId;
+    }
+    const [day] = await owner.$queryRawUnsafe<{ today: string }[]>(
+      `select to_char(app.property_today($1::uuid), 'YYYY-MM-DD') as today`,
+      property,
+    );
+    today = day!.today;
+  });
+
+  it("IMP-S2-01: a person row books the bed through the booking command", async () => {
+    const importId = await imported(
+      MANAGER,
+      people(
+        `Elif Yılmaz;;Kadın;10000000146;101;A;${typed(1)};`,
+        `Ali Demir;;Erkek;;101;B;${typed(1)};`,
+      ),
+    );
+    const detail = await imports.getImport(MANAGER, importId);
+    expect(detail?.counts).toMatchObject({ imported: 1, wrong: 1 });
+    const [booking] = await bookingsOn(unit["101/A"]!);
+    expect(booking).toMatchObject({
+      stayType: "resident",
+      startsOn: shifted(1),
+      endsOn: null,
+      stays: 0,
+    });
+    expect(
+      await owner.$queryRawUnsafe(
+        `select result_id as "resultId" from public.import_rows
+          where import_id = $1::uuid and state = 'imported'`,
+        importId,
+      ),
+    ).toEqual([{ resultId: booking?.id }]);
+    const [particulars] = await owner.$queryRawUnsafe<
+      { documentType: string; documentLastFour: string }[]
+    >(
+      `select document_type as "documentType",
+              document_last_four as "documentLastFour"
+         from public.guest_particulars where guest_id = $1::uuid`,
+      booking!.guestId,
+    );
+    expect(particulars).toEqual({
+      documentType: "tc_kimlik",
+      documentLastFour: "0146",
+    });
+    expect(unreported).toEqual([]);
+  });
+
+  it("IMP-S2-04: a person the room does not admit is a wrong row", async () => {
+    const importId = await stagedPeople(
+      MANAGER,
+      people(`Ali Demir;;Erkek;;101;B;${typed(1)};`),
+    );
+    const detail = await imports.getImport(MANAGER, importId);
+    expect(detail?.rows[0]?.problems).toEqual([
+      { column: "gender", code: "not_admitted" },
+    ]);
+    await imports.discardImport(MANAGER, importId);
+    expect(await bookingsOn(unit["101/B"]!)).toEqual([]);
+  });
+
+  it("IMP-S2-08: a bed is booked at its quoted price, and an unpriced one unpriced", async () => {
+    await imported(
+      MANAGER,
+      people(
+        `Ayşe Kaya;;;;102;;${typed(2)};${typed(9)};Misafir`,
+        `Merve Ak;;Kadın;;101;B;${typed(2)};`,
+      ),
+    );
+    expect((await bookingsOn(unit["102"]!))[0]?.nightlyRateMinor).toBe(150000);
+    expect((await bookingsOn(unit["101/B"]!))[0]?.nightlyRateMinor).toBeNull();
+
+    // A quote that is no longer the price is refused by the stamp, not booked.
+    const stale = createImportRun({
+      imports,
+      accommodation,
+      reservations: {
+        ...reservations,
+        listBookableUnits: async (userId, propertyId) =>
+          (await reservations.listBookableUnits(userId, propertyId)).map(
+            (one) => ({
+              ...one,
+              nightlyRateMinor:
+                one.nightlyRateMinor === null ? null : one.nightlyRateMinor + 1,
+            }),
+          ),
+      },
+      operatingModel: (userId, propertyId) =>
+        core.operatingModel(userId, propertyId),
+      report: (_event, _context, error) => unreported.push(error),
+    });
+    const importId = await imported(
+      MANAGER,
+      people(`Can Er;;;;104;;${typed(2)};${typed(5)};Misafir`),
+      stale,
+    );
+    expect((await imports.getImport(MANAGER, importId))?.rows[0]).toMatchObject(
+      { state: "refused", outcome: "price_changed" },
+    );
+    expect(await bookingsOn(unit["104"]!)).toEqual([]);
+  });
+
+  it("IMP-S2-03: a bed taken since the preview refuses its row and no other", async () => {
+    const importId = await stagedPeople(
+      MANAGER,
+      people(
+        `Zehra Su;;Kadın;;103;A;${typed(3)};`,
+        `Deniz Ay;;;;105;;${typed(3)};`,
+      ),
+    );
+    expect((await imports.getImport(MANAGER, importId))?.counts).toMatchObject({
+      ready: 2,
+    });
+    await reservations.createReservation(MANAGER, {
+      propertyId: property,
+      accommodationUnitId: unit["103/A"]!,
+      guestName: "Somebody Else",
+      guestEmail: null,
+      guestPhone: null,
+      guestGender: "female",
+      stayType: "resident",
+      startsOn: shifted(5),
+      endsOn: null,
+      quotedRateMinor: null,
+      quotedCurrency: null,
+    });
+
+    await imports.startImport(MANAGER, importId);
+    while ((await run.importNext(MANAGER, importId)) === "importing");
+    const detail = await imports.getImport(MANAGER, importId);
+    expect(detail?.counts).toMatchObject({ imported: 1, refused: 1 });
+    expect(detail?.rows.find((row) => row.state === "refused")?.outcome).toBe(
+      "bed_taken",
+    );
+    expect(await bookingsOn(unit["103/A"]!)).toHaveLength(1);
+    expect(await bookingsOn(unit["105"]!)).toHaveLength(1);
+  });
+
+  it("IMP-S2-05: a row begun before the Property's today is booked from today and checked in, and a later one is not", async () => {
+    const importId = await imported(
+      MANAGER,
+      people(
+        `Selin Yurt;;;;107;;${typed(-80)};${typed(200)}`,
+        `Ece Gün;;;;108;;${typed(10)};`,
+      ),
+    );
+    expect(await bookingsOn(unit["107"]!)).toEqual([
+      expect.objectContaining({
+        startsOn: today,
+        endsOn: shifted(200),
+        stays: 1,
+      }),
+    ]);
+    expect(await bookingsOn(unit["108"]!)).toEqual([
+      expect.objectContaining({ startsOn: shifted(10), stays: 0 }),
+    ]);
+    // The first night the file gave stays in the import's own rows.
+    const rows = (await imports.getImport(MANAGER, importId))?.rows;
+    expect(rows?.[0]?.cells.firstNight).toBe(typed(-80));
+    expect(unreported).toEqual([]);
+  });
+
+  it("IMP-S2-02: a person on file is matched by exact email and not edited", async () => {
+    const first = await reservations.createReservation(MANAGER, {
+      propertyId: property,
+      accommodationUnitId: unit["109"]!,
+      guestName: "Zeynep Kaya",
+      guestEmail: zeynep,
+      guestPhone: "0500 000 00 00",
+      stayType: "resident",
+      startsOn: shifted(30),
+      endsOn: shifted(60),
+      quotedRateMinor: null,
+      quotedCurrency: null,
+    });
+    await imported(MANAGER, people(`Zeynep K.;${zeynep};;;110;;${typed(4)};`));
+    const [booking] = await bookingsOn(unit["110"]!);
+    expect(booking?.guestId).toBe(first.guestId);
+    expect(
+      await owner.$queryRawUnsafe(
+        `select full_name as "fullName", phone from public.guests
+          where id = $1::uuid`,
+        first.guestId,
+      ),
+    ).toEqual([{ fullName: "Zeynep Kaya", phone: "0500 000 00 00" }]);
+  });
+
+  it("IMP-S2-07: an importer who may not take bookings books nobody and records no particulars", async () => {
+    const importId = await imported(
+      IMPORTER_ONLY,
+      people(`Burak Tan;${burak};;10000000146;106;;${typed(1)};`),
+    );
+    const detail = await imports.getImport(IMPORTER_ONLY, importId);
+    expect(detail?.rows[0]).toMatchObject({
+      state: "refused",
+      outcome: "not_permitted",
+    });
+    expect(await bookingsOn(unit["106"]!)).toEqual([]);
+    expect(
+      await owner.$queryRawUnsafe(
+        `select count(*)::int as "count" from public.guests
+          where organization_id = $1::uuid
+            and email = $2`,
+        ORG,
+        burak,
+      ),
+    ).toEqual([{ count: 0 }]);
   });
 });

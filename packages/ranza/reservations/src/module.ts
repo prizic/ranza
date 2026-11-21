@@ -1968,15 +1968,25 @@ export function createReservationsModule(deps: ReservationsDeps) {
         throw new ReservationRefusedError("that booking cannot be taken");
       }
       const gender = booking.guestGender ?? null;
-      const guest =
-        picked ??
-        (await identifyGuestWithin(tx, {
-          organizationId: unit.organizationId,
-          fullName: booking.guestName,
-          email: booking.guestEmail,
-          phone: booking.guestPhone,
-          gender,
-        }));
+      let guest: Awaited<ReturnType<typeof identifyGuestWithin>>;
+      try {
+        guest =
+          picked ??
+          (await identifyGuestWithin(tx, {
+            organizationId: unit.organizationId,
+            fullName: booking.guestName,
+            email: booking.guestEmail,
+            phone: booking.guestPhone,
+            gender,
+          }));
+      } catch (error: unknown) {
+        // A role that reaches the Unit and may not book, refused by the
+        // policy on the Guest it would write: the same refusal as the Unit's.
+        if (raised(error, INSUFFICIENT_PRIVILEGE)) {
+          throw new ReservationRefusedError("that booking cannot be taken");
+        }
+        throw error;
+      }
       // A chosen Guest's profile is not edited by a booking, save the one
       // blank a gendered room asks to fill (RB-S5-12).
       if (picked && gender) {

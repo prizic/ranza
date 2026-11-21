@@ -1,8 +1,8 @@
 # @ranza/imports
 
-Rooms, and later the people who live in them, from a spreadsheet: read,
-previewed row by row, then made one command at a time under the uploader's
-own session (blueprint 19.1).
+Rooms, and the people who live in them, from a spreadsheet: read, previewed
+row by row, then made one command at a time under the uploader's own session
+(blueprint 19.1).
 [ADR 0065](../../../docs/adr/0065-an-import-is-a-record-of-a-file-and-each-row-is-made-by-its-uploader.md)
 says why; [`docs/features/guided-import/`](../../../docs/features/guided-import/edge-cases.csv)
 says what it owes.
@@ -17,9 +17,11 @@ is settled once and an import only moves forward, that one import runs at a
 Property at a time, and the counts, are the database's.
 
 It owns no room, booking or Guest. The host makes each row with the module that
-owns it (`accommodation.addUnits` for a room) and tells this module what came of
-it. That is what keeps an import from doing anything its uploader could not do
-by hand.
+owns it (`accommodation.addUnits` for a room, `reservations.createReservation`
+and `checkIn` for a person) and tells this module what came of it. That is what
+keeps an import from doing anything its uploader could not do by hand. A person
+is settled with `settleRowWithin`, inside the booking's own transaction, so the
+booking and its row commit together.
 
 ## Contract
 
@@ -46,6 +48,8 @@ await imports.settleRow(userId, id, row.rowNumber, {
   state: "imported",
   resultId,
 });
+await imports.settleRowWithin(tx, userId, id, rowNumber, outcome); // in a command's own transaction
+await imports.businessDate(userId, propertyId); // the day a person is booked from
 await imports.stopImport(userId, id); // anybody who may import there
 await imports.discardImport(userId, id); // its uploader, before it starts
 
@@ -55,6 +59,14 @@ await imports.getImport(userId, id); // rows only for the uploader, while held
 const sweeper = createImportSweeper({ db }); // db: the ranza_worker client
 await sweeper.sweep(); // forgets the rows of imports untouched for seven days
 ```
+
+A people file is read with `PEOPLE_COLUMNS` and staged with
+`stagePeople(rows, { today, places, taken, residentByDefault })`: each row names
+a room, and a bed where the room is let by the bed, and is checked against the
+places the Property has, who they admit and which are already promised over
+those nights. `readDay` reads `31.12.2026` and `2026-12-31` and refuses a date
+that reads two ways. `bookingOf` says the nights a person is booked for and
+whether they are checked in at once.
 
 `templateRows`, `resultRows`, `rowsToFix` and `workbookOf` build the three files
 a person downloads: the template in their language, every row with its outcome,
@@ -73,9 +85,10 @@ and the rows to fix in the template's own columns.
 
 ## What is deliberately not here
 
-People, their beds and bookings (slice 2), payment plans and carried-over
-balances (slice 3), undoing a whole import and the setup checklist are rows in
-the feature's table, `IMP-S2-*`, `IMP-S3-*` and `IMP-DEF-*`.
+Payment plans and carried-over balances (slice 3), undoing a whole import,
+matching a Guest by identity number, booking the nights before the import and
+the setup checklist are rows in the feature's table, `IMP-S3-*` and
+`IMP-DEF-*`.
 
 Verified against a real database by
 [`tests/database/guided_import.test.sql`](../../../tests/database/guided_import.test.sql)

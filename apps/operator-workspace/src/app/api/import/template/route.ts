@@ -1,19 +1,26 @@
 import { isSupportedLocale } from "@ranza/i18n";
-import { roomTemplate } from "../../../../server/import-files";
+import { importTemplate, isImportKind } from "../../../../server/import-files";
 import { currentViewer } from "../../../../server/viewer";
 
 const XLSX =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 const FILE_NAMES = {
-  en: "rooms-template.xlsx",
-  tr: "odalar-sablonu.xlsx",
-  ar: "rooms-template.xlsx",
+  rooms: {
+    en: "rooms-template.xlsx",
+    tr: "odalar-sablonu.xlsx",
+    ar: "rooms-template.xlsx",
+  },
+  people: {
+    en: "people-template.xlsx",
+    tr: "kisiler-sablonu.xlsx",
+    ar: "people-template.xlsx",
+  },
 } as const;
 
 /**
- * The rooms template: the headings in the reader's language and one example
- * row (IMP-S1-26). It holds nothing of anybody's, so being signed in is all it
+ * A kind's template: the headings in the reader's language and one example
+ * row (IMP-S1-26, IMP-S2-06). It holds nothing of anybody's, so being signed in is all it
  * asks.
  */
 export async function GET(request: Request): Promise<Response> {
@@ -21,28 +28,29 @@ export async function GET(request: Request): Promise<Response> {
   if (!viewer) return new Response(null, { status: 401 });
 
   const { searchParams } = new URL(request.url);
+  const kind = searchParams.get("kind");
   const locale = searchParams.get("locale");
-  if (
-    searchParams.get("kind") !== "rooms" ||
-    !locale ||
-    !isSupportedLocale(locale)
-  ) {
+  if (!isImportKind(kind) || !locale || !isSupportedLocale(locale)) {
     return new Response(null, { status: 404 });
   }
 
   try {
-    const file = await roomTemplate(locale);
+    const file = await importTemplate(kind, locale);
     return new Response(new Uint8Array(file), {
       status: 200,
       headers: {
         "Content-Type": XLSX,
-        "Content-Disposition": `attachment; filename="${FILE_NAMES[locale]}"`,
+        "Content-Disposition": `attachment; filename="${FILE_NAMES[kind][locale]}"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error: unknown) {
-    console.error("import.template_failed", { userId: viewer.userId, error });
+    console.error("import.template_failed", {
+      userId: viewer.userId,
+      kind,
+      error,
+    });
     return new Response(null, { status: 500 });
   }
 }

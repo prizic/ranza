@@ -46,6 +46,22 @@ export {
 } from "./columns";
 export type { ColumnMatch } from "./columns";
 export { readTable } from "./read";
+export {
+  PEOPLE_COLUMNS,
+  admissionOf,
+  bookingOf,
+  placeOf,
+  readDay,
+  readPerson,
+  stagePeople,
+} from "./people";
+export type {
+  ImportedPerson,
+  ImportedStayType,
+  PeopleContext,
+  PeopleDefaults,
+  PlaceOnFile,
+} from "./people";
 export { ROOM_COLUMNS, readRoom, stageRooms } from "./rooms";
 export type { ImportedRoom, RoomDefaults } from "./rooms";
 export { resultRows, rowsToFix, workbookOf } from "./sheet";

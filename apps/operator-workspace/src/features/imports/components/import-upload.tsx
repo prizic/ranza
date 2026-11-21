@@ -9,6 +9,7 @@ import {
 import { Download, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { SupportedLocale } from "@ranza/i18n";
+import type { ImportKind } from "@ranza/imports/contracts";
 import { IMPORT_LIMITS } from "../../../server/import-limits";
 import {
   Button,
@@ -24,6 +25,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
 } from "@ranza/ui";
 import { previewImport, type PreviewOutcome } from "../../../server/imports";
 
@@ -115,16 +120,19 @@ function MappingFields({
 }
 
 /**
- * Upload a file and see its preview. The file never leaves the browser's form
- * between the two steps: when a heading is not recognised the same form is
- * sent again with the answer, so the server keeps nothing in between.
+ * Upload one kind's file and see its preview. The file never leaves the
+ * browser's form between the two steps: when a heading is not recognised the
+ * same form is sent again with the answer, so the server keeps nothing in
+ * between.
  */
-export function ImportUpload({
+function UploadForm({
   columns,
+  kind,
   locale,
   propertyId,
 }: {
   columns: readonly ImportColumn[];
+  kind: ImportKind;
   locale: SupportedLocale;
   propertyId: string;
 }) {
@@ -139,6 +147,7 @@ export function ImportUpload({
   // An answer about a file that has since been swapped is about nothing.
   const [answered, setAnswered] = useState<PreviewOutcome | null>(null);
   const shown = answered === outcome ? null : outcome;
+  const fileId = `import-file-${kind}`;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -175,73 +184,139 @@ export function ImportUpload({
                 : null;
 
   return (
+    <form className="grid gap-4" noValidate onSubmit={submit}>
+      <input name="locale" type="hidden" value={locale} />
+      <input name="propertyId" type="hidden" value={propertyId} />
+      <input name="kind" type="hidden" value={kind} />
+      <div className="grid gap-1.5">
+        <Label htmlFor={fileId}>{t("upload.file")}</Label>
+        <Input
+          accept=".xlsx,.csv"
+          aria-describedby={`${fileId}-hint`}
+          id={fileId}
+          name="file"
+          onChange={() => {
+            setEarly(null);
+            setAnswered(outcome);
+          }}
+          type="file"
+        />
+        <p className="text-sm text-muted-foreground" id={`${fileId}-hint`}>
+          {t("upload.hint", {
+            megabytes: MEGABYTES,
+            rows: IMPORT_LIMITS.rows,
+          })}
+        </p>
+      </div>
+
+      {shown?.status === "needsMapping" ? (
+        <MappingFields
+          columns={columns}
+          key={shown.headers.join("\u0000")}
+          mapping={shown}
+        />
+      ) : null}
+
+      {problem ? (
+        <p
+          className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
+          role="alert"
+        >
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          />
+          {problem}
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={pending} type="submit">
+          {pending
+            ? t("upload.reading")
+            : shown?.status === "needsMapping"
+              ? t("mapping.submit")
+              : t("upload.submit")}
+        </Button>
+        <Button asChild variant="outline">
+          <a href={`/api/import/template?kind=${kind}&locale=${locale}`}>
+            <Download aria-hidden="true" />
+            {t("upload.template")}
+          </a>
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Rooms or people, each with its own form, so a column mapping asked about
+ * one kind's file never follows a person to the other. People are booked, so
+ * a Staff Member who may not book is told why instead of handed a form whose
+ * every row would be refused (IMP-S2-07).
+ */
+export function ImportUpload({
+  columns,
+  initialKind,
+  locale,
+  mayImportPeople,
+  propertyId,
+}: {
+  columns: Readonly<Record<ImportKind, readonly ImportColumn[]>>;
+  initialKind: ImportKind;
+  locale: SupportedLocale;
+  mayImportPeople: boolean;
+  propertyId: string;
+}) {
+  const t = useTranslations("imports");
+  const [kind, setKind] = useState<ImportKind>(initialKind);
+
+  return (
     <Card>
       <CardHeader>
         <CardTitle>{t("upload.heading")}</CardTitle>
         <CardDescription>{t("upload.templateHint")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <form className="grid gap-4" noValidate onSubmit={submit}>
-          <input name="locale" type="hidden" value={locale} />
-          <input name="propertyId" type="hidden" value={propertyId} />
-          <div className="grid gap-1.5">
-            <Label htmlFor="import-file">{t("upload.file")}</Label>
-            <Input
-              accept=".xlsx,.csv"
-              aria-describedby="import-file-hint"
-              id="import-file"
-              name="file"
-              onChange={() => {
-                setEarly(null);
-                setAnswered(outcome);
-              }}
-              type="file"
+        <Tabs
+          onValueChange={(value) =>
+            setKind(value === "people" ? "people" : "rooms")
+          }
+          value={kind}
+        >
+          <TabsList>
+            <TabsTrigger value="rooms">{t("kinds.rooms")}</TabsTrigger>
+            <TabsTrigger value="people">{t("kinds.people")}</TabsTrigger>
+          </TabsList>
+          <TabsContent className="pt-3" value="rooms">
+            <UploadForm
+              columns={columns.rooms}
+              kind="rooms"
+              locale={locale}
+              propertyId={propertyId}
             />
-            <p className="text-sm text-muted-foreground" id="import-file-hint">
-              {t("upload.hint", {
-                megabytes: MEGABYTES,
-                rows: IMPORT_LIMITS.rows,
-              })}
+          </TabsContent>
+          <TabsContent className="grid gap-4 pt-3" value="people">
+            <p className="max-w-prose text-sm text-muted-foreground">
+              {t("upload.peopleLead")}
             </p>
-          </div>
-
-          {shown?.status === "needsMapping" ? (
-            <MappingFields
-              columns={columns}
-              key={shown.headers.join("\u0000")}
-              mapping={shown}
-            />
-          ) : null}
-
-          {problem ? (
-            <p
-              className="flex items-start gap-2 rounded-lg border border-warning/25 bg-warning-soft p-3 text-sm text-warning"
-              role="alert"
-            >
-              <TriangleAlert
-                aria-hidden="true"
-                className="mt-0.5 size-4 shrink-0"
+            {mayImportPeople ? (
+              <UploadForm
+                columns={columns.people}
+                kind="people"
+                locale={locale}
+                propertyId={propertyId}
               />
-              {problem}
-            </p>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button disabled={pending} type="submit">
-              {pending
-                ? t("upload.reading")
-                : shown?.status === "needsMapping"
-                  ? t("mapping.submit")
-                  : t("upload.submit")}
-            </Button>
-            <Button asChild variant="outline">
-              <a href={`/api/import/template?kind=rooms&locale=${locale}`}>
-                <Download aria-hidden="true" />
-                {t("upload.template")}
-              </a>
-            </Button>
-          </div>
-        </form>
+            ) : (
+              <p
+                className="rounded-lg border bg-muted/40 p-3 text-sm"
+                role="note"
+              >
+                {t("upload.peopleNotPermitted")}
+              </p>
+            )}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

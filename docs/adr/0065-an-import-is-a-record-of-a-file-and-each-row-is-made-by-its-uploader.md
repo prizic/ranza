@@ -68,6 +68,26 @@ two thousand rows does not fit in one request.
 - **What a row may default** comes from the operating model, in the
   application: a dormitory's room is let by the bed unless the row says
   otherwise. No SQL reads the model (ADR 0057).
+- **A person is booked by the booking command.** A row of a people file is
+  one Guest and one booking, taken by `reservations.createReservation` under
+  the uploader's session, with the Guest's particulars recorded in the same
+  transaction, as the booking dialog takes them. So an importer who may not
+  book books nobody and records no identity document (IMP-S2-07). The row is
+  settled inside that booking's own transaction, through the `alongside`
+  hook, so a booking and the row that made it commit together: a closed tab
+  cannot leave a booking whose row still says ready (IMP-S2-01).
+- **Booked from the Property's today.** A booking cannot start before the
+  business date (ADR 0021), so somebody who already lives there is booked
+  from today and checked in at once, with readiness acknowledged as the desk's
+  "Check in anyway" does; the first night the file gave stays in the row
+  (IMP-S2-05). Booking the nights already lived is IMP-DEF-07.
+- **Quoted as the dialog quotes.** A Guest is quoted the bed's nightly price
+  and booked at it, and a price changed meanwhile refuses the row. A Resident
+  is never priced by the night (`reservations_resident_is_not_priced_by_the_night`),
+  so a Resident is quoted nothing (IMP-S2-08).
+- **A Guest on file is matched by exact email**, as the booking command
+  matches, and not edited (IMP-S2-02). Matching by identity number is
+  IMP-DEF-06: ADR 0058 keeps document numbers behind their own permission.
 
 ## Alternatives rejected
 
@@ -101,10 +121,16 @@ two thousand rows does not fit in one request.
   worker, and two for the worker's sweep. `insert_grants.test.sql` lists them.
 - An import runs only while its page is open. A long one shows its progress
   and asks nothing more of the person than to leave the tab open or come back.
-- Slice 2 adds the kind `people`: a Resident or Guest, their bed and their
-  booking, each made by the booking and check-in commands under the same
-  rule. Slice 3 adds a payment plan and a carried-over balance. Neither needs
-  a change to the two tables; `imports.kind` already admits `people`.
+- Slice 2's `people` kind needed no change to either table, and no
+  migration. Slice 3 adds a payment plan and a carried-over balance under the
+  same rule.
+- A check-in that fails after its booking committed leaves the booking, and
+  the row says imported: the person is on today's arrivals for the desk, and
+  the failure is reported. Settling the row after the check-in instead would
+  let a closed tab leave a booking behind a row that still says ready.
+- `createReservation` now names a policy refusal on the Guest it writes as
+  `ReservationRefusedError`, as it names every other refusal; it used to
+  surface the database's error.
 - The setup checklist, staff and payment history, inviting every imported
   Resident to the Portal, and rooms numbered with letters are deferred rows
   (IMP-DEF-01 to IMP-DEF-05), not decisions made here.

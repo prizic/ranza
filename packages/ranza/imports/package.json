@@ -16,6 +16,7 @@
     "@ranza/accommodation": "workspace:*",
     "@ranza/core": "workspace:*",
     "@ranza/db": "workspace:*",
+    "@ranza/guests": "workspace:*",
     "@ranza/platform-audit": "workspace:*",
     "read-excel-file": "9.3.12",
     "write-excel-file": "4.1.1"

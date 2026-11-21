@@ -9,6 +9,7 @@ import {
 import type { Gender } from "@ranza/core";
 import { normalizeHeading } from "./columns";
 import type { ColumnSpec, RowProblem, StagedRow } from "./contracts";
+import { ANYONE, MEN, NO, WOMEN, YES, words } from "./words";
 
 /**
  * A file of rooms (IMP-S1-19 to IMP-S1-22).
@@ -70,50 +71,6 @@ export const ROOM_COLUMNS: readonly ColumnSpec[] = [
     example: { tr: "Kadın", en: "Women", ar: "نساء" },
   },
 ];
-
-const words = (...values: string[]) => new Set(values.map(normalizeHeading));
-
-const YES = words("yes", "y", "true", "1", "evet", "e", "var", "نعم");
-const NO = words("no", "n", "false", "0", "hayır", "h", "yok", "لا");
-
-const WOMEN = words(
-  "women",
-  "woman",
-  "female",
-  "f",
-  "girls",
-  "kadın",
-  "kız",
-  "k",
-  "bayan",
-  "نساء",
-  "إناث",
-  "أنثى",
-  "بنات",
-);
-const MEN = words(
-  "men",
-  "man",
-  "male",
-  "m",
-  "boys",
-  "erkek",
-  "bay",
-  "رجال",
-  "ذكور",
-  "ذكر",
-  "أولاد",
-);
-const ANYONE = words(
-  "anyone",
-  "any",
-  "all",
-  "mixed",
-  "herkes",
-  "karma",
-  "الجميع",
-  "مختلط",
-);
 
 const TYPES: readonly [NewUnits["unitType"], Set<string>][] = [
   ["room", words("room", "oda", "غرفة")],

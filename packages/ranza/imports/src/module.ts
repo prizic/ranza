@@ -295,40 +295,73 @@ export function createImportsModule(deps: ImportsDeps) {
   }
 
   /**
-   * Says what became of one ready row. The last one finishes the import, and
-   * the finish is audited here, in the transaction that caused it.
+   * Says what became of one ready row, in the caller's transaction. The last
+   * one finishes the import, and the finish is audited here, in the
+   * transaction that caused it. A host settles a row inside the command that
+   * made its record, so the two commit together or not at all (IMP-S2-01).
    */
-  async function settleRow(
+  async function settleRowWithin(
+    tx: AuditClient,
     userId: string,
     importId: string,
     rowNumber: number,
     outcome: RowOutcome,
   ): Promise<ImportStatus> {
     try {
-      return await withOrganizationContext(deps.db, { userId }, async (tx) => {
-        const settled = await tx.$executeRaw`
-          update public.import_rows
-             set state = ${outcome.state},
-                 outcome = ${outcome.outcome ?? null},
-                 result_id = ${outcome.resultId ?? null}::uuid
-           where import_id = ${importId}::uuid and row_number = ${rowNumber}
-        `;
-        if (settled === 0) throw new ImportRefusedError();
-        const [summary] = await summaries(tx, userId, { importId });
-        if (!summary) throw new ImportRefusedError();
-        if (summary.status === "finished") {
-          await audit(tx, {
-            userId,
-            summary,
-            action: "import.finished",
-          });
-        }
-        return summary.status;
-      });
+      const settled = await tx.$queryRaw<{ rowNumber: number }[]>`
+        update public.import_rows
+           set state = ${outcome.state},
+               outcome = ${outcome.outcome ?? null},
+               result_id = ${outcome.resultId ?? null}::uuid
+         where import_id = ${importId}::uuid and row_number = ${rowNumber}
+        returning row_number as "rowNumber"
+      `;
+      if (settled.length === 0) throw new ImportRefusedError();
+      const [summary] = await summaries(tx, userId, { importId });
+      if (!summary) throw new ImportRefusedError();
+      if (summary.status === "finished") {
+        await audit(tx, {
+          userId,
+          summary,
+          action: "import.finished",
+        });
+      }
+      return summary.status;
     } catch (error) {
       if (raised(error, ROW_SETTLE_REFUSED)) throw new ImportStateError();
       throw error;
     }
+  }
+
+  /** The same, in a transaction of its own. */
+  async function settleRow(
+    userId: string,
+    importId: string,
+    rowNumber: number,
+    outcome: RowOutcome,
+  ): Promise<ImportStatus> {
+    return withOrganizationContext(deps.db, { userId }, (tx) =>
+      settleRowWithin(tx, userId, importId, rowNumber, outcome),
+    );
+  }
+
+  /**
+   * The Property's business date (ADR 0021): the day an import books from.
+   * Null for a Property out of the caller's reach.
+   */
+  async function businessDate(
+    userId: string,
+    propertyId: string,
+  ): Promise<string | null> {
+    return withOrganizationContext(deps.db, { userId }, async (tx) => {
+      const [row] = await tx.$queryRaw<{ day: string }[]>`
+        select to_char(app.property_today(property.id), 'YYYY-MM-DD') as "day"
+          from public.properties as property
+         where property.id = ${propertyId}::uuid
+           and property.id in (select app.accessible_property_ids())
+      `;
+      return row?.day ?? null;
+    });
   }
 
   async function close(
@@ -369,12 +402,14 @@ export function createImportsModule(deps: ImportsDeps) {
     });
 
   return {
+    businessDate,
     discardImport,
     getImport,
     listImports,
     mayImport,
     nextReadyRows,
     settleRow,
+    settleRowWithin,
     stageImport,
     startImport,
     stopImport,

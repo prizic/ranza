@@ -9,6 +9,13 @@ everything lands under Unreleased.
 
 ## Unreleased
 
+### Changed
+
+- `createReservation` refuses a caller whose role reaches the Unit and may not
+  book with `ReservationRefusedError`, as it refuses every other caller. The
+  policy on the Guest it would write used to surface as the database's own
+  error.
+
 ### Added
 
 - `createReservation(userId, booking, alongside?)`: an optional step the host
