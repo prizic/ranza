@@ -491,10 +491,15 @@ test("the Residents' standing: tonight's roll call and the instalments overdue, 
   await page.goto(`/en/today?property=${yurt}`);
 
   const rollCall = page.getByRole("region", { name: "Tonight's roll call" });
-  for (const name of ["On leave: 1", "Missing: 1", "Not yet called: 1"]) {
+  // Each figure opens the roll call narrowed to the people it counted (B-06).
+  for (const [name, show] of [
+    ["On leave: 1", "on_leave"],
+    ["Missing: 1", "absent"],
+    ["Not yet called: 1", "not_called"],
+  ] as const) {
     await expect(rollCall.getByRole("link", { name })).toHaveAttribute(
       "href",
-      new RegExp(`/en/roll-call\\?property=${yurt}$`),
+      new RegExp(`/en/roll-call\\?property=${yurt}&show=${show}$`),
     );
   }
   await expect(rollCall).toContainText("3 students are in house");
@@ -542,7 +547,9 @@ test("the Residents' standing: tonight's roll call and the instalments overdue, 
     .getByRole("region", { name: "Tonight's roll call" })
     .getByRole("link", { name: "Missing: 1" })
     .click();
-  await expect(page).toHaveURL(new RegExp(`/en/roll-call\\?property=${yurt}$`));
+  await expect(page).toHaveURL(
+    new RegExp(`/en/roll-call\\?property=${yurt}&show=absent$`),
+  );
   await expect(
     page.getByRole("region", { name: "Tonight's figures" }),
   ).toBeVisible();

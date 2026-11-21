@@ -212,11 +212,12 @@ test.describe("the arrivals the desk still has to do", () => {
       dirty.getByRole("button", { name: "Check in anyway" }),
     ).toBeVisible();
     await dirty.getByRole("button", { name: "Not now" }).click();
-    // Into a blocked room: why, and the screen that mends it, no Check in.
+    // Into a blocked room: why, and the screen that mends it (Rooms, where a
+    // block is lifted, B-01), no Check in.
     const blocked = row(audit.day.guest.blocked);
     await expect(blocked).toContainText("The room is blocked.");
     await expect(
-      blocked.getByRole("link", { name: "Open Housekeeping" }),
+      blocked.getByRole("link", { name: "Open Rooms" }),
     ).toBeVisible();
     await expect(blocked.getByRole("button", { name: /Check in/ })).toHaveCount(
       0,

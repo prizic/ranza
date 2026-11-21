@@ -584,10 +584,15 @@ test.describe("Reservations take a booking and read one (RANZ-58)", () => {
       .click();
     const sheet = page.getByRole("dialog");
     await expect(sheet).toContainText(booking.guestName);
+    // Changing the booking is a button in the sheet (A-13); the menu keeps
+    // the actions that need a reason.
+    await expect(
+      sheet.getByRole("button", { name: "Change booking" }),
+    ).toBeVisible();
     await sheet.getByRole("button", { name: /More actions/ }).click();
     await expect(
       page.getByRole("menuitem", { name: "Change booking" }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await page.getByRole("menuitem", { name: "Cancel booking" }).click();
 
     const cancel = page.getByRole("dialog", { name: "Cancel this booking" });

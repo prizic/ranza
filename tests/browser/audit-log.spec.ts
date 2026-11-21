@@ -568,9 +568,18 @@ test("a subject opens where it can be opened, a booking's history spans its stay
     roomRow.getByRole("link", { name: /^Room or bed · / }),
   ).toHaveAttribute("href", `/en/rooms?property=${propertyId}&unit=${room}`);
 
-  // A booking, which no screen shows alone, opens its history in the log.
+  // A booking opens on Reservations (C-02), and the row offers every record
+  // about it as a second link.
   const bookingRow = page.getByRole("row").filter({ hasText: "dates changed" });
-  await bookingRow.getByRole("link", { name: /^Reservation · / }).click();
+  await expect(
+    bookingRow.getByRole("link", { name: /^Reservation · / }),
+  ).toHaveAttribute(
+    "href",
+    `/en/reservations?property=${propertyId}&open=${reservation}`,
+  );
+  await bookingRow
+    .getByRole("link", { name: "Every record about this" })
+    .click();
   await expect(page).toHaveURL(new RegExp(`subject=${reservation}`));
   await expect(
     page.getByRole("status").filter({ hasText: "Showing every record about" }),
