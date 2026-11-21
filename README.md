@@ -50,6 +50,7 @@ packages/
     rates/                what a night costs, per unit type
     guest-services/       service requests, priorities and guest request queue
     branding/             an Organization's colour and logo, drawn by the Portal
+    imports/              rooms from a spreadsheet, previewed, then made by their uploader
   adapters/               Ranza-to-platform mappings
   config, db, i18n, ui, observability
                           cross-cutting infrastructure

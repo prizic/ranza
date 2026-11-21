@@ -12,6 +12,7 @@ import { createFoliosModule } from "@ranza/folios";
 import { createGuestServicesModule } from "@ranza/guest-services";
 import { createHousekeepingModule } from "@ranza/housekeeping";
 import { createHrModule } from "@ranza/hr";
+import { createImportsModule } from "@ranza/imports";
 import { createIntegrationsModule } from "@ranza/integrations";
 import { createMaintenanceModule } from "@ranza/maintenance";
 import { createRatesModule } from "@ranza/rates";
@@ -128,6 +129,7 @@ function compose() {
     hr: createHrModule({ db: tenantDb }),
     branding: createBrandingModule({ db: tenantDb }),
     dataExport: createDataExportModule({ db: tenantDb }),
+    imports: createImportsModule({ db: tenantDb }),
     // The Resident's module, here for the other side of it: the desk makes the
     // link a student opens on the Portal (RANZ-87). It reads nothing the Portal
     // does not, and every refusal in it is the database's.

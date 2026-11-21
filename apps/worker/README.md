@@ -5,7 +5,8 @@ Everything the product does that is not inside a request.
 Today that is four things: draining `outbox.events`, closing each Property's
 business day once its cutoff has passed and nothing is left open (ADR 0034),
 producing the data exports Staff Members asked for (ADR 0043), and sending the
-webhook deliveries Organizations subscribed to (ADR 0045).
+webhook deliveries Organizations subscribed to (ADR 0045). It also forgets the
+rows of a guided import seven days after anybody last touched it (ADR 0065).
 Retention and notification delivery will land here too, and the rules below are
 what stop that turning into a second backend.
 
@@ -68,6 +69,11 @@ src/
                              (five). Not how: that is @ranza/data-export and
                              fourteen functions. Names every failure it logs
     tokens.ts                injection token
+  imports/
+    imports.module.ts           wiring
+    import-sweeper.service.ts   when to forget old imports' rows (an hour). Not
+                                which: that is @ranza/imports and two functions
+    tokens.ts                   injection token
   outbox/
     outbox.module.ts      wiring — every provider returns something already built
     outbox.dispatcher.ts  when to run. Not how: that is @ranza/platform-outbox

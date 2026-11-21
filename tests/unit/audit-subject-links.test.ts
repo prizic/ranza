@@ -24,6 +24,7 @@ const ALL: SubjectReach = {
   people: true,
   branding: true,
   integrations: true,
+  imports: true,
 };
 const NONE = Object.fromEntries(
   Object.keys(ALL).map((key) => [key, false]),
@@ -35,6 +36,7 @@ const OPENS: Record<string, string> = {
   property: "/en/configuration?property=p1",
   organization: "/en/configuration?property=p1",
   data_export: "/en/data-export?property=p1&show=s1",
+  import: "/en/import?property=p1&record=s1",
   reservation: "/en/reservations?property=p1&open=s1",
   business_day_close: "/en/close-day?property=p1",
   maintenance_request: "/en/maintenance?property=p1",

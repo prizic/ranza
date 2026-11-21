@@ -99,6 +99,10 @@ export const KNOWN_ACTIONS = [
   "attendance_setting.changed",
   "payment_plan.created",
   "payment_plan.revised",
+  "import.started",
+  "import.finished",
+  "import.stopped",
+  "import.discarded",
 ] as const;
 
 export type KnownAction = (typeof KNOWN_ACTIONS)[number];
@@ -143,6 +147,7 @@ const AREA_OF_NOUN: Record<string, AuditArea> = {
   property: "settings",
   organization: "settings",
   data_export: "settings",
+  import: "settings",
   branding: "settings",
   webhook_endpoint: "settings",
   failed_operation: "settings",
@@ -174,6 +179,7 @@ export const KNOWN_SUBJECTS = [
   "failed_operation",
   "attendance_leave",
   "payment_plan",
+  "import",
 ] as const;
 
 export type KnownSubject = (typeof KNOWN_SUBJECTS)[number];

@@ -36,6 +36,8 @@ model User {
   closedDays              BusinessDayClose[]
   attendanceSettingsMade  AttendanceSetting[]      @relation("AttendanceSettingAuthor")
   leavesGranted           AttendanceLeave[]        @relation("LeaveGrantor")
+  importsUploaded         Import[]                 @relation("ImportUploader")
+  importsClosed           Import[]                 @relation("ImportCloser")
   leavesClosed            AttendanceLeave[]        @relation("LeaveCloser")
   attendanceMarked        AttendanceMark[]
   ratesSet                PropertyRate[]
@@ -129,7 +131,7 @@ model Property {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization         Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization         Organization                  @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   assignments          PropertyAssignment[]
   capabilities         PropertyCapability[]
   units                AccommodationUnit[]
@@ -141,6 +143,7 @@ model Property {
   closes               BusinessDayClose[]
   /// At most one: `attendance_settings.property_id` is its primary key.
   attendanceSettings   AttendanceSetting[]
+  imports              Import[]
   maintenanceRequests  MaintenanceRequest[]
   maintenanceSettings  MaintenanceSetting[]
   maintenanceEquipment MaintenanceEquipment[]
@@ -199,18 +202,18 @@ model AccommodationUnit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property        Property                 @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  parent          AccommodationUnit?       @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
-  children        AccommodationUnit[]      @relation("UnitNesting")
-  stays           Stay[]
-  reservations    Reservation[]
-  housekeeping    HousekeepingUnitStatus[]
+  property          Property                       @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  parent            AccommodationUnit?             @relation("UnitNesting", fields: [parentId, propertyId, organizationId, parentUnitType], references: [id, propertyId, organizationId, unitType], onDelete: Restrict, onUpdate: NoAction)
+  children          AccommodationUnit[]            @relation("UnitNesting")
+  stays             Stay[]
+  reservations      Reservation[]
+  housekeeping      HousekeepingUnitStatus[]
   stayoverCleanings HousekeepingStayoverCleaning[]
-  maintenance     MaintenanceRequest[]
-  equipment       MaintenanceEquipment[]
-  changesFrom     ReservationChange[]      @relation("ChangeFromUnit")
-  changesTo       ReservationChange[]      @relation("ChangeToUnit")
-  serviceRequests ServiceRequest[]
+  maintenance       MaintenanceRequest[]
+  equipment         MaintenanceEquipment[]
+  changesFrom       ReservationChange[]            @relation("ChangeFromUnit")
+  changesTo         ReservationChange[]            @relation("ChangeToUnit")
+  serviceRequests   ServiceRequest[]
 
   /// A room's name is unique in its Property; a bed's is unique in its room.
   /// Two partial indexes rather than one over `(property_id, parent_id, name)`,
@@ -682,7 +685,7 @@ model Guest {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization    Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   reservations    Reservation[]
   serviceRequests ServiceRequest[]
   /// At most one: `guest_particulars.guest_id` is its primary key. A list here
@@ -821,14 +824,14 @@ model Reservation {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  property Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  unit     AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  guest    Guest               @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property     Property            @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  unit         AccommodationUnit   @relation(fields: [accommodationUnitId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  guest        Guest               @relation(fields: [guestId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   /// Several, of which at most one is not cancelled. A withdrawn check-in keeps
   /// its `reservation_id` so the mistake stays visible (ADR 0022), and the
   /// partial unique on `stays` is what stops a second live one.
-  stays    Stay[]
-  changes  ReservationChange[]
+  stays        Stay[]
+  changes      ReservationChange[]
   /// At most one, by `payment_plans_reservation_key`: a change of plan is a
   /// revision of it.
   paymentPlans PaymentPlan[]
@@ -1253,8 +1256,8 @@ model BusinessDayClose {
 /// A Property's curfew for the roll call (LA-S1-*). No row means the
 /// application's default; a row with no time means no curfew, on purpose.
 model AttendanceSetting {
-  propertyId     String   @id @map("property_id") @db.Uuid
-  organizationId String   @map("organization_id") @db.Uuid
+  propertyId     String    @id @map("property_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
   curfewTime     DateTime? @map("curfew_time") @db.Time(0)
   updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
   updatedBy      String?   @map("updated_by") @db.Uuid
@@ -1284,11 +1287,11 @@ model AttendanceLeave {
   closedBy       String?   @map("closed_by") @db.Uuid
   closedAt       DateTime? @map("closed_at") @db.Timestamptz(6)
 
-  stay     Stay                  @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_leaves_stay_fkey")
-  grantor  User                  @relation("LeaveGrantor", fields: [grantedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  closer   User?                 @relation("LeaveCloser", fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  stay    Stay                    @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_leaves_stay_fkey")
+  grantor User                    @relation("LeaveGrantor", fields: [grantedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  closer  User?                   @relation("LeaveCloser", fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
   /// At most one: `attendance_leave_reasons.leave_id` is its primary key.
-  reasons  AttendanceLeaveReason[]
+  reasons AttendanceLeaveReason[]
 
   @@unique([id, propertyId, organizationId], map: "attendance_leaves_id_property_key")
   @@index([propertyId, fromNight, toNight], map: "attendance_leaves_property_nights_idx")
@@ -1321,8 +1324,8 @@ model AttendanceMark {
   markedBy       String   @map("marked_by") @db.Uuid
   markedAt       DateTime @default(now()) @map("marked_at") @db.Timestamptz(6)
 
-  stay     Stay     @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_marks_stay_fkey")
-  marker   User     @relation(fields: [markedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  stay   Stay @relation(fields: [stayId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "attendance_marks_stay_fkey")
+  marker User @relation(fields: [markedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([stayId, night, id(sort: Desc)], map: "attendance_marks_current_idx")
   @@index([propertyId, night], map: "attendance_marks_night_idx")
@@ -1334,33 +1337,33 @@ model AttendanceMark {
 /// role. Written only by the amend commands, which take who, when and the
 /// business date from the database rather than from their caller.
 model ReservationChange {
-  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId   String    @map("organization_id") @db.Uuid
-  propertyId       String    @map("property_id") @db.Uuid
-  reservationId    String    @map("reservation_id") @db.Uuid
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String    @map("organization_id") @db.Uuid
+  propertyId              String    @map("property_id") @db.Uuid
+  reservationId           String    @map("reservation_id") @db.Uuid
   /// The Stay a departure change or a move was made to; null for a booking not yet arrived.
-  stayId           String?   @map("stay_id") @db.Uuid
+  stayId                  String?   @map("stay_id") @db.Uuid
   /// `amended`, `departure_changed`, `moved` or `arrival_time_changed`.
-  kind             String
-  businessDate     DateTime  @map("business_date") @db.Date
-  fromStartsOn     DateTime  @map("from_starts_on") @db.Date
-  toStartsOn       DateTime  @map("to_starts_on") @db.Date
-  fromEndsOn       DateTime? @map("from_ends_on") @db.Date
-  toEndsOn         DateTime? @map("to_ends_on") @db.Date
-  fromUnitId       String    @map("from_unit_id") @db.Uuid
-  toUnitId         String    @map("to_unit_id") @db.Uuid
-  fromRateMinor    BigInt?   @map("from_rate_minor")
-  fromRateCurrency String?   @map("from_rate_currency") @db.Char(3)
-  toRateMinor      BigInt?   @map("to_rate_minor")
-  toRateCurrency   String?   @map("to_rate_currency") @db.Char(3)
+  kind                    String
+  businessDate            DateTime  @map("business_date") @db.Date
+  fromStartsOn            DateTime  @map("from_starts_on") @db.Date
+  toStartsOn              DateTime  @map("to_starts_on") @db.Date
+  fromEndsOn              DateTime? @map("from_ends_on") @db.Date
+  toEndsOn                DateTime? @map("to_ends_on") @db.Date
+  fromUnitId              String    @map("from_unit_id") @db.Uuid
+  toUnitId                String    @map("to_unit_id") @db.Uuid
+  fromRateMinor           BigInt?   @map("from_rate_minor")
+  fromRateCurrency        String?   @map("from_rate_currency") @db.Char(3)
+  toRateMinor             BigInt?   @map("to_rate_minor")
+  toRateCurrency          String?   @map("to_rate_currency") @db.Char(3)
   /// The expected arrival time before and after; only on `arrival_time_changed`.
   fromExpectedArrivalTime DateTime? @map("from_expected_arrival_time") @db.Time(0)
   toExpectedArrivalTime   DateTime? @map("to_expected_arrival_time") @db.Time(0)
   /// Why a Guest was moved: `fault`, `upgrade`, `guest_request` or `other`. Only on a move.
-  reasonKind       String?   @map("reason_kind")
-  note             String?
-  changedBy        String    @map("changed_by") @db.Uuid
-  changedAt        DateTime  @default(now()) @map("changed_at") @db.Timestamptz(6)
+  reasonKind              String?   @map("reason_kind")
+  note                    String?
+  changedBy               String    @map("changed_by") @db.Uuid
+  changedAt               DateTime  @default(now()) @map("changed_at") @db.Timestamptz(6)
 
   property    Property          @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   reservation Reservation       @relation(fields: [reservationId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction)
@@ -1436,8 +1439,8 @@ model WebhookEndpoint {
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
   removedAt      DateTime? @map("removed_at") @db.Timestamptz(6)
 
-  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  creator      User                  @relation("WebhookEndpointCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  creator      User                   @relation("WebhookEndpointCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
   secret       WebhookEndpointSecret?
   deliveries   WebhookDelivery[]
   failures     FailedOperation[]
@@ -1485,9 +1488,9 @@ model WebhookDelivery {
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  endpoint     WebhookEndpoint @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
-  property     Property        @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  endpoint     WebhookEndpoint  @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
+  property     Property         @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction)
   failure      FailedOperation?
 
   @@unique([id, organizationId])
@@ -1785,4 +1788,60 @@ model OrganizationBrandLogo {
   updater User              @relation(fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
 
   @@map("organization_brand_logos")
+}
+
+/// An uploaded file and what became of it (IMP-S1-*, ADR 0065). It writes no
+/// room or booking itself: each is made by its own command, under the
+/// uploader's session. Never deleted; the counts outlive the rows.
+model Import {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  propertyId      String    @map("property_id") @db.Uuid
+  kind            String
+  status          String    @default("staged")
+  fileName        String    @map("file_name")
+  uploadedBy      String    @map("uploaded_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  startedAt       DateTime? @map("started_at") @db.Timestamptz(6)
+  closedAt        DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedBy        String?   @map("closed_by") @db.Uuid
+  touchedAt       DateTime  @default(now()) @map("touched_at") @db.Timestamptz(6)
+  rowsForgottenAt DateTime? @map("rows_forgotten_at") @db.Timestamptz(6)
+  readyCount      Int       @default(0) @map("ready_count")
+  wrongCount      Int       @default(0) @map("wrong_count")
+  skippedCount    Int       @default(0) @map("skipped_count")
+  importedCount   Int       @default(0) @map("imported_count")
+  refusedCount    Int       @default(0) @map("refused_count")
+  leftCount       Int       @default(0) @map("left_count")
+
+  property Property    @relation(fields: [propertyId, organizationId], references: [id, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "imports_property_fkey")
+  uploader User        @relation("ImportUploader", fields: [uploadedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  closer   User?       @relation("ImportCloser", fields: [closedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  rows     ImportRow[]
+
+  @@unique([id, propertyId, organizationId], map: "imports_id_property_key")
+  /// One import runs at a Property at a time (IMP-S1-07).
+  @@unique([propertyId], map: "imports_one_running_per_property", where: raw("(status = 'importing'::text)"))
+  @@index([propertyId, createdAt(sort: Desc)], map: "imports_property_created_idx")
+  @@map("imports")
+}
+
+/// What the file held, row by row, and what became of each. Read by the
+/// uploader alone and forgotten after seven days.
+model ImportRow {
+  importId       String    @map("import_id") @db.Uuid
+  rowNumber      Int       @map("row_number")
+  organizationId String    @map("organization_id") @db.Uuid
+  propertyId     String    @map("property_id") @db.Uuid
+  state          String
+  cells          Json
+  problems       Json      @default("[]")
+  outcome        String?
+  resultId       String?   @map("result_id") @db.Uuid
+  settledAt      DateTime? @map("settled_at") @db.Timestamptz(6)
+
+  import Import @relation(fields: [importId, propertyId, organizationId], references: [id, propertyId, organizationId], onDelete: Restrict, onUpdate: NoAction, map: "import_rows_import_fkey")
+
+  @@id([importId, rowNumber])
+  @@map("import_rows")
 }

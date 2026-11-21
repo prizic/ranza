@@ -21,6 +21,7 @@ import {
   Palette,
   Settings,
   Sparkles,
+  Upload,
   Users,
   Wallet,
   Warehouse,
@@ -441,6 +442,19 @@ export const SCREENS: Screen[] = [
     module: "platform_core",
     icon: Download,
     blueprint: "7.5",
+    built: true,
+    section: "system",
+  },
+  // Decided by a permission alone, like the audit log: bringing an
+  // Organization's own records in is Platform Core and no package removes it
+  // (blueprint 19.1, IMP-S1-02).
+  {
+    segment: "import",
+    capability: "import",
+    permission: "import.run",
+    module: "platform_core",
+    icon: Upload,
+    blueprint: "19.1",
     built: true,
     section: "system",
   },

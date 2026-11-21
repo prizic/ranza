@@ -5,6 +5,10 @@ import {
   type ErrorBoundaryMessages,
 } from "./error-boundary-copy";
 import {
+  importsMessages,
+  type ImportsMessages,
+} from "./features/imports/messages";
+import {
   todayLayoutsMessages,
   type TodayLayoutsMessages,
 } from "./features/today/layouts/messages";
@@ -565,6 +569,7 @@ export interface Messages {
       | "manageRates"
       | "readDataExports"
       | "createDataExports"
+      | "runImports"
       | "createServiceRequests"
       | "manageServiceRequests"
       | "viewHr"
@@ -2156,6 +2161,7 @@ export interface Messages {
   };
   /** The desk layouts of Today (docs/features/today-layouts). */
   todayLayouts: TodayLayoutsMessages;
+  imports: ImportsMessages;
   /** The Today dashboard (docs/features/today-dashboard). */
   dashboard: {
     /** Greeting before noon, followed by the name. */
@@ -3206,6 +3212,7 @@ export interface Messages {
     organization: Record<"configured", string>;
     price_list: Record<"changed", string>;
     data_export: Record<"requested" | "downloaded", string>;
+    import: Record<"started" | "finished" | "stopped" | "discarded", string>;
     maintenance_request: Record<
       | "reported"
       | "moved"
@@ -3249,6 +3256,7 @@ export interface Messages {
     | "maintenance_equipment"
     | "business_day_close"
     | "data_export"
+    | "import"
     | "employee"
     | "leave_request"
     | "payroll_run"
@@ -4283,6 +4291,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageRates: "Gecelik fiyatları belirleme",
         readDataExports: "Veri dışa aktarımlarını görme ve indirme",
         createDataExports: "Veri dışa aktarımı isteme",
+        runImports: "Dosyadan içe aktarma",
         createServiceRequests: "Misafir talebi oluşturma",
         manageServiceRequests: "Misafir taleplerini yönetme",
         viewHr: "Personel kayıtlarını ve bordroyu görme",
@@ -5113,6 +5122,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     todayLayouts: todayLayoutsMessages.tr,
+    imports: importsMessages.tr,
     dashboard: {
       greetingMorning: "Günaydın,",
       greetingAfternoon: "İyi günler,",
@@ -7171,6 +7181,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       instalmentsWithdrawn: "Geri çekilen taksitler",
       revision: "Revizyon",
       totalMinor: "Toplam",
+      fileName: "Dosya",
+      ready: "Hazır satırlar",
+      wrong: "Düzeltilecek satırlar",
+      skipped: "Zaten var olanlar",
+      imported: "İçe aktarılanlar",
+      refused: "Reddedilenler",
+      left: "İçe aktarılmayanlar",
       roomNightsCharged: "Ücretlendirilen oda geceleri",
       roomNightsNotCharged: "Ücretlendirilmeyen oda geceleri",
       roomWasNotReady: "Giriş yapılırken oda hazır değildi",
@@ -7246,6 +7263,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       data_export: {
         requested: "Veri dışa aktarma istendi",
         downloaded: "Veri dışa aktarma indirildi",
+      },
+      import: {
+        started: "İçe aktarma başlatıldı",
+        finished: "İçe aktarma tamamlandı",
+        stopped: "İçe aktarma durduruldu",
+        discarded: "İçe aktarma önizlemesi atıldı",
       },
       maintenance_request: {
         reported: "Sorun bildirildi",
@@ -7331,6 +7354,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_equipment: "Ekipman",
       business_day_close: "İş günü",
       data_export: "Veri dışa aktarma",
+      import: "İçe aktarma",
       employee: "Personel",
       leave_request: "İzin talebi",
       payroll_run: "Bordro",
@@ -7605,6 +7629,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "Entegrasyonlar",
       branding: "Marka",
       "data-export": "Veri dışa aktarma",
+      import: "İçe aktarma",
       ledger: "Defter",
       "audit-log": "Denetim kaydı",
     },
@@ -8414,6 +8439,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageRates: "Set nightly rates",
         readDataExports: "See and download data exports",
         createDataExports: "Request a data export",
+        runImports: "Import from a file",
         createServiceRequests: "Raise a guest request",
         manageServiceRequests: "Manage guest requests",
         viewHr: "See staff records and payroll",
@@ -9249,6 +9275,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     todayLayouts: todayLayoutsMessages.en,
+    imports: importsMessages.en,
     dashboard: {
       greetingMorning: "Good morning,",
       greetingAfternoon: "Good afternoon,",
@@ -11314,6 +11341,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       instalmentsWithdrawn: "Instalments withdrawn",
       revision: "Revision",
       totalMinor: "Total",
+      fileName: "File",
+      ready: "Rows ready",
+      wrong: "Rows to fix",
+      skipped: "Already there",
+      imported: "Imported",
+      refused: "Refused",
+      left: "Not imported",
       roomNightsCharged: "Room nights charged",
       roomNightsNotCharged: "Room nights not charged",
       roomWasNotReady: "Room was not ready at check-in",
@@ -11389,6 +11423,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       data_export: {
         requested: "Data export requested",
         downloaded: "Data export downloaded",
+      },
+      import: {
+        started: "Import started",
+        finished: "Import finished",
+        stopped: "Import stopped",
+        discarded: "Import preview discarded",
       },
       maintenance_request: {
         reported: "Problem reported",
@@ -11473,6 +11513,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_request: "Maintenance request",
       maintenance_equipment: "Equipment",
       data_export: "Data export",
+      import: "Import",
       business_day_close: "Business day",
       employee: "Employee",
       leave_request: "Leave request",
@@ -11747,6 +11788,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "Integrations",
       branding: "Branding",
       "data-export": "Data export",
+      import: "Import",
       ledger: "Ledger",
       "audit-log": "Audit log",
     },
@@ -12535,6 +12577,7 @@ export const messages: Record<SupportedLocale, Messages> = {
         manageRates: "تحديد أسعار الليلة",
         readDataExports: "عرض عمليات التصدير وتنزيلها",
         createDataExports: "طلب تصدير البيانات",
+        runImports: "الاستيراد من ملف",
         createServiceRequests: "إنشاء طلب نزيل",
         manageServiceRequests: "إدارة طلبات النزلاء",
         viewHr: "عرض سجلات الموظفين وكشوف الرواتب",
@@ -13340,6 +13383,7 @@ export const messages: Record<SupportedLocale, Messages> = {
     },
 
     todayLayouts: todayLayoutsMessages.ar,
+    imports: importsMessages.ar,
     dashboard: {
       greetingMorning: "صباح الخير،",
       greetingAfternoon: "طاب يومك،",
@@ -15366,6 +15410,13 @@ export const messages: Record<SupportedLocale, Messages> = {
       instalmentsWithdrawn: "الأقساط المسحوبة",
       revision: "المراجعة",
       totalMinor: "الإجمالي",
+      fileName: "الملف",
+      ready: "صفوف جاهزة",
+      wrong: "صفوف تحتاج تصحيحًا",
+      skipped: "موجودة مسبقًا",
+      imported: "تم استيرادها",
+      refused: "مرفوضة",
+      left: "لم تُستورد",
       roomNightsCharged: "ليالي الغرف المحتسبة",
       roomNightsNotCharged: "ليالي الغرف غير المحاسَب عليها",
       roomWasNotReady: "لم تكن الغرفة جاهزة عند تسجيل الوصول",
@@ -15441,6 +15492,12 @@ export const messages: Record<SupportedLocale, Messages> = {
       data_export: {
         requested: "طُلب تصدير بيانات",
         downloaded: "نُزّل تصدير بيانات",
+      },
+      import: {
+        started: "بدأ الاستيراد",
+        finished: "اكتمل الاستيراد",
+        stopped: "أُوقف الاستيراد",
+        discarded: "أُهملت معاينة الاستيراد",
       },
       maintenance_request: {
         reported: "أُبلغ عن مشكلة",
@@ -15525,6 +15582,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       maintenance_request: "طلب صيانة",
       maintenance_equipment: "المعدات",
       data_export: "تصدير البيانات",
+      import: "الاستيراد",
       business_day_close: "يوم العمل",
       employee: "موظف",
       leave_request: "طلب إجازة",
@@ -15803,6 +15861,7 @@ export const messages: Record<SupportedLocale, Messages> = {
       integrations: "التكاملات",
       branding: "الهوية البصرية",
       "data-export": "تصدير البيانات",
+      import: "الاستيراد",
       ledger: "دفتر الأستاذ",
       "audit-log": "سجل التدقيق",
     },

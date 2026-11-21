@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { BusinessDayModule } from "./business-day/business-day.module";
 import { DataExportModule } from "./export/data-export.module";
+import { ImportsModule } from "./imports/imports.module";
 import { OutboxModule } from "./outbox/outbox.module";
 import { PaymentPlansModule } from "./payment-plans/payment-plans.module";
 import { WebhookDeliveryModule } from "./webhooks/webhook-delivery.module";
@@ -15,6 +16,7 @@ import { WebhookDeliveryModule } from "./webhooks/webhook-delivery.module";
     PaymentPlansModule,
     DataExportModule,
     WebhookDeliveryModule,
+    ImportsModule,
   ],
 })
 export class WorkerModule {}

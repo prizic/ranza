@@ -112,6 +112,7 @@ function screenOf(
     readiness?: Readonly<Record<string, RoomReadiness>> | null;
     reportable?: boolean;
     reservationsHref?: string | null;
+    importHref?: string | null;
     calendarHref?: string | null;
     departuresHref?: string | null;
     maintenanceHref?: string | null;
@@ -133,6 +134,11 @@ function screenOf(
             : options.departuresHref
         }
         housekeepingHref="/en/housekeeping?property=dd000003-0000-4000-8000-000000000001"
+        importHref={
+          options.importHref === undefined
+            ? "/en/import?property=dd000003-0000-4000-8000-000000000001"
+            : options.importHref
+        }
         initialFilter={
           options.initialFilter ?? { show: null, admits: null, block: null }
         }
@@ -173,6 +179,42 @@ function tileCount(label: string): string {
 }
 
 describe("the rooms map", () => {
+  it("IMP-S1-24: importing from a file is offered beside adding rooms, and only where it leads somewhere", () => {
+    render(screenOf("en"));
+    expect(
+      screen.getByRole("link", { name: "Import from a file" }),
+    ).toHaveAttribute(
+      "href",
+      "/en/import?property=dd000003-0000-4000-8000-000000000001",
+    );
+
+    // Somebody who may not open the import screen is not sent to a refusal.
+    cleanup();
+    render(screenOf("en", { importHref: null }));
+    expect(
+      screen.queryByRole("link", { name: "Import from a file" }),
+    ).toBeNull();
+
+    // An import adds each room as the importer, so somebody who may not add a
+    // room by hand would see every row refused.
+    cleanup();
+    render(screenOf("en", { mayConfigure: false }));
+    expect(
+      screen.queryByRole("link", { name: "Import from a file" }),
+    ).toBeNull();
+
+    cleanup();
+    render(screenOf("tr"));
+    expect(
+      screen.getByRole("link", { name: messages.tr.imports.roomsAction }),
+    ).toBeInTheDocument();
+    cleanup();
+    render(screenOf("ar"));
+    expect(
+      screen.getByRole("link", { name: messages.ar.imports.roomsAction }),
+    ).toBeInTheDocument();
+  });
+
   it("says when the next arrival is beside a free room, and only for that room (RB-S1-05)", () => {
     render(screenOf("en"));
     expect(screen.getByText("Free · Next arrival Oct 3")).toBeInTheDocument();

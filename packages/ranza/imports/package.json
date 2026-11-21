@@ -1,0 +1,23 @@
+{
+  "name": "@ranza/imports",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ranza/accommodation": "workspace:*",
+    "@ranza/core": "workspace:*",
+    "@ranza/db": "workspace:*",
+    "@ranza/platform-audit": "workspace:*",
+    "read-excel-file": "9.3.12",
+    "write-excel-file": "4.1.1"
+  }
+}

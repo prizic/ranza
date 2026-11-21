@@ -113,6 +113,13 @@ export const CONTEXT_KEYS = [
   "instalmentsWithdrawn",
   "revision",
   "totalMinor",
+  "fileName",
+  "ready",
+  "wrong",
+  "skipped",
+  "imported",
+  "refused",
+  "left",
 ] as const;
 
 export type ContextKey = (typeof CONTEXT_KEYS)[number];

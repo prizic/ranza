@@ -56,6 +56,7 @@ const REACH = {
   people: true,
   branding: true,
   integrations: true,
+  imports: true,
 };
 
 function pageOf(

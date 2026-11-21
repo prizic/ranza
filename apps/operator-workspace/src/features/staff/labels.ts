@@ -66,6 +66,7 @@ export const PERMISSION_CATALOGUE = [
   "attendance.take",
   "leave.grant",
   "guests.invite_to_portal",
+  "import.run",
 ] as const;
 
 export type ShippedRole = (typeof SHIPPED_ROLES)[number];
@@ -127,6 +128,7 @@ const MESSAGE_KEYS = {
   "rates.manage": "manageRates",
   "data_export.read": "readDataExports",
   "data_export.create": "createDataExports",
+  "import.run": "runImports",
   "guest_services.create_request": "createServiceRequests",
   "guest_services.manage_requests": "manageServiceRequests",
   "hr.view": "viewHr",
@@ -225,6 +227,7 @@ export const PERMISSION_SECTIONS = [
       "audit.read",
       "data_export.read",
       "data_export.create",
+      "import.run",
     ],
   },
 ] as const satisfies readonly {

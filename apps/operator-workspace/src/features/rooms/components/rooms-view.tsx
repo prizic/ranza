@@ -25,6 +25,7 @@ import {
   Search,
   Sparkles,
   SprayCan,
+  Upload,
   Users,
   Wrench,
   X,
@@ -90,6 +91,7 @@ export function RoomsView({
   calendarHref,
   departuresHref,
   maintenanceHref,
+  importHref,
   reservationsHref,
   initialFilter,
   initialView,
@@ -111,6 +113,8 @@ export function RoomsView({
   /** Maintenance at this Property, or null when the viewer may not open it. */
   maintenanceHref: string | null;
   /** Reservations at this Property, or null when the viewer may not open it. */
+  /** Guided import at this Property, or null where the viewer may not open it. */
+  importHref: string | null;
   reservationsHref: string | null;
   /**
    * What the address narrowed the map to: Today's Empty beds figures open it at
@@ -370,13 +374,26 @@ export function RoomsView({
     floorsMap.set(room.floor, floorUnits);
   }
 
+  // Typing rooms in and bringing them from a file are two ways to the same
+  // end, so they sit together. An import adds each room as the importer, so
+  // it is offered only to somebody who may add one by hand.
   const addRooms = mayConfigure ? (
-    <AddRoomsDialog
-      existingNames={data.units.map((unit) => unit.name)}
-      locale={locale}
-      onAdded={setAdded}
-      propertyId={propertyId}
-    />
+    <div className="flex flex-wrap items-center gap-2">
+      <AddRoomsDialog
+        existingNames={data.units.map((unit) => unit.name)}
+        locale={locale}
+        onAdded={setAdded}
+        propertyId={propertyId}
+      />
+      {importHref ? (
+        <Button asChild size="sm" variant="outline">
+          <Link href={importHref}>
+            <Upload aria-hidden="true" />
+            {t("imports.roomsAction")}
+          </Link>
+        </Button>
+      ) : null}
+    </div>
   ) : null;
 
   return (

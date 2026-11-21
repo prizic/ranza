@@ -25,6 +25,7 @@
     "@ranza/housekeeping": "workspace:*",
     "@ranza/hr": "workspace:*",
     "@ranza/i18n": "workspace:*",
+    "@ranza/imports": "workspace:*",
     "@ranza/integrations": "workspace:*",
     "@ranza/maintenance": "workspace:*",
     "@ranza/payment-plans": "workspace:*",

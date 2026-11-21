@@ -45,6 +45,8 @@ const { default: BrandingError } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/branding/error");
 const { default: DataExportError } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/data-export/error");
+const { default: ImportError } =
+  await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/import/error");
 const { default: PortfolioError } =
   await import("../../apps/operator-workspace/src/app/[locale]/(workspace)/portfolio/error");
 const { default: RoomCalendarError } =
@@ -178,6 +180,7 @@ describe("a screen with a boundary of its own (D-02)", () => {
   const SCREENS = [
     ["branding", BrandingError, "branding.render_failed"],
     ["data export", DataExportError, "data_export.render_failed"],
+    ["import", ImportError, "import.render_failed"],
     ["portfolio", PortfolioError, "portfolio.render_failed"],
     ["room calendar", RoomCalendarError, "room_calendar.render_failed"],
   ] as const;

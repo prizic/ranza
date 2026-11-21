@@ -1,0 +1,40 @@
+%% The states of an import and of one of its rows (blueprint 19.1).
+%% Anything not drawn here is forbidden. Every transition carries its command.
+%% An import is a record: it is finished or discarded and never deleted. Its rows
+%% are forgotten after seven days, because they hold what the file held.
+stateDiagram-v2
+  direction LR
+
+  state "staged (previewed, nothing written)" as i_staged
+  state "importing" as i_importing
+  state "finished" as i_finished
+  state "discarded" as i_discarded
+
+  [*] --> i_staged : stageImport / s1
+  i_staged --> i_importing : startImport, with a ready row / s1
+  i_staged --> i_discarded : discardImport, or the sweep after seven days / s1
+  i_importing --> i_importing : settleImportRow / s1
+  i_importing --> i_finished : settleImportRow, the last ready row / s1
+  i_importing --> i_finished : stopImport, or the sweep after seven days / s1
+  i_finished --> [*]
+  i_discarded --> [*]
+
+  state "ready" as r_ready
+  state "wrong (never imported)" as r_error
+  state "imported" as r_imported
+  state "already there (skipped)" as r_skipped
+  state "refused at the commit" as r_failed
+  state "left unimported" as r_left
+
+  [*] --> r_ready : stageImport / s1
+  [*] --> r_error : stageImport / s1
+  [*] --> r_skipped : stageImport, the record is already there / s1
+  r_ready --> r_imported : settleImportRow / s1
+  r_ready --> r_skipped : settleImportRow, taken since the preview / s1
+  r_ready --> r_failed : settleImportRow, the command refused / s1
+  r_ready --> r_left : stopImport, discardImport or the sweep / s1
+  r_error --> [*]
+  r_imported --> [*]
+  r_skipped --> [*]
+  r_failed --> [*]
+  r_left --> [*]

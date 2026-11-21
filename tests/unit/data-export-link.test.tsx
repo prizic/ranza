@@ -104,6 +104,7 @@ describe("an export named by the audit log (C-16)", () => {
     people: true,
     branding: true,
     integrations: true,
+    imports: true,
   };
 
   it("C-16: the log's link names the export, not just the screen", () => {
@@ -124,6 +125,7 @@ describe("an export named by the audit log (C-16)", () => {
         people: false,
         branding: false,
         integrations: false,
+        imports: false,
       }),
     ).toBeNull();
   });

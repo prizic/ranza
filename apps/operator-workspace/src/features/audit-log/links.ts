@@ -4,8 +4,8 @@ import { localizeHref, type SupportedLocale } from "@ranza/i18n";
  * Where a record's subject can be opened, when there is somewhere to open it.
  *
  * A booking opens on Reservations by its id, and a folio, a room or bed, a
- * Property, an Organization and a data export each have a screen that shows one
- * by id. The rest of the subjects have a screen of their own but none that
+ * Property, an Organization, a data export and an import each have a screen
+ * that shows one by id. The rest of the subjects have a screen of their own but none that
  * shows one alone, so they open the screen (audit 2026-11-07, C-02, C-03). A
  * stay is shown alone nowhere, so for it the log itself is the destination:
  * every record about it, and about the folios that belong with it (AUDIT-02).
@@ -23,6 +23,7 @@ export interface SubjectReach {
   people: boolean;
   branding: boolean;
   integrations: boolean;
+  imports: boolean;
 }
 
 export function subjectHref(
@@ -46,6 +47,8 @@ export function subjectHref(
       return reach.dataExport
         ? here("data-export", `&show=${subjectId}`)
         : null;
+    case "import":
+      return reach.imports ? here("import", `&record=${subjectId}`) : null;
     case "reservation":
       return reach.reservations
         ? here("reservations", `&open=${subjectId}`)

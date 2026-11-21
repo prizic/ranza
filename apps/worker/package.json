@@ -18,6 +18,7 @@
     "@ranza/business-day": "workspace:*",
     "@ranza/data-export": "workspace:*",
     "@ranza/db": "workspace:*",
+    "@ranza/imports": "workspace:*",
     "@ranza/integrations": "workspace:*",
     "@ranza/payment-plans": "workspace:*",
     "@ranza/platform-outbox": "workspace:*",

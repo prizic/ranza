@@ -36,6 +36,7 @@ const REACH = {
   people: true,
   branding: true,
   integrations: true,
+  imports: true,
 };
 
 function entry(overrides: Partial<AuditEntry>): AuditEntry {

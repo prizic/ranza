@@ -309,6 +309,7 @@ async function subjectReach(propertyId: string): Promise<SubjectReach> {
     people,
     branding,
     integrations,
+    imports,
   ] = await Promise.all(
     [
       "finance",
@@ -322,6 +323,7 @@ async function subjectReach(propertyId: string): Promise<SubjectReach> {
       "people",
       "branding",
       "integrations",
+      "import",
     ].map((segment) => screenProperties(gateOf(segment))),
   );
   const opensHere = (list: readonly { propertyId: string }[] | undefined) =>
@@ -338,5 +340,6 @@ async function subjectReach(propertyId: string): Promise<SubjectReach> {
     people: opensHere(people),
     branding: opensHere(branding),
     integrations: opensHere(integrations),
+    imports: opensHere(imports),
   };
 }

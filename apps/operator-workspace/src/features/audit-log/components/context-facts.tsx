@@ -348,6 +348,14 @@ export function ContextFacts({
     if (PERMISSIONS.has(key) && Array.isArray(value)) {
       return list(value, (item) => permission(String(item)));
     }
+    // An import's kind in the import screen's own words.
+    if (
+      key === "kind" &&
+      action.startsWith("import.") &&
+      (value === "rooms" || value === "people")
+    ) {
+      return t(`imports.kinds.${value}`);
+    }
     // The words the HR screen already uses for a kind of contract.
     if (key === "contractType" && typeof value === "string") {
       return t(`hr.employees.contracts.${value as "full_time"}`);

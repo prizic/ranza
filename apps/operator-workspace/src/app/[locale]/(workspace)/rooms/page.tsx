@@ -77,6 +77,7 @@ export default async function RoomsPage({
         "room-calendar",
         "maintenance",
         "departures",
+        "import",
       ]),
       roomsReadiness(property.propertyId),
     ],
@@ -97,6 +98,7 @@ export default async function RoomsPage({
       calendarHref={links["room-calendar"]}
       departuresHref={links.departures}
       housekeepingHref={links.housekeeping}
+      importHref={links.import}
       initialFilter={initialFilter}
       initialView={search.view === "list" ? "list" : "map"}
       locale={locale}

@@ -9,6 +9,7 @@ import {
   type OutboxDispatcher,
 } from "@ranza/platform-outbox";
 import { createExportRunner, type ExportRunner } from "@ranza/data-export";
+import { createImportSweeper, type ImportSweeper } from "@ranza/imports";
 import {
   createInstalmentPoster,
   type InstalmentPoster,
@@ -63,6 +64,7 @@ export interface Composition {
   instalments: InstalmentPoster;
   dataExport: ExportRunner;
   webhooks: WebhookDelivery;
+  imports: ImportSweeper;
   disconnect(): Promise<void>;
 }
 
@@ -104,6 +106,7 @@ export async function createComposition(): Promise<Composition> {
     instalments: createInstalmentPoster({ db }),
     dataExport: createExportRunner({ db }),
     webhooks: createWebhookDelivery({ db, allowLoopbackHttp }),
+    imports: createImportSweeper({ db }),
     disconnect: () => db.$disconnect(),
   };
 }

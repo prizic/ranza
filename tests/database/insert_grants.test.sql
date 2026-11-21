@@ -527,8 +527,8 @@ select is_empty(
 select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef),
-  108,
-  'the definer sweep looked at 108 functions; change this number deliberately');
+  112,
+  'the definer sweep looked at 112 functions; change this number deliberately');
 
 -- The pattern wants whitespace after the verb, so a trigger comparing
 -- tg_op = 'UPDATE' does not count as writing — app.unit_holds_one_occupancy
@@ -539,8 +539,8 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'app' and p.prosecdef
       and regexp_replace(p.prosrc, '--[^\n]*', '', 'g') ~* '(insert|update|delete)\s'),
-  37,
-  'thirty-seven of them write, which is what makes the assertion above a test');
+  40,
+  'forty of them write, which is what makes the assertion above a test');
 
 -- Part B: the inventory itself, so a hundred-and-eighth definer is a red test
 -- rather than a silent addition. The first eleven are the ones IG-12 gives a
@@ -698,6 +698,17 @@ select is(
 -- properties_with_instalments_due() lists which Properties have something to
 -- charge, as properties_due_for_close() does, because every Property's clock
 -- must be read before any Organization's context can be set.
+--
+-- Four are guided import's (ADR 0065). Two are triggers: the counts of an
+-- import follow its rows, which the uploader may settle and whose counts they
+-- may not write, and closing an import leaves its ready rows unimported, which
+-- whoever stops somebody else's import cannot see. Each asks that its caller
+-- reaches the import's Property or is the worker for its Organization, and
+-- they are the thirty-eighth and thirty-ninth writers. forget_import_rows() is
+-- the worker's, names worker_organization_id() and deletes what a file held
+-- after seven days: the fortieth. imports_past_retention() writes nothing and
+-- lists which imports are due across Organizations, for the reason
+-- properties_due_for_close() does.
 select set_eq(
   $$select p.proname::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname = 'app' and p.prosecdef$$,
@@ -756,8 +767,10 @@ select set_eq(
         'resident_next_instalments',
         'reveal_guest_identity_document',
         'create_payment_plan', 'revise_payment_plan', 'instalments_ready',
-        'properties_with_instalments_due', 'post_due_instalments'],
-  'and they are exactly the hundred and eight the design gives a reason for');
+        'properties_with_instalments_due', 'post_due_instalments',
+        'import_counts_follow_rows', 'import_closing_leaves_rows',
+        'imports_past_retention', 'forget_import_rows'],
+  'and they are exactly the hundred and twelve the design gives a reason for');
 
 -- ---------------------------------------------------------------------------
 -- Who asks the three-gate question (IG-14)

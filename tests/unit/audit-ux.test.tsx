@@ -44,6 +44,7 @@ const REACH = {
   people: true,
   branding: true,
   integrations: true,
+  imports: true,
 };
 const NO_REACH = {
   finance: false,
@@ -57,6 +58,7 @@ const NO_REACH = {
   people: false,
   branding: false,
   integrations: false,
+  imports: false,
 };
 
 function entry(overrides: Partial<AuditEntry>): AuditEntry {

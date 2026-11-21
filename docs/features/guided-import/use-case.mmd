@@ -1,0 +1,66 @@
+%% Guided import (blueprint 19.1): rooms and beds, then the people who live in them.
+%% Slice 1: the import record and rooms. Slice 2: Guests and Residents with their
+%% booking. Slice 3: the payment plan and a balance carried over.
+%% A flowchart rather than usecase-beta: see .claude/skills/feature-design/SKILL.md step b.
+%% UML directions: include points base --> included. extend points extension --> base.
+%% Refusals are test cases, not use cases: they are rows in edge-cases.csv.
+%%
+%% Platform Core, not a capability: whoever holds import.run at a Property imports
+%% there, whatever its operating model (ADR 0057). Every record is made by the
+%% command a person would have used by hand, under the importer's own session.
+flowchart TD
+
+  IMPORTER["Staff Member holding import.run<br/>an owner or a manager"]
+  OTHER["Another holder of import.run<br/>at the same Property"]
+  WORKER["The worker<br/>the seven-day sweep"]
+
+  subgraph S1["slice 1 &mdash; the import and rooms"]
+    TEMPLATE(["Download the template<br/>in the viewer's language, one example row"])
+    UPLOAD(["Upload a file<br/>xlsx or csv, read and not kept"])
+    MAP(["Match columns<br/>prefilled from the headers"])
+    PREVIEW(["Preview every row<br/>ready, already there, or wrong and why"])
+    START(["Import the ready rows"])
+    RESUME(["Carry on an import<br/>that a closed tab paused"])
+    STOP(["Stop an import<br/>the rest is left unimported"])
+    DISCARD(["Discard a preview"])
+    REPORT(["Download the result<br/>and the rows to fix"])
+    LIST(["See past imports<br/>who, when, how many"])
+    ROOMS(["Add rooms and beds<br/>by accommodation's own command"])
+    SWEEP(["Forget the rows after seven days<br/>the counts stay"])
+  end
+
+  subgraph S2["slice 2 &mdash; the people"]
+    PEOPLE(["Book each Guest or Resident into a bed<br/>by reservations' own command"])
+    INHOUSE(["Check in whoever already lives there"])
+    PARTICULARS(["Record particulars and the identity document"])
+  end
+
+  subgraph S3["slice 3 &mdash; the money"]
+    PLAN(["Make the payment plan<br/>instalments from today on"])
+    CARRIED(["Post a balance carried over<br/>one Folio line"])
+  end
+
+  IMPORTER --> TEMPLATE
+  IMPORTER --> UPLOAD
+  IMPORTER --> START
+  IMPORTER --> RESUME
+  IMPORTER --> DISCARD
+  IMPORTER --> REPORT
+  IMPORTER --> LIST
+  OTHER --> LIST
+  OTHER --> STOP
+  IMPORTER --> STOP
+  WORKER --> SWEEP
+
+  UPLOAD --> MAP
+  MAP --> PREVIEW
+  START --> ROOMS
+  START --> PEOPLE
+  RESUME --> START
+  PEOPLE --> INHOUSE
+  PEOPLE --> PARTICULARS
+  PEOPLE --> PLAN
+  PEOPLE --> CARRIED
+
+  %% Open question: undoing a whole import (IMP-DEF-01).
+  %% Open question: inviting every imported Resident to the Portal (IMP-DEF-04).
